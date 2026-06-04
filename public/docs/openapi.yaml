@@ -1,0 +1,232 @@
+openapi: 3.0.3
+info:
+  title: PT Susanti Megah - Distributor Channel API
+  description: Dokumentasi API Backend Distributor Channel menggunakan Laravel 12.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000/api/distributor-channel
+    description: Local Server
+paths:
+  /v1/auth/login:
+    post:
+      summary: User Login
+      description: Login menggunakan username dan password untuk mendapatkan Bearer Token.
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  example: admin
+                password:
+                  type: string
+                  example: password
+      responses:
+        '200':
+          description: Login sukses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginSuccessResponse'
+        '422':
+          description: Validasi gagal / kredensial salah / user tidak aktif
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/auth/logout:
+    post:
+      summary: User Logout
+      description: Menghapus token aktif yang digunakan untuk request.
+      tags:
+        - Authentication
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Logout sukses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessageResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/auth/refresh:
+    post:
+      summary: Refresh Token
+      description: Menghapus token lama dan mengeluarkan token baru.
+      tags:
+        - Authentication
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Refresh token sukses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/auth/change-password:
+    post:
+      summary: Ubah Password
+      description: Mengubah password user yang sedang login dengan memvalidasi password lama.
+      tags:
+        - Authentication
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - old_password
+                - new_password
+                - new_password_confirmation
+              properties:
+                old_password:
+                  type: string
+                  example: password
+                new_password:
+                  type: string
+                  example: passwordbaru123
+                new_password_confirmation:
+                  type: string
+                  example: passwordbaru123
+      responses:
+        '200':
+          description: Password berhasil diubah
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessageResponse'
+        '422':
+          description: Validasi gagal (misal password lama salah, atau password baru sama dengan password lama)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    SuccessMessageResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Success
+        data:
+          type: object
+          nullable: true
+          example: null
+
+    LoginSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Login berhasil.
+        data:
+          type: object
+          properties:
+            user:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  example: 1
+                name:
+                  type: string
+                  example: Administrator PT Susanti Megah
+                username:
+                  type: string
+                  example: admin
+                email:
+                  type: string
+                  example: admin@susantimegah.com
+                is_active:
+                  type: boolean
+                  example: true
+            access_token:
+              type: string
+              example: 1|laravel_sanctum_token_string_here
+            token_type:
+              type: string
+              example: Bearer
+
+    RefreshTokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Token berhasil diperbarui.
+        data:
+          type: object
+          properties:
+            access_token:
+              type: string
+              example: 2|new_laravel_sanctum_token_string_here
+            token_type:
+              type: string
+              example: Bearer
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Validation Error
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            username:
+              - "Kredensial yang diberikan salah."
