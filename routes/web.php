@@ -32,6 +32,20 @@ Route::get('/openapi.yaml', function () {
 
 
 use Illuminate\Support\Facades\Artisan;
+
+// Route untuk menjalankan migrasi baru (membuat tabel yang kurang)
+Route::get('/run-migration-darurat', function () {
+    Artisan::call('migrate');
+    return "Database migration successfully executed!";
+});
+
+// Route untuk reset database + jalankan seeder sekaligus
+Route::get('/run-migrate-fresh-darurat', function () {
+    Artisan::call('migrate:fresh', ['--seed' => true]);
+    return "Database fresh migration and seed successfully executed!";
+});
+
+// Route untuk jalankan seeder saja
 Route::get('/run-seeder-darurat', function () {
     Artisan::call('db:seed');
     return "Database seeder successfully executed!";
