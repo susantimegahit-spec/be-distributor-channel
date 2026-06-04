@@ -29,3 +29,10 @@ Route::get('/openapi.yaml', function () {
         'Content-Type' => 'text/yaml'
     ]);
 });
+
+
+use Illuminate\Support\Facades\Artisan;
+Route::get('/run-seeder-darurat', function () {
+    Artisan::call('db:seed');
+    return "Database seeder successfully executed!";
+});

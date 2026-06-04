@@ -4,6 +4,8 @@ info:
   description: Dokumentasi API Backend Distributor Channel menggunakan Laravel 12.
   version: 1.0.0
 servers:
+  - url: http://api-dev.susantimegah.com/api/distributor-channel
+    description: Development Server
   - url: http://localhost:8000/api/distributor-channel
     description: Local Server
 paths:
