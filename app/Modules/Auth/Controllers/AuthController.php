@@ -39,14 +39,20 @@ class AuthController extends Controller
             $request->input('password')
         );
 
+        $user = $result['user'];
+        $user->load('role.roleMenu');
+
         return $this->successResponse([
             'user' => [
-                'id' => $result['user']->id,
-                'name' => $result['user']->name,
-                'username' => $result['user']->username,
-                'email' => $result['user']->email,
-                'is_active' => $result['user']->is_active,
+                'id' => $user->id,
+                'name' => $user->name,
+                'username' => $user->username,
+                'email' => $user->email,
+                'role_id' => $user->role_id,
+                'role_name' => $user->role?->name,
+                'is_active' => $user->is_active,
             ],
+            'menu' => $user->role?->roleMenu?->menu ?? [],
             'access_token' => $result['token'],
             'token_type' => 'Bearer',
         ], 'Login berhasil.');

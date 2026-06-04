@@ -13,9 +13,12 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
+        $adminRole = \App\Models\Role::where('name', 'administrator')->first();
+
         User::updateOrCreate(
             ['username' => 'admin'],
             [
+                'role_id' => $adminRole ? $adminRole->id : null,
                 'name' => 'Administrator PT Susanti Megah',
                 'email' => 'admin@susantimegah.com',
                 'password' => Hash::make('password'),
