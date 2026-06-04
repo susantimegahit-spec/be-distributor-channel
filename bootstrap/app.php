@@ -17,11 +17,14 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->render(function (\Illuminate\Validation\ValidationException $e, \Illuminate\Http\Request $request) {
             if ($request->is('api/*')) {
+                $errors = $e->errors();
+                $firstError = collect($errors)->flatten()->first() ?: 'Validation Error';
+
                 return response()->json([
                     'success' => false,
-                    'status' => 422,
-                    'message' => 'Validation Error',
-                    'errors' => $e->errors(),
+                    'status_code' => 422,
+                    'message' => $firstError,
+                    'errors' => (object) [],
                 ], 200);
             }
         });
@@ -30,7 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($request->is('api/*')) {
                 return response()->json([
                     'success' => false,
-                    'status' => 401,
+                    'status_code' => 401,
                     'message' => 'Unauthenticated.',
                     'errors' => (object) [],
                 ], 200);
@@ -41,7 +44,7 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($request->is('api/*')) {
                 return response()->json([
                     'success' => false,
-                    'status' => 404,
+                    'status_code' => 404,
                     'message' => 'Resource not found.',
                     'errors' => (object) [],
                 ], 200);

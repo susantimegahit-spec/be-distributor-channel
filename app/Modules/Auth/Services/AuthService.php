@@ -42,13 +42,13 @@ class AuthService
 
         if (!$user || !Hash::check($password, $user->password)) {
             throw ValidationException::withMessages([
-                'username' => ['Kredensial yang diberikan salah.'],
+                'username' => ['The username or password you entered is incorrect.'],
             ]);
         }
 
         if (!$user->is_active) {
             throw ValidationException::withMessages([
-                'username' => ['Akun Anda tidak aktif.'],
+                'username' => ['Your account is inactive.'],
             ]);
         }
 

@@ -218,15 +218,12 @@ components:
         success:
           type: boolean
           example: false
+        status_code:
+          type: integer
+          example: 422
         message:
           type: string
-          example: Validation Error
+          example: The username or password you entered is incorrect.
         errors:
           type: object
-          additionalProperties:
-            type: array
-            items:
-              type: string
-          example:
-            username:
-              - "Kredensial yang diberikan salah."
+          example: {}
