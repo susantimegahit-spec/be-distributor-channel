@@ -19,9 +19,10 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($request->is('api/*')) {
                 return response()->json([
                     'success' => false,
+                    'status' => 422,
                     'message' => 'Validation Error',
                     'errors' => $e->errors(),
-                ], 422);
+                ], 200);
             }
         });
 
@@ -29,9 +30,10 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($request->is('api/*')) {
                 return response()->json([
                     'success' => false,
+                    'status' => 401,
                     'message' => 'Unauthenticated.',
                     'errors' => (object) [],
-                ], 401);
+                ], 200);
             }
         });
 
@@ -39,9 +41,10 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($request->is('api/*')) {
                 return response()->json([
                     'success' => false,
+                    'status' => 404,
                     'message' => 'Resource not found.',
                     'errors' => (object) [],
-                ], 404);
+                ], 200);
             }
         });
 
@@ -65,9 +68,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
                 return response()->json([
                     'success' => false,
+                    'status' => $status,
                     'message' => $message,
                     'errors' => (object) $errors,
-                ], $status);
+                ], 200);
             }
         });
     })->create();
