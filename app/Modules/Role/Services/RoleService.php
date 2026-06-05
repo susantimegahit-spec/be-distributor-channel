@@ -1,0 +1,77 @@
+<?php
+
+namespace App\Modules\Role\Services;
+
+use App\Modules\Role\Repositories\RoleRepositoryInterface;
+use App\Models\Role;
+use Illuminate\Database\Eloquent\Collection;
+
+class RoleService
+{
+    protected RoleRepositoryInterface $roleRepository;
+
+    /**
+     * RoleService constructor.
+     *
+     * @param RoleRepositoryInterface $roleRepository
+     */
+    public function __construct(RoleRepositoryInterface $roleRepository)
+    {
+        $this->roleRepository = $roleRepository;
+    }
+
+    /**
+     * Get all roles.
+     *
+     * @return Collection
+     */
+    public function getAllRoles(): Collection
+    {
+        return $this->roleRepository->all();
+    }
+
+    /**
+     * Get a role by its ID.
+     *
+     * @param int $id
+     * @return Role|null
+     */
+    public function getRoleById(int $id): ?Role
+    {
+        return $this->roleRepository->findById($id);
+    }
+
+    /**
+     * Create a new role.
+     *
+     * @param array $data
+     * @return Role
+     */
+    public function createRole(array $data): Role
+    {
+        return $this->roleRepository->create($data);
+    }
+
+    /**
+     * Update an existing role.
+     *
+     * @param int $id
+     * @param array $data
+     * @return Role|null
+     */
+    public function updateRole(int $id, array $data): ?Role
+    {
+        return $this->roleRepository->update($id, $data);
+    }
+
+    /**
+     * Delete a role.
+     *
+     * @param int $id
+     * @return bool
+     */
+    public function deleteRole(int $id): bool
+    {
+        return $this->roleRepository->delete($id);
+    }
+}

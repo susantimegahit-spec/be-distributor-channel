@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\File;
 use App\Modules\Auth\Repositories\UserRepositoryInterface;
 use App\Modules\Auth\Repositories\UserRepository;
+use App\Modules\Role\Repositories\RoleRepositoryInterface;
+use App\Modules\Role\Repositories\RoleRepository;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,6 +21,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             UserRepositoryInterface::class,
             UserRepository::class
+        );
+        $this->app->bind(
+            RoleRepositoryInterface::class,
+            RoleRepository::class
         );
     }
 
