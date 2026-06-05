@@ -36,7 +36,7 @@ return Application::configure(basePath: dirname(__DIR__))
                     'status_code' => 401,
                     'message' => 'Unauthenticated.',
                     'errors' => (object) [],
-                ], 200);
+                ], 401);
             }
         });
 
