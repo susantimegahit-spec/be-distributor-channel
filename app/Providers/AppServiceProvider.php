@@ -10,6 +10,8 @@ use App\Modules\Auth\Repositories\UserRepositoryInterface;
 use App\Modules\Auth\Repositories\UserRepository;
 use App\Modules\Role\Repositories\RoleRepositoryInterface;
 use App\Modules\Role\Repositories\RoleRepository;
+use App\Modules\User\Repositories\UserCrudRepositoryInterface;
+use App\Modules\User\Repositories\UserCrudRepository;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -25,6 +27,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             RoleRepositoryInterface::class,
             RoleRepository::class
+        );
+        $this->app->bind(
+            UserCrudRepositoryInterface::class,
+            UserCrudRepository::class
         );
     }
 

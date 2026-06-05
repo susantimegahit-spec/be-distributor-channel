@@ -448,6 +448,224 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/users:
+    get:
+      summary: List all users
+      description: Mendapatkan daftar semua user beserta detail role mereka.
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar user berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Create a new user
+      description: Menambahkan user baru ke dalam sistem.
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - username
+                - email
+                - password
+                - role_id
+              properties:
+                name:
+                  type: string
+                  example: Budi Santoso
+                username:
+                  type: string
+                  example: budis
+                email:
+                  type: string
+                  format: email
+                  example: budi@susantimegah.com
+                password:
+                  type: string
+                  format: password
+                  example: password123
+                role_id:
+                  type: integer
+                  example: 5
+                is_active:
+                  type: boolean
+                  example: true
+      responses:
+        '200':
+          description: User berhasil dibuat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '422':
+          description: Validasi gagal (misal email/username sudah terpakai)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/users/{id}:
+    get:
+      summary: Get user detail
+      description: Mendapatkan detail satu user beserta rolenya berdasarkan ID.
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari user
+      responses:
+        '200':
+          description: Detail user berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '404':
+          description: User tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      summary: Update an existing user
+      description: Memperbarui data profil user, status aktif, password, atau role.
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Budi Santoso Updated
+                username:
+                  type: string
+                  example: budisu
+                email:
+                  type: string
+                  format: email
+                  example: budi.new@susantimegah.com
+                password:
+                  type: string
+                  format: password
+                  example: passwordbaru123
+                role_id:
+                  type: integer
+                  example: 2
+                is_active:
+                  type: boolean
+                  example: false
+      responses:
+        '200':
+          description: User berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '422':
+          description: Validasi gagal / email atau username bentrok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete a user
+      description: Menghapus data user berdasarkan ID.
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari user
+      responses:
+        '200':
+          description: User berhasil dihapus
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessageResponse'
+        '404':
+          description: User tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -646,3 +864,61 @@ components:
           example: Detail role berhasil diambil.
         data:
           $ref: '#/components/schemas/Role'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 2
+        name:
+          type: string
+          example: Budi Santoso
+        username:
+          type: string
+          example: budis
+        email:
+          type: string
+          example: budi@susantimegah.com
+        role_id:
+          type: integer
+          example: 5
+        is_active:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-06-05T08:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-06-05T08:00:00.000000Z"
+        role:
+          $ref: '#/components/schemas/Role'
+
+    UserListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Daftar user berhasil diambil.
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+
+    UserResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Detail user berhasil diambil.
+        data:
+          $ref: '#/components/schemas/User'
