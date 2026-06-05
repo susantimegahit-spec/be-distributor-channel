@@ -27,7 +27,7 @@ class RoleRepository implements RoleRepositoryInterface
      */
     public function findById(int $id): ?Role
     {
-        return Role::find($id);
+        return Role::with('roleMenu')->find($id);
     }
 
     /**
