@@ -63,6 +63,7 @@ class RoleController extends Controller
     public function store(CreateRoleRequest $request): JsonResponse
     {
         $role = $this->roleService->createRole($request->validated());
+        $role->load('roleMenu');
 
         return $this->successResponse($role, 'Role berhasil dibuat.', 200);
     }
@@ -82,6 +83,8 @@ class RoleController extends Controller
             abort(404, 'Role tidak ditemukan.');
         }
 
+        $role->load('roleMenu');
+
         return $this->successResponse($role, 'Role berhasil diperbarui.');
     }
 
@@ -100,5 +103,44 @@ class RoleController extends Controller
         }
 
         return $this->successResponse(null, 'Role berhasil dihapus.');
+    }
+
+    /**
+     * Get the menu configuration for a specific role.
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function getMenu(int $id): JsonResponse
+    {
+        $menu = $this->roleService->getRoleMenu($id);
+
+        if ($menu === null) {
+            abort(404, 'Role tidak ditemukan.');
+        }
+
+        return $this->successResponse($menu, 'Menu role berhasil diambil.');
+    }
+
+    /**
+     * Update the menu configuration for a specific role.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function updateMenu(\Illuminate\Http\Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'menu' => 'required|array',
+        ]);
+
+        $roleMenu = $this->roleService->updateRoleMenu($id, $request->input('menu'));
+
+        if (!$roleMenu) {
+            abort(404, 'Role tidak ditemukan.');
+        }
+
+        return $this->successResponse($roleMenu->menu, 'Menu role berhasil diperbarui.');
     }
 }

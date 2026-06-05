@@ -181,6 +181,11 @@ paths:
                 is_active:
                   type: boolean
                   example: true
+                menu:
+                  type: array
+                  items:
+                    type: object
+                  example: []
       responses:
         '200':
           description: Role berhasil dibuat
@@ -263,6 +268,11 @@ paths:
                 is_active:
                   type: boolean
                   example: false
+                menu:
+                  type: array
+                  items:
+                    type: object
+                  example: []
       responses:
         '200':
           description: Role berhasil diperbarui
@@ -310,6 +320,121 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessMessageResponse'
+        '404':
+          description: Role tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/roles/{id}/menu:
+    get:
+      summary: Get menu configuration for a specific role
+      description: Mendapatkan data struktur menu (JSON) milik role tertentu berdasarkan ID.
+      tags:
+        - Roles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari role
+      responses:
+        '200':
+          description: Menu role berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Menu role berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+        '404':
+          description: Role tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      summary: Update menu configuration for a specific role
+      description: Memperbarui struktur menu dinamis (JSON) milik role tertentu.
+      tags:
+        - Roles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari role
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - menu
+              properties:
+                menu:
+                  type: array
+                  items:
+                    type: object
+                  example:
+                    - id: "charts-maps"
+                      title: "Charts-maps"
+                      type: "group"
+                      children: []
+      responses:
+        '200':
+          description: Menu role berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Menu role berhasil diperbarui.
+                  data:
+                    type: array
+                    items:
+                      type: object
+        '422':
+          description: Validasi gagal (misal field menu kosong atau bukan array)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Role tidak ditemukan
           content:
@@ -470,6 +595,31 @@ components:
           type: string
           format: date-time
           example: "2026-06-05T08:00:00.000000Z"
+        role_menu:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            role_id:
+              type: integer
+              example: 1
+            menu:
+              type: array
+              items:
+                type: object
+              example: []
+            is_active:
+              type: boolean
+              example: true
+            created_at:
+              type: string
+              format: date-time
+              example: "2026-06-05T08:00:00.000000Z"
+            updated_at:
+              type: string
+              format: date-time
+              example: "2026-06-05T08:00:00.000000Z"
 
     RoleListResponse:
       type: object

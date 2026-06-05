@@ -24,6 +24,7 @@ class CreateRoleRequest extends FormRequest
         return [
             'name' => 'required|string|unique:roles,name',
             'is_active' => 'sometimes|boolean',
+            'menu' => 'nullable|array',
         ];
     }
 }

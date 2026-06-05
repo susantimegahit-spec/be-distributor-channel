@@ -9,4 +9,6 @@ Route::prefix('v1/roles')->middleware('auth:sanctum')->group(function () {
     Route::post('/', [RoleController::class, 'store']);
     Route::put('/{id}', [RoleController::class, 'update']);
     Route::delete('/{id}', [RoleController::class, 'destroy']);
+    Route::get('/{id}/menu', [RoleController::class, 'getMenu']);
+    Route::put('/{id}/menu', [RoleController::class, 'updateMenu']);
 });

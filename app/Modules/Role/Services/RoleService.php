@@ -74,4 +74,41 @@ class RoleService
     {
         return $this->roleRepository->delete($id);
     }
+
+    /**
+     * Get menu configuration for a role.
+     *
+     * @param int $roleId
+     * @return array|null
+     */
+    public function getRoleMenu(int $roleId): ?array
+    {
+        $role = $this->getRoleById($roleId);
+        if (!$role) {
+            return null;
+        }
+
+        $role->load('roleMenu');
+        return $role->roleMenu?->menu ?? [];
+    }
+
+    /**
+     * Update menu configuration for a role.
+     *
+     * @param int $roleId
+     * @param array $menuData
+     * @return \App\Models\RoleMenu|null
+     */
+    public function updateRoleMenu(int $roleId, array $menuData): ?\App\Models\RoleMenu
+    {
+        $role = $this->getRoleById($roleId);
+        if (!$role) {
+            return null;
+        }
+
+        return \App\Models\RoleMenu::updateOrCreate(
+            ['role_id' => $roleId],
+            ['menu' => $menuData, 'is_active' => true]
+        );
+    }
 }

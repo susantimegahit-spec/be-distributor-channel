@@ -5,6 +5,8 @@ namespace App\Modules\Role\Repositories;
 use App\Models\Role;
 use Illuminate\Database\Eloquent\Collection;
 
+use Illuminate\Support\Facades\DB;
+
 class RoleRepository implements RoleRepositoryInterface
 {
     /**
@@ -29,18 +31,30 @@ class RoleRepository implements RoleRepositoryInterface
     }
 
     /**
-     * Create a new role.
+     * Create a new role with its menu.
      *
      * @param array $data
      * @return Role
      */
     public function create(array $data): Role
     {
-        return Role::create($data);
+        return DB::transaction(function () use ($data) {
+            $role = Role::create([
+                'name' => $data['name'],
+                'is_active' => $data['is_active'] ?? true,
+            ]);
+
+            $role->roleMenu()->create([
+                'menu' => $data['menu'] ?? [],
+                'is_active' => true,
+            ]);
+
+            return $role;
+        });
     }
 
     /**
-     * Update an existing role.
+     * Update an existing role and its menu.
      *
      * @param int $id
      * @param array $data
@@ -48,12 +62,31 @@ class RoleRepository implements RoleRepositoryInterface
      */
     public function update(int $id, array $data): ?Role
     {
-        $role = $this->findById($id);
-        if ($role) {
-            $role->update($data);
-            return $role;
-        }
-        return null;
+        return DB::transaction(function () use ($id, $data) {
+            $role = $this->findById($id);
+            if ($role) {
+                $roleUpdateData = [];
+                if (isset($data['name'])) {
+                    $roleUpdateData['name'] = $data['name'];
+                }
+                if (isset($data['is_active'])) {
+                    $roleUpdateData['is_active'] = $data['is_active'];
+                }
+                if (!empty($roleUpdateData)) {
+                    $role->update($roleUpdateData);
+                }
+
+                if (array_key_exists('menu', $data)) {
+                    $role->roleMenu()->updateOrCreate(
+                        ['role_id' => $role->id],
+                        ['menu' => $data['menu'] ?? [], 'is_active' => true]
+                    );
+                }
+
+                return $role;
+            }
+            return null;
+        });
     }
 
     /**

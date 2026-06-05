@@ -26,6 +26,7 @@ class UpdateRoleRequest extends FormRequest
         return [
             'name' => 'sometimes|string|unique:roles,name,' . $roleId,
             'is_active' => 'sometimes|boolean',
+            'menu' => 'nullable|array',
         ];
     }
 }
