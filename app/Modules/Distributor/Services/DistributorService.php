@@ -57,7 +57,7 @@ class DistributorService
      */
     public function syncFromSap(?int $userId = null): array
     {
-        $response = Http::timeout(15)->get('http://103.18.133.187:3100/api/ListCust');
+        $response = Http::timeout(15)->post('http://103.18.133.187:3100/api/ListCust');
 
         if (!$response->successful()) {
             throw new \Exception('Gagal menghubungi API SAP.');
