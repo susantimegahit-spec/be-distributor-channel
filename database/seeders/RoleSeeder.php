@@ -33,42 +33,12 @@ class RoleSeeder extends Seeder
 
         // Seed default menu for 'administrator'
         $adminMenuJson = [
-            [
-                'id' => 'charts-maps',
-                'title' => 'Charts-maps',
-                'type' => 'group',
-                'children' => [
-                    [
-                        'id' => 'charts',
-                        'title' => 'Charts',
-                        'type' => 'collapse',
-                        'icon' => 'ph ph-chart-donut',
-                        'selected' => true,
-                        'children' => [
-                            [
-                                'id' => 'apex-chart',
-                                'title' => 'Apex chart',
-                                'type' => 'item',
-                                'url' => '/charts/apex-chart',
-                            ],
-                        ],
-                    ],
-                    [
-                        'id' => 'map',
-                        'title' => 'Map',
-                        'type' => 'collapse',
-                        'icon' => 'ph ph-map-trifold',
-                        'children' => [
-                            [
-                                'id' => 'google-map',
-                                'title' => 'Google map',
-                                'type' => 'item',
-                                'url' => '/map/google-map',
-                            ],
-                        ],
-                    ],
-                ],
-            ],
+            "master-distributor",
+            "master-product",
+            "master-buying-price",
+            "master-selling-price",
+            "order-list",
+            "order-retur"
         ];
 
         $adminRole = $roleModels['administrator'];
