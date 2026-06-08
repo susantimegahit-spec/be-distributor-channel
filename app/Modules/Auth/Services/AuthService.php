@@ -32,13 +32,14 @@ class AuthService
      *
      * @param  string  $username
      * @param  string  $password
+     * @param  string  $codeCustomer
      * @return array
      *
      * @throws ValidationException
      */
-    public function login(string $username, string $password): array
+    public function login(string $username, string $password, string $codeCustomer): array
     {
-        $user = $this->userRepository->findByUsername($username);
+        $user = $this->userRepository->findByUsernameAndCodeCustomer($username, $codeCustomer);
 
         if (!$user || !Hash::check($password, $user->password)) {
             throw ValidationException::withMessages([

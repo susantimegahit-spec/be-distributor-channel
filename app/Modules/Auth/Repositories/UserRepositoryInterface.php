@@ -7,12 +7,13 @@ use App\Models\User;
 interface UserRepositoryInterface
 {
     /**
-     * Find a user by username.
+     * Find a user by username and customer code.
      *
      * @param  string  $username
+     * @param  string  $codeCustomer
      * @return User|null
      */
-    public function findByUsername(string $username): ?User;
+    public function findByUsernameAndCodeCustomer(string $username, string $codeCustomer): ?User;
 
     /**
      * Find a user by ID.

@@ -22,6 +22,7 @@ class UserSeeder extends Seeder
                 'name' => 'Administrator PT Susanti Megah',
                 'email' => 'admin@susantimegah.com',
                 'password' => Hash::make('password'),
+                'code_customer' => 'C110000411',
                 'is_active' => true,
             ]
         );

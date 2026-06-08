@@ -32,6 +32,10 @@ class AppServiceProvider extends ServiceProvider
             UserCrudRepositoryInterface::class,
             UserCrudRepository::class
         );
+        $this->app->bind(
+            \App\Modules\Distributor\Repositories\DistributorRepositoryInterface::class,
+            \App\Modules\Distributor\Repositories\DistributorRepository::class
+        );
     }
 
     /**

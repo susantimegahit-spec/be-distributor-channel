@@ -1,0 +1,69 @@
+<?php
+
+namespace App\Modules\Distributor\Controllers;
+
+use App\Http\Controllers\Controller;
+use App\Modules\Distributor\Services\DistributorService;
+use App\Traits\ApiResponseFormatter;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+class DistributorController extends Controller
+{
+    use ApiResponseFormatter;
+
+    protected DistributorService $distributorService;
+
+    /**
+     * DistributorController constructor.
+     *
+     * @param  DistributorService  $distributorService
+     */
+    public function __construct(DistributorService $distributorService)
+    {
+        $this->distributorService = $distributorService;
+    }
+
+    /**
+     * Display a listing of the distributors.
+     *
+     * @return JsonResponse
+     */
+    public function index(): JsonResponse
+    {
+        $distributors = $this->distributorService->getAll();
+
+        return $this->successResponse($distributors, 'Daftar distributor berhasil diambil.');
+    }
+
+    /**
+     * Display the specified distributor.
+     *
+     * @param  int  $id
+     * @return JsonResponse
+     */
+    public function show(int $id): JsonResponse
+    {
+        $distributor = $this->distributorService->getById($id);
+
+        if (!$distributor) {
+            abort(404, 'Distributor tidak ditemukan.');
+        }
+
+        return $this->successResponse($distributor, 'Detail distributor berhasil diambil.');
+    }
+
+    /**
+     * Synchronize distributors from SAP.
+     *
+     * @param  Request  $request
+     * @return JsonResponse
+     */
+    public function sync(Request $request): JsonResponse
+    {
+        $userId = $request->user()?->id;
+        $syncedData = $this->distributorService->syncFromSap($userId);
+
+        return $this->successResponse($syncedData, 'Data distributor berhasil disinkronisasi dari SAP.');
+    }
+}

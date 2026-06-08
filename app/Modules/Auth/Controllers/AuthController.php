@@ -36,7 +36,8 @@ class AuthController extends Controller
     {
         $result = $this->authService->login(
             $request->input('username'),
-            $request->input('password')
+            $request->input('password'),
+            $request->input('code_customer')
         );
 
         $user = $result['user'];
@@ -50,6 +51,7 @@ class AuthController extends Controller
                 'email' => $user->email,
                 'role_id' => $user->role_id,
                 'role_name' => $user->role?->name,
+                'code_customer' => $user->code_customer,
                 'is_active' => $user->is_active,
             ],
             'menu' => $user->role?->roleMenu?->menu ?? [],

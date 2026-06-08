@@ -23,11 +23,15 @@ paths:
               type: object
               required:
                 - username
+                - code_customer
                 - password
               properties:
                 username:
                   type: string
                   example: admin
+                code_customer:
+                  type: string
+                  example: C110000411
                 password:
                   type: string
                   example: password
@@ -666,6 +670,85 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/distributors:
+    get:
+      summary: List all distributors
+      description: Mendapatkan daftar semua distributor yang ada di sistem.
+      tags:
+        - Distributors
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar distributor berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistributorListResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/distributors/sync:
+    post:
+      summary: Sync distributors from SAP
+      description: Melakukan sinkronisasi data master distributor dari SAP ke database lokal.
+      tags:
+        - Distributors
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sinkronisasi data distributor berhasil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistributorListResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/distributors/{id}:
+    get:
+      summary: Get distributor detail
+      description: Mendapatkan detail satu distributor berdasarkan ID.
+      tags:
+        - Distributors
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari distributor
+      responses:
+        '200':
+          description: Detail distributor berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistributorResponse'
+        '404':
+          description: Distributor tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -720,6 +803,9 @@ components:
                 role_name:
                   type: string
                   example: administrator
+                code_customer:
+                  type: string
+                  example: C110000411
                 is_active:
                   type: boolean
                   example: true
@@ -922,3 +1008,65 @@ components:
           example: Detail user berhasil diambil.
         data:
           $ref: '#/components/schemas/User'
+
+    Distributor:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        code_customer:
+          type: string
+          example: C110000411
+        name:
+          type: string
+          example: PT XYZ
+        address:
+          type: string
+          nullable: true
+          example: Jl. Dummy No. 123, Jakarta
+        phone:
+          type: string
+          nullable: true
+          example: 021-12345678
+        email:
+          type: string
+          nullable: true
+          example: info@xyz.com
+        status:
+          type: integer
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-06-08T08:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-06-08T08:00:00.000000Z"
+
+    DistributorListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Daftar distributor berhasil diambil.
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Distributor'
+
+    DistributorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Detail distributor berhasil diambil.
+        data:
+          $ref: '#/components/schemas/Distributor'

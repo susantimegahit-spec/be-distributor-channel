@@ -25,6 +25,7 @@ class User extends Authenticatable
         'username',
         'email',
         'password',
+        'code_customer',
         'is_active',
     ];
 
@@ -58,5 +59,13 @@ class User extends Authenticatable
     public function role(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Role::class);
+    }
+
+    /**
+     * Get the distributor associated with the user.
+     */
+    public function distributor(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Distributor::class, 'code_customer', 'code_customer');
     }
 }

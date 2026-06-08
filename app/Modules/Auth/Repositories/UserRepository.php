@@ -8,14 +8,17 @@ use Illuminate\Support\Facades\Hash;
 class UserRepository implements UserRepositoryInterface
 {
     /**
-     * Find a user by username.
+     * Find a user by username and customer code.
      *
      * @param  string  $username
+     * @param  string  $codeCustomer
      * @return User|null
      */
-    public function findByUsername(string $username): ?User
+    public function findByUsernameAndCodeCustomer(string $username, string $codeCustomer): ?User
     {
-        return User::where('username', $username)->first();
+        return User::where('username', $username)
+            ->where('code_customer', $codeCustomer)
+            ->first();
     }
 
     /**

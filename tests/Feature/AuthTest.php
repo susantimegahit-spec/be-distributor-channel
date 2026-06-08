@@ -18,12 +18,20 @@ class AuthTest extends TestCase
     {
         parent::setUp();
 
+        // Create distributor
+        \App\Models\Distributor::create([
+            'code_customer' => 'DUMMY001',
+            'name' => 'Dummy Distributor',
+            'status' => 1,
+        ]);
+
         // Create standard active user
         $this->user = User::create([
             'name' => 'Active User',
             'username' => 'activeuser',
             'email' => 'active@example.com',
             'password' => Hash::make($this->password),
+            'code_customer' => 'DUMMY001',
             'is_active' => true,
         ]);
     }
@@ -35,6 +43,7 @@ class AuthTest extends TestCase
     {
         $response = $this->postJson('/api/distributor-channel/v1/auth/login', [
             'username' => 'activeuser',
+            'code_customer' => 'DUMMY001',
             'password' => $this->password,
         ]);
 
@@ -43,7 +52,7 @@ class AuthTest extends TestCase
                 'success',
                 'message',
                 'data' => [
-                    'user' => ['id', 'name', 'username', 'email', 'is_active'],
+                    'user' => ['id', 'name', 'username', 'email', 'code_customer', 'is_active'],
                     'access_token',
                     'token_type',
                 ]
@@ -54,6 +63,7 @@ class AuthTest extends TestCase
                 'data' => [
                     'user' => [
                         'username' => 'activeuser',
+                        'code_customer' => 'DUMMY001',
                     ]
                 ]
             ]);
@@ -72,6 +82,7 @@ class AuthTest extends TestCase
     {
         $response = $this->postJson('/api/distributor-channel/v1/auth/login', [
             'username' => 'activeuser',
+            'code_customer' => 'DUMMY001',
             'password' => 'wrongpassword',
         ]);
 
@@ -99,11 +110,13 @@ class AuthTest extends TestCase
             'username' => 'inactiveuser',
             'email' => 'inactive@example.com',
             'password' => Hash::make($this->password),
+            'code_customer' => 'DUMMY001',
             'is_active' => false,
         ]);
 
         $response = $this->postJson('/api/distributor-channel/v1/auth/login', [
             'username' => 'inactiveuser',
+            'code_customer' => 'DUMMY001',
             'password' => $this->password,
         ]);
 
