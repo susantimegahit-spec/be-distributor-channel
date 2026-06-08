@@ -749,6 +749,195 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/sales-orders:
+    get:
+      summary: List all sales orders
+      description: Mendapatkan daftar semua sales order. Jika diakses oleh user distributor, hanya menampilkan sales order miliknya.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan status order
+      responses:
+        '200':
+          description: Daftar sales order berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderListResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Create sales order draft
+      description: Membuat draft sales order baru beserta detail baris itemnya.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveSalesOrderRequest'
+      responses:
+        '200':
+          description: Draft sales order berhasil dibuat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderResponse'
+        '403':
+          description: Hak akses ditolak (hanya untuk distributor)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validasi input gagal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-orders/{id}:
+    get:
+      summary: Get sales order detail
+      description: Mendapatkan detail satu sales order beserta detail itemnya berdasarkan ID.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order
+      responses:
+        '200':
+          description: Detail sales order berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderResponse'
+        '404':
+          description: Sales order tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      summary: Update draft sales order
+      description: Memperbarui draft sales order (hanya diperbolehkan jika status order masih DRAFT).
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveSalesOrderRequest'
+      responses:
+        '200':
+          description: Draft sales order berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderResponse'
+        '404':
+          description: Sales order tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validasi gagal atau status bukan DRAFT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete draft sales order
+      description: Menghapus draft sales order (hanya diperbolehkan jika status order masih DRAFT).
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order
+      responses:
+        '200':
+          description: Draft sales order berhasil dihapus
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessageResponse'
+        '404':
+          description: Sales order tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Gagal menghapus karena status bukan DRAFT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -1070,3 +1259,293 @@ components:
           example: Detail distributor berhasil diambil.
         data:
           $ref: '#/components/schemas/Distributor'
+
+    SaveSalesOrderRequest:
+      type: object
+      required:
+        - card_code
+        - doc_date
+        - slp_code
+        - lines
+      properties:
+        card_code:
+          type: string
+          example: C110003074
+        po_number:
+          type: string
+          example: PO1212-ABC
+        doc_date:
+          type: string
+          format: date
+          example: "2026-02-25"
+        doc_due_date:
+          type: string
+          format: date
+          example: "2026-02-25"
+        slp_code:
+          type: integer
+          example: 0
+        cntct_code:
+          type: integer
+          example: -1
+        pay_to_code:
+          type: string
+          example: ALAMAT PENAGIHAN
+        address:
+          type: string
+          example: "KOMPLEK PURI MUTIARA BLOK B 5-6, SUNTER\r\n14350 JAKARTA UTARA\r\nINDONESIA"
+        ship_to_code:
+          type: string
+          example: ALAMAT KIRIM
+        address2:
+          type: string
+          example: "KOMPLEK PURI MUTIARA BLOK B 5-6, SUNTER\r\n14350 JAKARTA UTARA\r\nINDONESIA"
+        comments:
+          type: string
+          example: Test ADD
+        id_discount:
+          type: string
+          example: "260310699"
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/SaveSalesOrderDetailRequest'
+
+    SaveSalesOrderDetailRequest:
+      type: object
+      required:
+        - item_code
+        - quantity
+        - unit_price
+        - line_total
+      properties:
+        item_code:
+          type: string
+          example: E65
+        quantity:
+          type: number
+          example: 3000000
+        unit_msr:
+          type: string
+          example: Kg
+        uom_entry:
+          type: integer
+          example: 1
+        whs_code:
+          type: string
+          example: FG04
+        unit_price:
+          type: number
+          example: 124500000.00
+        disc_percent:
+          type: number
+          example: 0
+        vat_group:
+          type: string
+          example: S1
+        line_total:
+          type: number
+          example: 124500000.00
+        free_text:
+          type: string
+          example: ""
+        ocr_code:
+          type: string
+          example: SBY
+        ocr_code2:
+          type: string
+          example: GRM
+        ocr_code3:
+          type: string
+          example: MKT
+
+    SalesOrderDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        sales_order_id:
+          type: integer
+          example: 1
+        item_code:
+          type: string
+          example: E65
+        quantity:
+          type: string
+          example: "3000000.0000"
+        unit_msr:
+          type: string
+          example: Kg
+        uom_entry:
+          type: integer
+          example: 1
+        whs_code:
+          type: string
+          example: FG04
+        unit_price:
+          type: string
+          example: "124500000.00"
+        disc_percent:
+          type: string
+          example: "0.00"
+        vat_group:
+          type: string
+          example: S1
+        line_total:
+          type: string
+          example: "124500000.00"
+        free_text:
+          type: string
+          nullable: true
+          example: ""
+        ocr_code:
+          type: string
+          nullable: true
+          example: SBY
+        ocr_code2:
+          type: string
+          nullable: true
+          example: GRM
+        ocr_code3:
+          type: string
+          nullable: true
+          example: MKT
+
+    SalesOrder:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        order_no:
+          type: string
+          example: SO-20260608-0001
+        distributor_id:
+          type: integer
+          example: 1
+        card_code:
+          type: string
+          example: C110003074
+        customer_name:
+          type: string
+          example: PT XYZ
+        po_number:
+          type: string
+          nullable: true
+          example: PO1212-ABC
+        doc_date:
+          type: string
+          format: date
+          example: "2026-02-25"
+        doc_due_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-02-25"
+        slp_code:
+          type: integer
+          nullable: true
+          example: 0
+        cntct_code:
+          type: integer
+          example: -1
+        pay_to_code:
+          type: string
+          nullable: true
+          example: ALAMAT PENAGIHAN
+        address:
+          type: string
+          nullable: true
+          example: "KOMPLEK PURI MUTIARA BLOK B 5-6, SUNTER"
+        ship_to_code:
+          type: string
+          nullable: true
+          example: ALAMAT KIRIM
+        address2:
+          type: string
+          nullable: true
+          example: "KOMPLEK PURI MUTIARA BLOK B 5-6, SUNTER"
+        disc_percent:
+          type: string
+          example: "0.00"
+        doc_total:
+          type: string
+          example: "124500000.00"
+        comments:
+          type: string
+          nullable: true
+          example: Test ADD
+        id_discount:
+          type: string
+          nullable: true
+          example: "260310699"
+        status:
+          type: string
+          example: DRAFT
+        sap_doc_entry:
+          type: integer
+          nullable: true
+        sap_doc_num:
+          type: string
+          nullable: true
+        sap_error:
+          type: string
+          nullable: true
+        sap_discount_code:
+          type: string
+          nullable: true
+        submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+        integrated_at:
+          type: string
+          format: date-time
+          nullable: true
+        delivery_date:
+          type: string
+          format: date-time
+          nullable: true
+        arrived_date:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-06-08T08:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-06-08T08:00:00.000000Z"
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalesOrderDetail'
+
+    SalesOrderResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Detail sales order berhasil diambil.
+        data:
+          $ref: '#/components/schemas/SalesOrder'
+
+    SalesOrderListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Daftar sales order berhasil diambil.
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalesOrder'

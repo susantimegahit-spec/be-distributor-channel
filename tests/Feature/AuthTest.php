@@ -86,17 +86,11 @@ class AuthTest extends TestCase
             'password' => 'wrongpassword',
         ]);
 
-        $response->assertStatus(422)
-            ->assertJsonStructure([
-                'success',
-                'message',
-                'errors' => [
-                    'username'
-                ]
-            ])
+        $response->assertStatus(200)
             ->assertJson([
                 'success' => false,
-                'message' => 'Validation Error',
+                'status_code' => 422,
+                'message' => 'The username or password you entered is incorrect.',
             ]);
     }
 
@@ -120,12 +114,12 @@ class AuthTest extends TestCase
             'password' => $this->password,
         ]);
 
-        $response->assertStatus(422)
+        $response->assertStatus(200)
             ->assertJson([
                 'success' => false,
-                'message' => 'Validation Error',
-            ])
-            ->assertJsonValidationErrors(['username']);
+                'status_code' => 422,
+                'message' => 'Your account is inactive.',
+            ]);
     }
 
     /**
@@ -229,7 +223,7 @@ class AuthTest extends TestCase
     public function test_change_password_wrong_old_password(): void
     {
         $token = $this->user->createToken('test_token')->plainTextToken;
-
+ 
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token,
         ])->postJson('/api/distributor-channel/v1/auth/change-password', [
@@ -237,18 +231,22 @@ class AuthTest extends TestCase
             'new_password' => 'newpassword123',
             'new_password_confirmation' => 'newpassword123',
         ]);
-
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['old_password']);
+ 
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => false,
+                'status_code' => 422,
+                'message' => 'Password lama salah.',
+            ]);
     }
-
+ 
     /**
      * Test change password fails when new password is same as old password.
      */
     public function test_change_password_same_new_password(): void
     {
         $token = $this->user->createToken('test_token')->plainTextToken;
-
+ 
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token,
         ])->postJson('/api/distributor-channel/v1/auth/change-password', [
@@ -256,8 +254,12 @@ class AuthTest extends TestCase
             'new_password' => $this->password,
             'new_password_confirmation' => $this->password,
         ]);
-
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['new_password']);
+ 
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => false,
+                'status_code' => 422,
+                'message' => 'Password baru tidak boleh sama dengan password lama.',
+            ]);
     }
 }

@@ -1,0 +1,78 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class SalesOrder extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'order_no',
+        'distributor_id',
+        'card_code',
+        'customer_name',
+        'po_number',
+        'doc_date',
+        'doc_due_date',
+        'slp_code',
+        'cntct_code',
+        'pay_to_code',
+        'address',
+        'ship_to_code',
+        'address2',
+        'disc_percent',
+        'doc_total',
+        'comments',
+        'id_discount',
+        'status',
+        'sap_doc_entry',
+        'sap_doc_num',
+        'sap_error',
+        'sap_discount_code',
+        'submitted_at',
+        'integrated_at',
+        'delivery_date',
+        'arrived_date',
+        'approved_by',
+        'approved_at',
+        'rejected_by',
+        'rejected_at',
+        'reject_reason',
+        'created_by',
+        'updated_by',
+    ];
+
+    protected $casts = [
+        'doc_date' => 'date',
+        'doc_due_date' => 'date',
+        'disc_percent' => 'decimal:2',
+        'doc_total' => 'decimal:2',
+        'submitted_at' => 'datetime',
+        'integrated_at' => 'datetime',
+        'delivery_date' => 'datetime',
+        'arrived_date' => 'datetime',
+        'approved_at' => 'datetime',
+        'rejected_at' => 'datetime',
+    ];
+
+    /**
+     * Get the details for the sales order.
+     */
+    public function details(): HasMany
+    {
+        return $this->hasMany(SalesOrderDetail::class);
+    }
+
+    /**
+     * Get the distributor that owns the sales order.
+     */
+    public function distributor(): BelongsTo
+    {
+        return $this->belongsTo(Distributor::class, 'distributor_id');
+    }
+}

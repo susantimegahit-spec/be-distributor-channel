@@ -7,6 +7,8 @@ use App\Modules\AuditLog\Services\AuditLogService;
 use Illuminate\Database\Eloquent\Collection;
 use App\Models\Distributor;
 
+use Illuminate\Support\Facades\Http;
+
 class DistributorService
 {
     protected DistributorRepositoryInterface $distributorRepository;
@@ -48,36 +50,40 @@ class DistributorService
     }
 
     /**
-     * Synchronize distributors from SAP (Mock implementation).
+     * Synchronize distributors from SAP.
      *
      * @param  int|null  $userId
      * @return array
      */
     public function syncFromSap(?int $userId = null): array
     {
-        // Mock data from SAP
-        $sapData = [
-            [
-                'code_customer' => 'C110000411',
-                'name' => 'PT XYZ',
-                'address' => 'Jl. Dummy No. 123, Jakarta',
-                'phone' => '021-12345678',
-                'email' => 'info@xyz.com',
-                'status' => 1,
-            ],
-            [
-                'code_customer' => 'C110000412',
-                'name' => 'PT Berkah Abadi',
-                'address' => 'Jl. Pahlawan No. 45, Surabaya',
-                'phone' => '031-87654321',
-                'email' => 'contact@berkahabadi.com',
-                'status' => 1,
-            ]
-        ];
+        $response = Http::timeout(15)->get('http://103.18.133.187:3100/api/ListCust');
 
+        if (!$response->successful()) {
+            throw new \Exception('Gagal menghubungi API SAP.');
+        }
+
+        $body = $response->json();
+        
+        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
+            throw new \Exception('API SAP mengembalikan error: ' . ($body['Message'] ?? 'Unknown error'));
+        }
+
+        $sapData = $body['Result'] ?? [];
         $synced = [];
-        foreach ($sapData as $data) {
-            $synced[] = $this->distributorRepository->upsertByCode($data);
+
+        foreach ($sapData as $item) {
+            // Kita filter hanya yang SubGroup nya 'Distributor' (case-insensitive)
+            if (isset($item['SubGroup']) && strcasecmp($item['SubGroup'], 'distributor') === 0) {
+                $synced[] = $this->distributorRepository->upsertByCode([
+                    'code_customer' => $item['CardCode'],
+                    'name' => $item['CardName'],
+                    'address' => $item['Address'] ?? $item['MailAddres'] ?? null,
+                    'phone' => $item['Phone1'] ?? null,
+                    'email' => $item['E_Mail'] ?? null,
+                    'status' => 1,
+                ]);
+            }
         }
 
         // Log to Audit Log if user is authenticated
