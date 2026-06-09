@@ -721,6 +721,73 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/distributors/addresses:
+    get:
+      summary: Get distributor addresses from SAP
+      description: Mengambil data alamat distributor secara real-time dari API SAP.
+      tags:
+        - Distributors
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: card_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kode Customer / CardCode dari SAP (Bisa menggunakan param 'CustomQuery' juga).
+          example: C110003175
+        - name: CustomQuery
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kode Customer / CardCode dari SAP.
+          example: C110003175
+      responses:
+        '200':
+          description: Daftar alamat berhasil diambil dari SAP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar alamat berhasil diambil dari SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        CardCode:
+                          type: string
+                          example: C110003175
+                        Address:
+                          type: string
+                          example: ALAMAT PENAGIHAN
+                        AdresType:
+                          type: string
+                          example: B
+                        Street:
+                          type: string
+                          example: JL. AMD PERGUDANGAN KARIANGAU SQUARE NO.10 RT.010 KARIANGAU BALIKPAPAN BARAT,
+        '422':
+          description: Parameter wajib diisi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Gagal menghubungi API SAP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /v1/distributors/{id}:
     get:
       summary: Get distributor detail
@@ -751,6 +818,85 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/items:
+    get:
+      summary: List all items
+      description: Mendapatkan daftar semua item hasil sinkronisasi SAP.
+      tags:
+        - Items
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kata kunci untuk mencari item berdasarkan ItemCode atau ItemName (case-insensitive).
+      responses:
+        '200':
+          description: Daftar item berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar item berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Item'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/items/sync:
+    post:
+      summary: Sync items from SAP
+      description: Melakukan sinkronisasi data master item/produk dari SAP ke database lokal.
+      tags:
+        - Items
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sinkronisasi data item berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data item berhasil disinkronisasi dari SAP.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Item'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Gagal menghubungi API SAP
           content:
             application/json:
               schema:
@@ -1002,6 +1148,10 @@ components:
                 code_customer:
                   type: string
                   example: C110000411
+                name_distributor:
+                  type: string
+                  nullable: true
+                  example: PT XYZ
                 is_active:
                   type: boolean
                   example: true
@@ -1282,6 +1432,42 @@ components:
           example: Detail distributor berhasil diambil.
         data:
           $ref: '#/components/schemas/Distributor'
+
+    Item:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        item_code:
+          type: string
+          example: A26
+        item_name:
+          type: string
+          example: TOP 250 M @ 10 KG / BAL
+        suom_entry:
+          type: integer
+          nullable: true
+          example: 4
+        sal_unit_msr:
+          type: string
+          nullable: true
+          example: Bal
+        per_kg:
+          type: string
+          nullable: true
+          example: "10.0000"
+        status:
+          type: integer
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-06-09T08:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-06-09T08:00:00.000000Z"
 
     SaveSalesOrderRequest:
       type: object

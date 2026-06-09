@@ -102,4 +102,29 @@ class DistributorService
 
         return $synced;
     }
+
+    /**
+     * Get distributor addresses from SAP.
+     *
+     * @param  string  $customQuery
+     * @return array
+     */
+    public function getAddressesFromSap(string $customQuery): array
+    {
+        $response = Http::timeout(15)->post('http://103.18.133.187:3100/api/GetAddress', [
+            'CustomQuery' => $customQuery,
+        ]);
+
+        if (!$response->successful()) {
+            throw new \Exception('Gagal menghubungi API SAP untuk mengambil alamat.');
+        }
+
+        $body = $response->json();
+
+        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
+            throw new \Exception('API SAP mengembalikan error: ' . ($body['Message'] ?? 'Unknown error'));
+        }
+
+        return $body['Result'] ?? [];
+    }
 }

@@ -68,4 +68,25 @@ class DistributorController extends Controller
 
         return $this->successResponse($syncedData, 'Data distributor berhasil disinkronisasi dari SAP.');
     }
+    /**
+     * Get distributor addresses from SAP.
+     *
+     * @param  Request  $request
+     * @return JsonResponse
+     */
+    public function getAddresses(Request $request): JsonResponse
+    {
+        $cardCode = $request->query('card_code') ?? $request->query('CustomQuery');
+
+        if (!$cardCode) {
+            return $this->errorResponse('Parameter card_code atau CustomQuery wajib diisi.', 422);
+        }
+
+        try {
+            $addresses = $this->distributorService->getAddressesFromSap($cardCode);
+            return $this->successResponse($addresses, 'Daftar alamat berhasil diambil dari SAP.');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
 }

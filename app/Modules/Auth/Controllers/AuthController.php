@@ -41,7 +41,7 @@ class AuthController extends Controller
         );
 
         $user = $result['user'];
-        $user->load('role.roleMenu');
+        $user->load(['role.roleMenu', 'distributor']);
 
         return $this->successResponse([
             'user' => [
@@ -52,6 +52,7 @@ class AuthController extends Controller
                 'role_id' => $user->role_id,
                 'role_name' => $user->role?->name,
                 'code_customer' => $user->code_customer,
+                'name_distributor' => $user->distributor?->name,
                 'is_active' => $user->is_active,
             ],
             'menu' => $user->role?->roleMenu?->menu ?? [],
