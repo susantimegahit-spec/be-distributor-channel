@@ -1222,6 +1222,22 @@ components:
           type: string
           nullable: true
           example: info@xyz.com
+        mail_address:
+          type: string
+          nullable: true
+          example: JL DSN GEBRUKAN DESA SRIKATON
+        contact_person:
+          type: string
+          nullable: true
+          example: SAKTI SETIA SANTOSA, PT.
+        sub_group:
+          type: string
+          nullable: true
+          example: Distributor
+        depo:
+          type: string
+          nullable: true
+          example: TULUNGAGUNG
         status:
           type: integer
           example: 1
