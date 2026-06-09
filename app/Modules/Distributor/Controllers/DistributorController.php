@@ -27,11 +27,13 @@ class DistributorController extends Controller
     /**
      * Display a listing of the distributors.
      *
+     * @param  Request  $request
      * @return JsonResponse
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $distributors = $this->distributorService->getAll();
+        $filters = $request->only(['search']);
+        $distributors = $this->distributorService->getAll($filters);
 
         return $this->successResponse($distributors, 'Daftar distributor berhasil diambil.');
     }

@@ -678,6 +678,13 @@ paths:
         - Distributors
       security:
         - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Keyword untuk mencari distributor berdasarkan nama, code, alamat, depo, dll.
       responses:
         '200':
           description: Daftar distributor berhasil diambil

@@ -10,11 +10,27 @@ class DistributorRepository implements DistributorRepositoryInterface
     /**
      * Get all distributors.
      *
+     * @param  array  $filters
      * @return Collection<int, Distributor>
      */
-    public function getAll(): Collection
+    public function getAll(array $filters = []): Collection
     {
-        return Distributor::all();
+        $query = Distributor::query();
+
+        if (!empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('code_customer', 'like', "%{$search}%")
+                  ->orWhere('name', 'like', "%{$search}%")
+                  ->orWhere('address', 'like', "%{$search}%")
+                  ->orWhere('mail_address', 'like', "%{$search}%")
+                  ->orWhere('contact_person', 'like', "%{$search}%")
+                  ->orWhere('sub_group', 'like', "%{$search}%")
+                  ->orWhere('depo', 'like', "%{$search}%");
+            });
+        }
+
+        return $query->get();
     }
 
     /**

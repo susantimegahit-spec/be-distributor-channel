@@ -195,6 +195,54 @@ class DistributorTest extends TestCase
     }
 
     /**
+     * Test search distributors.
+     */
+    public function test_search_distributors(): void
+    {
+        // Create another distributor to test search filtering
+        Distributor::create([
+            'code_customer' => 'C110000412',
+            'name' => 'PT Berkah Abadi',
+            'address' => 'Jl. Pahlawan No. 45, Surabaya',
+            'phone' => '031-87654321',
+            'email' => 'contact@berkahabadi.com',
+            'mail_address' => 'Jl. Pahlawan Kantor Cabang',
+            'contact_person' => 'Jane Smith',
+            'sub_group' => 'Distributor',
+            'depo' => 'SURABAYA',
+            'status' => 1,
+        ]);
+
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        // Search by name "XYZ"
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/distributor-channel/v1/distributors?search=XYZ');
+
+        $response->assertStatus(200)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.code_customer', 'C110000411');
+
+        // Search by depo "SURABAYA"
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/distributor-channel/v1/distributors?search=SURABAYA');
+
+        $response->assertStatus(200)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.code_customer', 'C110000412');
+
+        // Search with non-matching query
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/distributor-channel/v1/distributors?search=NonExistentKeyword');
+
+        $response->assertStatus(200)
+            ->assertJsonCount(0, 'data');
+    }
+
+    /**
      * Test unauthenticated access to distributor endpoints.
      */
     public function test_unauthenticated_access(): void

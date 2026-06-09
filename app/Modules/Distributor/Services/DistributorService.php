@@ -31,11 +31,12 @@ class DistributorService
     /**
      * Get all distributors.
      *
+     * @param  array  $filters
      * @return Collection
      */
-    public function getAll(): Collection
+    public function getAll(array $filters = []): Collection
     {
-        return $this->distributorRepository->getAll();
+        return $this->distributorRepository->getAll($filters);
     }
 
     /**

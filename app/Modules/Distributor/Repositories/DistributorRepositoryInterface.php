@@ -8,11 +8,10 @@ use Illuminate\Database\Eloquent\Collection;
 interface DistributorRepositoryInterface
 {
     /**
-     * Get all distributors.
-     *
+     * @param  array  $filters
      * @return Collection<int, Distributor>
      */
-    public function getAll(): Collection;
+    public function getAll(array $filters = []): Collection;
 
     /**
      * Find distributor by ID.
