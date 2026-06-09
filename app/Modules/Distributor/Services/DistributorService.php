@@ -78,9 +78,13 @@ class DistributorService
                 $synced[] = $this->distributorRepository->upsertByCode([
                     'code_customer' => $item['CardCode'],
                     'name' => $item['CardName'],
-                    'address' => $item['Address'] ?? $item['MailAddres'] ?? null,
+                    'address' => $item['Address'] ?? null,
                     'phone' => $item['Phone1'] ?? null,
                     'email' => $item['E_Mail'] ?? null,
+                    'mail_address' => $item['MailAddres'] ?? null,
+                    'contact_person' => $item['CntctPrsn'] ?? null,
+                    'sub_group' => $item['SubGroup'] ?? null,
+                    'depo' => $item['Depo'] ?? null,
                     'status' => 1,
                 ]);
             }

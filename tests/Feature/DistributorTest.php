@@ -27,6 +27,10 @@ class DistributorTest extends TestCase
             'address' => 'Jl. Dummy No. 123',
             'phone' => '021-12345678',
             'email' => 'info@xyz.com',
+            'mail_address' => 'Jl. Dummy No. 123, Kantor Pos',
+            'contact_person' => 'John Doe',
+            'sub_group' => 'Distributor',
+            'depo' => 'TULUNGAGUNG',
             'status' => 1,
         ]);
 
@@ -68,6 +72,10 @@ class DistributorTest extends TestCase
                         'address',
                         'phone',
                         'email',
+                        'mail_address',
+                        'contact_person',
+                        'sub_group',
+                        'depo',
                         'status',
                     ]
                 ]
@@ -111,25 +119,34 @@ class DistributorTest extends TestCase
                         'CardCode' => 'C110000411',
                         'CardName' => 'PT XYZ',
                         'Address' => 'Jl. Dummy No. 123, Jakarta',
+                        'MailAddres' => 'Jl DSN GEBRUKAN DESA SRIKATON',
                         'Phone1' => '021-12345678',
                         'E_Mail' => 'info@xyz.com',
+                        'CntctPrsn' => 'John Doe',
                         'SubGroup' => 'Distributor',
+                        'Depo' => 'TULUNGAGUNG',
                     ],
                     [
                         'CardCode' => 'C110000412',
                         'CardName' => 'PT Berkah Abadi',
                         'Address' => 'Jl. Pahlawan No. 45, Surabaya',
+                        'MailAddres' => 'Jl. Pahlawan Kantor Cabang',
                         'Phone1' => '031-87654321',
                         'E_Mail' => 'contact@berkahabadi.com',
+                        'CntctPrsn' => 'Jane Smith',
                         'SubGroup' => 'Distributor',
+                        'Depo' => 'SURABAYA',
                     ],
                     [
                         'CardCode' => 'C110000413',
                         'CardName' => 'Bukan Distributor',
                         'Address' => 'Alamat Lain',
+                        'MailAddres' => 'Alamat Lain',
                         'Phone1' => '021-999',
                         'E_Mail' => 'bukan@dist.com',
+                        'CntctPrsn' => 'Bukan',
                         'SubGroup' => 'Retail', // Harusnya difilter keluar
+                        'Depo' => 'JAKARTA',
                     ]
                 ]
             ], 200)
@@ -157,10 +174,18 @@ class DistributorTest extends TestCase
         $this->assertDatabaseHas('distributors', [
             'code_customer' => 'C110000411',
             'name' => 'PT XYZ',
+            'mail_address' => 'Jl DSN GEBRUKAN DESA SRIKATON',
+            'contact_person' => 'John Doe',
+            'sub_group' => 'Distributor',
+            'depo' => 'TULUNGAGUNG',
         ]);
         $this->assertDatabaseHas('distributors', [
             'code_customer' => 'C110000412',
             'name' => 'PT Berkah Abadi',
+            'mail_address' => 'Jl. Pahlawan Kantor Cabang',
+            'contact_person' => 'Jane Smith',
+            'sub_group' => 'Distributor',
+            'depo' => 'SURABAYA',
         ]);
 
         // Assert retail subgroup was NOT synced

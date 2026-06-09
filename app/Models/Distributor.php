@@ -16,6 +16,10 @@ class Distributor extends Model
         'address',
         'phone',
         'email',
+        'mail_address',
+        'contact_person',
+        'sub_group',
+        'depo',
         'status',
     ];
 
