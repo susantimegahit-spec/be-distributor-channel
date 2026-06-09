@@ -89,4 +89,26 @@ class DistributorController extends Controller
             return $this->errorResponse($e->getMessage(), 500);
         }
     }
+
+    /**
+     * Get OCR codes from SAP.
+     *
+     * @param  Request  $request
+     * @return JsonResponse
+     */
+    public function getOcrCodes(Request $request): JsonResponse
+    {
+        $type = $request->query('type') ?? $request->query('custom_query') ?? $request->query('CustomQuery');
+
+        if (!$type || !in_array($type, ['1', '2', '3'])) {
+            return $this->errorResponse('Parameter type/custom_query wajib diisi dengan nilai 1 (Cabang), 2 (Bisnis Unit), atau 3 (Dept).', 422);
+        }
+
+        try {
+            $ocrCodes = $this->distributorService->getOcrCodesFromSap($type);
+            return $this->successResponse($ocrCodes, 'Daftar OcrCode berhasil diambil dari SAP.');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
 }

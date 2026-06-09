@@ -788,6 +788,77 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/distributors/ocr-codes:
+    get:
+      summary: Get OCR codes from SAP
+      description: Mengambil data OcrCode secara real-time dari API SAP berdasarkan filter parameter type.
+      tags:
+        - Distributors
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ['1', '2', '3']
+          description: Nilai filter (1 untuk Cabang, 2 untuk Bisnis Unit, 3 untuk Dept).
+          example: "3"
+        - name: custom_query
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ['1', '2', '3']
+          description: Nilai filter (1 untuk Cabang, 2 untuk Bisnis Unit, 3 untuk Dept).
+          example: "3"
+        - name: CustomQuery
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ['1', '2', '3']
+          description: Nilai filter (1 untuk Cabang, 2 untuk Bisnis Unit, 3 untuk Dept).
+          example: "3"
+      responses:
+        '200':
+          description: Daftar OcrCode berhasil diambil dari SAP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar OcrCode berhasil diambil dari SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        OcrCode:
+                          type: string
+                          example: FAT
+                        OcrName:
+                          type: string
+                          example: FAT
+        '422':
+          description: Parameter wajib diisi atau salah format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Gagal menghubungi API SAP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /v1/distributors/{id}:
     get:
       summary: Get distributor detail
