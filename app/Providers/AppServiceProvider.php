@@ -48,6 +48,14 @@ class AppServiceProvider extends ServiceProvider
             \App\Modules\SalesEmployee\Repositories\SalesEmployeeRepositoryInterface::class,
             \App\Modules\SalesEmployee\Repositories\SalesEmployeeRepository::class
         );
+        $this->app->bind(
+            \App\Modules\Vat\Repositories\VatRepositoryInterface::class,
+            \App\Modules\Vat\Repositories\VatRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\Warehouse\Repositories\WarehouseRepositoryInterface::class,
+            \App\Modules\Warehouse\Repositories\WarehouseRepository::class
+        );
     }
 
     /**

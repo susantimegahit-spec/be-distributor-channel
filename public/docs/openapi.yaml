@@ -902,6 +902,164 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/vats:
+    get:
+      summary: List all vats
+      description: Mendapatkan daftar semua master pajak hasil sinkronisasi SAP.
+      tags:
+        - Vats
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kata kunci untuk mencari pajak berdasarkan Code atau Name (case-insensitive).
+      responses:
+        '200':
+          description: Daftar master pajak berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar master pajak berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Vat'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/vats/sync:
+    post:
+      summary: Sync vats from SAP
+      description: Melakukan sinkronisasi data master pajak dari SAP ke database lokal.
+      tags:
+        - Vats
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sinkronisasi data master pajak berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data master pajak berhasil disinkronisasi dari SAP.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Vat'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Gagal menghubungi API SAP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/warehouses:
+    get:
+      summary: List all warehouses
+      description: Mendapatkan daftar semua master gudang hasil sinkronisasi SAP.
+      tags:
+        - Warehouses
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kata kunci untuk mencari gudang berdasarkan WhsCode atau WhsName (case-insensitive).
+      responses:
+        '200':
+          description: Daftar master gudang berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar master gudang berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Warehouse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/warehouses/sync:
+    post:
+      summary: Sync warehouses from SAP
+      description: Melakukan sinkronisasi data master gudang dari SAP ke database lokal.
+      tags:
+        - Warehouses
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sinkronisasi data master gudang berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data master gudang berhasil disinkronisasi dari SAP.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Warehouse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Gagal menghubungi API SAP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /v1/sales-employees:
     get:
       summary: List all Sales Employees
@@ -1564,6 +1722,57 @@ components:
         slp_name:
           type: string
           example: ANDAR WARDANA
+        status:
+          type: integer
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-06-09T08:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-06-09T08:00:00.000000Z"
+
+    Vat:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        code:
+          type: string
+          example: S2
+        name:
+          type: string
+          example: PPN Sales 0%
+        rate:
+          type: string
+          example: "0.000000"
+        status:
+          type: integer
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-06-09T08:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-06-09T08:00:00.000000Z"
+
+    Warehouse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        whs_code:
+          type: string
+          example: FG05
+        whs_name:
+          type: string
+          example: BARANG JADI - BANJARMASIN
         status:
           type: integer
           example: 1
