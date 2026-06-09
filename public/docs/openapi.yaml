@@ -1382,7 +1382,7 @@ components:
                 role_name:
                   type: string
                   example: administrator
-                 code_customer:
+                code_customer:
                   type: string
                   example: C110000411
                 id_distributor:
