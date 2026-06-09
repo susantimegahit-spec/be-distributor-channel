@@ -44,6 +44,10 @@ class AppServiceProvider extends ServiceProvider
             \App\Modules\Item\Repositories\ItemRepositoryInterface::class,
             \App\Modules\Item\Repositories\ItemRepository::class
         );
+        $this->app->bind(
+            \App\Modules\SalesEmployee\Repositories\SalesEmployeeRepositoryInterface::class,
+            \App\Modules\SalesEmployee\Repositories\SalesEmployeeRepository::class
+        );
     }
 
     /**
