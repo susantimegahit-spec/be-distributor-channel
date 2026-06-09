@@ -20,13 +20,13 @@ class DistributorRepository implements DistributorRepositoryInterface
         if (!empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
-                $q->where('code_customer', 'like', "%{$search}%")
-                  ->orWhere('name', 'like', "%{$search}%")
-                  ->orWhere('address', 'like', "%{$search}%")
-                  ->orWhere('mail_address', 'like', "%{$search}%")
-                  ->orWhere('contact_person', 'like', "%{$search}%")
-                  ->orWhere('sub_group', 'like', "%{$search}%")
-                  ->orWhere('depo', 'like', "%{$search}%");
+                $q->where('code_customer', 'ilike', "%{$search}%")
+                  ->orWhere('name', 'ilike', "%{$search}%")
+                  ->orWhere('address', 'ilike', "%{$search}%")
+                  ->orWhere('mail_address', 'ilike', "%{$search}%")
+                  ->orWhere('contact_person', 'ilike', "%{$search}%")
+                  ->orWhere('sub_group', 'ilike', "%{$search}%")
+                  ->orWhere('depo', 'ilike', "%{$search}%");
             });
         }
 

@@ -215,19 +215,19 @@ class DistributorTest extends TestCase
 
         $token = $this->user->createToken('test_token')->plainTextToken;
 
-        // Search by name "XYZ"
+        // Search by name "xyz" (lowercase to test case insensitivity)
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token,
-        ])->getJson('/api/distributor-channel/v1/distributors?search=XYZ');
+        ])->getJson('/api/distributor-channel/v1/distributors?search=xyz');
 
         $response->assertStatus(200)
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.code_customer', 'C110000411');
 
-        // Search by depo "SURABAYA"
+        // Search by depo "surabaya" (lowercase to test case insensitivity)
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token,
-        ])->getJson('/api/distributor-channel/v1/distributors?search=SURABAYA');
+        ])->getJson('/api/distributor-channel/v1/distributors?search=surabaya');
 
         $response->assertStatus(200)
             ->assertJsonCount(1, 'data')
