@@ -91,7 +91,7 @@ class DistributorController extends Controller
     }
 
     /**
-     * Get OCR codes from SAP.
+     * Get OCR codes from local database.
      *
      * @param  Request  $request
      * @return JsonResponse
@@ -100,13 +100,34 @@ class DistributorController extends Controller
     {
         $type = $request->query('type') ?? $request->query('custom_query') ?? $request->query('CustomQuery');
 
-        if (!$type || !in_array($type, ['1', '2', '3'])) {
-            return $this->errorResponse('Parameter type/custom_query wajib diisi dengan nilai 1 (Cabang), 2 (Bisnis Unit), atau 3 (Dept).', 422);
+        if ($type && !in_array($type, ['1', '2', '3'])) {
+            return $this->errorResponse('Parameter type/custom_query harus bernilai 1 (Cabang), 2 (Bisnis Unit), atau 3 (Dept) jika diisi.', 422);
         }
 
         try {
-            $ocrCodes = $this->distributorService->getOcrCodesFromSap($type);
-            return $this->successResponse($ocrCodes, 'Daftar OcrCode berhasil diambil dari SAP.');
+            $ocrCodes = $this->distributorService->getOcrCodesFromDb([
+                'type' => $type,
+                'search' => $request->query('search'),
+            ]);
+            return $this->successResponse($ocrCodes, 'Daftar OcrCode berhasil diambil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Synchronize OCR Codes from SAP.
+     *
+     * @param  Request  $request
+     * @return JsonResponse
+     */
+    public function syncOcrCodes(Request $request): JsonResponse
+    {
+        $userId = $request->user()?->id;
+
+        try {
+            $syncedData = $this->distributorService->syncOcrCodesFromSap($userId);
+            return $this->successResponse($syncedData, 'Data OcrCode berhasil disinkronisasi dari SAP.');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), 500);
         }

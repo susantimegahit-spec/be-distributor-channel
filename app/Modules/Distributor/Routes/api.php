@@ -8,5 +8,6 @@ Route::prefix('v1/distributors')->middleware('auth:sanctum')->group(function () 
     Route::post('/sync', [DistributorController::class, 'sync']);
     Route::get('/addresses', [DistributorController::class, 'getAddresses']);
     Route::get('/ocr-codes', [DistributorController::class, 'getOcrCodes']);
+    Route::post('/ocr-codes/sync', [DistributorController::class, 'syncOcrCodes']);
     Route::get('/{id}', [DistributorController::class, 'show'])->whereNumber('id');
 });

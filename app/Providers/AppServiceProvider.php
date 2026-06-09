@@ -37,6 +37,10 @@ class AppServiceProvider extends ServiceProvider
             \App\Modules\Distributor\Repositories\DistributorRepository::class
         );
         $this->app->bind(
+            \App\Modules\Distributor\Repositories\OcrCodeRepositoryInterface::class,
+            \App\Modules\Distributor\Repositories\OcrCodeRepository::class
+        );
+        $this->app->bind(
             \App\Modules\SalesOrder\Repositories\SalesOrderRepositoryInterface::class,
             \App\Modules\SalesOrder\Repositories\SalesOrderRepository::class
         );

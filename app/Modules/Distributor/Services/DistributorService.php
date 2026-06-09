@@ -3,6 +3,7 @@
 namespace App\Modules\Distributor\Services;
 
 use App\Modules\Distributor\Repositories\DistributorRepositoryInterface;
+use App\Modules\Distributor\Repositories\OcrCodeRepositoryInterface;
 use App\Modules\AuditLog\Services\AuditLogService;
 use Illuminate\Database\Eloquent\Collection;
 use App\Models\Distributor;
@@ -12,19 +13,23 @@ use Illuminate\Support\Facades\Http;
 class DistributorService
 {
     protected DistributorRepositoryInterface $distributorRepository;
+    protected OcrCodeRepositoryInterface $ocrCodeRepository;
     protected AuditLogService $auditLogService;
 
     /**
      * DistributorService constructor.
      *
      * @param  DistributorRepositoryInterface  $distributorRepository
+     * @param  OcrCodeRepositoryInterface  $ocrCodeRepository
      * @param  AuditLogService  $auditLogService
      */
     public function __construct(
         DistributorRepositoryInterface $distributorRepository,
+        OcrCodeRepositoryInterface $ocrCodeRepository,
         AuditLogService $auditLogService
     ) {
         $this->distributorRepository = $distributorRepository;
+        $this->ocrCodeRepository = $ocrCodeRepository;
         $this->auditLogService = $auditLogService;
     }
 
@@ -129,27 +134,83 @@ class DistributorService
     }
 
     /**
-     * Get OCR codes from SAP.
+     * Synchronize OCR Codes from SAP.
      *
-     * @param  string  $customQuery
+     * @param  int|null  $userId
      * @return array
      */
-    public function getOcrCodesFromSap(string $customQuery): array
+    public function syncOcrCodesFromSap(?int $userId = null): array
     {
-        $response = Http::timeout(15)->post('http://103.18.133.187:3100/api/ListOcrCode', [
-            'CustomQuery' => $customQuery,
-        ]);
+        $targets = [
+            '1' => 'CABANG',
+            '2' => 'UNIT',
+            '3' => 'DEPARTEMENT',
+        ];
 
-        if (!$response->successful()) {
-            throw new \Exception('Gagal menghubungi API SAP untuk mengambil data OcrCode.');
+        $synced = [];
+
+        foreach ($targets as $queryParam => $targetName) {
+            $response = Http::timeout(15)->post('http://103.18.133.187:3100/api/ListOcrCode', [
+                'CustomQuery' => $queryParam,
+            ]);
+
+            if (!$response->successful()) {
+                throw new \Exception("Gagal menghubungi API SAP untuk target {$targetName}.");
+            }
+
+            $body = $response->json();
+
+            if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
+                throw new \Exception("API SAP mengembalikan error untuk target {$targetName}: " . ($body['Message'] ?? 'Unknown error'));
+            }
+
+            $results = $body['Result'] ?? [];
+            foreach ($results as $item) {
+                if (!empty($item['OcrCode'])) {
+                    $synced[] = $this->ocrCodeRepository->upsert([
+                        'ocr_code' => $item['OcrCode'],
+                        'ocr_name' => $item['OcrName'] ?? $item['OcrCode'],
+                        'distribution_target' => $targetName,
+                        'status' => 1,
+                    ]);
+                }
+            }
         }
 
-        $body = $response->json();
-
-        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
-            throw new \Exception('API SAP mengembalikan error: ' . ($body['Message'] ?? 'Unknown error'));
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'SYNC_OCR_CODES',
+                'Synchronized ' . count($synced) . ' OCR Codes from SAP.'
+            );
         }
 
-        return $body['Result'] ?? [];
+        return $synced;
+    }
+
+    /**
+     * Get OCR codes from local database.
+     *
+     * @param  array  $filters
+     * @return Collection
+     */
+    public function getOcrCodesFromDb(array $filters): Collection
+    {
+        $dbFilters = [];
+        
+        if (!empty($filters['type'])) {
+            $map = [
+                '1' => 'CABANG',
+                '2' => 'UNIT',
+                '3' => 'DEPARTEMENT',
+            ];
+            $dbFilters['distribution_target'] = $map[$filters['type']] ?? null;
+        }
+
+        if (!empty($filters['search'])) {
+            $dbFilters['search'] = $filters['search'];
+        }
+
+        return $this->ocrCodeRepository->getAll($dbFilters);
     }
 }

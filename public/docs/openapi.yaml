@@ -790,8 +790,8 @@ paths:
 
   /v1/distributors/ocr-codes:
     get:
-      summary: Get OCR codes from SAP
-      description: Mengambil data OcrCode secara real-time dari API SAP berdasarkan filter parameter type.
+      summary: Get OCR codes from local database
+      description: Mengambil data OcrCode dari database lokal dengan dukungan pencarian dan filter target.
       tags:
         - Distributors
       security:
@@ -803,7 +803,7 @@ paths:
           schema:
             type: string
             enum: ['1', '2', '3']
-          description: Nilai filter (1 untuk Cabang, 2 untuk Bisnis Unit, 3 untuk Dept).
+          description: Nilai filter target (1 untuk Cabang/CABANG, 2 untuk Bisnis Unit/UNIT, 3 untuk Dept/DEPARTEMENT).
           example: "3"
         - name: custom_query
           in: query
@@ -811,7 +811,7 @@ paths:
           schema:
             type: string
             enum: ['1', '2', '3']
-          description: Nilai filter (1 untuk Cabang, 2 untuk Bisnis Unit, 3 untuk Dept).
+          description: Nilai filter target (1 untuk Cabang/CABANG, 2 untuk Bisnis Unit/UNIT, 3 untuk Dept/DEPARTEMENT).
           example: "3"
         - name: CustomQuery
           in: query
@@ -819,11 +819,18 @@ paths:
           schema:
             type: string
             enum: ['1', '2', '3']
-          description: Nilai filter (1 untuk Cabang, 2 untuk Bisnis Unit, 3 untuk Dept).
+          description: Nilai filter target (1 untuk Cabang/CABANG, 2 untuk Bisnis Unit/UNIT, 3 untuk Dept/DEPARTEMENT).
           example: "3"
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Keyword pencarian berdasarkan OcrCode atau OcrName.
+          example: "FAT"
       responses:
         '200':
-          description: Daftar OcrCode berhasil diambil dari SAP
+          description: Daftar OcrCode berhasil diambil
           content:
             application/json:
               schema:
@@ -834,20 +841,100 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: Daftar OcrCode berhasil diambil dari SAP.
+                    example: Daftar OcrCode berhasil diambil.
                   data:
                     type: array
                     items:
                       type: object
                       properties:
-                        OcrCode:
+                        id:
+                          type: integer
+                          example: 1
+                        ocr_code:
                           type: string
                           example: FAT
-                        OcrName:
+                        ocr_name:
                           type: string
                           example: FAT
-        '422':
-          description: Parameter wajib diisi atau salah format
+                        distribution_target:
+                          type: string
+                          example: DEPARTEMENT
+                        status:
+                          type: integer
+                          example: 1
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2026-06-09T08:00:00.000000Z"
+                        updated_at:
+                          type: string
+                          format: date-time
+                          example: "2026-06-09T08:00:00.000000Z"
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/distributors/ocr-codes/sync:
+    post:
+      summary: Sync OCR codes from SAP
+      description: Melakukan sinkronisasi data OcrCode dari SAP (untuk CustomQuery 1, 2, dan 3) ke dalam database lokal.
+      tags:
+        - Distributors
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sinkronisasi data OcrCode berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data OcrCode berhasil disinkronisasi dari SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        ocr_code:
+                          type: string
+                          example: FAT
+                        ocr_name:
+                          type: string
+                          example: FAT
+                        distribution_target:
+                          type: string
+                          example: DEPARTEMENT
+                        status:
+                          type: integer
+                          example: 1
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2026-06-09T08:00:00.000000Z"
+                        updated_at:
+                          type: string
+                          format: date-time
+                          example: "2026-06-09T08:00:00.000000Z"
+        '401':
+          description: Tidak terautentikasi
           content:
             application/json:
               schema:
@@ -858,6 +945,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
 
   /v1/distributors/{id}:
     get:
