@@ -56,6 +56,10 @@ class AppServiceProvider extends ServiceProvider
             \App\Modules\Warehouse\Repositories\WarehouseRepositoryInterface::class,
             \App\Modules\Warehouse\Repositories\WarehouseRepository::class
         );
+        $this->app->bind(
+            \App\Modules\DistributorItemPrice\Repositories\DistributorItemPriceRepositoryInterface::class,
+            \App\Modules\DistributorItemPrice\Repositories\DistributorItemPriceRepository::class
+        );
     }
 
     /**

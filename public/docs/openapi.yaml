@@ -1399,6 +1399,183 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/distributor-item-prices:
+    get:
+      summary: Get distributor item prices
+      description: Mendapatkan daftar harga item distributor dengan search filter (code_customer, name, item_code, item_name).
+      tags:
+        - Distributor Item Prices
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Keyword pencarian customer code, nama customer, item code, atau nama item
+      responses:
+        '200':
+          description: Daftar harga item distributor berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistributorItemPriceListResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Create distributor item price
+      description: Menambahkan data harga item baru untuk distributor tertentu.
+      tags:
+        - Distributor Item Prices
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDistributorItemPriceRequest'
+      responses:
+        '201':
+          description: Harga item distributor berhasil ditambahkan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistributorItemPriceResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validasi input gagal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/distributor-item-prices/{id}:
+    get:
+      summary: Get distributor item price detail
+      description: Mendapatkan detail data harga item distributor berdasarkan ID.
+      tags:
+        - Distributor Item Prices
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID harga item distributor
+      responses:
+        '200':
+          description: Detail harga item distributor berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistributorItemPriceResponse'
+        '404':
+          description: Data tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      summary: Update distributor item price
+      description: Memperbarui data harga item distributor berdasarkan ID.
+      tags:
+        - Distributor Item Prices
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID harga item distributor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDistributorItemPriceRequest'
+      responses:
+        '200':
+          description: Harga item distributor berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistributorItemPriceResponse'
+        '404':
+          description: Data tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validasi input gagal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete distributor item price
+      description: Menghapus data harga item distributor berdasarkan ID.
+      tags:
+        - Distributor Item Prices
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID harga item distributor
+      responses:
+        '200':
+          description: Harga item distributor berhasil dihapus
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessageResponse'
+        '404':
+          description: Data tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -2145,3 +2322,109 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SalesOrder'
+
+    DistributorItemPrice:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        code_customer:
+          type: string
+          example: C110000411
+        customer_name:
+          type: string
+          nullable: true
+          example: PT XYZ
+        item_code:
+          type: string
+          example: A26
+        item_name:
+          type: string
+          nullable: true
+          example: TOP 250 M @ 10 KG / BAL
+        price:
+          type: string
+          example: "12500.00"
+        created_by:
+          type: integer
+          nullable: true
+          example: 1
+        updated_by:
+          type: integer
+          nullable: true
+          example: 1
+        status:
+          type: integer
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-06-09T08:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-06-09T08:00:00.000000Z"
+
+    DistributorItemPriceListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Daftar harga item distributor berhasil diambil.
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/DistributorItemPrice'
+
+    DistributorItemPriceResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Detail harga item distributor berhasil diambil.
+        data:
+          $ref: '#/components/schemas/DistributorItemPrice'
+
+    CreateDistributorItemPriceRequest:
+      type: object
+      required:
+        - code_customer
+        - item_code
+        - price
+      properties:
+        code_customer:
+          type: string
+          example: C110000411
+        item_code:
+          type: string
+          example: A26
+        price:
+          type: number
+          example: 12500.00
+        status:
+          type: integer
+          example: 1
+
+    UpdateDistributorItemPriceRequest:
+      type: object
+      properties:
+        code_customer:
+          type: string
+          example: C110000411
+        item_code:
+          type: string
+          example: A26
+        price:
+          type: number
+          example: 13000.00
+        status:
+          type: integer
+          example: 1
+
