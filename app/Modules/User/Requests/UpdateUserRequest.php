@@ -29,6 +29,7 @@ class UpdateUserRequest extends FormRequest
             'email' => 'sometimes|email|unique:users,email,' . $userId,
             'password' => 'sometimes|string|min:6',
             'role_id' => 'sometimes|integer|exists:roles,id',
+            'code_customer' => 'nullable|string|exists:distributors,code_customer',
             'is_active' => 'sometimes|boolean',
         ];
     }

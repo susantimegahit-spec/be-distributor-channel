@@ -511,6 +511,10 @@ paths:
                 role_id:
                   type: integer
                   example: 5
+                code_customer:
+                  type: string
+                  nullable: true
+                  example: C110000411
                 is_active:
                   type: boolean
                   example: true
@@ -607,6 +611,10 @@ paths:
                 role_id:
                   type: integer
                   example: 2
+                code_customer:
+                  type: string
+                  nullable: true
+                  example: C110000411
                 is_active:
                   type: boolean
                   example: false
@@ -1892,6 +1900,10 @@ components:
         role_id:
           type: integer
           example: 5
+        code_customer:
+          type: string
+          nullable: true
+          example: C110000411
         is_active:
           type: boolean
           example: true
@@ -1905,6 +1917,8 @@ components:
           example: "2026-06-05T08:00:00.000000Z"
         role:
           $ref: '#/components/schemas/Role'
+        distributor:
+          $ref: '#/components/schemas/Distributor'
 
     UserListResponse:
       type: object

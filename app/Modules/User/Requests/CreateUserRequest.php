@@ -27,6 +27,7 @@ class CreateUserRequest extends FormRequest
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:6',
             'role_id' => 'required|integer|exists:roles,id',
+            'code_customer' => 'nullable|string|exists:distributors,code_customer',
             'is_active' => 'sometimes|boolean',
         ];
     }
