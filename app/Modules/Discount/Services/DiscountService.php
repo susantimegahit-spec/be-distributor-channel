@@ -2,22 +2,29 @@
 
 namespace App\Modules\Discount\Services;
 
+use App\Modules\Discount\Repositories\DiscountTypeRepositoryInterface;
 use App\Modules\AuditLog\Services\AuditLogService;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Database\Eloquent\Collection;
 use Exception;
 
 class DiscountService
 {
     protected AuditLogService $auditLogService;
+    protected DiscountTypeRepositoryInterface $discountTypeRepository;
 
     /**
      * DiscountService constructor.
      *
      * @param  AuditLogService  $auditLogService
+     * @param  DiscountTypeRepositoryInterface  $discountTypeRepository
      */
-    public function __construct(AuditLogService $auditLogService)
-    {
+    public function __construct(
+        AuditLogService $auditLogService,
+        DiscountTypeRepositoryInterface $discountTypeRepository
+    ) {
         $this->auditLogService = $auditLogService;
+        $this->discountTypeRepository = $discountTypeRepository;
     }
 
     /**
@@ -91,5 +98,70 @@ class DiscountService
             'code' => $code,
             'sap_response' => $body
         ];
+    }
+
+    /**
+     * Synchronize Discount Types from SAP.
+     *
+     * @param  int|null  $userId
+     * @return array
+     * @throws Exception
+     */
+    public function syncDiscountTypesFromSap(?int $userId = null): array
+    {
+        $response = Http::timeout(15)->post('http://103.18.133.187:3100/api/ListType');
+
+        if (!$response->successful()) {
+            throw new Exception('Gagal menghubungi API SAP untuk menyinkronkan tipe diskon.');
+        }
+
+        $body = $response->json();
+
+        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
+            throw new Exception('API SAP ListType mengembalikan error: ' . ($body['Message'] ?? 'Unknown error'));
+        }
+
+        $sapData = $body['Result'] ?? $body; // In case the array is wrapped or not
+        // Wait, looking at the user's description:
+        // Response dari SAP: [{ "FldValue": "Cash Diskon", "Descr": "Cash Diskon" }] or is it wrapped in "Result"?
+        // Let's handle both! If $body is an array directly or has a Result wrapper.
+        $types = [];
+        if (isset($body['Result'])) {
+            $types = $body['Result'];
+        } elseif (is_array($body)) {
+            $types = $body;
+        }
+
+        $synced = [];
+        foreach ($types as $item) {
+            if (isset($item['FldValue']) && isset($item['Descr'])) {
+                $synced[] = $this->discountTypeRepository->upsert([
+                    'fld_value' => $item['FldValue'],
+                    'descr' => $item['Descr'],
+                    'status' => 1,
+                ]);
+            }
+        }
+
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'SYNC_DISCOUNT_TYPES',
+                'Synchronized ' . count($synced) . ' discount types from SAP.'
+            );
+        }
+
+        return $synced;
+    }
+
+    /**
+     * Get Discount Types from local database.
+     *
+     * @param  array  $filters
+     * @return Collection
+     */
+    public function getDiscountTypesFromDb(array $filters = []): Collection
+    {
+        return $this->discountTypeRepository->getAll($filters);
     }
 }

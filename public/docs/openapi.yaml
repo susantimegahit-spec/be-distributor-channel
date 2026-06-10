@@ -765,6 +765,119 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/discounts/types:
+    get:
+      summary: List all discount types
+      description: Mendapatkan daftar semua tipe diskon dari database lokal (yang telah disinkronkan).
+      tags:
+        - Discounts
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Keyword pencarian berdasarkan tipe atau deskripsi.
+      responses:
+        '200':
+          description: Daftar tipe diskon berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar tipe diskon berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        fld_value:
+                          type: string
+                          example: Cash Diskon
+                        descr:
+                          type: string
+                          example: Cash Diskon
+                        status:
+                          type: integer
+                          example: 1
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2026-06-10T08:00:00.000000Z"
+                        updated_at:
+                          type: string
+                          format: date-time
+                          example: "2026-06-10T08:00:00.000000Z"
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/discounts/types/sync:
+    post:
+      summary: Sync discount types from SAP
+      description: Melakukan sinkronisasi data master tipe diskon dari SAP ke database lokal.
+      tags:
+        - Discounts
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sinkronisasi data tipe diskon berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data tipe diskon berhasil disinkronisasi dari SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        fld_value:
+                          type: string
+                          example: Cash Diskon
+                        descr:
+                          type: string
+                          example: Cash Diskon
+                        status:
+                          type: integer
+                          example: 1
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Gagal menghubungi API SAP / API SAP mengembalikan error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /v1/distributors:
     get:
       summary: List all distributors

@@ -177,4 +177,96 @@ class DiscountTest extends TestCase
                 'message' => 'API SAP addudodiskon mengembalikan error: Internal SAP Error',
             ]);
     }
+
+    /**
+     * Test sync discount types from SAP.
+     */
+    public function test_sync_discount_types_success(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        Http::fake([
+            '103.18.133.187:3100/api/ListType' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => '',
+                'Result' => [
+                    [
+                        'FldValue' => 'Cash Diskon',
+                        'Descr' => 'Cash Diskon'
+                    ],
+                    [
+                        'FldValue' => 'Promo Diskon',
+                        'Descr' => 'Promo Diskon'
+                    ]
+                ]
+            ], 200),
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/api/distributor-channel/v1/discounts/types/sync');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Data tipe diskon berhasil disinkronisasi dari SAP.',
+            ])
+            ->assertJsonStructure([
+                'data' => [
+                    '*' => [
+                        'id',
+                        'fld_value',
+                        'descr',
+                        'status',
+                    ]
+                ]
+            ]);
+
+        $this->assertDatabaseHas('discount_types', [
+            'fld_value' => 'Cash Diskon',
+            'descr' => 'Cash Diskon',
+        ]);
+        $this->assertDatabaseHas('discount_types', [
+            'fld_value' => 'Promo Diskon',
+            'descr' => 'Promo Diskon',
+        ]);
+    }
+
+    /**
+     * Test get discount types from local database.
+     */
+    public function test_get_discount_types(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        // Seed data
+        \App\Models\DiscountType::create([
+            'fld_value' => 'Cash Diskon',
+            'descr' => 'Cash Diskon Description',
+            'status' => 1,
+        ]);
+        \App\Models\DiscountType::create([
+            'fld_value' => 'Quantity Diskon',
+            'descr' => 'Quantity Diskon Description',
+            'status' => 1,
+        ]);
+
+        // Get all
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/distributor-channel/v1/discounts/types');
+
+        $response->assertStatus(200)
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.fld_value', 'Cash Diskon');
+
+        // Search
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/distributor-channel/v1/discounts/types?search=Quantity');
+
+        $response->assertStatus(200)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.fld_value', 'Quantity Diskon');
+    }
 }
