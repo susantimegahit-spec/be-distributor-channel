@@ -678,6 +678,93 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/discounts/sap:
+    post:
+      summary: Send UDO Discount to SAP
+      description: Mengirim data diskon UDO ke SAP. Kode diskon diambil secara otomatis melalui API GetNumDis.
+      tags:
+        - Discounts
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - CardCode
+                - CardName
+                - Lines
+              properties:
+                CardCode:
+                  type: string
+                  example: C110003074
+                CardName:
+                  type: string
+                  example: LESAFFRE SARI
+                Lines:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - TypeDiscount
+                      - Persentase
+                      - TotalDiskon
+                    properties:
+                      TypeDiscount:
+                        type: string
+                        example: Diskon Item
+                      Persentase:
+                        type: number
+                        example: 0
+                      TotalDiskon:
+                        type: number
+                        example: 3000000
+                      Remarks:
+                        type: string
+                        example: DISC SEMARAK AWAL THN
+      responses:
+        '200':
+          description: Diskon UDO berhasil dikirim ke SAP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Diskon UDO berhasil dikirim ke SAP.
+                  data:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                        example: "20260314001"
+                      sap_response:
+                        type: object
+        '422':
+          description: Validasi gagal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Gagal menghubungi API SAP / API SAP mengembalikan error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /v1/distributors:
     get:
       summary: List all distributors
