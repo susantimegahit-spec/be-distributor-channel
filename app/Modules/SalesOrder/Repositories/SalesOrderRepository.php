@@ -26,6 +26,10 @@ class SalesOrderRepository implements SalesOrderRepositoryInterface
             $query->where('status', $filters['status']);
         }
 
+        if (!empty($filters['card_code'])) {
+            $query->where('card_code', $filters['card_code']);
+        }
+
         return $query->orderBy('created_at', 'desc')->get();
     }
 

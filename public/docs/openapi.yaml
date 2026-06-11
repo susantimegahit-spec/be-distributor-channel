@@ -1521,6 +1521,12 @@ paths:
           schema:
             type: string
           description: Filter berdasarkan status order
+        - name: card_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan kode customer (CardCode)
       responses:
         '200':
           description: Daftar sales order berhasil diambil
@@ -2443,6 +2449,10 @@ components:
         id_discount:
           type: string
           example: "260310699"
+        status:
+          type: string
+          enum: [DRAFT, WAITING_APPROVAL]
+          example: DRAFT
         lines:
           type: array
           items:

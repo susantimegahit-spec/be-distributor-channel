@@ -34,9 +34,10 @@ class SalesOrderService
      *
      * @param  int|null  $distributorId
      * @param  string|null  $status
+     * @param  string|null  $cardCode
      * @return Collection
      */
-    public function getAllOrders(?int $distributorId = null, ?string $status = null): Collection
+    public function getAllOrders(?int $distributorId = null, ?string $status = null, ?string $cardCode = null): Collection
     {
         $filters = [];
         if ($distributorId) {
@@ -44,6 +45,9 @@ class SalesOrderService
         }
         if ($status) {
             $filters['status'] = $status;
+        }
+        if ($cardCode) {
+            $filters['card_code'] = $cardCode;
         }
 
         return $this->salesOrderRepository->getAll($filters);

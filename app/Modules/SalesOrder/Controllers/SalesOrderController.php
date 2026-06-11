@@ -44,7 +44,8 @@ class SalesOrderController extends Controller
         }
 
         $status = $request->query('status');
-        $orders = $this->salesOrderService->getAllOrders($distributorId, $status);
+        $cardCode = $request->query('card_code') ?? $request->query('customer_code');
+        $orders = $this->salesOrderService->getAllOrders($distributorId, $status, $cardCode);
 
         return $this->successResponse($orders, 'Daftar sales order berhasil diambil.');
     }
