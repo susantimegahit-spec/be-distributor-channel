@@ -157,4 +157,23 @@ class SalesOrderController extends Controller
 
         return $this->successResponse(null, 'Sales order draft berhasil dihapus.');
     }
+
+    /**
+     * Post/Integrate the specified sales order to SAP.
+     *
+     * @param  Request  $request
+     * @param  int  $id
+     * @return JsonResponse
+     */
+    public function postToSap(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+
+        try {
+            $result = $this->salesOrderService->postToSap($id, $user->id);
+            return $this->successResponse($result['sap_response'], 'Sales order berhasil dikirim ke SAP.');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), 400);
+        }
+    }
 }

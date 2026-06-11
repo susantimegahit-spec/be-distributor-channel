@@ -314,10 +314,7 @@ Waiting Approval Sales SM (WAITING_APPROVAL)
   +-- Approve
         |
         v
-      Prepared Item by Tim SM (APPROVED)
-        |
-        +-- Create UDO Discount SAP
-        +-- Create SO SAP
+      Prepared Item by Tim SM (APPROVED) -> Create UDO Discount SAP -> Create SO SAP
         |
         v
       Delivery (DELIVERY)
@@ -325,3 +322,66 @@ Waiting Approval Sales SM (WAITING_APPROVAL)
         v
       Arrived (ARRIVED)
 ```
+
+---
+
+## 7. Integrasi Sales Order SAP B1
+
+Modul ini melakukan posting data Sales Order ke API integrasi SAP B1.
+
+* **Method:** `POST`
+* **Route:** `/api/v1/sales-orders/{id}/post-sap`
+* **Target API SAP:** `http://103.18.133.187:3100/api/addso`
+
+### Payload Request ke SAP B1 (`addso`)
+Payload dikonversi dari detail lokal menjadi struktur PascalCase standard SAP:
+```json
+{
+  "CardCode": "C110003074",
+  "CardName": "LESAFFRE SARI",
+  "DocDate": "2026-02-25",
+  "DocDueDate": "2026-02-25",
+  "NumAtCard": "PO1212-ABC",
+  "SalesPersonCode": 1,
+  "ContactPersonCode": -1,
+  "ShipToCode": "ALAMAT KIRIM",
+  "PayToCode": "ALAMAT PENAGIHAN",
+  "Address": "KOMPLEK PURI MUTIARA BLOK B 5-6, SUNTER",
+  "Address2": "KOMPLEK PURI MUTIARA BLOK B 5-6, SUNTER",
+  "Comments": "Test ADD",
+  "U_DiskonCode": "DISC123",
+  "Lines": [
+    {
+      "ItemCode": "E65",
+      "Quantity": 10.0,
+      "UnitPrice": 5000.0,
+      "WarehouseCode": "FG04",
+      "VatGroup": "S1",
+      "DiscountPercent": 0.0,
+      "FreeText": "Free text sample",
+      "CostingCode": "SBY",
+      "CostingCode2": "GRM",
+      "CostingCode3": "MKT",
+      "UoMEntry": 1
+    }
+  ]
+}
+```
+
+### Response Sukses dari SAP
+```json
+{
+  "ErrorCode": 0,
+  "Message": "Sales Order added successfully",
+  "Result": [
+    {
+      "DocEntry": 9999,
+      "DocNum": "SO9999"
+    }
+  ]
+}
+```
+
+### Konsekuensi Status:
+* Jika Sukses: Status diubah menjadi `APPROVED`, kolom `sap_doc_entry`, `sap_doc_num`, dan `integrated_at` akan diisi. Log disimpan di `sales_order_integration_logs` dengan status `SUCCESS`.
+* Jika Gagal: Status diubah menjadi `FAILED`, kolom `sap_error` diisi dengan pesan error. Log disimpan di `sales_order_integration_logs` dengan status `FAILED`.

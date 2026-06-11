@@ -210,4 +210,45 @@ class SalesOrderTest extends TestCase
             'id' => $order->id,
         ]);
     }
+
+    /**
+     * Test creating a sales order directly with WAITING_APPROVAL status.
+     */
+    public function test_create_sales_order_waiting_approval(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        $payload = [
+            'card_code' => 'C110003074',
+            'customer_name' => 'PT XYZ',
+            'doc_date' => '2026-02-25',
+            'slp_code' => 0,
+            'status' => 'WAITING_APPROVAL',
+            'lines' => [
+                [
+                    'item_code' => 'E65',
+                    'quantity' => 10,
+                    'unit_price' => 5000,
+                    'line_total' => 50000,
+                ]
+            ]
+        ];
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/api/distributor-channel/v1/sales-orders', $payload);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'status' => 'WAITING_APPROVAL',
+                ]
+            ]);
+
+        $this->assertDatabaseHas('sales_orders', [
+            'card_code' => 'C110003074',
+            'status' => 'WAITING_APPROVAL',
+        ]);
+    }
 }

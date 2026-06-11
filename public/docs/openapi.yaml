@@ -1695,6 +1695,68 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/sales-orders/{id}/post-sap:
+    post:
+      summary: Post sales order to SAP
+      description: Mengintegrasikan/mengirim data sales order yang disetujui ke SAP Business One.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order yang ingin dikirim ke SAP
+      responses:
+        '200':
+          description: Sales order berhasil dikirim ke SAP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Sales order berhasil dikirim ke SAP.
+                  data:
+                    type: object
+                    properties:
+                      ErrorCode:
+                        type: integer
+                        example: 0
+                      Message:
+                        type: string
+                        example: Sales Order added successfully
+                      Result:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            DocEntry:
+                              type: integer
+                              example: 9999
+                            DocNum:
+                              type: string
+                              example: SO9999
+        '400':
+          description: Gagal mengintegrasikan sales order ke SAP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /v1/distributor-item-prices:
     get:
       summary: Get distributor item prices

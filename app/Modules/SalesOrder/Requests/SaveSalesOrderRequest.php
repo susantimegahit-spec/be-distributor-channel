@@ -32,6 +32,7 @@ class SaveSalesOrderRequest extends FormRequest
             'address2' => 'nullable|string',
             'comments' => 'nullable|string',
             'id_discount' => 'nullable|string|max:100',
+            'status' => 'nullable|string|in:DRAFT,WAITING_APPROVAL',
             'lines' => 'required|array|min:1',
             'lines.*.item_code' => 'required|string|max:50',
             'lines.*.quantity' => 'required|numeric|min:0.0001',

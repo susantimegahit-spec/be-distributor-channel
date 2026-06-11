@@ -7,6 +7,8 @@ use App\Modules\SalesOrder\Repositories\SalesOrderRepositoryInterface;
 use App\Modules\AuditLog\Services\AuditLogService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Http;
+use Exception;
 
 class SalesOrderService
 {
@@ -81,7 +83,7 @@ class SalesOrderService
         $data['order_no'] = $this->generateOrderNumber();
         $data['distributor_id'] = $distributorId;
         $data['customer_name'] = $distributor ? $distributor->name : 'Unknown Customer';
-        $data['status'] = 'DRAFT';
+        $data['status'] = $data['status'] ?? 'DRAFT';
         $data['created_by'] = $userId;
         $data['updated_by'] = $userId;
 
@@ -132,6 +134,7 @@ class SalesOrderService
 
         $distributor = \App\Models\Distributor::find($distributorId);
         $data['customer_name'] = $distributor ? $distributor->name : $salesOrder->customer_name;
+        $data['status'] = $data['status'] ?? $salesOrder->status;
         $data['updated_by'] = $userId;
 
         // Recalculate doc_total
@@ -208,5 +211,139 @@ class SalesOrderService
         }
 
         return $prefix . $random;
+    }
+
+    /**
+     * Post a Sales Order to SAP.
+     *
+     * @param  int  $id
+     * @param  int|null  $userId
+     * @return array
+     * @throws Exception
+     */
+    public function postToSap(int $id, ?int $userId = null): array
+    {
+        $salesOrder = $this->getOrderById($id);
+
+        if (!$salesOrder) {
+            throw new Exception('Sales order tidak ditemukan.');
+        }
+
+        // Prepare SAP payload mapping
+        $payload = [
+            'CardCode' => $salesOrder->card_code,
+            'CardName' => $salesOrder->customer_name,
+            'DocDate' => $salesOrder->doc_date ? $salesOrder->doc_date->format('Y-m-d') : null,
+            'DocDueDate' => $salesOrder->doc_due_date ? $salesOrder->doc_due_date->format('Y-m-d') : null,
+            'NumAtCard' => $salesOrder->po_number,
+            'SalesPersonCode' => (int)$salesOrder->slp_code,
+            'ContactPersonCode' => (int)$salesOrder->cntct_code,
+            'ShipToCode' => $salesOrder->ship_to_code,
+            'PayToCode' => $salesOrder->pay_to_code,
+            'Address' => $salesOrder->address,
+            'Address2' => $salesOrder->address2,
+            'Comments' => $salesOrder->comments,
+            'U_DiskonCode' => $salesOrder->id_discount,
+            'Lines' => $salesOrder->details->map(function ($line) {
+                return [
+                    'ItemCode' => $line->item_code,
+                    'Quantity' => (float)$line->quantity,
+                    'UnitPrice' => (float)$line->unit_price,
+                    'WarehouseCode' => $line->whs_code,
+                    'VatGroup' => $line->vat_group,
+                    'DiscountPercent' => (float)$line->disc_percent,
+                    'FreeText' => $line->free_text,
+                    'CostingCode' => $line->ocr_code,
+                    'CostingCode2' => $line->ocr_code2,
+                    'CostingCode3' => $line->ocr_code3,
+                    'UoMEntry' => $line->uom_entry ? (int)$line->uom_entry : null,
+                ];
+            })->toArray()
+        ];
+
+        $requestJson = json_encode($payload);
+        $responseJson = null;
+        $status = 'FAILED';
+        $errorMessage = null;
+
+        try {
+            $response = Http::timeout(15)->post('http://103.18.133.187:3100/api/addso', $payload);
+            $responseJson = $response->body();
+
+            if (!$response->successful()) {
+                throw new Exception('Gagal menghubungi API SAP untuk membuat Sales Order.');
+            }
+
+            $body = $response->json();
+            if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
+                throw new Exception('API SAP addso mengembalikan error: ' . ($body['Message'] ?? 'Unknown error'));
+            }
+
+            $status = 'SUCCESS';
+
+            // Get DocEntry and DocNum if returned in Result
+            $sapDocEntry = $body['Result'][0]['DocEntry'] ?? null;
+            $sapDocNum = $body['Result'][0]['DocNum'] ?? null;
+
+            // Update Sales Order on Success
+            $salesOrder->update([
+                'status' => 'APPROVED',
+                'sap_doc_entry' => $sapDocEntry,
+                'sap_doc_num' => $sapDocNum,
+                'integrated_at' => now(),
+                'sap_error' => null,
+            ]);
+
+            if ($userId) {
+                $this->auditLogService->log(
+                    $userId,
+                    'POST_SALES_ORDER_SAP_SUCCESS',
+                    "Successfully integrated Sales Order {$salesOrder->order_no} to SAP."
+                );
+            }
+
+            // Save integration log
+            \App\Models\SalesOrderIntegrationLog::create([
+                'sales_order_id' => $salesOrder->id,
+                'request_json' => $requestJson,
+                'response_json' => $responseJson,
+                'status' => 'SUCCESS',
+                'error_message' => null,
+            ]);
+
+            return [
+                'success' => true,
+                'message' => 'Sales Order berhasil dikirim ke SAP.',
+                'sap_response' => $body
+            ];
+
+        } catch (Exception $e) {
+            $errorMessage = $e->getMessage();
+
+            // Update Sales Order on Failure
+            $salesOrder->update([
+                'status' => 'FAILED',
+                'sap_error' => $errorMessage,
+            ]);
+
+            if ($userId) {
+                $this->auditLogService->log(
+                    $userId,
+                    'POST_SALES_ORDER_SAP_FAILED',
+                    "Failed to integrate Sales Order {$salesOrder->order_no} to SAP. Error: {$errorMessage}"
+                );
+            }
+
+            // Save integration log
+            \App\Models\SalesOrderIntegrationLog::create([
+                'sales_order_id' => $salesOrder->id,
+                'request_json' => $requestJson,
+                'response_json' => $responseJson,
+                'status' => 'FAILED',
+                'error_message' => $errorMessage,
+            ]);
+
+            throw $e;
+        }
     }
 }

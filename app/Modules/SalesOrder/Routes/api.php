@@ -9,4 +9,5 @@ Route::prefix('v1/sales-orders')->middleware('auth:sanctum')->group(function () 
     Route::get('/{id}', [SalesOrderController::class, 'show']);
     Route::put('/{id}', [SalesOrderController::class, 'update']);
     Route::delete('/{id}', [SalesOrderController::class, 'destroy']);
+    Route::post('/{id}/post-sap', [SalesOrderController::class, 'postToSap']);
 });

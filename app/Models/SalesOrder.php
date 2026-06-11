@@ -69,6 +69,14 @@ class SalesOrder extends Model
     }
 
     /**
+     * Get the integration logs for the sales order.
+     */
+    public function integrationLogs(): HasMany
+    {
+        return $this->hasMany(SalesOrderIntegrationLog::class);
+    }
+
+    /**
      * Get the distributor that owns the sales order.
      */
     public function distributor(): BelongsTo
