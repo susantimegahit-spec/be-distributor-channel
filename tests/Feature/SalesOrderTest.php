@@ -40,6 +40,56 @@ class SalesOrderTest extends TestCase
             'code_customer' => 'C110003074',
             'is_active' => true,
         ]);
+
+        // Create master records
+        \App\Models\SalesEmployee::create([
+            'slp_code' => 0,
+            'slp_name' => 'John Doe Sales',
+            'status' => 1,
+        ]);
+
+        \App\Models\Item::create([
+            'item_code' => 'E65',
+            'item_name' => 'TOP 250 M @ 10 KG / BAL',
+            'suom_entry' => 1,
+            'sal_unit_msr' => 'Kg',
+            'per_kg' => 10,
+            'status' => 1,
+        ]);
+
+        \App\Models\Warehouse::create([
+            'whs_code' => 'FG04',
+            'whs_name' => 'Finished Goods 04',
+            'status' => 1,
+        ]);
+
+        \App\Models\Vat::create([
+            'code' => 'S1',
+            'name' => 'PPN 11%',
+            'rate' => 11.00,
+            'status' => 1,
+        ]);
+
+        \App\Models\OcrCode::create([
+            'ocr_code' => 'SBY',
+            'ocr_name' => 'Surabaya Depo',
+            'distribution_target' => 'SBY',
+            'status' => 1,
+        ]);
+
+        \App\Models\OcrCode::create([
+            'ocr_code' => 'GRM',
+            'ocr_name' => 'Garam Division',
+            'distribution_target' => 'GRM',
+            'status' => 1,
+        ]);
+
+        \App\Models\OcrCode::create([
+            'ocr_code' => 'MKT',
+            'ocr_name' => 'Marketing Team',
+            'distribution_target' => 'MKT',
+            'status' => 1,
+        ]);
     }
 
     /**
@@ -288,31 +338,50 @@ class SalesOrderTest extends TestCase
                     'quantity' => 10,
                     'unit_price' => 5000,
                     'line_total' => 50000,
+                    'whs_code' => 'FG04',
+                    'vat_group' => 'S1',
+                    'ocr_code' => 'SBY',
+                    'ocr_code2' => 'GRM',
+                    'ocr_code3' => 'MKT',
                 ]
             ]
         ];
 
-        // 1. Verify CREATE returns sap_discount
+        // 1. Verify CREATE returns sap_discount and master data names
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token,
         ])->postJson('/api/distributor-channel/v1/sales-orders', $payload);
 
         $response->assertStatus(200)
             ->assertJsonPath('data.sap_discount.discount_code', 'DISC_TEST_001')
-            ->assertJsonPath('data.sap_discount.details.0.type_discount', 'Diskon Item');
+            ->assertJsonPath('data.sap_discount.details.0.type_discount', 'Diskon Item')
+            ->assertJsonPath('data.sales_employee_name', 'John Doe Sales')
+            ->assertJsonPath('data.details.0.item_name', 'TOP 250 M @ 10 KG / BAL')
+            ->assertJsonPath('data.details.0.whs_name', 'Finished Goods 04')
+            ->assertJsonPath('data.details.0.vat_name', 'PPN 11%')
+            ->assertJsonPath('data.details.0.ocr_name', 'Surabaya Depo')
+            ->assertJsonPath('data.details.0.ocr_name2', 'Garam Division')
+            ->assertJsonPath('data.details.0.ocr_name3', 'Marketing Team');
 
         $orderId = $response->json('data.id');
 
-        // 2. Verify SHOW returns sap_discount
+        // 2. Verify SHOW returns sap_discount and master data names
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token,
         ])->getJson('/api/distributor-channel/v1/sales-orders/' . $orderId);
 
         $response->assertStatus(200)
             ->assertJsonPath('data.sap_discount.discount_code', 'DISC_TEST_001')
-            ->assertJsonPath('data.sap_discount.details.0.type_discount', 'Diskon Item');
+            ->assertJsonPath('data.sap_discount.details.0.type_discount', 'Diskon Item')
+            ->assertJsonPath('data.sales_employee_name', 'John Doe Sales')
+            ->assertJsonPath('data.details.0.item_name', 'TOP 250 M @ 10 KG / BAL')
+            ->assertJsonPath('data.details.0.whs_name', 'Finished Goods 04')
+            ->assertJsonPath('data.details.0.vat_name', 'PPN 11%')
+            ->assertJsonPath('data.details.0.ocr_name', 'Surabaya Depo')
+            ->assertJsonPath('data.details.0.ocr_name2', 'Garam Division')
+            ->assertJsonPath('data.details.0.ocr_name3', 'Marketing Team');
 
-        // 3. Verify UPDATE returns sap_discount
+        // 3. Verify UPDATE returns sap_discount and master data names
         $payload['po_number'] = 'NEW_PO_123';
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token,
@@ -320,6 +389,13 @@ class SalesOrderTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonPath('data.sap_discount.discount_code', 'DISC_TEST_001')
-            ->assertJsonPath('data.sap_discount.details.0.type_discount', 'Diskon Item');
+            ->assertJsonPath('data.sap_discount.details.0.type_discount', 'Diskon Item')
+            ->assertJsonPath('data.sales_employee_name', 'John Doe Sales')
+            ->assertJsonPath('data.details.0.item_name', 'TOP 250 M @ 10 KG / BAL')
+            ->assertJsonPath('data.details.0.whs_name', 'Finished Goods 04')
+            ->assertJsonPath('data.details.0.vat_name', 'PPN 11%')
+            ->assertJsonPath('data.details.0.ocr_name', 'Surabaya Depo')
+            ->assertJsonPath('data.details.0.ocr_name2', 'Garam Division')
+            ->assertJsonPath('data.details.0.ocr_name3', 'Marketing Team');
     }
 }

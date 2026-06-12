@@ -60,6 +60,10 @@ class SalesOrder extends Model
         'rejected_at' => 'datetime',
     ];
 
+    protected $appends = [
+        'sales_employee_name',
+    ];
+
     /**
      * Get the details for the sales order.
      */
@@ -90,5 +94,21 @@ class SalesOrder extends Model
     public function sapDiscount(): BelongsTo
     {
         return $this->belongsTo(SapDiscountHeader::class, 'id_discount', 'discount_code');
+    }
+
+    /**
+     * Get the sales employee associated with the sales order.
+     */
+    public function salesEmployee(): BelongsTo
+    {
+        return $this->belongsTo(SalesEmployee::class, 'slp_code', 'slp_code');
+    }
+
+    /**
+     * Get the sales employee name.
+     */
+    public function getSalesEmployeeNameAttribute(): ?string
+    {
+        return $this->salesEmployee?->slp_name;
     }
 }

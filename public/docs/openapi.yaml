@@ -2554,6 +2554,30 @@ components:
           type: string
           nullable: true
           example: MKT
+        item_name:
+          type: string
+          nullable: true
+          example: "TOP 250 M @ 10 KG / BAL"
+        whs_name:
+          type: string
+          nullable: true
+          example: "Finished Goods 04"
+        vat_name:
+          type: string
+          nullable: true
+          example: "PPN 11%"
+        ocr_name:
+          type: string
+          nullable: true
+          example: "Surabaya"
+        ocr_name2:
+          type: string
+          nullable: true
+          example: "Garam"
+        ocr_name3:
+          type: string
+          nullable: true
+          example: "Marketing"
 
     SalesOrder:
       type: object
@@ -2590,6 +2614,10 @@ components:
           type: integer
           nullable: true
           example: 0
+        sales_employee_name:
+          type: string
+          nullable: true
+          example: "John Doe"
         cntct_code:
           type: integer
           example: -1
