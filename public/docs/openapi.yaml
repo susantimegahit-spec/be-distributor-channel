@@ -1936,6 +1936,29 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/claims/template-excel:
+    get:
+      summary: Download claims template Excel
+      description: Mengunduh template Excel untuk upload data klaim distributor. Template ini berisi dua sheet, yaitu "template upload klaim" dan "master data item".
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: File template excel (.xls) berhasil diunduh
+          content:
+            application/vnd.ms-excel:
+              schema:
+                type: string
+                format: binary
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     BearerAuth:
