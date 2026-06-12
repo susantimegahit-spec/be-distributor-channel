@@ -246,7 +246,7 @@ class SalesOrderService
             'ShipToCode' => $salesOrder->ship_to_code,
             'Address2' => $salesOrder->address2,
             'Comments' => $salesOrder->comments,
-            'IdDiskon' => $salesOrder->id_discount,
+            'IdDiskon' => $salesOrder->id_discount ?? '',
             'Lines' => $salesOrder->details->map(function ($line) {
                 return [
                     'ItemCode' => $line->item_code,

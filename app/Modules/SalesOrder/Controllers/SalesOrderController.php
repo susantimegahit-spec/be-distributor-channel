@@ -174,7 +174,7 @@ class SalesOrderController extends Controller
             $result = $this->salesOrderService->postToSap($id, $user->id);
             return $this->successResponse($result['sap_response'], 'Sales order berhasil dikirim ke SAP.');
         } catch (\Exception $e) {
-            return $this->errorResponse($e->getMessage(), 400);
+            return $this->errorResponse($e->getMessage(), [], 400);
         }
     }
 }
