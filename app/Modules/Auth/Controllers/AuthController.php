@@ -36,8 +36,7 @@ class AuthController extends Controller
     {
         $result = $this->authService->login(
             $request->input('username'),
-            $request->input('password'),
-            $request->input('code_customer')
+            $request->input('password')
         );
 
         $user = $result['user'];

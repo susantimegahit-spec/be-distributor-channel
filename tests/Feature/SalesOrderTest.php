@@ -251,4 +251,75 @@ class SalesOrderTest extends TestCase
             'status' => 'WAITING_APPROVAL',
         ]);
     }
+
+    /**
+     * Test sales order detail, create, and update returns sap discount details.
+     */
+    public function test_sales_order_with_sap_discount_details(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        // Create SAP discount records
+        $discountHeader = \App\Models\SapDiscountHeader::create([
+            'discount_code' => 'DISC_TEST_001',
+            'card_code' => 'C110003074',
+            'card_name' => 'PT XYZ',
+            'total_so' => 0.00,
+            'user_id' => $this->user->id,
+        ]);
+
+        $discountDetail = \App\Models\SapDiscountDetail::create([
+            'sap_discount_header_id' => $discountHeader->id,
+            'type_discount' => 'Diskon Item',
+            'percentage' => 10.00,
+            'total_discount' => 1500000.00,
+            'remarks' => 'TEST REMARKS',
+        ]);
+
+        $payload = [
+            'card_code' => 'C110003074',
+            'customer_name' => 'PT XYZ',
+            'doc_date' => '2026-02-25',
+            'slp_code' => 0,
+            'id_discount' => 'DISC_TEST_001',
+            'lines' => [
+                [
+                    'item_code' => 'E65',
+                    'quantity' => 10,
+                    'unit_price' => 5000,
+                    'line_total' => 50000,
+                ]
+            ]
+        ];
+
+        // 1. Verify CREATE returns sap_discount
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/api/distributor-channel/v1/sales-orders', $payload);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.sap_discount.discount_code', 'DISC_TEST_001')
+            ->assertJsonPath('data.sap_discount.details.0.type_discount', 'Diskon Item');
+
+        $orderId = $response->json('data.id');
+
+        // 2. Verify SHOW returns sap_discount
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/distributor-channel/v1/sales-orders/' . $orderId);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.sap_discount.discount_code', 'DISC_TEST_001')
+            ->assertJsonPath('data.sap_discount.details.0.type_discount', 'Diskon Item');
+
+        // 3. Verify UPDATE returns sap_discount
+        $payload['po_number'] = 'NEW_PO_123';
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->putJson('/api/distributor-channel/v1/sales-orders/' . $orderId, $payload);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.sap_discount.discount_code', 'DISC_TEST_001')
+            ->assertJsonPath('data.sap_discount.details.0.type_discount', 'Diskon Item');
+    }
 }

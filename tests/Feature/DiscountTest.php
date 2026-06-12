@@ -103,6 +103,22 @@ class DiscountTest extends TestCase
             'user_id' => $this->user->id,
             'action' => 'POST_UDO_DISCOUNT_SAP',
         ]);
+
+        // Verify discount saved in local database
+        $this->assertDatabaseHas('sap_discount_headers', [
+            'discount_code' => '20260314001',
+            'card_code' => 'C110003074',
+            'card_name' => 'LESAFFRE SARI',
+            'total_so' => 0.00,
+            'user_id' => $this->user->id,
+        ]);
+
+        $this->assertDatabaseHas('sap_discount_details', [
+            'type_discount' => 'Diskon Item',
+            'percentage' => 0.00,
+            'total_discount' => 3000000.00,
+            'remarks' => 'DISC SEMARAK AWAL THN',
+        ]);
     }
 
     /**

@@ -19,9 +19,10 @@ class DiscountTypeRepository implements DiscountTypeRepositoryInterface
 
         if (!empty($filters['search'])) {
             $search = $filters['search'];
-            $query->where(function ($q) use ($search) {
-                $q->where('fld_value', 'ilike', "%{$search}%")
-                  ->orWhere('descr', 'ilike', "%{$search}%");
+            $operator = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+            $query->where(function ($q) use ($search, $operator) {
+                $q->where('fld_value', $operator, "%{$search}%")
+                  ->orWhere('descr', $operator, "%{$search}%");
             });
         }
 

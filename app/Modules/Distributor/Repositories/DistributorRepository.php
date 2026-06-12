@@ -19,14 +19,15 @@ class DistributorRepository implements DistributorRepositoryInterface
 
         if (!empty($filters['search'])) {
             $search = $filters['search'];
-            $query->where(function ($q) use ($search) {
-                $q->where('code_customer', 'ilike', "%{$search}%")
-                  ->orWhere('name', 'ilike', "%{$search}%")
-                  ->orWhere('address', 'ilike', "%{$search}%")
-                  ->orWhere('mail_address', 'ilike', "%{$search}%")
-                  ->orWhere('contact_person', 'ilike', "%{$search}%")
-                  ->orWhere('sub_group', 'ilike', "%{$search}%")
-                  ->orWhere('depo', 'ilike', "%{$search}%");
+            $operator = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+            $query->where(function ($q) use ($search, $operator) {
+                $q->where('code_customer', $operator, "%{$search}%")
+                  ->orWhere('name', $operator, "%{$search}%")
+                  ->orWhere('address', $operator, "%{$search}%")
+                  ->orWhere('mail_address', $operator, "%{$search}%")
+                  ->orWhere('contact_person', $operator, "%{$search}%")
+                  ->orWhere('sub_group', $operator, "%{$search}%")
+                  ->orWhere('depo', $operator, "%{$search}%");
             });
         }
 

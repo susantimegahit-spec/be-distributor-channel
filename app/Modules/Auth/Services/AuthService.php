@@ -32,14 +32,13 @@ class AuthService
      *
      * @param  string  $username
      * @param  string  $password
-     * @param  string  $codeCustomer
      * @return array
      *
      * @throws ValidationException
      */
-    public function login(string $username, string $password, string $codeCustomer): array
+    public function login(string $username, string $password): array
     {
-        $user = $this->userRepository->findByUsernameAndCodeCustomer($username, $codeCustomer);
+        $user = $this->userRepository->findByUsername($username);
 
         if (!$user || !Hash::check($password, $user->password)) {
             throw ValidationException::withMessages([
@@ -51,6 +50,15 @@ class AuthService
             throw ValidationException::withMessages([
                 'username' => ['Your account is inactive.'],
             ]);
+        }
+
+        if ($user->code_customer) {
+            $user->load('distributor');
+            if (!$user->distributor || $user->distributor->status !== 1) {
+                throw ValidationException::withMessages([
+                    'username' => ['Your associated customer/distributor account is inactive.'],
+                ]);
+            }
         }
 
         // Create token

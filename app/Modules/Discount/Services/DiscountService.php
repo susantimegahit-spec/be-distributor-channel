@@ -6,6 +6,9 @@ use App\Modules\Discount\Repositories\DiscountTypeRepositoryInterface;
 use App\Modules\AuditLog\Services\AuditLogService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Database\Eloquent\Collection;
+use App\Models\SapDiscountHeader;
+use App\Models\SapDiscountDetail;
+use Illuminate\Support\Facades\DB;
 use Exception;
 
 class DiscountService
@@ -84,6 +87,27 @@ class DiscountService
         if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
             throw new Exception('API SAP addudodiskon mengembalikan error: ' . ($body['Message'] ?? 'Unknown error'));
         }
+
+        // Save to local database
+        DB::transaction(function () use ($code, $data, $userId) {
+            $header = SapDiscountHeader::create([
+                'discount_code' => $code,
+                'card_code' => $data['CardCode'],
+                'card_name' => $data['CardName'],
+                'total_so' => 0,
+                'user_id' => $userId,
+            ]);
+
+            foreach ($data['Lines'] as $line) {
+                SapDiscountDetail::create([
+                    'sap_discount_header_id' => $header->id,
+                    'type_discount' => $line['TypeDiscount'],
+                    'percentage' => (float)$line['Persentase'],
+                    'total_discount' => (float)$line['TotalDiskon'],
+                    'remarks' => $line['Remarks'] ?? null,
+                ]);
+            }
+        });
 
         // 4. Log to Audit Log if user is authenticated
         if ($userId) {

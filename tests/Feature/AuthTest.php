@@ -43,7 +43,6 @@ class AuthTest extends TestCase
     {
         $response = $this->postJson('/api/distributor-channel/v1/auth/login', [
             'username' => 'activeuser',
-            'code_customer' => 'DUMMY001',
             'password' => $this->password,
         ]);
 
@@ -82,7 +81,6 @@ class AuthTest extends TestCase
     {
         $response = $this->postJson('/api/distributor-channel/v1/auth/login', [
             'username' => 'activeuser',
-            'code_customer' => 'DUMMY001',
             'password' => 'wrongpassword',
         ]);
 
@@ -110,7 +108,6 @@ class AuthTest extends TestCase
 
         $response = $this->postJson('/api/distributor-channel/v1/auth/login', [
             'username' => 'inactiveuser',
-            'code_customer' => 'DUMMY001',
             'password' => $this->password,
         ]);
 
@@ -119,6 +116,72 @@ class AuthTest extends TestCase
                 'success' => false,
                 'status_code' => 422,
                 'message' => 'Your account is inactive.',
+            ]);
+    }
+
+    /**
+     * Test login success for a user without code_customer (admin/non-distributor).
+     */
+    public function test_login_success_non_distributor(): void
+    {
+        $adminUser = User::create([
+            'name' => 'Admin User',
+            'username' => 'adminuser',
+            'email' => 'admin@example.com',
+            'password' => Hash::make($this->password),
+            'code_customer' => null,
+            'is_active' => true,
+        ]);
+
+        $response = $this->postJson('/api/distributor-channel/v1/auth/login', [
+            'username' => 'adminuser',
+            'password' => $this->password,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Login berhasil.',
+                'data' => [
+                    'user' => [
+                        'username' => 'adminuser',
+                        'code_customer' => null,
+                    ]
+                ]
+            ]);
+    }
+
+    /**
+     * Test login failure due to inactive distributor associated with the user.
+     */
+    public function test_login_failure_inactive_distributor(): void
+    {
+        // Create an inactive distributor
+        \App\Models\Distributor::create([
+            'code_customer' => 'INACTIVE_DIST',
+            'name' => 'Inactive Distributor',
+            'status' => 0, // Inactive
+        ]);
+
+        User::create([
+            'name' => 'Distributor User',
+            'username' => 'distuser',
+            'email' => 'dist@example.com',
+            'password' => Hash::make($this->password),
+            'code_customer' => 'INACTIVE_DIST',
+            'is_active' => true,
+        ]);
+
+        $response = $this->postJson('/api/distributor-channel/v1/auth/login', [
+            'username' => 'distuser',
+            'password' => $this->password,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => false,
+                'status_code' => 422,
+                'message' => 'Your associated customer/distributor account is inactive.',
             ]);
     }
 

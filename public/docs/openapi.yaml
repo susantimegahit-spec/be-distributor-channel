@@ -23,15 +23,11 @@ paths:
               type: object
               required:
                 - username
-                - code_customer
                 - password
               properties:
                 username:
                   type: string
                   example: admin
-                code_customer:
-                  type: string
-                  example: C110000411
                 password:
                   type: string
                   example: password
@@ -2670,6 +2666,59 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SalesOrderDetail'
+        sap_discount:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+              example: 1
+            discount_code:
+              type: string
+              example: "20260314001"
+            card_code:
+              type: string
+              example: "C110003074"
+            card_name:
+              type: string
+              example: "LESAFFRE SARI"
+            total_so:
+              type: string
+              example: "0.00"
+            user_id:
+              type: integer
+              nullable: true
+              example: 5
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    example: 1
+                  sap_discount_header_id:
+                    type: integer
+                    example: 1
+                  type_discount:
+                    type: string
+                    example: "Diskon Item"
+                  percentage:
+                    type: string
+                    example: "0.00"
+                  total_discount:
+                    type: string
+                    example: "3000000.00"
+                  remarks:
+                    type: string
+                    nullable: true
+                    example: "DISC SEMARAK AWAL THN"
 
     SalesOrderResponse:
       type: object

@@ -41,7 +41,7 @@ class SalesOrderRepository implements SalesOrderRepositoryInterface
      */
     public function getById(int $id): ?SalesOrder
     {
-        return SalesOrder::with('details')->find($id);
+        return SalesOrder::with(['details', 'sapDiscount.details'])->find($id);
     }
 
     /**
@@ -62,7 +62,7 @@ class SalesOrderRepository implements SalesOrderRepositoryInterface
                 $salesOrder->details()->create($line);
             }
 
-            return $salesOrder->load('details');
+            return $salesOrder->load(['details', 'sapDiscount.details']);
         });
     }
 
@@ -87,7 +87,7 @@ class SalesOrderRepository implements SalesOrderRepositoryInterface
                 $salesOrder->details()->create($line);
             }
 
-            return $salesOrder->load('details');
+            return $salesOrder->load(['details', 'sapDiscount.details']);
         });
     }
 

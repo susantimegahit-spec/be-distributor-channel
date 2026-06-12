@@ -83,4 +83,12 @@ class SalesOrder extends Model
     {
         return $this->belongsTo(Distributor::class, 'distributor_id');
     }
+
+    /**
+     * Get the SAP discount header associated with the sales order.
+     */
+    public function sapDiscount(): BelongsTo
+    {
+        return $this->belongsTo(SapDiscountHeader::class, 'id_discount', 'discount_code');
+    }
 }
