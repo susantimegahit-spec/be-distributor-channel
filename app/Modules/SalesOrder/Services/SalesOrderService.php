@@ -82,7 +82,7 @@ class SalesOrderService
     public function createDraft(array $data, int $userId, int $distributorId): SalesOrder
     {
         $distributor = \App\Models\Distributor::find($distributorId);
-        
+
         // Auto-generate order number
         $data['order_no'] = $this->generateOrderNumber();
         $data['distributor_id'] = $distributorId;
@@ -208,7 +208,7 @@ class SalesOrderService
     {
         $prefix = 'SO-' . date('Ymd') . '-';
         $random = str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
-        
+
         // Ensure uniqueness
         while (SalesOrder::where('order_no', $prefix . $random)->exists()) {
             $random = str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
@@ -236,31 +236,32 @@ class SalesOrderService
         // Prepare SAP payload mapping
         $payload = [
             'CardCode' => $salesOrder->card_code,
-            'CardName' => $salesOrder->customer_name,
+            'NumAtCard' => $salesOrder->po_number,
             'DocDate' => $salesOrder->doc_date ? $salesOrder->doc_date->format('Y-m-d') : null,
             'DocDueDate' => $salesOrder->doc_due_date ? $salesOrder->doc_due_date->format('Y-m-d') : null,
-            'NumAtCard' => $salesOrder->po_number,
-            'SalesPersonCode' => (int)$salesOrder->slp_code,
-            'ContactPersonCode' => (int)$salesOrder->cntct_code,
-            'ShipToCode' => $salesOrder->ship_to_code,
+            'SlpCode' => (int)$salesOrder->slp_code,
+            'CntctCode' => (int)$salesOrder->cntct_code,
             'PayToCode' => $salesOrder->pay_to_code,
             'Address' => $salesOrder->address,
+            'ShipToCode' => $salesOrder->ship_to_code,
             'Address2' => $salesOrder->address2,
             'Comments' => $salesOrder->comments,
-            'U_DiskonCode' => $salesOrder->id_discount,
+            'IdDiskon' => $salesOrder->id_discount,
             'Lines' => $salesOrder->details->map(function ($line) {
                 return [
                     'ItemCode' => $line->item_code,
                     'Quantity' => (float)$line->quantity,
+                    'UomEntry' => $line->uom_entry ? (int)$line->uom_entry : null,
+                    'DiscPrcnt' => (float)$line->disc_percent,
+                    'WhsCode' => $line->whs_code,
+                    'UnitMsr' => $line->unit_msr,
                     'UnitPrice' => (float)$line->unit_price,
-                    'WarehouseCode' => $line->whs_code,
                     'VatGroup' => $line->vat_group,
-                    'DiscountPercent' => (float)$line->disc_percent,
-                    'FreeText' => $line->free_text,
-                    'CostingCode' => $line->ocr_code,
-                    'CostingCode2' => $line->ocr_code2,
-                    'CostingCode3' => $line->ocr_code3,
-                    'UoMEntry' => $line->uom_entry ? (int)$line->uom_entry : null,
+                    'LineTotal' => (float)$line->line_total,
+                    'FreeTxt' => $line->free_text,
+                    'OcrCode' => $line->ocr_code,
+                    'OcrCode2' => $line->ocr_code2,
+                    'OcrCode3' => $line->ocr_code3,
                 ];
             })->toArray()
         ];
@@ -320,7 +321,6 @@ class SalesOrderService
                 'message' => 'Sales Order berhasil dikirim ke SAP.',
                 'sap_response' => $body
             ];
-
         } catch (Exception $e) {
             $errorMessage = $e->getMessage();
 
