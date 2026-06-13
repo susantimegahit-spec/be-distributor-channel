@@ -16,7 +16,10 @@ Route::get('/docs/openapi.yaml', function () {
         abort(404);
     }
     return response()->file($path, [
-        'Content-Type' => 'text/yaml'
+        'Content-Type' => 'text/yaml',
+        'Cache-Control' => 'no-cache, no-store, must-revalidate',
+        'Pragma' => 'no-cache',
+        'Expires' => '0',
     ]);
 });
 
@@ -26,7 +29,10 @@ Route::get('/openapi.yaml', function () {
         abort(404);
     }
     return response()->file($path, [
-        'Content-Type' => 'text/yaml'
+        'Content-Type' => 'text/yaml',
+        'Cache-Control' => 'no-cache, no-store, must-revalidate',
+        'Pragma' => 'no-cache',
+        'Expires' => '0',
     ]);
 });
 

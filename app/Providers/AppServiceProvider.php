@@ -68,6 +68,18 @@ class AppServiceProvider extends ServiceProvider
             \App\Modules\Discount\Repositories\DiscountTypeRepositoryInterface::class,
             \App\Modules\Discount\Repositories\DiscountTypeRepository::class
         );
+        $this->app->bind(
+            \App\Modules\Claim\Repositories\ProgramRepositoryInterface::class,
+            \App\Modules\Claim\Repositories\ProgramRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\Claim\Repositories\UploadRepositoryInterface::class,
+            \App\Modules\Claim\Repositories\UploadRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\Claim\Repositories\ResultRepositoryInterface::class,
+            \App\Modules\Claim\Repositories\ResultRepository::class
+        );
     }
 
     /**

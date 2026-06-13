@@ -1959,6 +1959,398 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/claims/programs:
+    get:
+      summary: Get list of programs
+      description: Mendapatkan daftar program promosi dengan filter pencarian dan status (paginated).
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Keyword pencarian kode program atau nama program
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE]
+          description: Status program
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Daftar program berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Program'
+                  current_page:
+                    type: integer
+                  last_page:
+                    type: integer
+                  per_page:
+                    type: integer
+                  total:
+                    type: integer
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Create master program
+      description: Membuat program promosi baru beserta produk program dan strata diskonnya.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreProgramRequest'
+      responses:
+        '201':
+          description: Program berhasil dibuat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Program'
+        '401':
+          description: Tidak terautentikasi
+        '422':
+          description: Validasi input gagal
+
+  /v1/claims/programs/{id}:
+    get:
+      summary: Get program detail
+      description: Mendapatkan detail lengkap data program promosi beserta item produk dan stratanya.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail program berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProgramDetail'
+        '404':
+          description: Program tidak ditemukan
+
+    put:
+      summary: Update program
+      description: Memperbarui data program promosi beserta item produk dan stratanya.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreProgramRequest'
+      responses:
+        '200':
+          description: Program berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProgramDetail'
+        '404':
+          description: Program tidak ditemukan
+
+    delete:
+      summary: Delete program
+      description: Menghapus program promosi (soft delete).
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Program berhasil dihapus
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+
+  /v1/claims/items:
+    get:
+      summary: Get items lookup
+      description: Mencari item produk aktif untuk kebutuhan form master program.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Daftar pencarian item berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    item_code:
+                      type: string
+                    item_name:
+                      type: string
+
+  /v1/claims/dashboard:
+    get:
+      summary: Get claims dashboard statistics
+      description: Mendapatkan ringkasan statistik klaim distributor untuk halaman dashboard.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Statistik dashboard berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_program:
+                    type: integer
+                  total_batch:
+                    type: integer
+                  total_valid_rows:
+                    type: integer
+                  total_diskon:
+                    type: number
+
+  /v1/claims/upload:
+    post:
+      summary: Upload transaction file
+      description: Mengunggah file transaksi distributor Excel dan secara otomatis memicu kalkulasi klaim.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: File berhasil diunggah dan dikalkulasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '422':
+          description: File tidak valid atau struktur salah
+
+  /v1/claims/batches:
+    get:
+      summary: Get list of batches
+      description: Mendapatkan daftar riwayat batch upload transaksi.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Daftar batch berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UploadBatch'
+                  current_page:
+                    type: integer
+                  last_page:
+                    type: integer
+                  per_page:
+                    type: integer
+                  total:
+                    type: integer
+
+  /v1/claims/batches/{id}:
+    get:
+      summary: Get batch detail with metrics
+      description: Mendapatkan detail statistik performa kalkulasi satu batch upload tertentu.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail batch berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadBatchDetail'
+        '404':
+          description: Batch tidak ditemukan
+
+  /v1/claims/results:
+    get:
+      summary: Get calculation results
+      description: Mendapatkan daftar detail hasil kalkulasi diskon per baris transaksi (paginated).
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: batch_id
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [VALID_PROGRAM, ITEM_NOT_FOUND, PROGRAM_NOT_FOUND, STRATA_NOT_FOUND]
+        - name: customer_code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: program_id
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Daftar hasil kalkulasi berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CalculationResult'
+                  current_page:
+                    type: integer
+                  last_page:
+                    type: integer
+                  per_page:
+                    type: integer
+                  total:
+                    type: integer
+
+  /v1/claims/results/export:
+    get:
+      summary: Export calculation results
+      description: Mengunduh file spreadsheet Excel (.xlsx) data hasil kalkulasi diskon berdasarkan filter.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: batch_id
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: customer_code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: program_id
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: File Excel hasil kalkulasi berhasil diunduh
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+
 components:
   securitySchemes:
     BearerAuth:
@@ -2901,4 +3293,247 @@ components:
         status:
           type: integer
           example: 1
+
+    Program:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        program_code:
+          type: string
+          example: PRG202606
+        program_name:
+          type: string
+          example: Program Garam Juni 2026
+        start_date:
+          type: string
+          format: date
+          example: "2026-06-01"
+        end_date:
+          type: string
+          format: date
+          example: "2026-06-30"
+        description:
+          type: string
+          nullable: true
+          example: Deskripsi program...
+        status:
+          type: string
+          example: ACTIVE
+
+    ProgramDetail:
+      allOf:
+        - $ref: '#/components/schemas/Program'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  item_code:
+                    type: string
+                  item_name:
+                    type: string
+            strata:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  customer_type:
+                    type: string
+                    example: GT
+                  min_qty_kg:
+                    type: number
+                    example: 3.00
+                  max_qty_kg:
+                    type: number
+                    nullable: true
+                    example: 199.00
+                  harga_program_per_kg:
+                    type: number
+                    example: 7700.00
+                  diskon_per_kg:
+                    type: number
+                    example: 200.00
+
+    StoreProgramRequest:
+      type: object
+      required:
+        - program_code
+        - program_name
+        - start_date
+        - end_date
+        - items
+        - strata
+      properties:
+        program_code:
+          type: string
+          example: PRG202606
+        program_name:
+          type: string
+          example: Program Garam Juni 2026
+        start_date:
+          type: string
+          format: date
+          example: "2026-06-01"
+        end_date:
+          type: string
+          format: date
+          example: "2026-06-30"
+        description:
+          type: string
+          example: Deskripsi...
+        items:
+          type: array
+          items:
+            type: integer
+          example: [1, 2]
+        strata:
+          type: array
+          items:
+            type: object
+            required:
+              - customer_type
+              - min_qty_kg
+              - harga_program_per_kg
+              - diskon_per_kg
+            properties:
+              customer_type:
+                type: string
+                enum: [GT, MT]
+                example: GT
+              min_qty_kg:
+                type: number
+                example: 3
+              max_qty_kg:
+                type: number
+                nullable: true
+                example: 199
+              harga_program_per_kg:
+                type: number
+                example: 7700
+              diskon_per_kg:
+                type: number
+                example: 200
+
+    UploadResponse:
+      type: object
+      properties:
+        batch_id:
+          type: integer
+          example: 1
+        batch_no:
+          type: string
+          example: UPLOAD-20260612-001
+        total_rows:
+          type: integer
+          example: 105
+        processed_rows:
+          type: integer
+          example: 100
+        invalid_rows:
+          type: integer
+          example: 5
+        total_diskon:
+          type: number
+          example: 2500000.00
+
+    UploadBatch:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        batch_no:
+          type: string
+          example: UPLOAD-20260612-001
+        file_name:
+          type: string
+          example: transaksi_juni.xlsx
+        uploaded_by:
+          type: string
+          example: admin
+        uploaded_at:
+          type: string
+          format: date-time
+          example: "2026-06-13T11:32:00.000000Z"
+
+    UploadBatchDetail:
+      type: object
+      properties:
+        batch_id:
+          type: integer
+          example: 1
+        batch_no:
+          type: string
+          example: UPLOAD-20260612-001
+        file_name:
+          type: string
+          example: transaksi_juni.xlsx
+        uploaded_by:
+          type: string
+          example: admin
+        uploaded_at:
+          type: string
+          format: date-time
+          example: "2026-06-13T11:32:00.000000Z"
+        total_rows:
+          type: integer
+          example: 105
+        valid_rows:
+          type: integer
+          example: 100
+        invalid_rows:
+          type: integer
+          example: 5
+        total_diskon:
+          type: number
+          example: 2500000.00
+
+    CalculationResult:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        customer_code:
+          type: string
+          example: C110000411
+        customer_name:
+          type: string
+          example: DUA JAYA, CV
+        item_code:
+          type: string
+          example: A26
+        item_name:
+          type: string
+          example: TOP 250 M @ 10 KG / BAL
+        qty_kg:
+          type: number
+          example: 100.00
+        sell_price_per_kg:
+          type: number
+          example: 6400.00
+        harga_program_per_kg:
+          type: number
+          example: 7700.00
+        diskon_per_kg:
+          type: number
+          example: 200.00
+        total_diskon:
+          type: number
+          example: 20000.00
+        transaction_date:
+          type: string
+          format: date
+          example: "2026-06-12"
+        status:
+          type: string
+          example: VALID_PROGRAM
 

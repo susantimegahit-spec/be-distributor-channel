@@ -19,9 +19,10 @@ class ItemRepository implements ItemRepositoryInterface
 
         if (!empty($filters['search'])) {
             $search = $filters['search'];
-            $query->where(function ($q) use ($search) {
-                $q->where('item_code', 'ilike', "%{$search}%")
-                  ->orWhere('item_name', 'ilike', "%{$search}%");
+            $likeOperator = \Illuminate\Support\Facades\DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
+            $query->where(function ($q) use ($search, $likeOperator) {
+                $q->where('item_code', $likeOperator, "%{$search}%")
+                  ->orWhere('item_name', $likeOperator, "%{$search}%");
             });
         }
 
