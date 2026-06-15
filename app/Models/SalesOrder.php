@@ -62,7 +62,20 @@ class SalesOrder extends Model
 
     protected $appends = [
         'sales_employee_name',
+        'total_discount',
     ];
+
+    /**
+     * Get the total discount amount.
+     */
+    public function getTotalDiscountAttribute(): float
+    {
+        if (!$this->sapDiscount) {
+            return 0.0;
+        }
+
+        return (float) $this->sapDiscount->details->sum('total_discount');
+    }
 
     /**
      * Get the details for the sales order.
