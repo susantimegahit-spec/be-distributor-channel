@@ -42,6 +42,34 @@ class SalesOrderSapIntegrationTest extends TestCase
             'code_customer' => 'C110003074',
             'is_active' => true,
         ]);
+
+        $discount1 = \App\Models\SapDiscountHeader::create([
+            'discount_code' => 'DISC123',
+            'card_code' => 'C110003074',
+            'card_name' => 'LESAFFRE SARI',
+            'total_so' => 0,
+            'user_id' => $this->user->id,
+        ]);
+        $discount1->details()->create([
+            'type_discount' => 'Diskon Item',
+            'percentage' => 0,
+            'total_discount' => 3000000,
+            'remarks' => 'DISC SEMARAK AWAL THN',
+        ]);
+
+        $discount2 = \App\Models\SapDiscountHeader::create([
+            'discount_code' => 'NEWDISC',
+            'card_code' => 'C110003074',
+            'card_name' => 'LESAFFRE SARI',
+            'total_so' => 0,
+            'user_id' => $this->user->id,
+        ]);
+        $discount2->details()->create([
+            'type_discount' => 'Diskon Item',
+            'percentage' => 0,
+            'total_discount' => 5000000,
+            'remarks' => 'DISC 2',
+        ]);
     }
 
     /**
@@ -76,8 +104,12 @@ class SalesOrderSapIntegrationTest extends TestCase
             'uom_entry' => 1,
         ]);
 
-        // Mock SAP addso endpoint
+        // Mock SAP addso and addudodiskon endpoints
         Http::fake([
+            '103.18.133.187:3100/api/addudodiskon' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => 'Discount added successfully',
+            ], 200),
             '103.18.133.187:3100/api/addso' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => 'Sales Order added successfully',
@@ -205,8 +237,12 @@ class SalesOrderSapIntegrationTest extends TestCase
             'uom_entry' => 1,
         ]);
 
-        // Mock SAP addso endpoint
+        // Mock SAP addso and addudodiskon endpoints
         Http::fake([
+            '103.18.133.187:3100/api/addudodiskon' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => 'Discount added successfully',
+            ], 200),
             '103.18.133.187:3100/api/addso' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => 'Sales Order added successfully',
@@ -263,8 +299,12 @@ class SalesOrderSapIntegrationTest extends TestCase
     {
         $token = $this->user->createToken('test_token')->plainTextToken;
 
-        // Mock SAP addso endpoint
+        // Mock SAP addso and addudodiskon endpoints
         Http::fake([
+            '103.18.133.187:3100/api/addudodiskon' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => 'Discount added successfully',
+            ], 200),
             '103.18.133.187:3100/api/addso' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => 'Sales Order added successfully',
@@ -320,6 +360,64 @@ class SalesOrderSapIntegrationTest extends TestCase
             'item_code' => 'E65',
             'whs_code' => 'RMI02',
             'quantity' => 20.0,
+        ]);
+    }
+
+    /**
+     * Test sending Sales Order failing during discount integration.
+     */
+    public function test_post_sap_with_discount_failure(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        // Create draft order first
+        $order = SalesOrder::create([
+            'order_no' => 'SO-20260611-0004',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'LESAFFRE SARI',
+            'doc_date' => '2026-02-25',
+            'doc_due_date' => '2026-02-25',
+            'slp_code' => 1,
+            'cntct_code' => -1,
+            'doc_total' => 50000,
+            'status' => 'DRAFT',
+            'id_discount' => 'DISC123',
+        ]);
+        $order->details()->create([
+            'item_code' => 'E65',
+            'quantity' => 10,
+            'unit_price' => 5000,
+            'line_total' => 50000,
+            'whs_code' => 'FG04',
+            'vat_group' => 'S1',
+            'disc_percent' => 0,
+            'uom_entry' => 1,
+        ]);
+
+        // Mock SAP addudodiskon endpoint to return failure
+        Http::fake([
+            '103.18.133.187:3100/api/addudodiskon' => Http::response([
+                'ErrorCode' => -2002,
+                'Message' => 'Discount UDO creation failed',
+            ], 200),
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson("/api/distributor-channel/v1/sales-orders/{$order->id}/post-sap");
+
+        $response->assertStatus(400)
+            ->assertJson([
+                'success' => false,
+                'message' => 'API SAP addudodiskon mengembalikan error: Discount UDO creation failed',
+            ]);
+
+        // Verify that local order has failed status and details of discount integration failure
+        $this->assertDatabaseHas('sales_orders', [
+            'id' => $order->id,
+            'status' => 'FAILED',
+            'sap_error' => 'API SAP addudodiskon mengembalikan error: Discount UDO creation failed',
         ]);
     }
 }
