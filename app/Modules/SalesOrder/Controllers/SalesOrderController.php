@@ -170,8 +170,105 @@ class SalesOrderController extends Controller
     {
         $user = $request->user();
 
+        // If request has data, validate it using the update rules
+        $updateData = null;
+        if (!empty($request->all())) {
+            $normalized = $this->salesOrderService->normalizePayload($request->all());
+
+            $validator = \Illuminate\Support\Facades\Validator::make($normalized, [
+                'card_code' => 'sometimes|required|string|max:50',
+                'po_number' => 'nullable|string|max:100',
+                'doc_date' => 'sometimes|required|date',
+                'doc_due_date' => 'nullable|date',
+                'slp_code' => 'nullable|integer',
+                'cntct_code' => 'nullable|integer',
+                'pay_to_code' => 'nullable|string|max:255',
+                'address' => 'nullable|string',
+                'ship_to_code' => 'nullable|string|max:255',
+                'address2' => 'nullable|string',
+                'comments' => 'nullable|string',
+                'id_discount' => 'nullable|string|max:100',
+                'status' => 'nullable|string', // ignored but allowed in input
+                'lines' => 'sometimes|required|array|min:1',
+                'lines.*.item_code' => 'required_with:lines|string|max:50',
+                'lines.*.quantity' => 'required_with:lines|numeric|min:0.0001',
+                'lines.*.unit_msr' => 'nullable|string|max:50',
+                'lines.*.uom_entry' => 'nullable|integer',
+                'lines.*.whs_code' => 'nullable|string|max:20',
+                'lines.*.unit_price' => 'required_with:lines|numeric|min:0',
+                'lines.*.disc_percent' => 'nullable|numeric|min:0|max:100',
+                'lines.*.vat_group' => 'nullable|string|max:10',
+                'lines.*.line_total' => 'required_with:lines|numeric|min:0',
+                'lines.*.free_text' => 'nullable|string',
+                'lines.*.ocr_code' => 'nullable|string|max:20',
+                'lines.*.ocr_code2' => 'nullable|string|max:20',
+                'lines.*.ocr_code3' => 'nullable|string|max:20',
+            ]);
+
+            if ($validator->fails()) {
+                return $this->errorResponse('Validation error', $validator->errors()->toArray(), 422);
+            }
+
+            $updateData = $request->all();
+        }
+
         try {
-            $result = $this->salesOrderService->postToSap($id, $user->id);
+            $result = $this->salesOrderService->postToSap($id, $user->id, $updateData);
+            return $this->successResponse($result['sap_response'], 'Sales order berhasil dikirim ke SAP.');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), [], 400);
+        }
+    }
+
+    /**
+     * Create a new Sales Order and post/integrate it to SAP.
+     *
+     * @param  Request  $request
+     * @return JsonResponse
+     */
+    public function postNewToSap(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $normalized = $this->salesOrderService->normalizePayload($request->all());
+
+        // Validate creation inputs
+        $validator = \Illuminate\Support\Facades\Validator::make($normalized, [
+            'card_code' => 'required|string|max:50',
+            'po_number' => 'nullable|string|max:100',
+            'doc_date' => 'required|date',
+            'doc_due_date' => 'nullable|date',
+            'slp_code' => 'nullable|integer',
+            'cntct_code' => 'nullable|integer',
+            'pay_to_code' => 'nullable|string|max:255',
+            'address' => 'nullable|string',
+            'ship_to_code' => 'nullable|string|max:255',
+            'address2' => 'nullable|string',
+            'comments' => 'nullable|string',
+            'id_discount' => 'nullable|string|max:100',
+            'status' => 'nullable|string', // ignored but allowed in input
+            'lines' => 'required|array|min:1',
+            'lines.*.item_code' => 'required|string|max:50',
+            'lines.*.quantity' => 'required|numeric|min:0.0001',
+            'lines.*.unit_msr' => 'nullable|string|max:50',
+            'lines.*.uom_entry' => 'nullable|integer',
+            'lines.*.whs_code' => 'nullable|string|max:20',
+            'lines.*.unit_price' => 'required|numeric|min:0',
+            'lines.*.disc_percent' => 'nullable|numeric|min:0|max:100',
+            'lines.*.vat_group' => 'nullable|string|max:10',
+            'lines.*.line_total' => 'required|numeric|min:0',
+            'lines.*.free_text' => 'nullable|string',
+            'lines.*.ocr_code' => 'nullable|string|max:20',
+            'lines.*.ocr_code2' => 'nullable|string|max:20',
+            'lines.*.ocr_code3' => 'nullable|string|max:20',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse('Validation error', $validator->errors()->toArray(), 422);
+        }
+
+        try {
+            $result = $this->salesOrderService->postNewToSap($request->all(), $user->id);
             return $this->successResponse($result['sap_response'], 'Sales order berhasil dikirim ke SAP.');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), [], 400);

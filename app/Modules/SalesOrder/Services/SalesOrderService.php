@@ -218,19 +218,195 @@ class SalesOrderService
     }
 
     /**
+     * Normalize incoming request payload to snake_case database schema
+     *
+     * @param  array  $payload
+     * @return array
+     */
+    public function normalizePayload(array $payload): array
+    {
+        $normalized = [];
+
+        // Header mapping
+        $headerMap = [
+            'card_code' => 'card_code',
+            'CardCode' => 'card_code',
+            'po_number' => 'po_number',
+            'NumAtCard' => 'po_number',
+            'doc_date' => 'doc_date',
+            'DocDate' => 'doc_date',
+            'doc_due_date' => 'doc_due_date',
+            'DocDueDate' => 'doc_due_date',
+            'slp_code' => 'slp_code',
+            'SlpCode' => 'slp_code',
+            'cntct_code' => 'cntct_code',
+            'CntctCode' => 'cntct_code',
+            'pay_to_code' => 'pay_to_code',
+            'PayToCode' => 'pay_to_code',
+            'address' => 'address',
+            'Address' => 'address',
+            'ship_to_code' => 'ship_to_code',
+            'ShipToCode' => 'ship_to_code',
+            'address2' => 'address2',
+            'Address2' => 'address2',
+            'comments' => 'comments',
+            'Comments' => 'comments',
+            'id_discount' => 'id_discount',
+            'IdDiskon' => 'id_discount',
+            'status' => 'status',
+            'Status' => 'status',
+        ];
+
+        foreach ($headerMap as $incomingKey => $targetKey) {
+            if (array_key_exists($incomingKey, $payload)) {
+                $value = $payload[$incomingKey];
+                // Treat empty string as null for nullable/numeric fields
+                if (in_array($targetKey, ['slp_code', 'cntct_code', 'id_discount']) && $value === '') {
+                    $value = null;
+                }
+                $normalized[$targetKey] = $value;
+            }
+        }
+
+        // Lines mapping
+        $incomingLines = $payload['lines'] ?? $payload['Lines'] ?? null;
+        if (is_array($incomingLines)) {
+            $normalized['lines'] = [];
+            $lineMap = [
+                'item_code' => 'item_code',
+                'ItemCode' => 'item_code',
+                'quantity' => 'quantity',
+                'Quantity' => 'quantity',
+                'unit_msr' => 'unit_msr',
+                'UnitMsr' => 'unit_msr',
+                'uom_entry' => 'uom_entry',
+                'UomEntry' => 'uom_entry',
+                'whs_code' => 'whs_code',
+                'WhsCode' => 'whs_code',
+                'unit_price' => 'unit_price',
+                'UnitPrice' => 'unit_price',
+                'disc_percent' => 'disc_percent',
+                'DiscPrcnt' => 'disc_percent',
+                'vat_group' => 'vat_group',
+                'VatGroup' => 'vat_group',
+                'line_total' => 'line_total',
+                'LineTotal' => 'line_total',
+                'free_text' => 'free_text',
+                'FreeTxt' => 'free_text',
+                'ocr_code' => 'ocr_code',
+                'OcrCode' => 'ocr_code',
+                'ocr_code2' => 'ocr_code2',
+                'OcrCode2' => 'ocr_code2',
+                'ocr_code3' => 'ocr_code3',
+                'OcrCode3' => 'ocr_code3',
+            ];
+
+            foreach ($incomingLines as $line) {
+                if (!is_array($line)) continue;
+                $normalizedLine = [];
+                foreach ($lineMap as $incomingKey => $targetKey) {
+                    if (array_key_exists($incomingKey, $line)) {
+                        $value = $line[$incomingKey];
+                        // Treat empty string as null for nullable/numeric fields
+                        if (in_array($targetKey, ['uom_entry', 'whs_code', 'vat_group', 'ocr_code', 'ocr_code2', 'ocr_code3']) && $value === '') {
+                            $value = null;
+                        }
+                        $normalizedLine[$targetKey] = $value;
+                    }
+                }
+                $normalized['lines'][] = $normalizedLine;
+            }
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Create a new Sales Order and post it to SAP.
+     *
+     * @param  array  $payload
+     * @param  int  $userId
+     * @return array
+     * @throws Exception
+     */
+    public function postNewToSap(array $payload, int $userId): array
+    {
+        $normalized = $this->normalizePayload($payload);
+
+        // Find distributor by card_code
+        $cardCode = $normalized['card_code'] ?? null;
+        if (!$cardCode) {
+            throw new Exception('CardCode wajib diisi.');
+        }
+
+        $distributor = \App\Models\Distributor::where('code_customer', $cardCode)->first();
+        if (!$distributor) {
+            throw new Exception("Data distributor dengan CardCode {$cardCode} tidak terdaftar.");
+        }
+
+        // Set draft values but will post immediately
+        $normalized['order_no'] = $this->generateOrderNumber();
+        $normalized['distributor_id'] = $distributor->id;
+        $normalized['customer_name'] = $distributor->name;
+        $normalized['status'] = 'WAITING_APPROVAL'; // Initial status before SAP
+        $normalized['created_by'] = $userId;
+        $normalized['updated_by'] = $userId;
+
+        // Calculate doc_total
+        $docTotal = 0;
+        if (isset($normalized['lines']) && is_array($normalized['lines'])) {
+            foreach ($normalized['lines'] as $line) {
+                $docTotal += $line['line_total'] ?? 0;
+            }
+        }
+        $normalized['doc_total'] = $docTotal;
+
+        // Create in local DB
+        $salesOrder = $this->salesOrderRepository->create($normalized);
+
+        // Post to SAP
+        return $this->postToSap($salesOrder->id, $userId);
+    }
+
+    /**
      * Post a Sales Order to SAP.
      *
      * @param  int  $id
      * @param  int|null  $userId
+     * @param  array|null  $updateData
      * @return array
      * @throws Exception
      */
-    public function postToSap(int $id, ?int $userId = null): array
+    public function postToSap(int $id, ?int $userId = null, ?array $updateData = null): array
     {
         $salesOrder = $this->getOrderById($id);
 
         if (!$salesOrder) {
             throw new Exception('Sales order tidak ditemukan.');
+        }
+
+        // Apply update data locally if passed
+        if ($updateData) {
+            $normalized = $this->normalizePayload($updateData);
+
+            // Ignore status from update body
+            if (isset($normalized['status'])) {
+                unset($normalized['status']);
+            }
+
+            if (isset($normalized['lines']) && is_array($normalized['lines'])) {
+                $docTotal = 0;
+                foreach ($normalized['lines'] as $line) {
+                    $docTotal += $line['line_total'] ?? 0;
+                }
+                $normalized['doc_total'] = $docTotal;
+
+                // Update using repository (Cascades details delete & recreate)
+                $salesOrder = $this->salesOrderRepository->update($salesOrder, $normalized);
+            } else {
+                // Update header properties
+                $salesOrder->update($normalized);
+            }
         }
 
         // Prepare SAP payload mapping
