@@ -246,14 +246,14 @@ class SalesOrderService
             'ShipToCode' => $salesOrder->ship_to_code,
             'Address2' => $salesOrder->address2,
             'Comments' => $salesOrder->comments,
-            'IdDiskon' => $salesOrder->id_discount ?? '',
+            'IdDiskon' => $salesOrder->id_discount,
             'Lines' => $salesOrder->details->map(function ($line) {
                 return [
                     'ItemCode' => $line->item_code,
                     'Quantity' => (float)$line->quantity,
                     'UomEntry' => $line->uom_entry ? (int)$line->uom_entry : null,
                     'DiscPrcnt' => (float)$line->disc_percent,
-                    'WhsCode' => $line->whs_code,
+                    'WhsCode' => $line->WhsCode,
                     'UnitMsr' => $line->unit_msr,
                     'UnitPrice' => (float)$line->unit_price,
                     'VatGroup' => $line->vat_group,
@@ -264,6 +264,13 @@ class SalesOrderService
                     'OcrCode3' => $line->ocr_code3,
                 ];
             })->toArray()
+        ];
+
+        // Debug: Early return payload to echo/check in Postman
+        return [
+            'success' => true,
+            'message' => 'Debug Payload',
+            'sap_response' => $payload
         ];
 
         $requestJson = json_encode($payload);
