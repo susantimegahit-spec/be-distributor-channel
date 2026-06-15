@@ -266,13 +266,6 @@ class SalesOrderService
             })->toArray()
         ];
 
-        // Debug: Early return payload to echo/check in Postman
-        return [
-            'success' => true,
-            'message' => 'Debug Payload',
-            'sap_response' => $payload
-        ];
-
         $requestJson = json_encode($payload);
         $responseJson = null;
         $status = 'FAILED';
