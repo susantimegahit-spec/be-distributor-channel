@@ -24,7 +24,7 @@ class SaveSalesOrderRequest extends FormRequest
             'po_number' => 'nullable|string|max:100',
             'doc_date' => 'required|date',
             'doc_due_date' => 'nullable|date',
-            'slp_code' => 'required|integer',
+            'slp_code' => 'nullable|integer',
             'cntct_code' => 'nullable|integer',
             'pay_to_code' => 'nullable|string|max:255',
             'address' => 'nullable|string',
