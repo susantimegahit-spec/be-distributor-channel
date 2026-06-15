@@ -13,16 +13,16 @@ class DistributorSeeder extends Seeder
     public function run(): void
     {
         DB::table('distributors')->updateOrInsert(
-            ['code_customer' => 'C110000411'],
+            ['code_customer' => 'C110003419'],
             [
-                'name' => 'PT XYZ',
-                'address' => 'Jl. Dummy No. 123',
-                'phone' => '021-12345678',
-                'email' => 'info@xyz.com',
-                'mail_address' => 'Jl. Dummy No. 123, Kantor Pos',
-                'contact_person' => 'John Doe',
+                'name' => 'SAKTI SETIA SANTOSA, PT',
+                'address' => 'Jl. Sakti Setia No. 456',
+                'phone' => '021-87654321',
+                'email' => 'saktisetia@example.com',
+                'mail_address' => 'Jl. Sakti Setia No. 456, Kantor Pos',
+                'contact_person' => 'Jane Smith',
                 'sub_group' => 'Distributor',
-                'depo' => 'TULUNGAGUNG',
+                'depo' => 'SURABAYA',
                 'status' => 1,
                 'created_at' => now(),
                 'updated_at' => now(),
