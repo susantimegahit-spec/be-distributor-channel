@@ -266,6 +266,9 @@ class SalesOrderService
             })->toArray()
         ];
 
+
+        var_dump($payload);
+        exit;
         $requestJson = json_encode($payload);
         $responseJson = null;
         $status = 'FAILED';
