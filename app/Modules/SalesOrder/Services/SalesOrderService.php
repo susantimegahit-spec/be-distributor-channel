@@ -253,7 +253,7 @@ class SalesOrderService
                     'Quantity' => (float)$line->quantity,
                     'UomEntry' => $line->uom_entry ? (int)$line->uom_entry : null,
                     'DiscPrcnt' => (float)$line->disc_percent,
-                    'WhsCode' => $line->WhsCode,
+                    'WhsCode' => $line->whs_code,
                     'UnitMsr' => $line->unit_msr,
                     'UnitPrice' => (float)$line->unit_price,
                     'VatGroup' => $line->vat_group,
