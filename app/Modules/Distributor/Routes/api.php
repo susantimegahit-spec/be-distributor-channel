@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Distributor\Controllers\DistributorController;
+use App\Modules\Distributor\Controllers\SyncAllController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/distributors')->middleware('auth:sanctum')->group(function () {
@@ -10,4 +11,8 @@ Route::prefix('v1/distributors')->middleware('auth:sanctum')->group(function () 
     Route::get('/ocr-codes', [DistributorController::class, 'getOcrCodes']);
     Route::post('/ocr-codes/sync', [DistributorController::class, 'syncOcrCodes']);
     Route::get('/{id}', [DistributorController::class, 'show'])->whereNumber('id');
+});
+
+Route::prefix('v1/sync')->middleware('auth:sanctum')->group(function () {
+    Route::post('/all', [SyncAllController::class, 'syncAll']);
 });
