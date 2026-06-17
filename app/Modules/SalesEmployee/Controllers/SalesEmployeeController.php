@@ -32,7 +32,7 @@ class SalesEmployeeController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $filters = $request->only(['search']);
+        $filters = $request->only(['search', 'code_customer']);
         $employees = $this->salesEmployeeService->getAll($filters);
 
         return $this->successResponse($employees, 'Daftar Sales Employee berhasil diambil.');

@@ -17,6 +17,13 @@ class SalesEmployeeRepository implements SalesEmployeeRepositoryInterface
     {
         $query = SalesEmployee::query();
 
+        if (!empty($filters['code_customer'])) {
+            $slpCodes = \App\Models\SalesDistributorMapping::where('code_customer', $filters['code_customer'])
+                ->where('status', 1)
+                ->pluck('slp_code');
+            $query->whereIn('slp_code', $slpCodes);
+        }
+
         if (!empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {

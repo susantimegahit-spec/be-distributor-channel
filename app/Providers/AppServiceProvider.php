@@ -80,6 +80,10 @@ class AppServiceProvider extends ServiceProvider
             \App\Modules\Claim\Repositories\ResultRepositoryInterface::class,
             \App\Modules\Claim\Repositories\ResultRepository::class
         );
+        $this->app->bind(
+            \App\Modules\SalesDistributor\Repositories\SalesDistributorRepositoryInterface::class,
+            \App\Modules\SalesDistributor\Repositories\SalesDistributorRepository::class
+        );
     }
 
     /**

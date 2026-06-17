@@ -1438,6 +1438,12 @@ paths:
           schema:
             type: string
           description: Kata kunci untuk mencari sales employee berdasarkan SlpCode atau SlpName (case-insensitive).
+        - name: code_customer
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kode customer/distributor untuk menyaring sales employee yang terpetakan saja.
       responses:
         '200':
           description: Daftar Sales Employee berhasil diambil
@@ -2351,6 +2357,240 @@ paths:
                 type: string
                 format: binary
 
+  /v1/sales-distributors:
+    get:
+      summary: List all sales-distributor mappings
+      description: Mendapatkan daftar pemetaan antara sales employee dan distributor (paginated).
+      tags:
+        - Sales Distributor Mappings
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: code_customer
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan kode distributor.
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: integer
+            enum: [0, 1]
+          description: Filter status aktif (1) atau nonaktif (0).
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Keyword pencarian berdasarkan customer name, slp name, dll.
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Jumlah baris data per halaman.
+      responses:
+        '200':
+          description: Daftar pemetaan berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar pemetaan sales dan distributor berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/SalesDistributorMapping'
+                      current_page:
+                        type: integer
+                      last_page:
+                        type: integer
+                      per_page:
+                        type: integer
+                      total:
+                        type: integer
+        '401':
+          description: Tidak terautentikasi
+
+    post:
+      summary: Create sales-distributor mapping
+      description: Membuat data pemetaan baru antara sales employee dan distributor.
+      tags:
+        - Sales Distributor Mappings
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code_customer
+                - slp_code
+              properties:
+                code_customer:
+                  type: string
+                  example: C110000411
+                slp_code:
+                  type: integer
+                  example: 28
+                status:
+                  type: integer
+                  enum: [0, 1]
+                  example: 1
+      responses:
+        '200':
+          description: Pemetaan berhasil dibuat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Pemetaan sales dan distributor berhasil dibuat.
+                  data:
+                    $ref: '#/components/schemas/SalesDistributorMapping'
+        '422':
+          description: Validasi gagal atau data sudah terdaftar
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/sales-distributors/{id}:
+    get:
+      summary: Get sales-distributor mapping detail
+      description: Mendapatkan detail satu pemetaan berdasarkan ID.
+      tags:
+        - Sales Distributor Mappings
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail pemetaan berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Detail pemetaan sales dan distributor berhasil diambil.
+                  data:
+                    $ref: '#/components/schemas/SalesDistributorMapping'
+        '404':
+          description: Pemetaan tidak ditemukan
+        '401':
+          description: Tidak terautentikasi
+
+    put:
+      summary: Update sales-distributor mapping
+      description: Memperbarui data pemetaan berdasarkan ID.
+      tags:
+        - Sales Distributor Mappings
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code_customer:
+                  type: string
+                  example: C110000411
+                slp_code:
+                  type: integer
+                  example: 28
+                status:
+                  type: integer
+                  enum: [0, 1]
+                  example: 0
+      responses:
+        '200':
+          description: Pemetaan berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Pemetaan sales dan distributor berhasil diperbarui.
+                  data:
+                    $ref: '#/components/schemas/SalesDistributorMapping'
+        '422':
+          description: Validasi gagal atau bentrok
+        '404':
+          description: Pemetaan tidak ditemukan
+        '401':
+          description: Tidak terautentikasi
+
+    delete:
+      summary: Delete sales-distributor mapping
+      description: Menghapus data pemetaan berdasarkan ID.
+      tags:
+        - Sales Distributor Mappings
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Pemetaan berhasil dihapus
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Pemetaan sales dan distributor berhasil dihapus.
+        '404':
+          description: Pemetaan tidak ditemukan
+        '401':
+          description: Tidak terautentikasi
+
 components:
   securitySchemes:
     BearerAuth:
@@ -2762,6 +3002,33 @@ components:
           type: string
           format: date-time
           example: "2026-06-09T08:00:00.000000Z"
+
+    SalesDistributorMapping:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        code_customer:
+          type: string
+          example: "C110000411"
+        slp_code:
+          type: integer
+          example: 28
+        status:
+          type: integer
+          enum: [0, 1]
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        distributor:
+          $ref: '#/components/schemas/Distributor'
+        sales_employee:
+          $ref: '#/components/schemas/SalesEmployee'
 
     Vat:
       type: object
