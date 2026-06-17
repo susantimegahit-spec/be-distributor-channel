@@ -3228,6 +3228,10 @@ components:
           type: string
           enum: [DRAFT, WAITING_APPROVAL]
           example: DRAFT
+        attachment:
+          type: string
+          format: binary
+          description: File attachment PDF (max 1MB)
         lines:
           type: array
           items:
@@ -3526,6 +3530,45 @@ components:
                     type: string
                     nullable: true
                     example: "DISC SEMARAK AWAL THN"
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalesOrderAttachment'
+
+    SalesOrderAttachment:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        sales_order_id:
+          type: integer
+          example: 1
+        file_name:
+          type: string
+          example: "invoice.pdf"
+        file_path:
+          type: string
+          example: "attachments/order/20260617_SO-20260617-1234.pdf"
+        file_type:
+          type: string
+          example: "application/pdf"
+        file_size:
+          type: integer
+          example: 512000
+        uploaded_by:
+          type: integer
+          nullable: true
+          example: 2
+        file_url:
+          type: string
+          example: "http://localhost:8000/storage/attachments/order/20260617_SO-20260617-1234.pdf"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
 
     SalesOrderResponse:
       type: object
