@@ -94,6 +94,14 @@ class SalesOrder extends Model
     }
 
     /**
+     * Get the attachments for the sales order.
+     */
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(SalesOrderAttachment::class);
+    }
+
+    /**
      * Get the distributor that owns the sales order.
      */
     public function distributor(): BelongsTo

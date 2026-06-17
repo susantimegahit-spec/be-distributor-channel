@@ -41,7 +41,7 @@ class SalesOrderRepository implements SalesOrderRepositoryInterface
      */
     public function getById(int $id): ?SalesOrder
     {
-        return SalesOrder::with(['details.item', 'details.warehouse', 'details.vat', 'details.ocr', 'details.ocr2', 'details.ocr3', 'salesEmployee', 'sapDiscount.details'])->find($id);
+        return SalesOrder::with(['details.item', 'details.warehouse', 'details.vat', 'details.ocr', 'details.ocr2', 'details.ocr3', 'salesEmployee', 'sapDiscount.details', 'attachments'])->find($id);
     }
 
     /**
@@ -62,7 +62,7 @@ class SalesOrderRepository implements SalesOrderRepositoryInterface
                 $salesOrder->details()->create($line);
             }
 
-            return $salesOrder->load(['details.item', 'details.warehouse', 'details.vat', 'details.ocr', 'details.ocr2', 'details.ocr3', 'salesEmployee', 'sapDiscount.details']);
+            return $salesOrder->load(['details.item', 'details.warehouse', 'details.vat', 'details.ocr', 'details.ocr2', 'details.ocr3', 'salesEmployee', 'sapDiscount.details', 'attachments']);
         });
     }
 
@@ -87,7 +87,7 @@ class SalesOrderRepository implements SalesOrderRepositoryInterface
                 $salesOrder->details()->create($line);
             }
 
-            return $salesOrder->load(['details.item', 'details.warehouse', 'details.vat', 'details.ocr', 'details.ocr2', 'details.ocr3', 'salesEmployee', 'sapDiscount.details']);
+            return $salesOrder->load(['details.item', 'details.warehouse', 'details.vat', 'details.ocr', 'details.ocr2', 'details.ocr3', 'salesEmployee', 'sapDiscount.details', 'attachments']);
         });
     }
 

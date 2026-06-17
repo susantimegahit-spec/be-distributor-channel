@@ -401,4 +401,50 @@ class SalesOrderTest extends TestCase
             ->assertJsonPath('data.details.0.ocr_name2', 'Garam Division')
             ->assertJsonPath('data.details.0.ocr_name3', 'Marketing Team');
     }
+
+    /**
+     * Test creating a sales order draft with a PDF attachment.
+     */
+    public function test_create_sales_order_with_attachment(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        $file = \Illuminate\Http\UploadedFile::fake()->create('document.pdf', 500, 'application/pdf');
+
+        $payload = [
+            'card_code' => 'C110003074',
+            'customer_name' => 'PT XYZ',
+            'po_number' => 'PO-ATTACH-123',
+            'doc_date' => '2026-02-25',
+            'slp_code' => 0,
+            'lines' => [
+                [
+                    'item_code' => 'E65',
+                    'quantity' => 10,
+                    'unit_price' => 5000,
+                    'line_total' => 50000,
+                ]
+            ],
+            'attachment' => $file,
+        ];
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->post('/api/distributor-channel/v1/sales-orders', $payload); // multipart form-data needs post() instead of postJson()
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.po_number', 'PO-ATTACH-123')
+            ->assertJsonPath('data.attachments.0.file_name', 'document.pdf');
+
+        $orderId = $response->json('data.id');
+
+        $this->assertDatabaseHas('sales_order_attachments', [
+            'sales_order_id' => $orderId,
+            'file_name' => 'document.pdf',
+        ]);
+
+        $attachment = \App\Models\SalesOrderAttachment::where('sales_order_id', $orderId)->first();
+        \Illuminate\Support\Facades\Storage::disk('public')->assertExists($attachment->file_path);
+    }
 }

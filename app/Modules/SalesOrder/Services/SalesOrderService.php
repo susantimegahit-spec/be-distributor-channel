@@ -83,6 +83,10 @@ class SalesOrderService
     {
         $distributor = \App\Models\Distributor::find($distributorId);
 
+        // Extract attachment
+        $attachment = $data['attachment'] ?? null;
+        unset($data['attachment']);
+
         // Auto-generate order number
         $data['order_no'] = $this->generateOrderNumber();
         $data['distributor_id'] = $distributorId;
@@ -100,13 +104,28 @@ class SalesOrderService
 
         $salesOrder = $this->salesOrderRepository->create($data);
 
+        // Store attachment if present
+        if ($attachment instanceof \Illuminate\Http\UploadedFile) {
+            try {
+                $this->storeAttachment($salesOrder, $attachment, $userId);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to store Sales Order attachment: " . $e->getMessage());
+            }
+        }
+
         $this->auditLogService->log(
             $userId,
             'CREATE_SALES_ORDER_DRAFT',
             "Created Sales Order draft {$salesOrder->order_no}."
         );
 
-        return $salesOrder;
+        try {
+            event(new \App\Events\OrderCreated($salesOrder));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to broadcast OrderCreated event: " . $e->getMessage());
+        }
+
+        return $salesOrder->load('attachments');
     }
 
     /**
@@ -344,6 +363,9 @@ class SalesOrderService
             throw new Exception("Data distributor dengan CardCode {$cardCode} tidak terdaftar.");
         }
 
+        // Extract attachment
+        $attachment = $payload['attachment'] ?? null;
+
         // Set draft values but will post immediately
         $normalized['order_no'] = $this->generateOrderNumber();
         $normalized['distributor_id'] = $distributor->id;
@@ -363,6 +385,21 @@ class SalesOrderService
 
         // Create in local DB
         $salesOrder = $this->salesOrderRepository->create($normalized);
+
+        // Store attachment if present
+        if ($attachment instanceof \Illuminate\Http\UploadedFile) {
+            try {
+                $this->storeAttachment($salesOrder, $attachment, $userId);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to store Sales Order attachment: " . $e->getMessage());
+            }
+        }
+
+        try {
+            event(new \App\Events\OrderCreated($salesOrder));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to broadcast OrderCreated event: " . $e->getMessage());
+        }
 
         // Post to SAP
         return $this->postToSap($salesOrder->id, $userId);
@@ -568,5 +605,37 @@ class SalesOrderService
 
             throw $e;
         }
+    }
+
+    /**
+     * Store the sales order attachment file and save database record.
+     *
+     * @param  \App\Models\SalesOrder  $salesOrder
+     * @param  \Illuminate\Http\UploadedFile  $file
+     * @param  int  $userId
+     * @return \App\Models\SalesOrderAttachment
+     */
+    protected function storeAttachment(\App\Models\SalesOrder $salesOrder, \Illuminate\Http\UploadedFile $file, int $userId): \App\Models\SalesOrderAttachment
+    {
+        $originalName = $file->getClientOriginalName();
+        $extension = $file->getClientOriginalExtension();
+        $timestamp = time();
+        $random = \Illuminate\Support\Str::random(6);
+
+        // Rename format: {YYYYMMDD}_{order_no}.{extension}
+        $sanitizedOrderNo = str_replace(['/', '\\', ' '], '_', $salesOrder->order_no);
+        $fileName = date('Ymd') . '_' . $sanitizedOrderNo . '.' . $extension;
+
+        // Store file in 'public/attachments/order' directory
+        $path = $file->storeAs('attachments/order', $fileName, 'public');
+
+        return \App\Models\SalesOrderAttachment::create([
+            'sales_order_id' => $salesOrder->id,
+            'file_name' => $originalName,
+            'file_path' => $path,
+            'file_type' => $file->getClientMimeType(),
+            'file_size' => $file->getSize(),
+            'uploaded_by' => $userId,
+        ]);
     }
 }

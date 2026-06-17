@@ -15,6 +15,19 @@ class SaveSalesOrderRequest extends FormRequest
     }
 
     /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->lines)) {
+            $decoded = json_decode($this->lines, true);
+            if (is_array($decoded)) {
+                $this->merge(['lines' => $decoded]);
+            }
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      */
     public function rules(): array
@@ -33,6 +46,7 @@ class SaveSalesOrderRequest extends FormRequest
             'comments' => 'nullable|string',
             'id_discount' => 'nullable|string|max:100',
             'status' => 'nullable|string|in:DRAFT,WAITING_APPROVAL',
+            'attachment' => 'nullable|file|max:1024|mimes:pdf',
             'lines' => 'required|array|min:1',
             'lines.*.item_code' => 'required|string|max:50',
             'lines.*.quantity' => 'required|numeric|min:0.0001',
