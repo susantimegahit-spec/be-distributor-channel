@@ -17,6 +17,13 @@ class ItemRepository implements ItemRepositoryInterface
     {
         $query = Item::query();
 
+        if (!empty($filters['code_customer'])) {
+            $itemCodes = \App\Models\DistributorItemPrice::where('code_customer', $filters['code_customer'])
+                ->where('status', 1)
+                ->pluck('item_code');
+            $query->whereIn('item_code', $itemCodes);
+        }
+
         if (!empty($filters['search'])) {
             $search = $filters['search'];
             $likeOperator = \Illuminate\Support\Facades\DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';

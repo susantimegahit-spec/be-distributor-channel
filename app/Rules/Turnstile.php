@@ -30,10 +30,17 @@ class Turnstile implements ValidationRule
             ]);
 
             if (!$response->successful() || !$response->json('success')) {
-                $fail('Verification failed. Please try again.');
+                $errorCodes = $response->json('error-codes');
+                \Illuminate\Support\Facades\Log::error('Turnstile verification failed', [
+                    'secret' => substr($secret, 0, 6) . '...',
+                    'response_body' => $response->json(),
+                    'status' => $response->status()
+                ]);
+                $fail('Verification failed: ' . json_encode($errorCodes) . ' (Secret: ' . substr($secret, 0, 8) . '...)');
             }
         } catch (\Exception $e) {
-            $fail('Unable to verify Turnstile.');
+            \Illuminate\Support\Facades\Log::error('Turnstile exception', ['error' => $e->getMessage()]);
+            $fail('Unable to verify Turnstile: ' . $e->getMessage());
         }
     }
 }

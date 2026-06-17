@@ -1201,6 +1201,12 @@ paths:
           schema:
             type: string
           description: Kata kunci untuk mencari item berdasarkan ItemCode atau ItemName (case-insensitive).
+        - name: code_customer
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kode customer/distributor untuk memfilter item yang boleh diorder saja (terdaftar di harga distributor).
       responses:
         '200':
           description: Daftar item berhasil diambil
@@ -2588,6 +2594,97 @@ paths:
                     example: Pemetaan sales dan distributor berhasil dihapus.
         '404':
           description: Pemetaan tidak ditemukan
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/sync/all:
+    post:
+      summary: Sync all master data from SAP
+      description: Melakukan sinkronisasi seluruh data master (distributors, OCR codes, items, sales employees, vats, warehouses, dan discount types) secara berurutan dari SAP.
+      tags:
+        - Sync Data
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sinkronisasi seluruh data master berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Sinkronisasi semua data master dari SAP selesai.
+                  data:
+                    type: object
+                    properties:
+                      distributors:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                          count:
+                            type: integer
+                          message:
+                            type: string
+                      ocr_codes:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                          count:
+                            type: integer
+                          message:
+                            type: string
+                      items:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                          count:
+                            type: integer
+                          message:
+                            type: string
+                      sales_employees:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                          count:
+                            type: integer
+                          message:
+                            type: string
+                      vats:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                          count:
+                            type: integer
+                          message:
+                            type: string
+                      warehouses:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                          count:
+                            type: integer
+                          message:
+                            type: string
+                      discount_types:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                          count:
+                            type: integer
+                          message:
+                            type: string
         '401':
           description: Tidak terautentikasi
 

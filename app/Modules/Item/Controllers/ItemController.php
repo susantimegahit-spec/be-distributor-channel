@@ -32,7 +32,7 @@ class ItemController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $filters = $request->only(['search']);
+        $filters = $request->only(['search', 'code_customer']);
         $items = $this->itemService->getAll($filters);
 
         return $this->successResponse($items, 'Daftar item berhasil diambil.');
