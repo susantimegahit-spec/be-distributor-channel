@@ -16,7 +16,7 @@ class SalesOrderRepository implements SalesOrderRepositoryInterface
      */
     public function getAll(array $filters = []): Collection
     {
-        $query = SalesOrder::query()->with(['details', 'sapDiscount.details']);
+        $query = SalesOrder::query()->with(['details', 'sapDiscount.details', 'attachments']);
 
         if (!empty($filters['distributor_id'])) {
             $query->where('distributor_id', $filters['distributor_id']);
