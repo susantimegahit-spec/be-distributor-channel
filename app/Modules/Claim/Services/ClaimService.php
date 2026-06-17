@@ -92,7 +92,7 @@ class ClaimService
         $xml .= '   <Column ss:Width="110"/>' . "\n"; // Harga Jual @Kg
         $xml .= '   <Column ss:Width="100"/>' . "\n"; // Qty @Kg
         $xml .= '   <Column ss:Width="110"/>' . "\n"; // Type Customer
-        $xml .= '   <Column ss:Width="130"/>' . "\n"; // Transaction Date
+        $xml .= '   <Column ss:Width="130"/>' . "\n"; // Tr ansaction Date
         
         // Title Row
         $xml .= '   <Row ss:Height="40">' . "\n";
