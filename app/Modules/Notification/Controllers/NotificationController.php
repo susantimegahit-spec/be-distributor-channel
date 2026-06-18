@@ -1,0 +1,92 @@
+<?php
+
+namespace App\Modules\Notification\Controllers;
+
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Modules\Notification\Requests\SendNotificationRequest;
+use App\Modules\Notification\Services\NotificationService;
+use App\Traits\ApiResponseFormatter;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+class NotificationController extends Controller
+{
+    use ApiResponseFormatter;
+
+    public function __construct(private NotificationService $notificationService)
+    {
+    }
+
+    public function index(Request $request): JsonResponse
+    {
+        $perPage = max(1, min((int) $request->query('per_page', 10), 50));
+
+        return $this->successResponse(
+            $this->notificationService->listForUser($request->user(), $perPage),
+            'Daftar notifikasi berhasil diambil.'
+        );
+    }
+
+    public function send(SendNotificationRequest $request): JsonResponse
+    {
+        $payload = $request->validated();
+        $targetUser = isset($payload['user_id'])
+            ? User::findOrFail($payload['user_id'])
+            : $request->user();
+
+        unset($payload['user_id']);
+
+        $notification = $this->notificationService->sendToUser($targetUser, $payload);
+
+        return $this->successResponse(
+            $notification->toFrontendPayload(),
+            'Notifikasi berhasil dikirim.'
+        );
+    }
+
+    public function sendTest(Request $request): JsonResponse
+    {
+        $payload = $request->validate([
+            'title' => 'nullable|string|max:255',
+            'message' => 'nullable|string|max:1000',
+            'type' => 'nullable|string|max:50',
+            'url' => 'nullable|string|max:500',
+            'data' => 'nullable|array',
+        ]);
+
+        $notification = $this->notificationService->sendTest($request->user(), $payload);
+
+        return $this->successResponse(
+            $notification->toFrontendPayload(),
+            'Notifikasi test berhasil dikirim.'
+        );
+    }
+
+    public function markAsRead(Request $request, int $id): JsonResponse
+    {
+        $notification = $this->notificationService->markAsRead($request->user(), $id);
+
+        if (!$notification) {
+            abort(404, 'Notifikasi tidak ditemukan.');
+        }
+
+        return $this->successResponse(
+            $notification->toFrontendPayload(),
+            'Notifikasi berhasil ditandai dibaca.'
+        );
+    }
+
+    public function markAllAsRead(Request $request): JsonResponse
+    {
+        $updated = $this->notificationService->markAllAsRead($request->user());
+
+        return $this->successResponse(
+            [
+                'updated' => $updated,
+                'unread_count' => $this->notificationService->unreadCount($request->user()),
+            ],
+            'Semua notifikasi berhasil ditandai dibaca.'
+        );
+    }
+}
