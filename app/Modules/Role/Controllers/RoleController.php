@@ -133,9 +133,10 @@ class RoleController extends Controller
     {
         $request->validate([
             'menu' => 'required|array',
+            'approval_id' => 'nullable|integer|exists:master_approvals,id',
         ]);
 
-        $roleMenu = $this->roleService->updateRoleMenu($id, $request->input('menu'));
+        $roleMenu = $this->roleService->updateRoleMenu($id, $request->input('menu'), $request->input('approval_id'));
 
         if (!$roleMenu) {
             abort(404, 'Role tidak ditemukan.');

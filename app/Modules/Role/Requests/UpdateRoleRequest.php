@@ -27,6 +27,7 @@ class UpdateRoleRequest extends FormRequest
             'name' => 'sometimes|string|unique:roles,name,' . $roleId,
             'is_active' => 'sometimes|boolean',
             'menu' => 'nullable|array',
+            'approval_id' => 'nullable|integer|exists:master_approvals,id',
         ];
     }
 }

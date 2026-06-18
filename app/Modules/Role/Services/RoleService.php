@@ -98,17 +98,21 @@ class RoleService
      * @param int $roleId
      * @param array $menuData
      * @return \App\Models\RoleMenu|null
-     */
-    public function updateRoleMenu(int $roleId, array $menuData): ?\App\Models\RoleMenu
+    public function updateRoleMenu(int $roleId, array $menuData, ?int $approvalId = null): ?\App\Models\RoleMenu
     {
         $role = $this->getRoleById($roleId);
         if (!$role) {
             return null;
         }
 
+        $updateData = ['menu' => $menuData, 'is_active' => true];
+        if ($approvalId !== null) {
+            $updateData['approval_id'] = $approvalId;
+        }
+
         return \App\Models\RoleMenu::updateOrCreate(
             ['role_id' => $roleId],
-            ['menu' => $menuData, 'is_active' => true]
+            $updateData
         );
     }
 }

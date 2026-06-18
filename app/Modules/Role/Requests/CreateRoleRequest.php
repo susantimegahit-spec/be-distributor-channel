@@ -17,7 +17,7 @@ class CreateRoleRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array
      */
     public function rules(): array
     {
@@ -25,6 +25,7 @@ class CreateRoleRequest extends FormRequest
             'name' => 'required|string|unique:roles,name',
             'is_active' => 'sometimes|boolean',
             'menu' => 'nullable|array',
+            'approval_id' => 'nullable|integer|exists:master_approvals,id',
         ];
     }
 }

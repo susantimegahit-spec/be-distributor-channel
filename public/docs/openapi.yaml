@@ -181,6 +181,10 @@ paths:
                 is_active:
                   type: boolean
                   example: true
+                approval_id:
+                  type: integer
+                  nullable: true
+                  example: 3
                 menu:
                   type: array
                   items:
@@ -268,6 +272,10 @@ paths:
                 is_active:
                   type: boolean
                   example: false
+                approval_id:
+                  type: integer
+                  nullable: true
+                  example: 3
                 menu:
                   type: array
                   items:
@@ -402,6 +410,10 @@ paths:
               required:
                 - menu
               properties:
+                approval_id:
+                  type: integer
+                  nullable: true
+                  example: 3
                 menu:
                   type: array
                   items:
@@ -3151,6 +3163,10 @@ components:
             role_id:
               type: integer
               example: 1
+            approval_id:
+              type: integer
+              nullable: true
+              example: 3
             menu:
               type: array
               items:

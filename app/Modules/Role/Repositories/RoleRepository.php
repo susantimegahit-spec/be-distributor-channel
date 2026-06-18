@@ -30,12 +30,6 @@ class RoleRepository implements RoleRepositoryInterface
         return Role::with('roleMenu')->find($id);
     }
 
-    /**
-     * Create a new role with its menu.
-     *
-     * @param array $data
-     * @return Role
-     */
     public function create(array $data): Role
     {
         return DB::transaction(function () use ($data) {
@@ -46,6 +40,7 @@ class RoleRepository implements RoleRepositoryInterface
 
             $role->roleMenu()->create([
                 'menu' => $data['menu'] ?? [],
+                'approval_id' => $data['approval_id'] ?? null,
                 'is_active' => true,
             ]);
 
@@ -76,10 +71,18 @@ class RoleRepository implements RoleRepositoryInterface
                     $role->update($roleUpdateData);
                 }
 
-                if (array_key_exists('menu', $data)) {
+                if (array_key_exists('menu', $data) || array_key_exists('approval_id', $data)) {
+                    $roleMenuData = ['is_active' => true];
+                    if (array_key_exists('menu', $data)) {
+                        $roleMenuData['menu'] = $data['menu'] ?? [];
+                    }
+                    if (array_key_exists('approval_id', $data)) {
+                        $roleMenuData['approval_id'] = $data['approval_id'];
+                    }
+
                     $role->roleMenu()->updateOrCreate(
                         ['role_id' => $role->id],
-                        ['menu' => $data['menu'] ?? [], 'is_active' => true]
+                        $roleMenuData
                     );
                 }
 
