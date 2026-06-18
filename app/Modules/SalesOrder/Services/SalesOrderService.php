@@ -92,6 +92,7 @@ class SalesOrderService
         $data['distributor_id'] = $distributorId;
         $data['customer_name'] = $distributor ? $distributor->name : 'Unknown Customer';
         $data['status'] = $data['status'] ?? 'DRAFT';
+        $data['approval_id'] = 1; // 1 = DRAFT
         $data['created_by'] = $userId;
         $data['updated_by'] = $userId;
 
@@ -548,7 +549,8 @@ class SalesOrderService
 
             // Update Sales Order on Success
             $salesOrder->update([
-                'status' => 'APPROVED',
+                'status' => 'COMPLETED',
+                'approval_id' => 6, // 6 = COMPLETED
                 'sap_doc_entry' => $sapDocEntry,
                 'sap_doc_num' => $sapDocNum,
                 'integrated_at' => now(),
@@ -637,5 +639,263 @@ class SalesOrderService
             'file_size' => $file->getSize(),
             'uploaded_by' => $userId,
         ]);
+    }
+
+    /**
+     * Submit a draft sales order to OM.
+     */
+    public function submitOrder(int $id, int $userId): SalesOrder
+    {
+        $salesOrder = $this->getOrderById($id);
+
+        if (!$salesOrder) {
+            throw new Exception('Sales order tidak ditemukan.');
+        }
+
+        if ($salesOrder->approval_id !== SalesOrder::STAGE_DRAFT) {
+            throw new Exception('Hanya sales order draft yang dapat dikirim.');
+        }
+
+        $salesOrder->update([
+            'status' => 'WAITING_OM',
+            'approval_id' => SalesOrder::STAGE_WAITING_OM,
+            'submitted_at' => now(),
+        ]);
+
+        \App\Models\SalesOrderApprovalHistory::create([
+            'sales_order_id' => $salesOrder->id,
+            'approval_id_before' => SalesOrder::STAGE_DRAFT,
+            'approval_id_after' => SalesOrder::STAGE_WAITING_OM,
+            'action' => 'SUBMIT',
+            'user_id' => $userId,
+        ]);
+
+        $this->auditLogService->log(
+            $userId,
+            'SUBMIT_SALES_ORDER',
+            "Submitted Sales Order {$salesOrder->order_no} to OM."
+        );
+
+        return $salesOrder->load('approval', 'approvalHistories.user');
+    }
+
+    /**
+     * Approve a sales order to the next stage.
+     */
+    public function approveOrder(int $id, int $userId, ?string $notes = null): SalesOrder
+    {
+        $salesOrder = $this->getOrderById($id);
+
+        if (!$salesOrder) {
+            throw new Exception('Sales order tidak ditemukan.');
+        }
+
+        if ($salesOrder->approval_id === SalesOrder::STAGE_COMPLETED) {
+            throw new Exception('Sales order sudah selesai diproses (Completed).');
+        }
+
+        $user = \App\Models\User::findOrFail($userId);
+        $roleMenu = \App\Models\RoleMenu::where('role_id', $user->role_id)->first();
+        $allowedApprovalId = $roleMenu?->approval_id;
+
+        if (!$allowedApprovalId || $allowedApprovalId !== $salesOrder->approval_id) {
+            throw new Exception('Anda tidak memiliki akses untuk menyetujui sales order pada tahap ini.');
+        }
+
+        $currentStage = $salesOrder->approval_id;
+        $nextStage = $currentStage + 1;
+
+        $statusMap = [
+            SalesOrder::STAGE_WAITING_ASM => 'WAITING_ASM',
+            SalesOrder::STAGE_WAITING_ADMIN_SALES => 'WAITING_ADMIN_SALES',
+            SalesOrder::STAGE_WAITING_FINANCE => 'WAITING_FINANCE',
+            SalesOrder::STAGE_COMPLETED => 'COMPLETED',
+        ];
+
+        $nextStatus = $statusMap[$nextStage] ?? 'COMPLETED';
+
+        $salesOrder->update([
+            'status' => $nextStatus,
+            'approval_id' => $nextStage,
+            'reject_reason' => null, // Clear reject reason on approval
+        ]);
+
+        \App\Models\SalesOrderApprovalHistory::create([
+            'sales_order_id' => $salesOrder->id,
+            'approval_id_before' => $currentStage,
+            'approval_id_after' => $nextStage,
+            'action' => 'APPROVE',
+            'user_id' => $userId,
+            'notes' => $notes,
+        ]);
+
+        $this->auditLogService->log(
+            $userId,
+            'APPROVE_SALES_ORDER',
+            "Approved Sales Order {$salesOrder->order_no} from stage {$currentStage} to {$nextStage}."
+        );
+
+        // Stage-specific actions
+        if ($nextStage === SalesOrder::STAGE_WAITING_ASM) {
+            // Find ASM user
+            $asmUser = \App\Models\User::whereHas('role.roleMenu', function($q) {
+                $q->where('approval_id', SalesOrder::STAGE_WAITING_ASM);
+            })->first();
+            $asmUserId = $asmUser?->id ?? $userId;
+
+            try {
+                // Route to sanjayfirmanzyah@gmail.com as requested by user
+                \Illuminate\Support\Facades\Mail::to('sanjayfirmanzyah@gmail.com')
+                    ->send(new \App\Mail\AsmApprovalNotificationMail($salesOrder, $asmUserId));
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to send ASM notification email: " . $e->getMessage());
+            }
+        } elseif ($nextStage === SalesOrder::STAGE_COMPLETED) {
+            // Integrate to SAP automatically when approved by Finance
+            $this->postToSap($salesOrder->id, $userId);
+        }
+
+        return $salesOrder->load('approval', 'approvalHistories.user');
+    }
+
+    /**
+     * Reject a sales order back to a previous stage.
+     */
+    public function rejectOrder(int $id, int $userId, string $notes): SalesOrder
+    {
+        if (empty($notes)) {
+            throw new Exception('Alasan penolakan (notes) wajib diisi.');
+        }
+
+        $salesOrder = $this->getOrderById($id);
+
+        if (!$salesOrder) {
+            throw new Exception('Sales order tidak ditemukan.');
+        }
+
+        if ($salesOrder->approval_id === SalesOrder::STAGE_COMPLETED || $salesOrder->approval_id === SalesOrder::STAGE_DRAFT) {
+            
+            throw new Exception('Sales order draft atau completed tidak dapat ditolak.');
+        }
+
+        $user = \App\Models\User::findOrFail($userId);
+        $roleMenu = \App\Models\RoleMenu::where('role_id', $user->role_id)->first();
+        $allowedApprovalId = $roleMenu?->approval_id;
+
+        if (!$allowedApprovalId || $allowedApprovalId !== $salesOrder->approval_id) {
+            throw new Exception('Anda tidak memiliki akses untuk menolak sales order pada tahap ini.');
+        }
+
+        $currentStage = $salesOrder->approval_id;
+        
+        // Determine rollback destination
+        if ($currentStage === SalesOrder::STAGE_WAITING_OM || $currentStage === SalesOrder::STAGE_WAITING_ASM) {
+            $rollbackStage = SalesOrder::STAGE_DRAFT;
+            $rollbackStatus = 'DRAFT';
+        } else { // WAITING_FINANCE (5) -> rollback to WAITING_ADMIN_SALES (4)
+            $rollbackStage = SalesOrder::STAGE_WAITING_ADMIN_SALES;
+            $rollbackStatus = 'WAITING_ADMIN_SALES';
+        }
+
+        $salesOrder->update([
+            'status' => $rollbackStatus,
+            'approval_id' => $rollbackStage,
+            'reject_reason' => $notes,
+        ]);
+
+        \App\Models\SalesOrderApprovalHistory::create([
+            'sales_order_id' => $salesOrder->id,
+            'approval_id_before' => $currentStage,
+            'approval_id_after' => $rollbackStage,
+            'action' => 'REJECT',
+            'user_id' => $userId,
+            'notes' => $notes,
+        ]);
+
+        $this->auditLogService->log(
+            $userId,
+            'REJECT_SALES_ORDER',
+            "Rejected Sales Order {$salesOrder->order_no} from stage {$currentStage} back to {$rollbackStage}."
+        );
+
+        return $salesOrder->load('approval', 'approvalHistories.user');
+    }
+
+    /**
+     * Save discounts by Admin Sales and submit to Finance.
+     */
+    public function saveDiscounts(int $id, array $data, int $userId): SalesOrder
+    {
+        $salesOrder = $this->getOrderById($id);
+
+        if (!$salesOrder) {
+            throw new Exception('Sales order tidak ditemukan.');
+        }
+
+        if ($salesOrder->approval_id !== SalesOrder::STAGE_WAITING_ADMIN_SALES) {
+            throw new Exception('Sales order tidak sedang berada di tahap pengisian diskon.');
+        }
+
+        $user = \App\Models\User::findOrFail($userId);
+        $roleMenu = \App\Models\RoleMenu::where('role_id', $user->role_id)->first();
+        $allowedApprovalId = $roleMenu?->approval_id;
+
+        if (!$allowedApprovalId || $allowedApprovalId !== SalesOrder::STAGE_WAITING_ADMIN_SALES) {
+            throw new Exception('Anda tidak memiliki akses untuk mengisi diskon sales order.');
+        }
+
+        // Validate structure of lines for discount
+        if (empty($data['lines']) || !is_array($data['lines'])) {
+            throw new Exception('Data item lines wajib diisi.');
+        }
+
+        // Recalculate totals with discounts
+        $lines = $data['lines'];
+        $docTotal = 0;
+
+        foreach ($lines as $line) {
+            $orderDetail = $salesOrder->details()->where('item_code', $line['item_code'])->first();
+            if ($orderDetail) {
+                $discPercent = $line['disc_percent'] ?? 0.00;
+                $quantity = (float)$orderDetail->quantity;
+                $unitPrice = (float)$orderDetail->unit_price;
+                
+                // Recalculate line total based on discount percentage
+                $lineTotal = ($quantity * $unitPrice) * (1 - ($discPercent / 100));
+
+                $orderDetail->update([
+                    'disc_percent' => $discPercent,
+                    'line_total' => $lineTotal,
+                ]);
+
+                $docTotal += $lineTotal;
+            }
+        }
+
+        // Update header discounts & status
+        $salesOrder->update([
+            'id_discount' => $data['id_discount'] ?? $salesOrder->id_discount,
+            'doc_total' => $docTotal,
+            'status' => 'WAITING_FINANCE',
+            'approval_id' => SalesOrder::STAGE_WAITING_FINANCE,
+            'reject_reason' => null, // Clear reject reason
+        ]);
+
+        \App\Models\SalesOrderApprovalHistory::create([
+            'sales_order_id' => $salesOrder->id,
+            'approval_id_before' => SalesOrder::STAGE_WAITING_ADMIN_SALES,
+            'approval_id_after' => SalesOrder::STAGE_WAITING_FINANCE,
+            'action' => 'APPROVE',
+            'user_id' => $userId,
+            'notes' => 'Admin Sales mengisi diskon dan meneruskan ke Finance.',
+        ]);
+
+        $this->auditLogService->log(
+            $userId,
+            'SAVE_DISCOUNTS_SALES_ORDER',
+            "Admin Sales {$user->name} saved discounts and submitted Sales Order {$salesOrder->order_no} to Finance."
+        );
+
+        return $salesOrder->load('details', 'approval', 'approvalHistories.user');
     }
 }

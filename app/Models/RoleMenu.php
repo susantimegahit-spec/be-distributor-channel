@@ -14,6 +14,7 @@ class RoleMenu extends Model
         'role_id',
         'menu',
         'is_active',
+        'approval_id',
     ];
 
     protected function casts(): array
@@ -21,6 +22,7 @@ class RoleMenu extends Model
         return [
             'menu' => 'array',
             'is_active' => 'boolean',
+            'approval_id' => 'integer',
         ];
     }
 
@@ -30,5 +32,13 @@ class RoleMenu extends Model
     public function role(): BelongsTo
     {
         return $this->belongsTo(Role::class);
+    }
+
+    /**
+     * Get the approval stage associated with the role menu.
+     */
+    public function approval(): BelongsTo
+    {
+        return $this->belongsTo(MasterApproval::class, 'approval_id');
     }
 }

@@ -16,7 +16,7 @@ class SalesOrderRepository implements SalesOrderRepositoryInterface
      */
     public function getAll(array $filters = []): Collection
     {
-        $query = SalesOrder::query()->with(['details', 'sapDiscount.details', 'attachments']);
+        $query = SalesOrder::query()->with(['details', 'sapDiscount.details', 'attachments', 'approval']);
 
         if (!empty($filters['distributor_id'])) {
             $query->where('distributor_id', $filters['distributor_id']);
@@ -41,7 +41,21 @@ class SalesOrderRepository implements SalesOrderRepositoryInterface
      */
     public function getById(int $id): ?SalesOrder
     {
-        return SalesOrder::with(['details.item', 'details.warehouse', 'details.vat', 'details.ocr', 'details.ocr2', 'details.ocr3', 'salesEmployee', 'sapDiscount.details', 'attachments'])->find($id);
+        return SalesOrder::with([
+            'details.item',
+            'details.warehouse',
+            'details.vat',
+            'details.ocr',
+            'details.ocr2',
+            'details.ocr3',
+            'salesEmployee',
+            'sapDiscount.details',
+            'attachments',
+            'approval',
+            'approvalHistories.user',
+            'approvalHistories.approvalBefore',
+            'approvalHistories.approvalAfter'
+        ])->find($id);
     }
 
     /**

@@ -274,4 +274,157 @@ class SalesOrderController extends Controller
             return $this->errorResponse($e->getMessage(), [], 400);
         }
     }
+
+    /**
+     * Submit a draft Sales Order to OM.
+     */
+    public function submit(Request $request, int $id): JsonResponse
+    {
+        try {
+            $salesOrder = $this->salesOrderService->submitOrder($id, $request->user()->id);
+            return $this->successResponse($salesOrder, 'Sales order berhasil dikirim ke OM.');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), [], 400);
+        }
+    }
+
+    /**
+     * Approve a Sales Order to the next stage.
+     */
+    public function approve(Request $request, int $id): JsonResponse
+    {
+        try {
+            $salesOrder = $this->salesOrderService->approveOrder($id, $request->user()->id, $request->input('notes'));
+            return $this->successResponse($salesOrder, 'Sales order berhasil disetujui.');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), [], 400);
+        }
+    }
+
+    /**
+     * Reject a Sales Order back to a previous stage.
+     */
+    public function reject(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'notes' => 'required|string',
+        ]);
+
+        try {
+            $salesOrder = $this->salesOrderService->rejectOrder($id, $request->user()->id, $request->input('notes'));
+            return $this->successResponse($salesOrder, 'Sales order berhasil ditolak.');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), [], 400);
+        }
+    }
+
+    /**
+     * Save discounts by Admin Sales.
+     */
+    public function saveDiscounts(Request $request, int $id): JsonResponse
+    {
+        try {
+            $salesOrder = $this->salesOrderService->saveDiscounts($id, $request->all(), $request->user()->id);
+            return $this->successResponse($salesOrder, 'Diskon sales order berhasil disimpan dan diteruskan ke Finance.');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), [], 400);
+        }
+    }
+
+    /**
+     * Handle quick actions from ASM approval email.
+     */
+    public function emailAction(Request $request, int $id)
+    {
+        if (! $request->hasValidSignature()) {
+            return response()->make('
+                <div style="font-family: sans-serif; text-align: center; margin-top: 100px; color: #c62828;">
+                    <h2>✗ Tautan Kedaluwarsa</h2>
+                    <p>Tautan persetujuan ini tidak sah atau sudah kedaluwarsa.</p>
+                </div>
+            ', 401);
+        }
+
+        $action = $request->query('action');
+        $userId = (int)$request->query('user_id');
+
+        $salesOrder = $this->salesOrderService->getOrderById($id);
+        if (!$salesOrder) {
+            return response()->make('
+                <div style="font-family: sans-serif; text-align: center; margin-top: 100px; color: #c62828;">
+                    <h2>✗ Order Tidak Ditemukan</h2>
+                    <p>Sales order tidak ditemukan di sistem.</p>
+                </div>
+            ', 404);
+        }
+
+        if ($action === 'approve') {
+            try {
+                $this->salesOrderService->approveOrder($id, $userId, 'Disetujui instan via Email.');
+                return response()->make('
+                    <div style="font-family: sans-serif; text-align: center; margin-top: 100px; color: #2e7d32;">
+                        <h2>✓ Berhasil Disetujui</h2>
+                        <p>Sales Order #' . htmlspecialchars($salesOrder->order_no) . ' telah berhasil disetujui.</p>
+                    </div>
+                ');
+            } catch (\Exception $e) {
+                return response()->make('
+                    <div style="font-family: sans-serif; text-align: center; margin-top: 100px; color: #c62828;">
+                        <h2>✗ Gagal Menyetujui</h2>
+                        <p>' . htmlspecialchars($e->getMessage()) . '</p>
+                    </div>
+                ');
+            }
+        } elseif ($action === 'reject') {
+            return response()->make('
+                <div style="font-family: sans-serif; max-width: 500px; margin: 100px auto; padding: 20px; border: 1px solid #e1e8ed; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                    <h2 style="color: #c62828; margin-top: 0; font-size: 20px;">Tolak Sales Order #' . htmlspecialchars($salesOrder->order_no) . '</h2>
+                    <p style="font-size: 14px; color: #666666;">Harap masukkan alasan penolakan untuk mengembalikan order ke Distributor.</p>
+                    <form method="POST" action="' . URL::signedRoute('sales-orders.email-reject-post', ['id' => $id]) . '">
+                        ' . csrf_field() . '
+                        <input type="hidden" name="user_id" value="' . $userId . '">
+                        <textarea name="notes" required placeholder="Tulis alasan penolakan di sini..." style="width: 100%; height: 100px; padding: 10px; border-radius: 4px; border: 1px solid #cccccc; box-sizing: border-box; margin-bottom: 15px; font-family: inherit; font-size: 14px; resize: none;"></textarea>
+                        <button type="submit" style="background-color: #c62828; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 14px;">Kirim Penolakan</button>
+                    </form>
+                </div>
+            ');
+        }
+
+        return response()->make('Aksi tidak valid.', 400);
+    }
+
+    /**
+     * Process quick reject POST request from email form.
+     */
+    public function emailRejectPost(Request $request, int $id)
+    {
+        if (! $request->hasValidSignature()) {
+            return response()->make('
+                <div style="font-family: sans-serif; text-align: center; margin-top: 100px; color: #c62828;">
+                    <h2>✗ Tautan Kedaluwarsa</h2>
+                    <p>Proses penolakan gagal karena tautan sudah kedaluwarsa.</p>
+                </div>
+            ', 401);
+        }
+
+        $userId = (int)$request->input('user_id');
+        $notes = $request->input('notes');
+
+        try {
+            $this->salesOrderService->rejectOrder($id, $userId, $notes);
+            return response()->make('
+                <div style="font-family: sans-serif; text-align: center; margin-top: 100px; color: #2e7d32;">
+                    <h2>✓ Berhasil Ditolak</h2>
+                    <p>Sales Order telah berhasil ditolak dengan alasan: <strong>' . htmlspecialchars($notes) . '</strong></p>
+                </div>
+            ');
+        } catch (\Exception $e) {
+            return response()->make('
+                <div style="font-family: sans-serif; text-align: center; margin-top: 100px; color: #c62828;">
+                    <h2>✗ Gagal Menolak</h2>
+                    <p>' . htmlspecialchars($e->getMessage()) . '</p>
+                </div>
+            ');
+        }
+    }
 }

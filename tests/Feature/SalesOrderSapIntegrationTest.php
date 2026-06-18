@@ -70,6 +70,8 @@ class SalesOrderSapIntegrationTest extends TestCase
             'total_discount' => 5000000,
             'remarks' => 'DISC 2',
         ]);
+
+        $this->seed(\Database\Seeders\MasterApprovalSeeder::class);
     }
 
     /**
@@ -138,7 +140,7 @@ class SalesOrderSapIntegrationTest extends TestCase
 
         $this->assertDatabaseHas('sales_orders', [
             'id' => $order->id,
-            'status' => 'APPROVED',
+            'status' => 'COMPLETED',
             'sap_doc_entry' => 9999,
             'sap_doc_num' => 'SO9999',
             'sap_error' => null,
@@ -280,7 +282,7 @@ class SalesOrderSapIntegrationTest extends TestCase
         // Verify that local DB has updated values
         $this->assertDatabaseHas('sales_orders', [
             'id' => $order->id,
-            'status' => 'APPROVED',
+            'status' => 'COMPLETED',
             'slp_code' => null, // empty string normalized to null
             'id_discount' => 'DISC123',
         ]);
@@ -346,7 +348,7 @@ class SalesOrderSapIntegrationTest extends TestCase
         // Verify local DB creation
         $this->assertDatabaseHas('sales_orders', [
             'card_code' => 'C110003074',
-            'status' => 'APPROVED',
+            'status' => 'COMPLETED',
             'sap_doc_entry' => 8888,
             'sap_doc_num' => 'SO8888',
             'id_discount' => 'NEWDISC',

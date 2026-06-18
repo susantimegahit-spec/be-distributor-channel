@@ -11,6 +11,13 @@ class SalesOrder extends Model
 {
     use HasFactory;
 
+    public const STAGE_DRAFT = 1;
+    public const STAGE_WAITING_OM = 2;
+    public const STAGE_WAITING_ASM = 3;
+    public const STAGE_WAITING_ADMIN_SALES = 4;
+    public const STAGE_WAITING_FINANCE = 5;
+    public const STAGE_COMPLETED = 6;
+
     protected $fillable = [
         'order_no',
         'distributor_id',
@@ -30,6 +37,7 @@ class SalesOrder extends Model
         'comments',
         'id_discount',
         'status',
+        'approval_id',
         'sap_doc_entry',
         'sap_doc_num',
         'sap_error',
@@ -52,6 +60,7 @@ class SalesOrder extends Model
         'doc_due_date' => 'date',
         'disc_percent' => 'decimal:2',
         'doc_total' => 'decimal:2',
+        'approval_id' => 'integer',
         'submitted_at' => 'datetime',
         'integrated_at' => 'datetime',
         'delivery_date' => 'datetime',
@@ -131,5 +140,21 @@ class SalesOrder extends Model
     public function getSalesEmployeeNameAttribute(): ?string
     {
         return $this->salesEmployee?->slp_name;
+    }
+
+    /**
+     * Get the current approval stage of the order.
+     */
+    public function approval(): BelongsTo
+    {
+        return $this->belongsTo(MasterApproval::class, 'approval_id');
+    }
+
+    /**
+     * Get the approval histories of the order.
+     */
+    public function approvalHistories(): HasMany
+    {
+        return $this->hasMany(SalesOrderApprovalHistory::class);
     }
 }

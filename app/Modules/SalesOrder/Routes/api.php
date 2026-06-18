@@ -11,4 +11,16 @@ Route::prefix('v1/sales-orders')->middleware('auth:sanctum')->group(function () 
     Route::delete('/{id}', [SalesOrderController::class, 'destroy']);
     Route::post('/post-sap', [SalesOrderController::class, 'postNewToSap']);
     Route::post('/{id}/post-sap', [SalesOrderController::class, 'postToSap']);
+
+    // Workflow Approval routes
+    Route::post('/{id}/submit', [SalesOrderController::class, 'submit']);
+    Route::post('/{id}/approve', [SalesOrderController::class, 'approve']);
+    Route::post('/{id}/reject', [SalesOrderController::class, 'reject']);
+    Route::post('/{id}/save-discounts', [SalesOrderController::class, 'saveDiscounts']);
 });
+
+// Public Signed Routes for Email Quick Actions
+Route::get('v1/sales-orders/{id}/email-action', [SalesOrderController::class, 'emailAction'])
+    ->name('sales-orders.email-action');
+Route::post('v1/sales-orders/{id}/email-reject', [SalesOrderController::class, 'emailRejectPost'])
+    ->name('sales-orders.email-reject-post');

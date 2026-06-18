@@ -1771,6 +1771,302 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/sales-orders/{id}/submit:
+    post:
+      summary: Submit sales order to OM
+      description: Mengirim draft sales order ke level persetujuan selanjutnya (OM). Mengubah status menjadi WAITING_OM.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order
+      responses:
+        '200':
+          description: Sales order berhasil disubmit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderResponse'
+        '400':
+          description: Gagal memproses persetujuan (status tidak sesuai atau validasi gagal)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-orders/{id}/approve:
+    post:
+      summary: Approve sales order
+      description: Menyetujui sales order ke level persetujuan berikutnya. Bisa ditambahkan catatan (notes) opsional.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes:
+                  type: string
+                  example: "Disetujui"
+      responses:
+        '200':
+          description: Sales order berhasil disetujui
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderResponse'
+        '400':
+          description: Gagal memproses persetujuan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-orders/{id}/reject:
+    post:
+      summary: Reject sales order
+      description: Menolak sales order dan mengembalikannya ke Distributor (DRAFT). Memerlukan alasan penolakan (notes).
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - notes
+              properties:
+                notes:
+                  type: string
+                  example: "Harga/jumlah tidak sesuai"
+      responses:
+        '200':
+          description: Sales order berhasil ditolak
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderResponse'
+        '400':
+          description: Gagal memproses penolakan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-orders/{id}/save-discounts:
+    post:
+      summary: Save discounts (Admin Sales)
+      description: Mengisi diskon untuk item-item dalam sales order. Hanya bisa diakses oleh Admin Sales saat status order WAITING_ADMIN_SALES.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id_discount:
+                  type: string
+                  example: "260310699"
+                lines:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - id
+                    properties:
+                      id:
+                        type: integer
+                        description: ID line item detail
+                        example: 1
+                      disc_1:
+                        type: number
+                        example: 5.0
+                      disc_2:
+                        type: number
+                        example: 2.5
+                      disc_3:
+                        type: number
+                        example: 0
+                      price_after_disc:
+                        type: number
+                        example: 118275
+      responses:
+        '200':
+          description: Diskon berhasil disimpan dan status diteruskan ke Finance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderResponse'
+        '400':
+          description: Gagal menyimpan diskon
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-orders/{id}/email-action:
+    get:
+      summary: Email quick action (ASM)
+      description: Endpoint publik bertanda tangan (signed URL) untuk persetujuan cepat oleh ASM dari email. Menerima query parameter action (approve/reject) dan memproses persetujuan langsung atau menampilkan formulir penolakan HTML.
+      tags:
+        - Sales Orders
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order
+        - name: action
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [approve, reject]
+          description: Aksi persetujuan (approve atau reject)
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: ID User ASM yang menyetujui
+        - name: signature
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Hash tanda tangan URL Laravel
+        - name: expires
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Timestamp kedaluwarsa tautan
+      responses:
+        '200':
+          description: Mengembalikan halaman HTML berisi status persetujuan sukses atau form penolakan
+          content:
+            text/html:
+              schema:
+                type: string
+        '401':
+          description: Tautan kedaluwarsa atau signature tidak valid
+          content:
+            text/html:
+              schema:
+                type: string
+        '404':
+          description: Sales order tidak ditemukan
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /v1/sales-orders/{id}/email-reject:
+    post:
+      summary: Email quick reject submit (ASM)
+      description: Endpoint publik bertanda tangan (signed URL) untuk submit alasan penolakan (notes) dari form email ASM.
+      tags:
+        - Sales Orders
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - user_id
+                - notes
+              properties:
+                user_id:
+                  type: integer
+                  description: ID User ASM
+                notes:
+                  type: string
+                  description: Alasan penolakan
+      responses:
+        '200':
+          description: Mengembalikan halaman HTML berisi status penolakan sukses
+          content:
+            text/html:
+              schema:
+                type: string
+        '401':
+          description: Tautan kedaluwarsa atau signature tidak valid
+          content:
+            text/html:
+              schema:
+                type: string
+
   /v1/distributor-item-prices:
     get:
       summary: Get distributor item prices

@@ -90,6 +90,8 @@ class SalesOrderTest extends TestCase
             'distribution_target' => 'MKT',
             'status' => 1,
         ]);
+
+        $this->seed(\Database\Seeders\MasterApprovalSeeder::class);
     }
 
     /**
