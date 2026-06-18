@@ -23,6 +23,18 @@ class SalesDistributorMapping extends Model
         'status' => 'integer',
     ];
 
+    protected $appends = [
+        'depo',
+    ];
+
+    /**
+     * Get the depo attribute from distributor relation.
+     */
+    public function getDepoAttribute(): ?string
+    {
+        return $this->distributor?->depo;
+    }
+
     /**
      * Get the distributor associated with the mapping.
      */
