@@ -97,7 +97,9 @@ class RoleService
      *
      * @param int $roleId
      * @param array $menuData
+     * @param int|null $approvalId
      * @return \App\Models\RoleMenu|null
+     */
     public function updateRoleMenu(int $roleId, array $menuData, ?int $approvalId = null): ?\App\Models\RoleMenu
     {
         $role = $this->getRoleById($roleId);
