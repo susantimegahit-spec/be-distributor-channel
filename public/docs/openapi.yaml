@@ -137,6 +137,39 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/master-approvals:
+    get:
+      summary: List all master approvals
+      description: Mendapatkan daftar semua master approval yang ada di sistem secara ascending berdasarkan ID.
+      tags:
+        - Master Approvals
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar master approval berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar master approval berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MasterApproval'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /v1/roles:
     get:
       summary: List all roles
@@ -3003,6 +3036,30 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    MasterApproval:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: DRAFT
+        action:
+          type: string
+          example: create draft
+        notification_type:
+          type: string
+          example: none
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-06-18T13:45:01+07:00"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-06-18T13:45:01+07:00"
+
     SuccessMessageResponse:
       type: object
       properties:
