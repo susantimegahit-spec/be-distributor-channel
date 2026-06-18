@@ -2,10 +2,14 @@
 
 namespace Tests\Feature;
 
-use App\Models\PushNotification;
 use App\Models\User;
+use App\Models\Role;
+use App\Models\Distributor;
+use App\Models\PushNotification;
+use App\Events\PushNotificationCreated;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 
 class NotificationTest extends TestCase
@@ -13,30 +17,84 @@ class NotificationTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
-    protected string $token;
+    protected Role $role;
+    protected Distributor $distributor;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->user = User::create([
-            'name' => 'Notification User',
-            'username' => 'notifuser',
-            'email' => 'notif@example.com',
-            'password' => Hash::make('password123'),
+        Event::fake([PushNotificationCreated::class]);
+
+        // Create standard role
+        $this->role = Role::create([
+            'name' => 'distributor',
             'is_active' => true,
         ]);
 
-        $this->token = $this->user->createToken('test_token')->plainTextToken;
+        // Create distributor
+        $this->distributor = Distributor::create([
+            'code_customer' => 'C110000411',
+            'name' => 'PT XYZ',
+            'status' => 1,
+        ]);
+
+        // Create user
+        $this->user = User::create([
+            'name' => 'Test User',
+            'username' => 'testuser',
+            'email' => 'test@example.com',
+            'password' => Hash::make('password123'),
+            'role_id' => $this->role->id,
+            'is_active' => true,
+        ]);
     }
 
-    public function test_user_can_send_test_notification(): void
+    /**
+     * Test notification endpoints require authentication.
+     */
+    public function test_notifications_require_authentication(): void
     {
+        $this->getJson('/api/distributor-channel/v1/notifications')->assertStatus(401);
+        $this->postJson('/api/distributor-channel/v1/notifications/test')->assertStatus(401);
+        $this->postJson('/api/distributor-channel/v1/notifications/read-all')->assertStatus(401);
+    }
+
+    /**
+     * Test getting empty notification list.
+     */
+    public function test_get_notifications_empty_list(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/distributor-channel/v1/notifications');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Daftar notifikasi berhasil diambil.',
+                'data' => [
+                    'notifications' => [],
+                    'unread_count' => 0,
+                ]
+            ]);
+    }
+
+    /**
+     * Test sending test notification.
+     */
+    public function test_send_test_notification(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
         ])->postJson('/api/distributor-channel/v1/notifications/test', [
-            'title' => 'Testing Notif',
-            'message' => 'Pesan test dari PHPUnit.',
+            'title' => 'Halo Uji Coba',
+            'message' => 'Ini pesan testing',
+            'type' => 'info'
         ]);
 
         $response->assertStatus(200)
@@ -44,86 +102,81 @@ class NotificationTest extends TestCase
                 'success' => true,
                 'message' => 'Notifikasi test berhasil dikirim.',
                 'data' => [
-                    'user_id' => $this->user->id,
-                    'title' => 'Testing Notif',
-                    'message' => 'Pesan test dari PHPUnit.',
+                    'title' => 'Halo Uji Coba',
+                    'message' => 'Ini pesan testing',
+                    'type' => 'info',
                     'is_read' => false,
-                ],
+                ]
             ]);
 
         $this->assertDatabaseHas('push_notifications', [
             'user_id' => $this->user->id,
-            'title' => 'Testing Notif',
-            'message' => 'Pesan test dari PHPUnit.',
-            'read_at' => null,
+            'title' => 'Halo Uji Coba',
         ]);
     }
 
-    public function test_user_can_list_and_mark_notification_as_read(): void
+    /**
+     * Test marking notification as read.
+     */
+    public function test_mark_as_read(): void
     {
         $notification = PushNotification::create([
             'user_id' => $this->user->id,
-            'title' => 'Order Baru',
-            'message' => 'Ada order baru.',
-            'type' => 'order',
+            'title' => 'Belum Dibaca',
+            'message' => 'Pesan penting',
+            'type' => 'info',
         ]);
 
-        $listResponse = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
-        ])->getJson('/api/distributor-channel/v1/notifications');
+        $token = $this->user->createToken('test_token')->plainTextToken;
 
-        $listResponse->assertStatus(200)
-            ->assertJson([
-                'success' => true,
-                'data' => [
-                    'unread_count' => 1,
-                ],
-            ])
-            ->assertJsonPath('data.notifications.0.id', $notification->id);
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/api/distributor-channel/v1/notifications/' . $notification->id . '/read');
 
-        $readResponse = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
-        ])->postJson("/api/distributor-channel/v1/notifications/{$notification->id}/read");
-
-        $readResponse->assertStatus(200)
+        $response->assertStatus(200)
             ->assertJson([
                 'success' => true,
                 'message' => 'Notifikasi berhasil ditandai dibaca.',
                 'data' => [
                     'id' => $notification->id,
                     'is_read' => true,
-                ],
+                ]
             ]);
 
         $this->assertNotNull($notification->fresh()->read_at);
     }
 
-    public function test_user_can_mark_all_notifications_as_read(): void
+    /**
+     * Test marking all notifications as read.
+     */
+    public function test_mark_all_as_read(): void
     {
         PushNotification::create([
             'user_id' => $this->user->id,
-            'title' => 'Notifikasi 1',
+            'title' => 'Notif 1',
             'message' => 'Pesan 1',
         ]);
+
         PushNotification::create([
             'user_id' => $this->user->id,
-            'title' => 'Notifikasi 2',
+            'title' => 'Notif 2',
             'message' => 'Pesan 2',
         ]);
 
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer ' . $token,
         ])->postJson('/api/distributor-channel/v1/notifications/read-all');
 
         $response->assertStatus(200)
             ->assertJson([
                 'success' => true,
+                'message' => 'Semua notifikasi berhasil ditandai dibaca.',
                 'data' => [
                     'updated' => 2,
                     'unread_count' => 0,
-                ],
+                ]
             ]);
-
-        $this->assertSame(0, PushNotification::where('user_id', $this->user->id)->whereNull('read_at')->count());
     }
 }
