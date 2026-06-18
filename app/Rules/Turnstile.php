@@ -15,6 +15,10 @@ class Turnstile implements ValidationRule
      */
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
+        if (!config('services.turnstile.enabled', true)) {
+            return;
+        }
+
         if (empty($value)) {
             $fail('The Turnstile verification is required.');
             return;

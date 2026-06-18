@@ -37,6 +37,7 @@ return [
 
     'turnstile' => [
         'secret' => env('TURNSTILE_SECRET_KEY', '1x00000000000000000000000000000000'),
+        'enabled' => env('TURNSTILE_ENABLED', true),
     ],
 
 ];
