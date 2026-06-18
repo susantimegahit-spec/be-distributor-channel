@@ -16,7 +16,7 @@ class RoleRepository implements RoleRepositoryInterface
      */
     public function all(): Collection
     {
-        return Role::all();
+        return Role::with('roleMenu.approval')->get();
     }
 
     /**
@@ -27,7 +27,7 @@ class RoleRepository implements RoleRepositoryInterface
      */
     public function findById(int $id): ?Role
     {
-        return Role::with('roleMenu')->find($id);
+        return Role::with('roleMenu.approval')->find($id);
     }
 
     public function create(array $data): Role
