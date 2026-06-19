@@ -58,14 +58,41 @@ Route::get('/run-seeder-darurat', function () {
 });
 
 use Illuminate\Support\Facades\Mail;
+use App\Models\SalesOrder;
+use App\Mail\AsmApprovalNotificationMail;
+
 Route::get('/test-send-email', function () {
     try {
-        Mail::raw('Ini adalah email uji coba dari URL browser.', function ($message) {
-            $message->to('sanjayfirmanzyah@gmail.com')
-                    ->subject('Uji Coba SMTP via URL');
-        });
-        return "Email berhasil dikirim!";
+        // Coba ambil satu Sales Order yang sudah ada di database beserta detail itemnya
+        $salesOrder = SalesOrder::with('details')->first();
+
+        // Jika database masih kosong, kita buat objek dummy
+        if (!$salesOrder) {
+            $salesOrder = new SalesOrder();
+            $salesOrder->id = 999;
+            $salesOrder->order_no = 'SO-DUMMY-20260619';
+            $salesOrder->customer_name = 'PT CIPTA INDAH DUMMY';
+            $salesOrder->card_code = 'C110009999';
+            $salesOrder->doc_date = now();
+            $salesOrder->doc_total = 15000000.00;
+            
+            // Hubungkan dengan detail item dummy
+            $detail = new \App\Models\SalesOrderDetail();
+            $detail->item_code = 'G-SALT-10KG';
+            $detail->quantity = 150.00;
+            $detail->unit_msr = 'BAL';
+            $detail->unit_price = 100000.00;
+            $detail->line_total = 15000000.00;
+            
+            $salesOrder->setRelation('details', collect([$detail]));
+        }
+
+        // Kirim email menggunakan Mailable class asli
+        Mail::to('sanjayfirmanzyah@gmail.com')
+            ->send(new AsmApprovalNotificationMail($salesOrder, 1)); // 1 adalah ID user ASM dummy
+
+        return "Email dengan template HTML asli (AsmApprovalNotificationMail) berhasil dikirim!";
     } catch (\Exception $e) {
-        return "Gagal mengirim email: " . $e->getMessage();
+        return "Gagal mengirim email: " . $e->getMessage() . "<br><pre>" . $e->getTraceAsString() . "</pre>";
     }
 });

@@ -53,7 +53,7 @@ class SaveSalesOrderRequest extends FormRequest
             'address2' => 'nullable|string',
             'comments' => 'nullable|string',
             'id_discount' => 'nullable|string|max:100',
-            'status' => 'nullable|string|in:DRAFT,WAITING_APPROVAL',
+            'status' => 'nullable|string|in:DRAFT,WAITING_OM,WAITING_ASM,WAITING_ADMIN_SALES,WAITING_FINANCE,COMPLETED,FAILED',
             'attachment' => 'nullable|file|max:1024|mimes:pdf',
             'lines' => 'required|array|min:1',
             'lines.*.item_code' => 'required|string|max:50',
