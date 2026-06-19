@@ -40,7 +40,7 @@ class SaveSalesOrderRequest extends FormRequest
         }
 
         return [
-            'action' => 'nullable|string|in:submit',
+            'action' => 'nullable|string|in:submit,approve,reject',
             'card_code' => 'required|string|max:50',
             'po_number' => 'nullable|string|max:100',
             'doc_date' => 'required|date',

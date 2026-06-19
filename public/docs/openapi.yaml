@@ -3594,8 +3594,8 @@ components:
       properties:
         action:
           type: string
-          enum: [submit]
-          description: Jika diisi 'submit', Sales Order akan langsung dibuat dan langsung dikirim ke OM tanpa disimpan sebagai draft terlebih dahulu.
+          enum: [submit, approve, reject]
+          description: Aksi alur persetujuan (submit, approve, atau reject).
           example: submit
         card_code:
           type: string
