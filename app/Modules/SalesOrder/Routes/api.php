@@ -13,9 +13,6 @@ Route::prefix('v1/sales-orders')->middleware('auth:sanctum')->group(function () 
     Route::post('/{id}/post-sap', [SalesOrderController::class, 'postToSap']);
 
     // Workflow Approval routes
-    Route::post('/{id}/submit', [SalesOrderController::class, 'submit']);
-    Route::post('/{id}/approve', [SalesOrderController::class, 'approve']);
-    Route::post('/{id}/reject', [SalesOrderController::class, 'reject']);
     Route::post('/{id}/save-discounts', [SalesOrderController::class, 'saveDiscounts']);
 });
 

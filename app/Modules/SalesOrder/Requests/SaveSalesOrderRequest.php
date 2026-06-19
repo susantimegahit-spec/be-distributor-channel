@@ -32,7 +32,15 @@ class SaveSalesOrderRequest extends FormRequest
      */
     public function rules(): array
     {
+        if ($this->has('action') && !$this->has('card_code')) {
+            return [
+                'action' => 'required|string|in:approve,reject,submit',
+                'notes' => 'required_if:action,reject|nullable|string',
+            ];
+        }
+
         return [
+            'action' => 'nullable|string|in:submit',
             'card_code' => 'required|string|max:50',
             'po_number' => 'nullable|string|max:100',
             'doc_date' => 'required|date',

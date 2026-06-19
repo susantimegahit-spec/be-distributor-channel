@@ -101,7 +101,19 @@ class SalesOrderController extends Controller
             $distributor->id
         );
 
-        return $this->successResponse($salesOrder, 'Sales order draft berhasil dibuat.', 200);
+        // If action is submit, immediately submit it to OM
+        if ($request->input('action') === 'submit') {
+            try {
+                $salesOrder = $this->salesOrderService->submitOrder($salesOrder->id, $user->id);
+                $message = 'Sales order berhasil dibuat dan langsung dikirim ke OM.';
+            } catch (\Exception $e) {
+                return $this->errorResponse($e->getMessage(), [], 400);
+            }
+        } else {
+            $message = 'Sales order draft berhasil dibuat.';
+        }
+
+        return $this->successResponse($salesOrder, $message, 200);
     }
 
     /**
@@ -115,6 +127,31 @@ class SalesOrderController extends Controller
     {
         $user = $request->user();
 
+        // Handle workflow actions if 'action' parameter is present
+        if ($request->has('action')) {
+            $action = $request->input('action');
+            $notes = $request->input('notes');
+
+            try {
+                if ($action === 'submit') {
+                    $salesOrder = $this->salesOrderService->submitOrder($id, $user->id);
+                    $message = 'Sales order berhasil dikirim ke OM.';
+                } elseif ($action === 'approve') {
+                    $salesOrder = $this->salesOrderService->approveOrder($id, $user->id, $notes);
+                    $message = 'Sales order berhasil disetujui.';
+                } elseif ($action === 'reject') {
+                    $salesOrder = $this->salesOrderService->rejectOrder($id, $user->id, $notes);
+                    $message = 'Sales order berhasil ditolak.';
+                } else {
+                    abort(400, 'Aksi tidak valid.');
+                }
+                return $this->successResponse($salesOrder, $message);
+            } catch (\Exception $e) {
+                return $this->errorResponse($e->getMessage(), [], 400);
+            }
+        }
+
+        // Handle standard draft update
         if (!$user->code_customer) {
             abort(403, 'Hanya user distributor yang dapat mengubah sales order.');
         }
@@ -275,48 +312,7 @@ class SalesOrderController extends Controller
         }
     }
 
-    /**
-     * Submit a draft Sales Order to OM.
-     */
-    public function submit(Request $request, int $id): JsonResponse
-    {
-        try {
-            $salesOrder = $this->salesOrderService->submitOrder($id, $request->user()->id);
-            return $this->successResponse($salesOrder, 'Sales order berhasil dikirim ke OM.');
-        } catch (\Exception $e) {
-            return $this->errorResponse($e->getMessage(), [], 400);
-        }
-    }
 
-    /**
-     * Approve a Sales Order to the next stage.
-     */
-    public function approve(Request $request, int $id): JsonResponse
-    {
-        try {
-            $salesOrder = $this->salesOrderService->approveOrder($id, $request->user()->id, $request->input('notes'));
-            return $this->successResponse($salesOrder, 'Sales order berhasil disetujui.');
-        } catch (\Exception $e) {
-            return $this->errorResponse($e->getMessage(), [], 400);
-        }
-    }
-
-    /**
-     * Reject a Sales Order back to a previous stage.
-     */
-    public function reject(Request $request, int $id): JsonResponse
-    {
-        $request->validate([
-            'notes' => 'required|string',
-        ]);
-
-        try {
-            $salesOrder = $this->salesOrderService->rejectOrder($id, $request->user()->id, $request->input('notes'));
-            return $this->successResponse($salesOrder, 'Sales order berhasil ditolak.');
-        } catch (\Exception $e) {
-            return $this->errorResponse($e->getMessage(), [], 400);
-        }
-    }
 
     /**
      * Save discounts by Admin Sales.

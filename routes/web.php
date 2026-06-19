@@ -56,3 +56,16 @@ Route::get('/run-seeder-darurat', function () {
     Artisan::call('db:seed');
     return "Database seeder successfully executed!";
 });
+
+use Illuminate\Support\Facades\Mail;
+Route::get('/test-send-email', function () {
+    try {
+        Mail::raw('Ini adalah email uji coba dari URL browser.', function ($message) {
+            $message->to('sanjayfirmanzyah@gmail.com')
+                    ->subject('Uji Coba SMTP via URL');
+        });
+        return "Email berhasil dikirim!";
+    } catch (\Exception $e) {
+        return "Gagal mengirim email: " . $e->getMessage();
+    }
+});

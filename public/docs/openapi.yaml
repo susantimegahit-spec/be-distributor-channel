@@ -1595,8 +1595,8 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
     post:
-      summary: Create sales order draft
-      description: Membuat draft sales order baru beserta detail baris itemnya.
+      summary: Create Sales Order Draft or Direct Submit
+      description: Membuat draft sales order baru. Jika parameter 'action' diisi 'submit', Sales Order akan langsung dibuat dan dikirim ke OM.
       tags:
         - Sales Orders
       security:
@@ -1606,10 +1606,10 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SaveSalesOrderRequest'
+              $ref: '#/components/schemas/SalesOrderDraftUpdateRequest'
       responses:
         '200':
-          description: Draft sales order berhasil dibuat
+          description: Sales order berhasil dibuat (sebagai draft atau langsung terkirim)
           content:
             application/json:
               schema:
@@ -1669,8 +1669,8 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
     put:
-      summary: Update draft sales order
-      description: Memperbarui draft sales order (hanya diperbolehkan jika status order masih DRAFT).
+      summary: Update Sales Order or Process Workflow Action
+      description: Memperbarui draft sales order atau menjalankan aksi alur persetujuan (submit, approve, reject) tergantung pada parameter request body.
       tags:
         - Sales Orders
       security:
@@ -3548,6 +3548,26 @@ components:
           example: "2026-06-09T08:00:00.000000Z"
 
     SaveSalesOrderRequest:
+      oneOf:
+        - $ref: '#/components/schemas/SalesOrderWorkflowRequest'
+        - $ref: '#/components/schemas/SalesOrderDraftUpdateRequest'
+
+    SalesOrderWorkflowRequest:
+      type: object
+      required:
+        - action
+      properties:
+        action:
+          type: string
+          enum: [submit, approve, reject]
+          description: Aksi alur persetujuan (submit dari draft, approve ke tahap berikutnya, atau reject kembali ke tahap sebelumnya).
+          example: approve
+        notes:
+          type: string
+          description: Catatan persetujuan (opsional) atau alasan penolakan (wajib jika action adalah reject).
+          example: Dokumen disetujui.
+
+    SalesOrderDraftUpdateRequest:
       type: object
       required:
         - card_code
@@ -3555,6 +3575,11 @@ components:
         - slp_code
         - lines
       properties:
+        action:
+          type: string
+          enum: [submit]
+          description: Jika diisi 'submit', Sales Order akan langsung dibuat dan langsung dikirim ke OM tanpa disimpan sebagai draft terlebih dahulu.
+          example: submit
         card_code:
           type: string
           example: C110003074
