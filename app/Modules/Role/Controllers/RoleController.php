@@ -113,13 +113,20 @@ class RoleController extends Controller
      */
     public function getMenu(int $id): JsonResponse
     {
-        $menu = $this->roleService->getRoleMenu($id);
-
-        if ($menu === null) {
+        // First check if role exists
+        $role = $this->roleService->getRoleById($id);
+        if (!$role) {
             abort(404, 'Role tidak ditemukan.');
         }
 
-        return $this->successResponse($menu, 'Menu role berhasil diambil.');
+        $roleMenu = $this->roleService->getRoleMenu($id);
+
+        $responseData = [
+            'menu' => $roleMenu?->menu ?? [],
+            'approval_id' => $roleMenu?->approval_id,
+        ];
+
+        return $this->successResponse($responseData, 'Menu role berhasil diambil.');
     }
 
     /**
@@ -142,6 +149,11 @@ class RoleController extends Controller
             abort(404, 'Role tidak ditemukan.');
         }
 
-        return $this->successResponse($roleMenu->menu, 'Menu role berhasil diperbarui.');
+        $responseData = [
+            'menu' => $roleMenu->menu,
+            'approval_id' => $roleMenu->approval_id,
+        ];
+
+        return $this->successResponse($responseData, 'Menu role berhasil diperbarui.');
     }
 }

@@ -404,9 +404,16 @@ paths:
                     type: string
                     example: Menu role berhasil diambil.
                   data:
-                    type: array
-                    items:
-                      type: object
+                    type: object
+                    properties:
+                      menu:
+                        type: array
+                        items:
+                          type: object
+                      approval_id:
+                        type: integer
+                        nullable: true
+                        example: 3
         '404':
           description: Role tidak ditemukan
           content:
@@ -419,7 +426,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
+ 
     put:
       summary: Update menu configuration for a specific role
       description: Memperbarui struktur menu dinamis (JSON) milik role tertentu.
@@ -471,9 +478,16 @@ paths:
                     type: string
                     example: Menu role berhasil diperbarui.
                   data:
-                    type: array
-                    items:
-                      type: object
+                    type: object
+                    properties:
+                      menu:
+                        type: array
+                        items:
+                          type: object
+                      approval_id:
+                        type: integer
+                        nullable: true
+                        example: 3
         '422':
           description: Validasi gagal (misal field menu kosong atau bukan array)
           content:
@@ -3043,6 +3057,9 @@ components:
           type: integer
           example: 1
         name:
+          type: string
+          example: DRAFT
+        label:
           type: string
           example: DRAFT
         action:

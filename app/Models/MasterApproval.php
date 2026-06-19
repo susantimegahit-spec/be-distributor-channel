@@ -14,6 +14,7 @@ class MasterApproval extends Model
 
     protected $fillable = [
         'name',
+        'label',
         'action',
         'notification_type',
     ];

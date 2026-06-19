@@ -79,9 +79,9 @@ class RoleService
      * Get menu configuration for a role.
      *
      * @param int $roleId
-     * @return array|null
+     * @return \App\Models\RoleMenu|null
      */
-    public function getRoleMenu(int $roleId): ?array
+    public function getRoleMenu(int $roleId): ?\App\Models\RoleMenu
     {
         $role = $this->getRoleById($roleId);
         if (!$role) {
@@ -89,7 +89,7 @@ class RoleService
         }
 
         $role->load('roleMenu');
-        return $role->roleMenu?->menu ?? [];
+        return $role->roleMenu;
     }
 
     /**
@@ -107,10 +107,11 @@ class RoleService
             return null;
         }
 
-        $updateData = ['menu' => $menuData, 'is_active' => true];
-        if ($approvalId !== null) {
-            $updateData['approval_id'] = $approvalId;
-        }
+        $updateData = [
+            'menu' => $menuData, 
+            'is_active' => true,
+            'approval_id' => $approvalId
+        ];
 
         return \App\Models\RoleMenu::updateOrCreate(
             ['role_id' => $roleId],
