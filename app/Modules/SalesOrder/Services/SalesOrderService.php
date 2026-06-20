@@ -790,11 +790,22 @@ class SalesOrderService
         );
 
         // Stage-specific actions
-        if ($nextStage === SalesOrder::STAGE_COMPLETED) {
-            // Integrate to SAP automatically when approved by Finance
-            $this->postToSap($salesOrder->id, $userId);
-        } else {
-            $this->sendStageNotification($salesOrder, $nextStage);
+        try {
+            if ($nextStage === SalesOrder::STAGE_COMPLETED) {
+                // Integrate to SAP automatically when approved by Finance
+                $this->postToSap($salesOrder->id, $userId);
+            } else {
+                $this->sendStageNotification($salesOrder, $nextStage);
+            }
+        } catch (\Exception $e) {
+            if ($nextStage === SalesOrder::STAGE_COMPLETED) {
+                // Revert status and stage back to WAITING_FINANCE so they can try again
+                $salesOrder->update([
+                    'status' => 'WAITING_FINANCE',
+                    'approval_id' => SalesOrder::STAGE_WAITING_FINANCE,
+                ]);
+            }
+            throw $e;
         }
 
         return $salesOrder->load('approval', 'approvalHistories.user');
