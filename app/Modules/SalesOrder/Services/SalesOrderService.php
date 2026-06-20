@@ -517,6 +517,8 @@ class SalesOrderService
                     'Lines' => $discountLines
                 ];
 
+                throw new Exception('DEBUG DISCOUNT PAYLOAD: ' . json_encode($discountPayload));
+
                 $discountResponse = Http::timeout(15)->post('http://103.18.133.187:3100/api/addudodiskon', $discountPayload);
 
                 if (!$discountResponse->successful()) {
@@ -543,9 +545,15 @@ class SalesOrderService
 
             $status = 'SUCCESS';
 
-            // Get DocEntry and DocNum if returned in Result
-            $sapDocEntry = $body['Result'][0]['DocEntry'] ?? null;
-            $sapDocNum = $body['Result'][0]['DocNum'] ?? null;
+            // Get DocEntry and DocNum with fallbacks for different key casings
+            $result = $body['Result'][0] ?? $body['result'][0] ?? null;
+            $sapDocEntry = null;
+            $sapDocNum = null;
+
+            if ($result) {
+                $sapDocEntry = $result['DocEntry'] ?? $result['docEntry'] ?? $result['doc_entry'] ?? $result['docentry'] ?? null;
+                $sapDocNum = $result['DocNum'] ?? $result['docNum'] ?? $result['doc_num'] ?? $result['docnum'] ?? null;
+            }
 
             // Update Sales Order on Success
             $salesOrder->update([
