@@ -684,7 +684,7 @@ class SalesOrderService
     /**
      * Approve a sales order to the next stage.
      */
-    public function approveOrder(int $id, int $userId, ?string $notes = null): SalesOrder
+    public function approveOrder(int $id, int $userId, ?string $notes = null, ?array $payload = null): SalesOrder
     {
         $salesOrder = $this->getOrderById($id);
 
@@ -706,6 +706,59 @@ class SalesOrderService
 
         $currentStage = $salesOrder->approval_id;
         $nextStage = $currentStage + 1;
+
+        // If current stage is WAITING_ADMIN_SALES and payload is provided, process updates to lines & header
+        if ($currentStage === SalesOrder::STAGE_WAITING_ADMIN_SALES && $payload) {
+            $normalizedData = $this->normalizePayload($payload);
+            
+            if (!empty($normalizedData['lines']) && is_array($normalizedData['lines'])) {
+                $docTotal = 0;
+                foreach ($normalizedData['lines'] as $line) {
+                    $orderDetail = $salesOrder->details()->where('item_code', $line['item_code'])->first();
+                    if ($orderDetail) {
+                        $discPercent = $line['disc_percent'] ?? 0.00;
+                        $quantity = (float)$orderDetail->quantity;
+                        $unitPrice = (float)$orderDetail->unit_price;
+                        
+                        // Recalculate line total based on discount percentage
+                        $lineTotal = ($quantity * $unitPrice) * (1 - ($discPercent / 100));
+
+                        $updateData = [
+                            'disc_percent' => $discPercent,
+                            'line_total' => $lineTotal,
+                        ];
+
+                        // Also update whs_code and ocr_codes if provided in the input payload
+                        if (array_key_exists('whs_code', $line)) {
+                            $updateData['whs_code'] = $line['whs_code'];
+                        }
+                        if (array_key_exists('ocr_code', $line)) {
+                            $updateData['ocr_code'] = $line['ocr_code'];
+                        }
+                        if (array_key_exists('ocr_code2', $line)) {
+                            $updateData['ocr_code2'] = $line['ocr_code2'];
+                        }
+                        if (array_key_exists('ocr_code3', $line)) {
+                            $updateData['ocr_code3'] = $line['ocr_code3'];
+                        }
+
+                        $orderDetail->update($updateData);
+
+                        $docTotal += $lineTotal;
+                    }
+                }
+                
+                $salesOrder->update([
+                    'doc_total' => $docTotal,
+                ]);
+            }
+
+            if (array_key_exists('id_discount', $normalizedData)) {
+                $salesOrder->update([
+                    'id_discount' => $normalizedData['id_discount'] ?? $salesOrder->id_discount,
+                ]);
+            }
+        }
 
         $statusMap = [
             SalesOrder::STAGE_WAITING_ASM => 'WAITING_ASM',
@@ -836,13 +889,16 @@ class SalesOrderService
             throw new Exception('Anda tidak memiliki akses untuk mengisi diskon sales order.');
         }
 
+        // Normalize incoming request payload
+        $normalizedData = $this->normalizePayload($data);
+
         // Validate structure of lines for discount
-        if (empty($data['lines']) || !is_array($data['lines'])) {
+        if (empty($normalizedData['lines']) || !is_array($normalizedData['lines'])) {
             throw new Exception('Data item lines wajib diisi.');
         }
 
         // Recalculate totals with discounts
-        $lines = $data['lines'];
+        $lines = $normalizedData['lines'];
         $docTotal = 0;
 
         foreach ($lines as $line) {
@@ -855,10 +911,26 @@ class SalesOrderService
                 // Recalculate line total based on discount percentage
                 $lineTotal = ($quantity * $unitPrice) * (1 - ($discPercent / 100));
 
-                $orderDetail->update([
+                $updateData = [
                     'disc_percent' => $discPercent,
                     'line_total' => $lineTotal,
-                ]);
+                ];
+
+                // Also update whs_code and ocr_codes if provided in the input payload
+                if (array_key_exists('whs_code', $line)) {
+                    $updateData['whs_code'] = $line['whs_code'];
+                }
+                if (array_key_exists('ocr_code', $line)) {
+                    $updateData['ocr_code'] = $line['ocr_code'];
+                }
+                if (array_key_exists('ocr_code2', $line)) {
+                    $updateData['ocr_code2'] = $line['ocr_code2'];
+                }
+                if (array_key_exists('ocr_code3', $line)) {
+                    $updateData['ocr_code3'] = $line['ocr_code3'];
+                }
+
+                $orderDetail->update($updateData);
 
                 $docTotal += $lineTotal;
             }
@@ -866,7 +938,7 @@ class SalesOrderService
 
         // Update header discounts & status
         $salesOrder->update([
-            'id_discount' => $data['id_discount'] ?? $salesOrder->id_discount,
+            'id_discount' => $normalizedData['id_discount'] ?? $salesOrder->id_discount,
             'doc_total' => $docTotal,
             'status' => 'WAITING_FINANCE',
             'approval_id' => SalesOrder::STAGE_WAITING_FINANCE,

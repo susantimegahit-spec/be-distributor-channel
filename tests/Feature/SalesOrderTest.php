@@ -264,7 +264,7 @@ class SalesOrderTest extends TestCase
     }
 
     /**
-     * Test creating a sales order directly with WAITING_APPROVAL status.
+     * Test creating a sales order directly with WAITING_OM status via submit action.
      */
     public function test_create_sales_order_waiting_approval(): void
     {
@@ -275,7 +275,7 @@ class SalesOrderTest extends TestCase
             'customer_name' => 'PT XYZ',
             'doc_date' => '2026-02-25',
             'slp_code' => 0,
-            'status' => 'WAITING_APPROVAL',
+            'action' => 'submit',
             'lines' => [
                 [
                     'item_code' => 'E65',
@@ -294,13 +294,13 @@ class SalesOrderTest extends TestCase
             ->assertJson([
                 'success' => true,
                 'data' => [
-                    'status' => 'WAITING_APPROVAL',
+                    'status' => 'WAITING_OM',
                 ]
             ]);
 
         $this->assertDatabaseHas('sales_orders', [
             'card_code' => 'C110003074',
-            'status' => 'WAITING_APPROVAL',
+            'status' => 'WAITING_OM',
         ]);
     }
 

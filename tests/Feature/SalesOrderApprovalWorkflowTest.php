@@ -141,7 +141,9 @@ class SalesOrderApprovalWorkflowTest extends TestCase
 
         // 2. Submit to OM (Distributor)
         \Laravel\Sanctum\Sanctum::actingAs($this->distributorUser);
-        $response = $this->postJson("/api/distributor-channel/v1/sales-orders/{$order->id}/submit");
+        $response = $this->putJson("/api/distributor-channel/v1/sales-orders/{$order->id}", [
+            'action' => 'submit'
+        ]);
 
         $response->assertStatus(200);
         $this->assertDatabaseHas('sales_orders', [
@@ -152,7 +154,9 @@ class SalesOrderApprovalWorkflowTest extends TestCase
 
         // 3. Approve by OM -> Transitions to WAITING_ASM and sends Email
         \Laravel\Sanctum\Sanctum::actingAs($this->omUser);
-        $response = $this->postJson("/api/distributor-channel/v1/sales-orders/{$order->id}/approve");
+        $response = $this->putJson("/api/distributor-channel/v1/sales-orders/{$order->id}", [
+            'action' => 'approve'
+        ]);
 
         $response->assertStatus(200);
         $this->assertDatabaseHas('sales_orders', [
@@ -165,7 +169,9 @@ class SalesOrderApprovalWorkflowTest extends TestCase
 
         // 4. Approve by ASM -> Transitions to WAITING_ADMIN_SALES
         \Laravel\Sanctum\Sanctum::actingAs($this->asmUser);
-        $response = $this->postJson("/api/distributor-channel/v1/sales-orders/{$order->id}/approve");
+        $response = $this->putJson("/api/distributor-channel/v1/sales-orders/{$order->id}", [
+            'action' => 'approve'
+        ]);
 
         $response->assertStatus(200);
         $this->assertDatabaseHas('sales_orders', [
@@ -195,7 +201,9 @@ class SalesOrderApprovalWorkflowTest extends TestCase
 
         // 6. Approve by Finance -> Transitions to COMPLETED & posts to SAP
         \Laravel\Sanctum\Sanctum::actingAs($this->financeUser);
-        $response = $this->postJson("/api/distributor-channel/v1/sales-orders/{$order->id}/approve");
+        $response = $this->putJson("/api/distributor-channel/v1/sales-orders/{$order->id}", [
+            'action' => 'approve'
+        ]);
 
         $response->assertStatus(200);
         $this->assertDatabaseHas('sales_orders', [
@@ -226,7 +234,8 @@ class SalesOrderApprovalWorkflowTest extends TestCase
 
         // Reject by ASM -> should rollback to DRAFT
         \Laravel\Sanctum\Sanctum::actingAs($this->asmUser);
-        $response = $this->postJson("/api/distributor-channel/v1/sales-orders/{$order->id}/reject", [
+        $response = $this->putJson("/api/distributor-channel/v1/sales-orders/{$order->id}", [
+            'action' => 'reject',
             'notes' => 'Alasan tolak ASM'
         ]);
 
@@ -258,7 +267,9 @@ class SalesOrderApprovalWorkflowTest extends TestCase
 
         // OM User (approval_id = 2) tries to approve WAITING_ASM (approval_id = 3) -> should fail
         \Laravel\Sanctum\Sanctum::actingAs($this->omUser);
-        $response = $this->postJson("/api/distributor-channel/v1/sales-orders/{$order->id}/approve");
+        $response = $this->putJson("/api/distributor-channel/v1/sales-orders/{$order->id}", [
+            'action' => 'approve'
+        ]);
 
         $response->assertStatus(400);
         $response->assertJson([
