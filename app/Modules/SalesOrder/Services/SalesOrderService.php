@@ -486,6 +486,49 @@ class SalesOrderService
         $errorMessage = null;
 
         try {
+            // Integrate UDO Discount to SAP if id_discount is set
+            if ($salesOrder->id_discount) {
+                $sapDiscount = \App\Models\SapDiscountHeader::with('details')
+                    ->where('discount_code', $salesOrder->id_discount)
+                    ->first();
+
+                if (!$sapDiscount) {
+                    throw new Exception("Data diskon dengan ID {$salesOrder->id_discount} tidak ditemukan di database.");
+                }
+
+                $discountLines = [];
+                if ($sapDiscount->details) {
+                    foreach ($sapDiscount->details as $detail) {
+                        $discountLines[] = [
+                            'TypeDiscount' => $detail->type_discount,
+                            'Persentase' => (float)$detail->percentage,
+                            'TotalDiskon' => (float)$detail->total_discount,
+                            'Remarks' => $detail->remarks ?? '',
+                        ];
+                    }
+                }
+
+                $discountPayload = [
+                    'Code' => $salesOrder->id_discount,
+                    'Name' => '',
+                    'CardCode' => $salesOrder->card_code,
+                    'CardName' => $salesOrder->customer_name,
+                    'TotalSO' => 0,
+                    'Lines' => $discountLines
+                ];
+
+                $discountResponse = Http::timeout(15)->post('http://103.18.133.187:3100/api/addudodiskon', $discountPayload);
+
+                if (!$discountResponse->successful()) {
+                    throw new Exception('Gagal menghubungi API SAP addudodiskon untuk sinkronisasi diskon.');
+                }
+
+                $discountBody = $discountResponse->json();
+                if (isset($discountBody['ErrorCode']) && $discountBody['ErrorCode'] !== 0) {
+                    throw new Exception('API SAP addudodiskon mengembalikan error: ' . ($discountBody['Message'] ?? 'Unknown error'));
+                }
+            }
+
             $response = Http::timeout(15)->post('http://103.18.133.187:3100/api/addso', $payload);
             $responseJson = $response->body();
 

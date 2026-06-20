@@ -48,53 +48,19 @@ class DiscountService
             }
         }
 
-        // 1. Fetch code from GetNumDis
-        $codeResponse = Http::timeout(15)->post('http://103.18.133.187:3100/api/GetNumDis');
+        // 1. Generate Discount Code manually (YYYYMMDD + 8-digit running counter starting from 1)
+        $todayPrefix = date('Ymd');
+        $maxDiscountCode = SapDiscountHeader::where('discount_code', 'like', $todayPrefix . '%')
+            ->max('discount_code');
 
-        if (!$codeResponse->successful()) {
-            throw new Exception('Gagal menghubungi API SAP untuk mendapatkan kode diskon.');
+        if ($maxDiscountCode) {
+            $lastSequence = (int) substr($maxDiscountCode, 8);
+            $newSequence = $lastSequence + 1;
+        } else {
+            $newSequence = 1;
         }
 
-        $codeBody = $codeResponse->json();
-
-        if (isset($codeBody['ErrorCode']) && $codeBody['ErrorCode'] !== 0) {
-            throw new Exception('API SAP GetNumDis mengembalikan error: ' . ($codeBody['Message'] ?? 'Unknown error'));
-        }
-
-        $code = $codeBody['Result'][0]['Col1'] ?? null;
-        if (!$code) {
-            throw new Exception('Nomor diskon tidak ditemukan di respon SAP GetNumDis.');
-        }
-
-        // 2. Build payload for SAP
-        $payload = [
-            'Code' => $code,
-            'Name' => 'test',
-            'CardCode' => $data['CardCode'],
-            'CardName' => $data['CardName'],
-            'TotalSO' => 0,
-            'Lines' => array_map(function ($line) {
-                return [
-                    'TypeDiscount' => $line['TypeDiscount'],
-                    'Persentase' => (float)$line['Persentase'],
-                    'TotalDiskon' => (float)$line['TotalDiskon'],
-                    'Remarks' => $line['Remarks'] ?? '',
-                ];
-            }, $data['Lines'])
-        ];
-
-        // 3. Post to addudodiskon
-        $response = Http::timeout(15)->post('http://103.18.133.187:3100/api/addudodiskon', $payload);
-
-        if (!$response->successful()) {
-            throw new Exception('Gagal menghubungi API SAP addudodiskon.');
-        }
-
-        $body = $response->json();
-
-        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
-            throw new Exception('API SAP addudodiskon mengembalikan error: ' . ($body['Message'] ?? 'Unknown error'));
-        }
+        $code = $todayPrefix . str_pad($newSequence, 8, '0', STR_PAD_LEFT);
 
         // Save to local database
         DB::transaction(function () use ($code, $data, $userId) {
@@ -121,14 +87,17 @@ class DiscountService
         if ($userId) {
             $this->auditLogService->log(
                 $userId,
-                'POST_UDO_DISCOUNT_SAP',
-                "Successfully sent UDO Discount with Code {$code} for customer {$data['CardCode']} to SAP."
+                'CREATE_LOCAL_DISCOUNT',
+                "Successfully created local Discount with Code {$code} for customer {$data['CardCode']}."
             );
         }
 
         return [
             'code' => $code,
-            'sap_response' => $body
+            'sap_response' => [
+                'ErrorCode' => 0,
+                'Message' => 'Discount saved locally'
+            ]
         ];
     }
 
