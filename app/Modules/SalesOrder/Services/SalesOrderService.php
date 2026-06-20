@@ -486,49 +486,6 @@ class SalesOrderService
         $errorMessage = null;
 
         try {
-            // Integrate UDO Discount to SAP if id_discount is set
-            if ($salesOrder->id_discount) {
-                $sapDiscount = \App\Models\SapDiscountHeader::with('details')
-                    ->where('discount_code', $salesOrder->id_discount)
-                    ->first();
-
-                if (!$sapDiscount) {
-                    throw new Exception("Data diskon dengan ID {$salesOrder->id_discount} tidak ditemukan di database.");
-                }
-
-                $discountLines = [];
-                if ($sapDiscount->details) {
-                    foreach ($sapDiscount->details as $detail) {
-                        $discountLines[] = [
-                            'TypeDiscount' => $detail->type_discount,
-                            'Persentase' => (float)$detail->percentage,
-                            'TotalDiskon' => (float)$detail->total_discount,
-                            'Remarks' => $detail->remarks ?? '',
-                        ];
-                    }
-                }
-
-                $discountPayload = [
-                    'Code' => $salesOrder->id_discount,
-                    'Name' => '',
-                    'CardCode' => $salesOrder->card_code,
-                    'CardName' => $salesOrder->customer_name,
-                    'TotalSO' => 0,
-                    'Lines' => $discountLines
-                ];
-
-                $discountResponse = Http::timeout(15)->post('http://103.18.133.187:3100/api/addudodiskon', $discountPayload);
-
-                if (!$discountResponse->successful()) {
-                    throw new Exception('Gagal menghubungi API SAP addudodiskon untuk sinkronisasi diskon.');
-                }
-
-                $discountBody = $discountResponse->json();
-                if (isset($discountBody['ErrorCode']) && $discountBody['ErrorCode'] !== 0) {
-                    throw new Exception('API SAP addudodiskon mengembalikan error: ' . ($discountBody['Message'] ?? 'Unknown error'));
-                }
-            }
-
             $response = Http::timeout(15)->post('http://103.18.133.187:3100/api/addso', $payload);
             $responseJson = $response->body();
 
@@ -709,7 +666,7 @@ class SalesOrderService
         // If current stage is WAITING_ADMIN_SALES and payload is provided, process updates to lines & header
         if ($currentStage === SalesOrder::STAGE_WAITING_ADMIN_SALES && $payload) {
             $normalizedData = $this->normalizePayload($payload);
-            
+
             if (!empty($normalizedData['lines']) && is_array($normalizedData['lines'])) {
                 $docTotal = 0;
                 foreach ($normalizedData['lines'] as $line) {
@@ -718,7 +675,7 @@ class SalesOrderService
                         $discPercent = $line['disc_percent'] ?? 0.00;
                         $quantity = (float)$orderDetail->quantity;
                         $unitPrice = (float)$orderDetail->unit_price;
-                        
+
                         // Recalculate line total based on discount percentage
                         $lineTotal = ($quantity * $unitPrice) * (1 - ($discPercent / 100));
 
@@ -746,7 +703,7 @@ class SalesOrderService
                         $docTotal += $lineTotal;
                     }
                 }
-                
+
                 $salesOrder->update([
                     'doc_total' => $docTotal,
                 ]);
@@ -816,7 +773,7 @@ class SalesOrderService
         }
 
         if ($salesOrder->approval_id === SalesOrder::STAGE_COMPLETED || $salesOrder->approval_id === SalesOrder::STAGE_DRAFT) {
-            
+
             throw new Exception('Sales order draft atau completed tidak dapat ditolak.');
         }
 
@@ -829,7 +786,7 @@ class SalesOrderService
         }
 
         $currentStage = $salesOrder->approval_id;
-        
+
         // Determine rollback destination
         if ($currentStage === SalesOrder::STAGE_WAITING_OM || $currentStage === SalesOrder::STAGE_WAITING_ASM) {
             $rollbackStage = SalesOrder::STAGE_DRAFT;
@@ -906,7 +863,7 @@ class SalesOrderService
                 $discPercent = $line['disc_percent'] ?? 0.00;
                 $quantity = (float)$orderDetail->quantity;
                 $unitPrice = (float)$orderDetail->unit_price;
-                
+
                 // Recalculate line total based on discount percentage
                 $lineTotal = ($quantity * $unitPrice) * (1 - ($discPercent / 100));
 
@@ -978,7 +935,7 @@ class SalesOrderService
 
         if ($notificationType && str_contains($notificationType, 'email')) {
             // Find target users for email (usually ASM)
-            $asmUser = \App\Models\User::whereHas('role.roleMenu', function($q) use ($targetStageId) {
+            $asmUser = \App\Models\User::whereHas('role.roleMenu', function ($q) use ($targetStageId) {
                 $q->where('approval_id', $targetStageId);
             })->first();
             $asmUserId = $asmUser?->id ?? $salesOrder->created_by;
@@ -994,7 +951,7 @@ class SalesOrderService
 
         if ($notificationType && str_contains($notificationType, 'web')) {
             // Find all users who are allowed to approve/handle this target stage
-            $targetUsers = \App\Models\User::whereHas('role.roleMenu', function($q) use ($targetStageId) {
+            $targetUsers = \App\Models\User::whereHas('role.roleMenu', function ($q) use ($targetStageId) {
                 $q->where('approval_id', $targetStageId);
             })->get();
 
