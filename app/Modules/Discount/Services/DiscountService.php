@@ -51,7 +51,8 @@ class DiscountService
         // 1. Generate Discount Code manually (YYYYMMDD + 8-digit running counter starting from 1)
         $todayPrefix = date('Ymd');
         $maxDiscountCode = SapDiscountHeader::where('discount_code', 'like', $todayPrefix . '%')
-            ->max('discount_code');
+            ->orderByRaw('CAST(discount_code AS BIGINT) DESC')
+            ->value('discount_code');
 
         if ($maxDiscountCode) {
             $lastSequence = (int) substr($maxDiscountCode, 8);
