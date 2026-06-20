@@ -582,9 +582,8 @@ class SalesOrderService
         } catch (Exception $e) {
             $errorMessage = $e->getMessage();
 
-            // Update Sales Order on Failure
+            // Update Sales Order on Failure (status remains unchanged, only record the error)
             $salesOrder->update([
-                'status' => 'FAILED',
                 'sap_error' => $errorMessage,
             ]);
 
