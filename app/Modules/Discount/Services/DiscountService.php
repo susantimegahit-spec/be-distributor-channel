@@ -40,15 +40,23 @@ class DiscountService
      */
     public function sendToSap(array $data, ?int $userId = null): array
     {
+        // 0. If OldIdDiscount is provided, delete it from local database
+        if (!empty($data['OldIdDiscount'])) {
+            $oldDiscount = SapDiscountHeader::where('discount_code', $data['OldIdDiscount'])->first();
+            if ($oldDiscount) {
+                $oldDiscount->delete();
+            }
+        }
+
         // 1. Fetch code from GetNumDis
         $codeResponse = Http::timeout(15)->post('http://103.18.133.187:3100/api/GetNumDis');
-        
+
         if (!$codeResponse->successful()) {
             throw new Exception('Gagal menghubungi API SAP untuk mendapatkan kode diskon.');
         }
 
         $codeBody = $codeResponse->json();
-        
+
         if (isset($codeBody['ErrorCode']) && $codeBody['ErrorCode'] !== 0) {
             throw new Exception('API SAP GetNumDis mengembalikan error: ' . ($codeBody['Message'] ?? 'Unknown error'));
         }
@@ -83,7 +91,7 @@ class DiscountService
         }
 
         $body = $response->json();
-        
+
         if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
             throw new Exception('API SAP addudodiskon mengembalikan error: ' . ($body['Message'] ?? 'Unknown error'));
         }

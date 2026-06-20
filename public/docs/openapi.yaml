@@ -758,6 +758,10 @@ paths:
                 CardName:
                   type: string
                   example: LESAFFRE SARI
+                OldIdDiscount:
+                  type: string
+                  nullable: true
+                  example: "20260620001"
                 Lines:
                   type: array
                   items:

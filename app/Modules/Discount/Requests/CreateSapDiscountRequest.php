@@ -24,6 +24,7 @@ class CreateSapDiscountRequest extends FormRequest
         return [
             'CardCode' => 'required|string|max:50',
             'CardName' => 'required|string|max:255',
+            'OldIdDiscount' => 'nullable|string|max:100',
             'Lines' => 'required|array|min:1',
             'Lines.*.TypeDiscount' => 'required|string|max:100',
             'Lines.*.Persentase' => 'required|numeric|min:0|max:100',
