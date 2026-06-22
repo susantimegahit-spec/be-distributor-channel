@@ -73,6 +73,7 @@ class SalesOrder extends Model
         'sales_employee_name',
         'total_discount',
         'depo',
+        'max_discount',
     ];
 
     /**
@@ -81,6 +82,18 @@ class SalesOrder extends Model
     public function getDepoAttribute(): ?string
     {
         return $this->distributor?->depo;
+    }
+
+    /**
+     * Get the maximum allowed discount percentage from settings.
+     */
+    public function getMaxDiscountAttribute(): float
+    {
+        static $cachedMaxDiscount = null;
+        if ($cachedMaxDiscount === null) {
+            $cachedMaxDiscount = (float) (\App\Models\DiscountSetting::first()?->max_discount ?? 20.00);
+        }
+        return $cachedMaxDiscount;
     }
 
     /**

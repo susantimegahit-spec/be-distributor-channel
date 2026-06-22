@@ -3820,6 +3820,10 @@ components:
           type: string
           nullable: true
           example: "DEPO SURABAYA"
+        max_discount:
+          type: number
+          format: float
+          example: 20.00
         cntct_code:
           type: integer
           example: -1

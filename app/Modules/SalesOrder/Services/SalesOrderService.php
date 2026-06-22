@@ -517,8 +517,6 @@ class SalesOrderService
                     'Lines' => $discountLines
                 ];
 
-                throw new Exception('DEBUG DISCOUNT PAYLOAD: ' . json_encode($discountPayload));
-
                 $discountResponse = Http::timeout(15)->post('http://103.18.133.187:3100/api/addudodiskon', $discountPayload);
 
                 if (!$discountResponse->successful()) {
