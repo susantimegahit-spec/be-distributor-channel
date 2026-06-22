@@ -64,7 +64,8 @@ class ProgramRepository implements ProgramRepositoryInterface
             ]);
 
             if (!empty($data['items'])) {
-                $program->items()->sync($data['items']);
+                $itemIds = \App\Models\Item::whereIn('item_code', $data['items'])->pluck('id')->toArray();
+                $program->items()->sync($itemIds);
             }
 
             if (!empty($data['strata'])) {
@@ -106,7 +107,8 @@ class ProgramRepository implements ProgramRepositoryInterface
             $program->update($updateData);
 
             if (isset($data['items'])) {
-                $program->items()->sync($data['items']);
+                $itemIds = \App\Models\Item::whereIn('item_code', $data['items'])->pluck('id')->toArray();
+                $program->items()->sync($itemIds);
             }
 
             if (isset($data['strata'])) {

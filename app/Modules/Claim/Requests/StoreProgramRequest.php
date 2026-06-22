@@ -26,7 +26,7 @@ class StoreProgramRequest extends FormRequest
             'end_date' => 'required|date|date_format:Y-m-d|after_or_equal:start_date',
             'description' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*' => 'required|integer|exists:items,id',
+            'items.*' => 'required|string|exists:items,item_code',
             'strata' => 'required|array|min:1',
             'strata.*.customer_type' => 'required|string|in:GT,MT',
             'strata.*.min_qty_kg' => 'required|numeric|min:0',

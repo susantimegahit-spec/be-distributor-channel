@@ -133,7 +133,7 @@ class ClaimCalculationTest extends TestCase
             'start_date' => '2026-06-01',
             'end_date' => '2026-06-30',
             'description' => 'Test description',
-            'items' => [$this->itemA26->id, $this->itemB26->id],
+            'items' => [$this->itemA26->item_code, $this->itemB26->item_code],
             'strata' => [
                 [
                     'customer_type' => 'GT',
@@ -312,7 +312,7 @@ class ClaimCalculationTest extends TestCase
             'start_date' => '2026-06-01',
             'end_date' => '2026-06-30',
             'description' => 'Test auto gen',
-            'items' => [$this->itemA26->id],
+            'items' => [$this->itemA26->item_code],
             'strata' => [
                 [
                     'customer_type' => 'GT',
