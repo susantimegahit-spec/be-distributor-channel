@@ -136,7 +136,8 @@ class ProgramRepository implements ProgramRepositoryInterface
     {
         $prefix = 'PRG' . date('Ym');
         
-        $latest = MstProgram::where('program_code', 'like', $prefix . '%')
+        $latest = MstProgram::withTrashed()
+            ->where('program_code', 'like', $prefix . '%')
             ->orderBy('program_code', 'desc')
             ->first();
             
