@@ -125,15 +125,19 @@ class UploadService
         for ($i = $headerRowIndex + 1; $i < count($rows); $i++) {
             $row = $rows[$i];
 
-            // Check if completely empty
+            // Check if completely empty or contains instructions starting with '*'
             $isEmpty = true;
+            $isInstruction = false;
             foreach ($row as $cell) {
                 if ($cell !== null && trim($cell) !== '') {
                     $isEmpty = false;
-                    break;
+                    if (str_starts_with(trim($cell), '*')) {
+                        $isInstruction = true;
+                        break;
+                    }
                 }
             }
-            if ($isEmpty) {
+            if ($isEmpty || $isInstruction) {
                 continue;
             }
 
