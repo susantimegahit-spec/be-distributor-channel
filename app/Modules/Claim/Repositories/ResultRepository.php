@@ -20,7 +20,7 @@ class ResultRepository implements ResultRepositoryInterface
      */
     public function paginateResults(array $filters, int $perPage = 15)
     {
-        $query = TrxProgramResult::query();
+        $query = TrxProgramResult::with('upload');
 
         if (!empty($filters['batch_id'])) {
             $batchId = $filters['batch_id'];

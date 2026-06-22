@@ -4375,4 +4375,7 @@ components:
         status:
           type: string
           example: VALID_PROGRAM
+        customer_type:
+          type: string
+          example: GT
 
