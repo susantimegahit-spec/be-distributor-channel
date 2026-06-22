@@ -3816,6 +3816,10 @@ components:
           type: string
           nullable: true
           example: "John Doe"
+        depo:
+          type: string
+          nullable: true
+          example: "DEPO SURABAYA"
         cntct_code:
           type: integer
           example: -1

@@ -72,7 +72,16 @@ class SalesOrder extends Model
     protected $appends = [
         'sales_employee_name',
         'total_discount',
+        'depo',
     ];
+
+    /**
+     * Get the distributor depo name/code.
+     */
+    public function getDepoAttribute(): ?string
+    {
+        return $this->distributor?->depo;
+    }
 
     /**
      * Get the total discount amount.
