@@ -20,7 +20,7 @@ class StoreProgramRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'program_code' => 'required|string|max:30|unique:mst_program,program_code',
+            'program_code' => 'nullable|string|max:30|unique:mst_program,program_code',
             'program_name' => 'required|string|max:200',
             'start_date' => 'required|date|date_format:Y-m-d',
             'end_date' => 'required|date|date_format:Y-m-d|after_or_equal:start_date',
