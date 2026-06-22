@@ -4143,6 +4143,9 @@ components:
         status:
           type: string
           example: ACTIVE
+        item_names:
+          type: string
+          example: "TOP 250 M @ 10 KG / BAL, KOP 250 M @ 10 KG / BAL"
 
     ProgramDetail:
       allOf:
@@ -4187,7 +4190,6 @@ components:
     StoreProgramRequest:
       type: object
       required:
-        - program_code
         - program_name
         - start_date
         - end_date
@@ -4214,8 +4216,8 @@ components:
         items:
           type: array
           items:
-            type: integer
-          example: [1, 2]
+            type: string
+          example: ["A26", "B26.B"]
         strata:
           type: array
           items:

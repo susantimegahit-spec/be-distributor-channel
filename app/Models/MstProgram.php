@@ -44,6 +44,23 @@ class MstProgram extends Model
     ];
 
     /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array
+     */
+    protected $appends = [
+        'item_names',
+    ];
+
+    /**
+     * Get the item names as a comma-separated string.
+     */
+    public function getItemNamesAttribute(): string
+    {
+        return $this->items->pluck('item_name')->implode(', ');
+    }
+
+    /**
      * Get the strata associated with the program.
      */
     public function strata(): HasMany

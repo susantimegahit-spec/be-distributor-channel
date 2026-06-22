@@ -12,7 +12,7 @@ class ProgramRepository implements ProgramRepositoryInterface
      */
     public function paginate(array $filters, int $perPage = 15)
     {
-        $query = MstProgram::query();
+        $query = MstProgram::with('items');
 
         if (!empty($filters['search'])) {
             $search = $filters['search'];
