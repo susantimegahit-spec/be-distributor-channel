@@ -4271,6 +4271,9 @@ components:
     UploadBatch:
       type: object
       properties:
+        batch_id:
+          type: integer
+          example: 1
         id:
           type: integer
           example: 1
@@ -4287,6 +4290,18 @@ components:
           type: string
           format: date-time
           example: "2026-06-13T11:32:00.000000Z"
+        total_rows:
+          type: integer
+          example: 105
+        valid_rows:
+          type: integer
+          example: 100
+        invalid_rows:
+          type: integer
+          example: 5
+        total_diskon:
+          type: number
+          example: 2500000.00
 
     UploadBatchDetail:
       type: object
