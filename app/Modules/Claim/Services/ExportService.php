@@ -52,7 +52,8 @@ class ExportService
             'Harga Program per Kg',
             'Diskon per Kg',
             'Total Diskon',
-            'Status'
+            'Status',
+            'Status Description'
         ];
 
         foreach ($headers as $colIndex => $header) {
@@ -79,6 +80,7 @@ class ExportService
             $sheet->setCellValue("I{$rowNum}", (float)$item->diskon_per_kg);
             $sheet->setCellValue("J{$rowNum}", (float)$item->total_diskon);
             $sheet->setCellValue("K{$rowNum}", $item->status);
+            $sheet->setCellValue("L{$rowNum}", $item->desc_status);
 
             $rowNum++;
         }
@@ -96,6 +98,7 @@ class ExportService
             'I' => 15, // Diskon per Kg
             'J' => 18, // Total Diskon
             'K' => 20, // Status
+            'L' => 20, // Status Description
         ];
 
         foreach ($columnWidths as $col => $width) {

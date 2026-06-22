@@ -63,6 +63,7 @@ class TrxProgramResult extends Model
      */
     protected $appends = [
         'customer_type',
+        'desc_status',
     ];
 
     /**
@@ -71,6 +72,14 @@ class TrxProgramResult extends Model
     public function getCustomerTypeAttribute(): ?string
     {
         return $this->upload ? $this->upload->customer_type : null;
+    }
+
+    /**
+     * Get the description status based on the result status.
+     */
+    public function getDescStatusAttribute(): string
+    {
+        return $this->status === 'VALID_PROGRAM' ? 'VALID' : 'NOT VALID';
     }
 
     /**

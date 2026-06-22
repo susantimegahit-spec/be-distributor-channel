@@ -4378,4 +4378,7 @@ components:
         customer_type:
           type: string
           example: GT
+        desc_status:
+          type: string
+          example: VALID
 
