@@ -1577,6 +1577,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/sales-orders/max-discount:
+    get:
+      summary: Get maximum discount setting
+      description: Mendapatkan batas persentase maksimal diskon yang dikonfigurasi.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Batas maksimal diskon berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Batas maksimal diskon berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      max_discount:
+                        type: number
+                        format: float
+                        example: 20.00
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /v1/sales-orders:
     get:
       summary: List all sales orders
@@ -3820,10 +3856,6 @@ components:
           type: string
           nullable: true
           example: "DEPO SURABAYA"
-        max_discount:
-          type: number
-          format: float
-          example: 20.00
         cntct_code:
           type: integer
           example: -1
