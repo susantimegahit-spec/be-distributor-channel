@@ -166,4 +166,18 @@ class SalesOrder extends Model
     {
         return $this->hasMany(SalesOrderApprovalHistory::class);
     }
+
+    /**
+     * Convert the model instance to an array to include DocTotal.
+     */
+    public function toArray()
+    {
+        $array = parent::toArray();
+        $docTotal = isset($array['doc_total']) ? (float)$array['doc_total'] : 0.0;
+        $totalDiscount = $this->total_discount; // Accessor getTotalDiscountAttribute()
+        
+        $array['DocTotal'] = max(0.0, $docTotal - $totalDiscount);
+        
+        return $array;
+    }
 }
