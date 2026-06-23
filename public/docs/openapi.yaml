@@ -3881,6 +3881,9 @@ components:
         doc_total:
           type: string
           example: "124500000.00"
+        DocTotal:
+          type: number
+          example: 72423000.00
         comments:
           type: string
           nullable: true
@@ -4064,6 +4067,10 @@ components:
           type: string
           nullable: true
           example: PT XYZ
+        depo:
+          type: string
+          nullable: true
+          example: DEPO SURABAYA
         item_code:
           type: string
           example: A26

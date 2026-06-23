@@ -583,7 +583,8 @@ class SalesOrderService
             return [
                 'success' => true,
                 'message' => 'Sales Order berhasil dikirim ke SAP.',
-                'sap_response' => $body
+                'sap_response' => $body,
+                'sap_payload' => $payload
             ];
         } catch (Exception $e) {
             $errorMessage = $e->getMessage();
@@ -799,7 +800,8 @@ class SalesOrderService
         try {
             if ($nextStage === SalesOrder::STAGE_COMPLETED) {
                 // Integrate to SAP automatically when approved by Finance
-                $this->postToSap($salesOrder->id, $userId);
+                $sapResult = $this->postToSap($salesOrder->id, $userId);
+                $salesOrder->setAttribute('sap_payload', $sapResult['sap_payload'] ?? null);
             } else {
                 $this->sendStageNotification($salesOrder, $nextStage);
             }

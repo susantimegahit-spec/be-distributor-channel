@@ -16,7 +16,7 @@ class DistributorItemPriceRepository implements DistributorItemPriceRepositoryIn
     public function getAll(array $filters = []): Collection
     {
         $query = DistributorItemPrice::query()
-            ->select('distributor_item_prices.*', 'distributors.name as customer_name', 'items.item_name')
+            ->select('distributor_item_prices.*', 'distributors.name as customer_name', 'distributors.depo as depo', 'items.item_name')
             ->leftJoin('distributors', 'distributor_item_prices.code_customer', '=', 'distributors.code_customer')
             ->leftJoin('items', 'distributor_item_prices.item_code', '=', 'items.item_code');
 
@@ -42,7 +42,7 @@ class DistributorItemPriceRepository implements DistributorItemPriceRepositoryIn
     public function getById(int $id): ?DistributorItemPrice
     {
         return DistributorItemPrice::query()
-            ->select('distributor_item_prices.*', 'distributors.name as customer_name', 'items.item_name')
+            ->select('distributor_item_prices.*', 'distributors.name as customer_name', 'distributors.depo as depo', 'items.item_name')
             ->leftJoin('distributors', 'distributor_item_prices.code_customer', '=', 'distributors.code_customer')
             ->leftJoin('items', 'distributor_item_prices.item_code', '=', 'items.item_code')
             ->where('distributor_item_prices.id', $id)
