@@ -168,15 +168,23 @@ class SalesOrder extends Model
     }
 
     /**
+     * Get the total doc total after discount.
+     */
+    public function getDocTotalAfterDiscountAttribute(): float
+    {
+        $docTotal = (float) $this->doc_total;
+        $totalDiscount = $this->total_discount;
+        
+        return max(0.0, $docTotal - $totalDiscount);
+    }
+
+    /**
      * Convert the model instance to an array to include DocTotal.
      */
     public function toArray()
     {
         $array = parent::toArray();
-        $docTotal = isset($array['doc_total']) ? (float)$array['doc_total'] : 0.0;
-        $totalDiscount = $this->total_discount; // Accessor getTotalDiscountAttribute()
-        
-        $array['DocTotal'] = max(0.0, $docTotal - $totalDiscount);
+        $array['DocTotal'] = $this->doc_total_after_discount;
         
         return $array;
     }

@@ -461,6 +461,7 @@ class SalesOrderService
             'Address2' => $salesOrder->address2,
             'Comments' => $salesOrder->comments,
             'IdDiskon' => $salesOrder->id_discount,
+            'DocTotal' => $salesOrder->doc_total_after_discount,
             'Lines' => $salesOrder->details->map(function ($line) {
                 return [
                     'ItemCode' => $line->item_code,
