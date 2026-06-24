@@ -89,4 +89,32 @@ class NotificationController extends Controller
             'Semua notifikasi berhasil ditandai dibaca.'
         );
     }
+
+    public function show(Request $request, int $id): JsonResponse
+    {
+        $notification = $this->notificationService->getById($request->user(), $id);
+
+        if (!$notification) {
+            abort(404, 'Notifikasi tidak ditemukan.');
+        }
+
+        return $this->successResponse(
+            $notification->toFrontendPayload(),
+            'Detail notifikasi berhasil diambil.'
+        );
+    }
+
+    public function destroy(Request $request, int $id): JsonResponse
+    {
+        $deleted = $this->notificationService->delete($request->user(), $id);
+
+        if (!$deleted) {
+            abort(404, 'Notifikasi tidak ditemukan.');
+        }
+
+        return $this->successResponse(
+            null,
+            'Notifikasi berhasil dihapus.'
+        );
+    }
 }

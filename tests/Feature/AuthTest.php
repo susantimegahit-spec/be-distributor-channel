@@ -325,4 +325,47 @@ class AuthTest extends TestCase
                 'message' => 'Password baru tidak boleh sama dengan password lama.',
             ]);
     }
+
+    /**
+     * Test single login enforcement blocks new logins when an active session exists,
+     * but allows login and prunes if the session has expired.
+     */
+    public function test_single_login_enforcement(): void
+    {
+        // 1. Create first token (simulates first login)
+        $token1 = $this->user->createToken('auth_token');
+        $this->assertEquals(1, $this->user->tokens()->count());
+
+        // 2. Perform login request -> should be BLOCKED because of active session
+        $response = $this->postJson('/api/distributor-channel/v1/auth/login', [
+            'username' => 'activeuser',
+            'password' => $this->password,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => false,
+                'status_code' => 422,
+                'message' => 'Akun ini sedang aktif di perangkat lain. Silakan logout terlebih dahulu dari perangkat tersebut.',
+            ]);
+
+        // 3. Make token1 expired (simulate 1445 minutes/over 24 hours ago)
+        $token1->accessToken->created_at = now()->subMinutes(1445);
+        $token1->accessToken->save();
+
+        // 4. Perform login request again -> should SUCCESS because token1 has expired
+        $response2 = $this->postJson('/api/distributor-channel/v1/auth/login', [
+            'username' => 'activeuser',
+            'password' => $this->password,
+        ]);
+
+        $response2->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Login berhasil.',
+            ]);
+
+        // 5. Verify old expired token is deleted and only the new token exists
+        $this->assertEquals(1, $this->user->tokens()->count());
+    }
 }

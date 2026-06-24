@@ -61,6 +61,29 @@ class AuthService
             }
         }
 
+        $expiration = config('sanctum.expiration');
+
+        if ($expiration) {
+            // Prune expired tokens for this user
+            $user->tokens()
+                ->where(function ($query) use ($expiration) {
+                    $query->where(function ($q) use ($expiration) {
+                        $q->whereNotNull('last_used_at')
+                          ->where('last_used_at', '<', now()->subMinutes($expiration));
+                    })->orWhere(function ($q) use ($expiration) {
+                        $q->whereNull('last_used_at')
+                          ->where('created_at', '<', now()->subMinutes($expiration));
+                    });
+                })->delete();
+        }
+
+        // Block login if there is still an active (non-expired) session
+        if ($user->tokens()->exists()) {
+            throw ValidationException::withMessages([
+                'username' => ['Akun ini sedang aktif di perangkat lain. Silakan logout terlebih dahulu dari perangkat tersebut.'],
+            ]);
+        }
+
         // Create token
         $token = $user->createToken('auth_token')->plainTextToken;
 

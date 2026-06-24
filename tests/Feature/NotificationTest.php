@@ -179,4 +179,101 @@ class NotificationTest extends TestCase
                 ]
             ]);
     }
+
+    /**
+     * Test showing a specific notification.
+     */
+    public function test_show_notification(): void
+    {
+        $notification = PushNotification::create([
+            'user_id' => $this->user->id,
+            'title' => 'Notif Detail',
+            'message' => 'Detail pesan',
+            'type' => 'info',
+        ]);
+
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/distributor-channel/v1/notifications/' . $notification->id);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Detail notifikasi berhasil diambil.',
+                'data' => [
+                    'id' => $notification->id,
+                    'title' => 'Notif Detail',
+                    'message' => 'Detail pesan',
+                ]
+            ]);
+    }
+
+    /**
+     * Test showing a non-existent notification returns 404.
+     */
+    public function test_show_notification_not_found(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/distributor-channel/v1/notifications/9999');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => false,
+                'status_code' => 404,
+                'message' => 'Resource not found.',
+            ]);
+    }
+
+    /**
+     * Test deleting a specific notification.
+     */
+    public function test_delete_notification(): void
+    {
+        $notification = PushNotification::create([
+            'user_id' => $this->user->id,
+            'title' => 'Notif Hapus',
+            'message' => 'Pesan hapus',
+            'type' => 'info',
+        ]);
+
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->deleteJson('/api/distributor-channel/v1/notifications/' . $notification->id);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Notifikasi berhasil dihapus.',
+            ]);
+
+        $this->assertDatabaseMissing('push_notifications', [
+            'id' => $notification->id,
+        ]);
+    }
+
+    /**
+     * Test deleting a non-existent notification returns 404.
+     */
+    public function test_delete_notification_not_found(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->deleteJson('/api/distributor-channel/v1/notifications/9999');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => false,
+                'status_code' => 404,
+                'message' => 'Resource not found.',
+            ]);
+    }
 }

@@ -115,4 +115,24 @@ class NotificationService
             ->whereNull('read_at')
             ->count();
     }
+
+    public function getById(User $user, int $notificationId): ?PushNotification
+    {
+        return PushNotification::query()
+            ->where('user_id', $user->id)
+            ->find($notificationId);
+    }
+
+    public function delete(User $user, int $notificationId): bool
+    {
+        $notification = PushNotification::query()
+            ->where('user_id', $user->id)
+            ->find($notificationId);
+
+        if (!$notification) {
+            return false;
+        }
+
+        return (bool) $notification->delete();
+    }
 }
