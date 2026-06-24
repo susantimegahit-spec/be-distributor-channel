@@ -208,7 +208,7 @@ class SalesOrderApprovalWorkflowTest extends TestCase
         $response->assertStatus(200);
         $this->assertDatabaseHas('sales_orders', [
             'id' => $order->id,
-            'status' => 'COMPLETED',
+            'status' => 'ORDER_APPROVED',
             'approval_id' => SalesOrder::STAGE_COMPLETED,
             'sap_doc_entry' => 1234,
             'sap_doc_num' => 'SO1234',
@@ -275,6 +275,38 @@ class SalesOrderApprovalWorkflowTest extends TestCase
         $response->assertJson([
             'success' => false,
             'message' => 'Anda tidak memiliki akses untuk menyetujui sales order pada tahap ini.',
+        ]);
+    }
+
+    /**
+     * Test that workflow rejection without notes defaults to 'Rejected'.
+     */
+    public function test_workflow_rejection_without_notes_defaults_to_rejected(): void
+    {
+        // Create order in WAITING_ASM stage
+        $order = SalesOrder::create([
+            'order_no' => 'SO-TEST-004',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'PT XYZ',
+            'doc_date' => now(),
+            'status' => 'WAITING_ASM',
+            'approval_id' => SalesOrder::STAGE_WAITING_ASM,
+            'doc_total' => 100000,
+        ]);
+
+        // Reject by ASM without sending notes -> should rollback to DRAFT and set reject_reason to 'Rejected'
+        \Laravel\Sanctum\Sanctum::actingAs($this->asmUser);
+        $response = $this->putJson("/api/distributor-channel/v1/sales-orders/{$order->id}", [
+            'action' => 'reject',
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('sales_orders', [
+            'id' => $order->id,
+            'status' => 'DRAFT',
+            'approval_id' => SalesOrder::STAGE_DRAFT,
+            'reject_reason' => 'Rejected',
         ]);
     }
 }

@@ -92,6 +92,6 @@ class MasterApprovalTest extends TestCase
         $this->assertEquals(1, $data[0]['id']);
         $this->assertEquals('DRAFT', $data[0]['name']);
         $this->assertEquals(6, $data[5]['id']);
-        $this->assertEquals('COMPLETED', $data[5]['name']);
+        $this->assertEquals('ORDER_APPROVED', $data[5]['name']);
     }
 }

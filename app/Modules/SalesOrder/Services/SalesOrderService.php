@@ -556,8 +556,8 @@ class SalesOrderService
 
             // Update Sales Order on Success
             $salesOrder->update([
-                'status' => 'COMPLETED',
-                'approval_id' => 6, // 6 = COMPLETED
+                'status' => 'ORDER_APPROVED',
+                'approval_id' => 6, // 6 = COMPLETED (ORDER_APPROVED)
                 'sap_doc_entry' => $sapDocEntry,
                 'sap_doc_num' => $sapDocNum,
                 'integrated_at' => now(),
@@ -774,10 +774,10 @@ class SalesOrderService
             SalesOrder::STAGE_WAITING_ASM => 'WAITING_ASM',
             SalesOrder::STAGE_WAITING_ADMIN_SALES => 'WAITING_ADMIN_SALES',
             SalesOrder::STAGE_WAITING_FINANCE => 'WAITING_FINANCE',
-            SalesOrder::STAGE_COMPLETED => 'COMPLETED',
+            SalesOrder::STAGE_COMPLETED => 'ORDER_APPROVED',
         ];
 
-        $nextStatus = $statusMap[$nextStage] ?? 'COMPLETED';
+        $nextStatus = $statusMap[$nextStage] ?? 'ORDER_APPROVED';
 
         $salesOrder->update([
             'status' => $nextStatus,
@@ -823,13 +823,10 @@ class SalesOrderService
         return $salesOrder->load('approval', 'approvalHistories.user');
     }
 
-    /**
-     * Reject a sales order back to a previous stage.
-     */
-    public function rejectOrder(int $id, int $userId, string $notes): SalesOrder
+    public function rejectOrder(int $id, int $userId, ?string $notes = null): SalesOrder
     {
         if (empty($notes)) {
-            throw new Exception('Alasan penolakan (notes) wajib diisi.');
+            $notes = 'Rejected';
         }
 
         $salesOrder = $this->getOrderById($id);

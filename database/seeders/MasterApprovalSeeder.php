@@ -60,8 +60,8 @@ class MasterApprovalSeeder extends Seeder
             ],
             [
                 'id' => 6,
-                'name' => 'COMPLETED',
-                'label' => 'COMPLETED',
+                'name' => 'ORDER_APPROVED',
+                'label' => 'ORDER_APPROVED',
                 'action' => 'none',
                 'notification_type' => 'none',
                 'created_at' => now(),
