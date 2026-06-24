@@ -33,7 +33,33 @@ class UploadRepository implements UploadRepositoryInterface
      */
     public function getBatchesPaginated(int $perPage = 15)
     {
-        return TrxProgramUploadBatch::orderBy('uploaded_at', 'desc')->paginate($perPage);
+        $query = DB::table('trx_program_upload_batch as b')
+            ->select([
+                'b.id as batch_id',
+                'b.id',
+                'b.batch_no',
+                'b.file_name',
+                'b.uploaded_by',
+                'b.uploaded_at',
+                DB::raw('(SELECT COUNT(*) FROM trx_program_upload WHERE batch_id = b.id) as total_rows'),
+                DB::raw('(SELECT COUNT(*) FROM trx_program_result r JOIN trx_program_upload u ON r.upload_id = u.id WHERE u.batch_id = b.id AND r.status = \'VALID_PROGRAM\') as valid_rows'),
+                DB::raw('(SELECT COUNT(*) FROM trx_program_result r JOIN trx_program_upload u ON r.upload_id = u.id WHERE u.batch_id = b.id AND r.status != \'VALID_PROGRAM\') as invalid_rows'),
+                DB::raw('(SELECT COALESCE(SUM(r.total_diskon), 0) FROM trx_program_result r JOIN trx_program_upload u ON r.upload_id = u.id WHERE u.batch_id = b.id) as total_diskon'),
+            ])
+            ->orderBy('b.uploaded_at', 'desc');
+
+        $paginator = $query->paginate($perPage);
+
+        $paginator->getCollection()->transform(function ($item) {
+            $item->batch_id = (int)$item->batch_id;
+            $item->total_rows = (int)$item->total_rows;
+            $item->valid_rows = (int)$item->valid_rows;
+            $item->invalid_rows = (int)$item->invalid_rows;
+            $item->total_diskon = (float)$item->total_diskon;
+            return $item;
+        });
+
+        return $paginator;
     }
 
     /**

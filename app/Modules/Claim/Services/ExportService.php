@@ -44,6 +44,7 @@ class ExportService
         $headers = [
             'Customer Code',
             'Customer Name',
+            'Customer Type',
             'Item Code',
             'Item Name',
             'Transaction Date',
@@ -51,7 +52,8 @@ class ExportService
             'Harga Program per Kg',
             'Diskon per Kg',
             'Total Diskon',
-            'Status'
+            'Status',
+            'Status Description'
         ];
 
         foreach ($headers as $colIndex => $header) {
@@ -69,14 +71,16 @@ class ExportService
 
             $sheet->setCellValue("A{$rowNum}", $item->customer_code);
             $sheet->setCellValue("B{$rowNum}", $item->customer_name);
-            $sheet->setCellValue("C{$rowNum}", $item->item_code);
-            $sheet->setCellValue("D{$rowNum}", $item->item_name);
-            $sheet->setCellValue("E{$rowNum}", $dateStr);
-            $sheet->setCellValue("F{$rowNum}", (float)$item->qty_kg);
-            $sheet->setCellValue("G{$rowNum}", (float)$item->harga_program_per_kg);
-            $sheet->setCellValue("H{$rowNum}", (float)$item->diskon_per_kg);
-            $sheet->setCellValue("I{$rowNum}", (float)$item->total_diskon);
-            $sheet->setCellValue("J{$rowNum}", $item->status);
+            $sheet->setCellValue("C{$rowNum}", $item->customer_type);
+            $sheet->setCellValue("D{$rowNum}", $item->item_code);
+            $sheet->setCellValue("E{$rowNum}", $item->item_name);
+            $sheet->setCellValue("F{$rowNum}", $dateStr);
+            $sheet->setCellValue("G{$rowNum}", (float)$item->qty_kg);
+            $sheet->setCellValue("H{$rowNum}", (float)$item->harga_program_per_kg);
+            $sheet->setCellValue("I{$rowNum}", (float)$item->diskon_per_kg);
+            $sheet->setCellValue("J{$rowNum}", (float)$item->total_diskon);
+            $sheet->setCellValue("K{$rowNum}", $item->status);
+            $sheet->setCellValue("L{$rowNum}", $item->desc_status);
 
             $rowNum++;
         }
@@ -85,14 +89,16 @@ class ExportService
         $columnWidths = [
             'A' => 15, // Customer Code
             'B' => 30, // Customer Name
-            'C' => 15, // Item Code
-            'D' => 30, // Item Name
-            'E' => 18, // Transaction Date
-            'F' => 12, // Qty Kg
-            'G' => 22, // Harga Program per Kg
-            'H' => 15, // Diskon per Kg
-            'I' => 18, // Total Diskon
-            'J' => 20, // Status
+            'C' => 15, // Customer Type
+            'D' => 15, // Item Code
+            'E' => 30, // Item Name
+            'F' => 18, // Transaction Date
+            'G' => 12, // Qty Kg
+            'H' => 22, // Harga Program per Kg
+            'I' => 15, // Diskon per Kg
+            'J' => 18, // Total Diskon
+            'K' => 20, // Status
+            'L' => 20, // Status Description
         ];
 
         foreach ($columnWidths as $col => $width) {

@@ -72,7 +72,16 @@ class SalesOrder extends Model
     protected $appends = [
         'sales_employee_name',
         'total_discount',
+        'depo',
     ];
+
+    /**
+     * Get the distributor depo name/code.
+     */
+    public function getDepoAttribute(): ?string
+    {
+        return $this->distributor?->depo;
+    }
 
     /**
      * Get the total discount amount.
@@ -156,5 +165,27 @@ class SalesOrder extends Model
     public function approvalHistories(): HasMany
     {
         return $this->hasMany(SalesOrderApprovalHistory::class);
+    }
+
+    /**
+     * Get the total doc total after discount.
+     */
+    public function getDocTotalAfterDiscountAttribute(): float
+    {
+        $docTotal = (float) $this->doc_total;
+        $totalDiscount = $this->total_discount;
+        
+        return max(0.0, $docTotal - $totalDiscount);
+    }
+
+    /**
+     * Convert the model instance to an array to include DocTotal.
+     */
+    public function toArray()
+    {
+        $array = parent::toArray();
+        $array['DocTotal'] = $this->doc_total_after_discount;
+        
+        return $array;
     }
 }

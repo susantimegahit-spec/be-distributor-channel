@@ -130,7 +130,18 @@ class DistributorService
             throw new \Exception('API SAP mengembalikan error: ' . ($body['Message'] ?? 'Unknown error'));
         }
 
-        return $body['Result'] ?? [];
+        $addresses = $body['Result'] ?? [];
+
+        // Ambil data distributor dari database lokal
+        $distributor = \App\Models\Distributor::where('code_customer', $customQuery)->first();
+        $depo = ($distributor && $distributor->depo) ? $distributor->depo : '-';
+
+        // Sisipkan info depo ke setiap data alamat
+        foreach ($addresses as &$address) {
+            $address['depo'] = $depo;
+        }
+
+        return $addresses;
     }
 
     /**

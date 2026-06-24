@@ -12,7 +12,7 @@ class ProgramRepository implements ProgramRepositoryInterface
      */
     public function paginate(array $filters, int $perPage = 15)
     {
-        $query = MstProgram::query();
+        $query = MstProgram::with('items');
 
         if (!empty($filters['search'])) {
             $search = $filters['search'];
@@ -51,8 +51,10 @@ class ProgramRepository implements ProgramRepositoryInterface
     public function create(array $data)
     {
         return DB::transaction(function () use ($data) {
+            $programCode = !empty($data['program_code']) ? $data['program_code'] : $this->generateProgramCode();
+
             $program = MstProgram::create([
-                'program_code' => $data['program_code'],
+                'program_code' => $programCode,
                 'program_name' => $data['program_name'],
                 'start_date' => $data['start_date'],
                 'end_date' => $data['end_date'],
@@ -62,7 +64,8 @@ class ProgramRepository implements ProgramRepositoryInterface
             ]);
 
             if (!empty($data['items'])) {
-                $program->items()->sync($data['items']);
+                $itemIds = \App\Models\Item::whereIn('item_code', $data['items'])->pluck('id')->toArray();
+                $program->items()->sync($itemIds);
             }
 
             if (!empty($data['strata'])) {
@@ -88,17 +91,24 @@ class ProgramRepository implements ProgramRepositoryInterface
     {
         return DB::transaction(function () use ($id, $data) {
             $program = MstProgram::findOrFail($id);
-            $program->update([
-                'program_code' => $data['program_code'],
+            
+            $updateData = [
                 'program_name' => $data['program_name'],
                 'start_date' => $data['start_date'],
                 'end_date' => $data['end_date'],
                 'description' => $data['description'] ?? null,
                 'status' => $data['status'] ?? 'ACTIVE',
-            ]);
+            ];
+
+            if (!empty($data['program_code'])) {
+                $updateData['program_code'] = $data['program_code'];
+            }
+
+            $program->update($updateData);
 
             if (isset($data['items'])) {
-                $program->items()->sync($data['items']);
+                $itemIds = \App\Models\Item::whereIn('item_code', $data['items'])->pluck('id')->toArray();
+                $program->items()->sync($itemIds);
             }
 
             if (isset($data['strata'])) {
@@ -116,6 +126,29 @@ class ProgramRepository implements ProgramRepositoryInterface
 
             return $program;
         });
+    }
+
+    /**
+     * Generate sequential program code in the format PRGtahunbulan001.
+     * E.g., PRG202606001
+     */
+    private function generateProgramCode(): string
+    {
+        $prefix = 'PRG' . date('Ym');
+        
+        $latest = MstProgram::withTrashed()
+            ->where('program_code', 'like', $prefix . '%')
+            ->orderBy('program_code', 'desc')
+            ->first();
+            
+        if ($latest) {
+            $seqStr = substr($latest->program_code, strlen($prefix));
+            $nextSeq = is_numeric($seqStr) ? intval($seqStr) + 1 : 1;
+        } else {
+            $nextSeq = 1;
+        }
+        
+        return $prefix . str_pad($nextSeq, 3, '0', STR_PAD_LEFT);
     }
 
     /**

@@ -51,6 +51,22 @@ class SalesOrderController extends Controller
     }
 
     /**
+     * Get the maximum discount setting.
+     *
+     * @param  Request  $request
+     * @return JsonResponse
+     */
+    public function getMaxDiscount(Request $request): JsonResponse
+    {
+        $setting = \App\Models\DiscountSetting::first();
+        $maxDiscount = $setting ? (float)$setting->max_discount : 20.00;
+
+        return $this->successResponse([
+            'max_discount' => $maxDiscount
+        ], 'Batas maksimal diskon berhasil diambil.');
+    }
+
+    /**
      * Display the specified sales order.
      *
      * @param  Request  $request

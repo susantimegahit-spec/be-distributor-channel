@@ -57,6 +57,32 @@ class TrxProgramResult extends Model
     ];
 
     /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array
+     */
+    protected $appends = [
+        'customer_type',
+        'desc_status',
+    ];
+
+    /**
+     * Get the customer type from the related upload.
+     */
+    public function getCustomerTypeAttribute(): ?string
+    {
+        return $this->upload ? $this->upload->customer_type : null;
+    }
+
+    /**
+     * Get the description status based on the result status.
+     */
+    public function getDescStatusAttribute(): string
+    {
+        return $this->status === 'VALID_PROGRAM' ? 'VALID' : 'NOT VALID';
+    }
+
+    /**
      * Get the raw upload record associated with this calculation.
      */
     public function upload(): BelongsTo

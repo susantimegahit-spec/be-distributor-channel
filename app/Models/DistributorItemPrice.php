@@ -26,6 +26,18 @@ class DistributorItemPrice extends Model
         'status' => 'integer',
     ];
 
+    protected $appends = [
+        'depo',
+    ];
+
+    /**
+     * Get the distributor's depo.
+     */
+    public function getDepoAttribute(): ?string
+    {
+        return $this->attributes['depo'] ?? $this->distributor?->depo;
+    }
+
     /**
      * Get the distributor associated with this price.
      */

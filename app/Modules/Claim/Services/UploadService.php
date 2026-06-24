@@ -83,7 +83,18 @@ class UploadService
                 return $val !== null ? trim($val) : '';
             }, $row);
 
-            if (in_array('Kode Customer', $trimmedRow) && (in_array('Item', $trimmedRow) || in_array('Kode Item', $trimmedRow))) {
+            $hasCustomer = false;
+            $hasItem = false;
+            foreach ($trimmedRow as $colName) {
+                if (in_array($colName, ['Kode Customer', 'Kode Distributor'])) {
+                    $hasCustomer = true;
+                }
+                if (in_array($colName, ['Item', 'Kode Item'])) {
+                    $hasItem = true;
+                }
+            }
+
+            if ($hasCustomer && $hasItem) {
                 $headerRowIndex = $index;
                 foreach ($trimmedRow as $colIndex => $colName) {
                     $headersMap[$colName] = $colIndex;
@@ -92,18 +103,18 @@ class UploadService
             }
         }
 
-        $colCustomerCode = $headersMap['Kode Customer'] ?? null;
+        $colCustomerCode = $headersMap['Kode Customer'] ?? $headersMap['Kode Distributor'] ?? null;
         $colCustomerName = $headersMap['Nama Customer'] ?? null;
         $colItemCode = $headersMap['Item'] ?? $headersMap['Kode Item'] ?? null;
         $colItemName = $headersMap['Nama Item'] ?? null;
-        $colSellPrice = $headersMap['Harga Jual @ Kg'] ?? $headersMap['Harga Jual'] ?? null;
-        $colQty = $headersMap['Qty @ Kg'] ?? $headersMap['Qty'] ?? null;
-        $colCustomerType = $headersMap['Type Customer'] ?? null;
-        $colDate = $headersMap['Transaction Date'] ?? null;
+        $colSellPrice = $headersMap['Harga Jual @ Kg'] ?? $headersMap['Harga Jual'] ?? $headersMap['Harga Jual (kg)'] ?? $headersMap['Harga Jual@Kg'] ?? null;
+        $colQty = $headersMap['Qty @ Kg'] ?? $headersMap['Qty'] ?? $headersMap['Qty@Kg'] ?? $headersMap['Qty (kg)'] ?? null;
+        $colCustomerType = $headersMap['Type Customer'] ?? $headersMap['Tipe Customer'] ?? null;
+        $colDate = $headersMap['Transaction Date'] ?? $headersMap['Transcation Date'] ?? null;
 
         if ($colCustomerCode === null || $colItemCode === null || $colQty === null || $colCustomerType === null || $colDate === null) {
             throw ValidationException::withMessages([
-                'file' => ['Struktur header Excel tidak valid. Kolom wajib (Kode Customer, Item/Kode Item, Qty, Type Customer, Transaction Date) harus tersedia.']
+                'file' => ['Struktur header Excel tidak valid. Kolom wajib (Kode Customer/Distributor, Item/Kode Item, Qty, Type/Tipe Customer, Transaction Date) harus tersedia.']
             ]);
         }
 
@@ -114,15 +125,19 @@ class UploadService
         for ($i = $headerRowIndex + 1; $i < count($rows); $i++) {
             $row = $rows[$i];
 
-            // Check if completely empty
+            // Check if completely empty or contains instructions starting with '*'
             $isEmpty = true;
+            $isInstruction = false;
             foreach ($row as $cell) {
                 if ($cell !== null && trim($cell) !== '') {
                     $isEmpty = false;
-                    break;
+                    if (str_starts_with(trim($cell), '*')) {
+                        $isInstruction = true;
+                        break;
+                    }
                 }
             }
-            if ($isEmpty) {
+            if ($isEmpty || $isInstruction) {
                 continue;
             }
 
@@ -181,8 +196,13 @@ class UploadService
             foreach ($errors as $rowNum => $msgs) {
                 $formattedErrors["Baris {$rowNum}"] = $msgs;
             }
+
+            $firstKey = array_key_first($errors);
+            $firstErrorMsg = $errors[$firstKey][0];
+            $detailedMessage = "File Excel berisi data tidak valid. Baris {$firstKey}: {$firstErrorMsg}";
+
             throw ValidationException::withMessages([
-                'file' => ['File Excel berisi data tidak valid.'],
+                'file' => [$detailedMessage],
                 'details' => [$formattedErrors]
             ]);
         }
@@ -226,6 +246,23 @@ class UploadService
                 return Date::excelToDateTimeObject($value)->format('Y-m-d');
             } catch (\Exception $e) {
                 // Fallback
+            }
+        }
+
+        $formats = [
+            'Y-m-d',
+            'd-m-Y',
+            'd/m/Y',
+            'm/d/Y',
+            'Y/m/d',
+            'd-M-Y',
+        ];
+
+        foreach ($formats as $format) {
+            try {
+                return Carbon::createFromFormat($format, trim($value))->format('Y-m-d');
+            } catch (\Exception $e) {
+                // Continue
             }
         }
 

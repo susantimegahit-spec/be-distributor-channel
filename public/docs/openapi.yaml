@@ -1577,6 +1577,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/sales-orders/max-discount:
+    get:
+      summary: Get maximum discount setting
+      description: Mendapatkan batas persentase maksimal diskon yang dikonfigurasi.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Batas maksimal diskon berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Batas maksimal diskon berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      max_discount:
+                        type: number
+                        format: float
+                        example: 20.00
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /v1/sales-orders:
     get:
       summary: List all sales orders
@@ -3816,6 +3852,10 @@ components:
           type: string
           nullable: true
           example: "John Doe"
+        depo:
+          type: string
+          nullable: true
+          example: "DEPO SURABAYA"
         cntct_code:
           type: integer
           example: -1
@@ -3841,6 +3881,9 @@ components:
         doc_total:
           type: string
           example: "124500000.00"
+        DocTotal:
+          type: number
+          example: 72423000.00
         comments:
           type: string
           nullable: true
@@ -4024,6 +4067,10 @@ components:
           type: string
           nullable: true
           example: PT XYZ
+        depo:
+          type: string
+          nullable: true
+          example: DEPO SURABAYA
         item_code:
           type: string
           example: A26
@@ -4143,6 +4190,9 @@ components:
         status:
           type: string
           example: ACTIVE
+        item_names:
+          type: string
+          example: "TOP 250 M @ 10 KG / BAL, KOP 250 M @ 10 KG / BAL"
 
     ProgramDetail:
       allOf:
@@ -4187,7 +4237,6 @@ components:
     StoreProgramRequest:
       type: object
       required:
-        - program_code
         - program_name
         - start_date
         - end_date
@@ -4214,8 +4263,8 @@ components:
         items:
           type: array
           items:
-            type: integer
-          example: [1, 2]
+            type: string
+          example: ["A26", "B26.B"]
         strata:
           type: array
           items:
@@ -4269,6 +4318,9 @@ components:
     UploadBatch:
       type: object
       properties:
+        batch_id:
+          type: integer
+          example: 1
         id:
           type: integer
           example: 1
@@ -4285,6 +4337,18 @@ components:
           type: string
           format: date-time
           example: "2026-06-13T11:32:00.000000Z"
+        total_rows:
+          type: integer
+          example: 105
+        valid_rows:
+          type: integer
+          example: 100
+        invalid_rows:
+          type: integer
+          example: 5
+        total_diskon:
+          type: number
+          example: 2500000.00
 
     UploadBatchDetail:
       type: object
@@ -4358,4 +4422,10 @@ components:
         status:
           type: string
           example: VALID_PROGRAM
+        customer_type:
+          type: string
+          example: GT
+        desc_status:
+          type: string
+          example: VALID
 

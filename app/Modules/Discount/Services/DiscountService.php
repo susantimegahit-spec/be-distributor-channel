@@ -61,7 +61,7 @@ class DiscountService
             $newSequence = 1;
         }
 
-        $code = $todayPrefix . str_pad($newSequence, 8, '0', STR_PAD_LEFT);
+        $code = $todayPrefix . str_pad($newSequence, 3, '0', STR_PAD_LEFT);
 
         // Save to local database
         DB::transaction(function () use ($code, $data, $userId) {

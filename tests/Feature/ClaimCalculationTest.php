@@ -133,7 +133,7 @@ class ClaimCalculationTest extends TestCase
             'start_date' => '2026-06-01',
             'end_date' => '2026-06-30',
             'description' => 'Test description',
-            'items' => [$this->itemA26->id, $this->itemB26->id],
+            'items' => [$this->itemA26->item_code, $this->itemB26->item_code],
             'strata' => [
                 [
                     'customer_type' => 'GT',
@@ -301,4 +301,44 @@ class ClaimCalculationTest extends TestCase
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     }
+
+    /**
+     * Test auto-generation of program code.
+     */
+    public function test_program_code_auto_generation(): void
+    {
+        $payload = [
+            'program_name' => 'Program Auto Gen Test',
+            'start_date' => '2026-06-01',
+            'end_date' => '2026-06-30',
+            'description' => 'Test auto gen',
+            'items' => [$this->itemA26->item_code],
+            'strata' => [
+                [
+                    'customer_type' => 'GT',
+                    'min_qty_kg' => 10,
+                    'max_qty_kg' => null,
+                    'harga_program_per_kg' => 5000,
+                    'diskon_per_kg' => 100,
+                ]
+            ]
+        ];
+
+        // 1. Create first program, program_code should be generated as PRG{tahun}{bulan}001
+        $response = $this->withHeaders($this->getAuthHeader())
+            ->postJson('/api/distributor-channel/v1/claims/programs', $payload);
+
+        $response->assertStatus(201);
+        $expectedCode1 = 'PRG' . date('Ym') . '001';
+        $response->assertJsonFragment(['program_code' => $expectedCode1]);
+
+        // 2. Create second program, program_code should be generated as PRG{tahun}{bulan}002
+        $response2 = $this->withHeaders($this->getAuthHeader())
+            ->postJson('/api/distributor-channel/v1/claims/programs', $payload);
+
+        $response2->assertStatus(201);
+        $expectedCode2 = 'PRG' . date('Ym') . '002';
+        $response2->assertJsonFragment(['program_code' => $expectedCode2]);
+    }
 }
+

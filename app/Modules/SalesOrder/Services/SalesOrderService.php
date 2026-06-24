@@ -461,6 +461,7 @@ class SalesOrderService
             'Address2' => $salesOrder->address2,
             'Comments' => $salesOrder->comments,
             'IdDiskon' => $salesOrder->id_discount,
+            'DocTotal' => $salesOrder->doc_total_after_discount,
             'Lines' => $salesOrder->details->map(function ($line) {
                 return [
                     'ItemCode' => $line->item_code,
@@ -516,8 +517,6 @@ class SalesOrderService
                     'TotalSO' => 0,
                     'Lines' => $discountLines
                 ];
-
-                throw new Exception('DEBUG DISCOUNT PAYLOAD: ' . json_encode($discountPayload));
 
                 $discountResponse = Http::timeout(15)->post('http://103.18.133.187:3100/api/addudodiskon', $discountPayload);
 
@@ -585,7 +584,8 @@ class SalesOrderService
             return [
                 'success' => true,
                 'message' => 'Sales Order berhasil dikirim ke SAP.',
-                'sap_response' => $body
+                'sap_response' => $body,
+                'sap_payload' => $payload
             ];
         } catch (Exception $e) {
             $errorMessage = $e->getMessage();
@@ -804,7 +804,8 @@ class SalesOrderService
         try {
             if ($nextStage === SalesOrder::STAGE_COMPLETED) {
                 // Integrate to SAP automatically when approved by Finance
-                $this->postToSap($salesOrder->id, $userId);
+                $sapResult = $this->postToSap($salesOrder->id, $userId);
+                $salesOrder->setAttribute('sap_payload', $sapResult['sap_payload'] ?? null);
             } else {
                 $this->sendStageNotification($salesOrder, $nextStage);
             }
