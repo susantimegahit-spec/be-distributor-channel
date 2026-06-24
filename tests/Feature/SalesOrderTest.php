@@ -449,4 +449,151 @@ class SalesOrderTest extends TestCase
         $attachment = \App\Models\SalesOrderAttachment::where('sales_order_id', $orderId)->first();
         \Illuminate\Support\Facades\Storage::disk('public')->assertExists($attachment->file_path);
     }
+
+    /**
+     * Test that approving an order at STAGE_WAITING_ADMIN_SALES updates the vat_group.
+     */
+    public function test_approve_order_updates_vat_group_at_admin_sales_stage(): void
+    {
+        $salesRole = \App\Models\Role::create([
+            'name' => 'admin sales',
+            'is_active' => true,
+        ]);
+        \App\Models\RoleMenu::create([
+            'role_id' => $salesRole->id,
+            'menu' => ['order-list'],
+            'is_active' => true,
+            'approval_id' => 4, // STAGE_WAITING_ADMIN_SALES
+        ]);
+        $salesUser = User::create([
+            'name' => 'Admin Sales User',
+            'username' => 'salesuser',
+            'email' => 'sales@example.com',
+            'password' => Hash::make($this->password),
+            'role_id' => $salesRole->id,
+            'is_active' => true,
+        ]);
+
+        \App\Models\Vat::create([
+            'code' => 'S2',
+            'name' => 'PPN S2',
+            'rate' => 11.00,
+            'status' => 1,
+        ]);
+
+        $order = SalesOrder::create([
+            'order_no' => 'SO-TEST-VAT-001',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'PT XYZ',
+            'doc_date' => '2026-02-25',
+            'slp_code' => 0,
+            'doc_total' => 50000,
+            'status' => 'WAITING_ADMIN_SALES',
+            'approval_id' => 4, // STAGE_WAITING_ADMIN_SALES
+        ]);
+        $detail = $order->details()->create([
+            'item_code' => 'E65',
+            'quantity' => 10,
+            'unit_price' => 5000,
+            'line_total' => 50000,
+            'vat_group' => 'S1',
+        ]);
+
+        $token = $salesUser->createToken('test_token')->plainTextToken;
+
+        $payload = [
+            'action' => 'approve',
+            'lines' => [
+                [
+                    'item_code' => 'E65',
+                    'vat_group' => 'S2',
+                ]
+            ]
+        ];
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->putJson('/api/distributor-channel/v1/sales-orders/' . $order->id, $payload);
+
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('sales_order_details', [
+            'id' => $detail->id,
+            'vat_group' => 'S2',
+        ]);
+    }
+
+    /**
+     * Test that saving discounts at STAGE_WAITING_ADMIN_SALES updates the vat_group.
+     */
+    public function test_save_discounts_updates_vat_group(): void
+    {
+        $salesRole = \App\Models\Role::create([
+            'name' => 'admin sales',
+            'is_active' => true,
+        ]);
+        \App\Models\RoleMenu::create([
+            'role_id' => $salesRole->id,
+            'menu' => ['order-list'],
+            'is_active' => true,
+            'approval_id' => 4, // STAGE_WAITING_ADMIN_SALES
+        ]);
+        $salesUser = User::create([
+            'name' => 'Admin Sales User',
+            'username' => 'salesuser2',
+            'email' => 'sales2@example.com',
+            'password' => Hash::make($this->password),
+            'role_id' => $salesRole->id,
+            'is_active' => true,
+        ]);
+
+        \App\Models\Vat::create([
+            'code' => 'S2',
+            'name' => 'PPN S2',
+            'rate' => 11.00,
+            'status' => 1,
+        ]);
+
+        $order = SalesOrder::create([
+            'order_no' => 'SO-TEST-VAT-002',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'PT XYZ',
+            'doc_date' => '2026-02-25',
+            'slp_code' => 0,
+            'doc_total' => 50000,
+            'status' => 'WAITING_ADMIN_SALES',
+            'approval_id' => 4, // STAGE_WAITING_ADMIN_SALES
+        ]);
+        $detail = $order->details()->create([
+            'item_code' => 'E65',
+            'quantity' => 10,
+            'unit_price' => 5000,
+            'line_total' => 50000,
+            'vat_group' => 'S1',
+        ]);
+
+        $token = $salesUser->createToken('test_token')->plainTextToken;
+
+        $payload = [
+            'lines' => [
+                [
+                    'item_code' => 'E65',
+                    'vat_group' => 'S2',
+                ]
+            ]
+        ];
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/api/distributor-channel/v1/sales-orders/' . $order->id . '/save-discounts', $payload);
+
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('sales_order_details', [
+            'id' => $detail->id,
+            'vat_group' => 'S2',
+        ]);
+    }
 }

@@ -735,9 +735,12 @@ class SalesOrderService
                             'line_total' => $lineTotal,
                         ];
 
-                        // Also update whs_code and ocr_codes if provided in the input payload
+                        // Also update whs_code, vat_group, and ocr_codes if provided in the input payload
                         if (array_key_exists('whs_code', $line)) {
                             $updateData['whs_code'] = $line['whs_code'];
+                        }
+                        if (array_key_exists('vat_group', $line)) {
+                            $updateData['vat_group'] = $line['vat_group'];
                         }
                         if (array_key_exists('ocr_code', $line)) {
                             $updateData['ocr_code'] = $line['ocr_code'];
@@ -934,9 +937,12 @@ class SalesOrderService
                     'line_total' => $lineTotal,
                 ];
 
-                // Also update whs_code and ocr_codes if provided in the input payload
+                // Also update whs_code, vat_group, and ocr_codes if provided in the input payload
                 if (array_key_exists('whs_code', $line)) {
                     $updateData['whs_code'] = $line['whs_code'];
+                }
+                if (array_key_exists('vat_group', $line)) {
+                    $updateData['vat_group'] = $line['vat_group'];
                 }
                 if (array_key_exists('ocr_code', $line)) {
                     $updateData['ocr_code'] = $line['ocr_code'];
