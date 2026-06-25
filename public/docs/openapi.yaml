@@ -9,6 +9,70 @@ servers:
   - url: http://localhost:8000/api/distributor-channel
     description: Local Server
 paths:
+  /v1/pi-settings:
+    get:
+      summary: Get active Proforma Invoice signature configuration
+      description: Mendapatkan nama penandatangan, jabatan, dan berkas/URL tanda tangan digital untuk PI.
+      tags:
+        - PI Settings
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Konfigurasi berhasil diambil.
+    post:
+      summary: Update Proforma Invoice signature configuration
+      description: Memperbarui nama penandatangan dan/atau mengunggah gambar tanda tangan digital.
+      tags:
+        - PI Settings
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - signer_name
+                - signer_title
+              properties:
+                signer_name:
+                  type: string
+                  example: Kushan Wijono
+                signer_title:
+                  type: string
+                  example: Branch Manager
+                signature_file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Konfigurasi berhasil diperbarui.
+
+  /v1/sales-orders/{id}/pdf:
+    get:
+      summary: Download Sales Order PI PDF
+      description: Mengunduh file PDF Proforma Invoice secara langsung dari backend.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari Sales Order
+      responses:
+        '200':
+          description: File PDF berhasil dikembalikan.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
   /v1/auth/login:
     post:
       summary: User Login

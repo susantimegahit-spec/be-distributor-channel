@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             DistributorSeeder::class,
             UserSeeder::class,
             DiscountSettingSeeder::class,
+            PiSettingSeeder::class,
         ]);
     }
 }

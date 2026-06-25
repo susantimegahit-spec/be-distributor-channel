@@ -15,6 +15,7 @@ Route::prefix('v1/sales-orders')->middleware('auth:sanctum')->group(function () 
 
     // Workflow Approval routes
     Route::post('/{id}/save-discounts', [SalesOrderController::class, 'saveDiscounts']);
+    Route::get('/{id}/pdf', [SalesOrderController::class, 'downloadPdf']);
 });
 
 // Public Signed Routes for Email Quick Actions

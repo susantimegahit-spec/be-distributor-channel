@@ -806,6 +806,15 @@ class SalesOrderService
                 // Integrate to SAP automatically when approved by Finance
                 $sapResult = $this->postToSap($salesOrder->id, $userId);
                 $salesOrder->setAttribute('sap_payload', $sapResult['sap_payload'] ?? null);
+
+                // Send email to submitter / hardcoded recipient as requested
+                try {
+                    $salesOrder->load('attachments');
+                    \Illuminate\Support\Facades\Mail::to('sanjayfirmanzyah@gmail.com')
+                        ->send(new \App\Mail\FinanceApprovedNotificationMail($salesOrder));
+                } catch (\Exception $eMail) {
+                    \Illuminate\Support\Facades\Log::error("Failed to send Finance Approved email notification: " . $eMail->getMessage());
+                }
             } else {
                 $this->sendStageNotification($salesOrder, $nextStage);
             }

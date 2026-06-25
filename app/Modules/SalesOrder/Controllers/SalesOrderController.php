@@ -439,4 +439,30 @@ class SalesOrderController extends Controller
             ');
         }
     }
+
+    /**
+     * Download Proforma Invoice PDF directly from backend.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function downloadPdf(int $id)
+    {
+        $salesOrder = $this->salesOrderService->getOrderById($id);
+
+        if (!$salesOrder) {
+            abort(404, 'Sales order tidak ditemukan.');
+        }
+
+        $pdfGenerator = new \App\Services\ProformaInvoicePdfGenerator();
+        $pdfContent = $pdfGenerator->generate($salesOrder);
+
+        $customerName = str_replace([' ', '/', '\\'], '-', $salesOrder->customer_name ?: 'customer');
+        $filename = "PI-{$customerName}-{$salesOrder->order_no}.pdf";
+
+        return response($pdfContent, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
+    }
 }
