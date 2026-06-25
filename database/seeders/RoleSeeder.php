@@ -37,6 +37,7 @@ class RoleSeeder extends Seeder
             "master-product",
             "master-buying-price",
             "master-selling-price",
+            "master-signature",
             "order-list",
             "order-retur"
         ];
