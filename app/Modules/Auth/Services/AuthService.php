@@ -32,11 +32,12 @@ class AuthService
      *
      * @param  string  $username
      * @param  string  $password
+     * @param  bool  $force
      * @return array
      *
      * @throws ValidationException
      */
-    public function login(string $username, string $password): array
+    public function login(string $username, string $password, bool $force = false): array
     {
         $user = $this->userRepository->findByUsername($username);
 
@@ -79,9 +80,13 @@ class AuthService
 
         // Block login if there is still an active (non-expired) session
         if ($user->tokens()->exists()) {
-            throw ValidationException::withMessages([
-                'username' => ['Akun ini sedang aktif di perangkat lain. Silakan logout terlebih dahulu dari perangkat tersebut.'],
-            ]);
+            if ($force) {
+                $user->tokens()->delete();
+            } else {
+                throw ValidationException::withMessages([
+                    'active_session' => ['Akun ini sedang aktif di perangkat lain. Silakan logout terlebih dahulu dari perangkat tersebut.'],
+                ]);
+            }
         }
 
         // Create token

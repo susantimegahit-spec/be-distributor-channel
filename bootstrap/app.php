@@ -21,12 +21,18 @@ return Application::configure(basePath: dirname(__DIR__))
                 $errors = $e->errors();
                 $firstError = collect($errors)->flatten()->first() ?: 'Validation Error';
 
-                return response()->json([
+                $response = [
                     'success' => false,
                     'status_code' => 422,
                     'message' => $firstError,
                     'errors' => (object) [],
-                ], 200);
+                ];
+
+                if (isset($errors['active_session'])) {
+                    $response['active_session'] = true;
+                }
+
+                return response()->json($response, 200);
             }
         });
 

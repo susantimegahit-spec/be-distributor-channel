@@ -24,6 +24,7 @@ class LoginRequest extends FormRequest
         $rules = [
             'username' => 'required|string',
             'password' => 'required|string',
+            'force' => 'nullable|boolean',
         ];
 
         if (config('services.turnstile.enabled', true)) {

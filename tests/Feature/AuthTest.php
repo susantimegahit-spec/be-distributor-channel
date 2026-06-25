@@ -286,7 +286,7 @@ class AuthTest extends TestCase
     public function test_change_password_wrong_old_password(): void
     {
         $token = $this->user->createToken('test_token')->plainTextToken;
- 
+
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token,
         ])->postJson('/api/distributor-channel/v1/auth/change-password', [
@@ -294,7 +294,7 @@ class AuthTest extends TestCase
             'new_password' => 'newpassword123',
             'new_password_confirmation' => 'newpassword123',
         ]);
- 
+
         $response->assertStatus(200)
             ->assertJson([
                 'success' => false,
@@ -302,14 +302,14 @@ class AuthTest extends TestCase
                 'message' => 'Password lama salah.',
             ]);
     }
- 
+
     /**
      * Test change password fails when new password is same as old password.
      */
     public function test_change_password_same_new_password(): void
     {
         $token = $this->user->createToken('test_token')->plainTextToken;
- 
+
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token,
         ])->postJson('/api/distributor-channel/v1/auth/change-password', [
@@ -317,7 +317,7 @@ class AuthTest extends TestCase
             'new_password' => $this->password,
             'new_password_confirmation' => $this->password,
         ]);
- 
+
         $response->assertStatus(200)
             ->assertJson([
                 'success' => false,
@@ -367,5 +367,32 @@ class AuthTest extends TestCase
 
         // 5. Verify old expired token is deleted and only the new token exists
         $this->assertEquals(1, $this->user->tokens()->count());
+    }
+
+    /**
+     * Test single login enforcement with force option.
+     */
+    public function test_single_login_enforcement_with_force(): void
+    {
+        // 1. Create first token (simulates first login)
+        $token1 = $this->user->createToken('auth_token');
+        $this->assertEquals(1, $this->user->tokens()->count());
+
+        // 2. Perform login request with force option
+        $response = $this->postJson('/api/distributor-channel/v1/auth/login', [
+            'username' => 'activeuser',
+            'password' => $this->password,
+            'force' => true,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Login berhasil.',
+            ]);
+
+        // 3. Verify old token is deleted and only the new token exists
+        $this->assertEquals(1, $this->user->tokens()->count());
+        $this->assertNotEquals($token1->accessToken->id, $this->user->tokens()->first()->id);
     }
 }
