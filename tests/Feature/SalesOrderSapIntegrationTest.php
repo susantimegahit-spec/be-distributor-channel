@@ -541,7 +541,7 @@ class SalesOrderSapIntegrationTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.Result.0.CardCode', 'C110003175')
-            ->assertJsonPath('data.Result.0.CreditLimit', 500000000.00);
+            ->assertJsonPath('data.0.CardCode', 'C110003175')
+            ->assertJsonPath('data.0.CreditLimit', 500000000);
     }
 }
