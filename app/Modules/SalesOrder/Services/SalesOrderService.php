@@ -273,6 +273,8 @@ class SalesOrderService
             'Comments' => 'comments',
             'id_discount' => 'id_discount',
             'IdDiskon' => 'id_discount',
+            'series' => 'series',
+            'Series' => 'series',
             'status' => 'status',
             'Status' => 'status',
         ];
