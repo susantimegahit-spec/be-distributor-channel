@@ -554,6 +554,19 @@ class SalesOrderService
                 $sapDocNum = $result['DocNum'] ?? $result['docNum'] ?? $result['doc_num'] ?? $result['docnum'] ?? null;
             }
 
+            // Fallback: extract from Message if not found in Result
+            $message = $body['Message'] ?? $body['message'] ?? '';
+            if (empty($sapDocNum) && !empty($message)) {
+                if (preg_match('/DocNum:\s*([A-Za-z0-9_-]+)/i', $message, $matches)) {
+                    $sapDocNum = $matches[1];
+                }
+            }
+            if (empty($sapDocEntry) && !empty($message)) {
+                if (preg_match('/DocEntry:\s*(\d+)/i', $message, $matches)) {
+                    $sapDocEntry = (int)$matches[1];
+                }
+            }
+
             // Update Sales Order on Success
             $salesOrder->update([
                 'status' => 'ORDER_APPROVED',

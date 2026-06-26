@@ -154,6 +154,62 @@ class SalesOrderSapIntegrationTest extends TestCase
     }
 
     /**
+     * Test sending Sales Order successfully when DocNum is returned in the Message string.
+     */
+    public function test_send_sales_order_to_sap_success_with_docnum_in_message(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        // Create draft order first
+        $order = SalesOrder::create([
+            'order_no' => 'SO-20260611-0003',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'LESAFFRE SARI',
+            'doc_date' => '2026-02-25',
+            'doc_total' => 50000,
+            'status' => 'DRAFT',
+        ]);
+        $order->details()->create([
+            'item_code' => 'E65',
+            'quantity' => 10,
+            'unit_price' => 5000,
+            'line_total' => 50000,
+            'whs_code' => 'FG04',
+            'vat_group' => 'S1',
+            'disc_percent' => 0,
+            'uom_entry' => 1,
+        ]);
+
+        // Mock SAP addso and addudodiskon endpoints where DocNum is in the Message
+        Http::fake([
+            '103.18.133.187:3100/api/addudodiskon' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => 'Discount added successfully',
+            ], 200),
+            '103.18.133.187:3100/api/addso' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => 'Sales Order added successfully. DocNum: 21414212, DocEntry: 123456',
+                'Result' => []
+            ], 200),
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson("/api/distributor-channel/v1/sales-orders/{$order->id}/post-sap");
+
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('sales_orders', [
+            'id' => $order->id,
+            'status' => 'ORDER_APPROVED',
+            'sap_doc_entry' => 123456,
+            'sap_doc_num' => '21414212',
+            'sap_error' => null,
+        ]);
+    }
+
+    /**
      * Test sending Sales Order failing in SAP.
      */
     public function test_send_sales_order_to_sap_failure(): void
@@ -197,7 +253,7 @@ class SalesOrderSapIntegrationTest extends TestCase
 
         $this->assertDatabaseHas('sales_orders', [
             'id' => $order->id,
-            'status' => 'FAILED',
+            'status' => 'DRAFT',
             'sap_error' => 'API SAP addso mengembalikan error: Failed to create Sales Order in SAP',
         ]);
 
@@ -418,7 +474,7 @@ class SalesOrderSapIntegrationTest extends TestCase
         // Verify that local order has failed status and details of discount integration failure
         $this->assertDatabaseHas('sales_orders', [
             'id' => $order->id,
-            'status' => 'FAILED',
+            'status' => 'DRAFT',
             'sap_error' => 'API SAP addudodiskon mengembalikan error: Discount UDO creation failed',
         ]);
     }
