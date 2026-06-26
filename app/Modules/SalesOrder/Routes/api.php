@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1/sales-orders')->middleware('auth:sanctum')->group(function () {
     Route::get('/', [SalesOrderController::class, 'index']);
     Route::get('/max-discount', [SalesOrderController::class, 'getMaxDiscount']);
+    Route::get('/series', [SalesOrderController::class, 'getSeries']);
     Route::post('/', [SalesOrderController::class, 'store']);
     Route::get('/{id}', [SalesOrderController::class, 'show']);
     Route::put('/{id}', [SalesOrderController::class, 'update']);

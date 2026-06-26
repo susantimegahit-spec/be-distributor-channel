@@ -94,6 +94,7 @@ class SalesOrderSapIntegrationTest extends TestCase
             'doc_total' => 50000,
             'status' => 'DRAFT',
             'id_discount' => 'DISC123',
+            'series' => '4185',
         ]);
         $order->details()->create([
             'item_code' => 'E65',
@@ -143,6 +144,7 @@ class SalesOrderSapIntegrationTest extends TestCase
             'status' => 'ORDER_APPROVED',
             'sap_doc_entry' => 9999,
             'sap_doc_num' => 'SO9999',
+            'series' => '4185',
             'sap_error' => null,
         ]);
 
@@ -477,5 +479,38 @@ class SalesOrderSapIntegrationTest extends TestCase
             'status' => 'DRAFT',
             'sap_error' => 'API SAP addudodiskon mengembalikan error: Discount UDO creation failed',
         ]);
+    }
+
+    /**
+     * Test getting series successfully.
+     */
+    public function test_get_series_success(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        Http::fake([
+            '103.18.133.187:3100/api/getSeries' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => '',
+                'Result' => [
+                    [
+                        'Series' => '4221',
+                        'SeriesName' => 'BJM26-01'
+                    ],
+                    [
+                        'Series' => '4185',
+                        'SeriesName' => 'SBY26-01'
+                    ]
+                ]
+            ], 200),
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson("/api/distributor-channel/v1/sales-orders/series?CustomQuery=20260101");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('ErrorCode', 0)
+            ->assertJsonPath('Result.1.Series', '4185');
     }
 }

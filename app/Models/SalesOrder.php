@@ -36,6 +36,7 @@ class SalesOrder extends Model
         'doc_total',
         'comments',
         'id_discount',
+        'series',
         'status',
         'approval_id',
         'sap_doc_entry',

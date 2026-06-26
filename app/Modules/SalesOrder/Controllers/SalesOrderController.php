@@ -241,6 +241,7 @@ class SalesOrderController extends Controller
                 'address2' => 'nullable|string',
                 'comments' => 'nullable|string',
                 'id_discount' => 'nullable|string|max:100',
+                'series' => 'nullable|string|max:50',
                 'status' => 'nullable|string', // ignored but allowed in input
                 'lines' => 'sometimes|required|array|min:1',
                 'lines.*.item_code' => 'required_with:lines|string|max:50',
@@ -299,6 +300,7 @@ class SalesOrderController extends Controller
             'address2' => 'nullable|string',
             'comments' => 'nullable|string',
             'id_discount' => 'nullable|string|max:100',
+            'series' => 'nullable|string|max:50',
             'status' => 'nullable|string', // ignored but allowed in input
             'lines' => 'required|array|min:1',
             'lines.*.item_code' => 'required|string|max:50',
@@ -437,6 +439,32 @@ class SalesOrderController extends Controller
                     <p>' . htmlspecialchars($e->getMessage()) . '</p>
                 </div>
             ');
+        }
+    }
+
+    /**
+     * Get Series data from SAP.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getSeries(Request $request): JsonResponse
+    {
+        $customQuery = $request->query('CustomQuery') ?? $request->input('CustomQuery') ?? date('Ymd');
+
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(15)
+                ->post('http://103.18.133.187:3100/api/getSeries', [
+                    'CustomQuery' => $customQuery
+                ]);
+
+            if (!$response->successful()) {
+                return $this->errorResponse('Gagal menghubungi API SAP getSeries.', [], 502);
+            }
+
+            return response()->json($response->json());
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), [], 500);
         }
     }
 
