@@ -37,6 +37,7 @@ class SalesOrder extends Model
         'comments',
         'id_discount',
         'series',
+        'series_name',
         'status',
         'approval_id',
         'sap_doc_entry',
@@ -68,6 +69,7 @@ class SalesOrder extends Model
         'arrived_date' => 'datetime',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
+        'series' => 'integer',
     ];
 
     protected $appends = [

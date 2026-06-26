@@ -3855,9 +3855,13 @@ components:
           type: string
           example: "260310699"
         series:
+          type: integer
+          nullable: true
+          example: 4185
+        series_name:
           type: string
           nullable: true
-          example: "4185"
+          example: "SBY26-01"
         status:
           type: string
           enum: [DRAFT, WAITING_APPROVAL]
@@ -4076,9 +4080,13 @@ components:
           nullable: true
           example: "260310699"
         series:
+          type: integer
+          nullable: true
+          example: 4185
+        series_name:
           type: string
           nullable: true
-          example: "4185"
+          example: "SBY26-01"
         status:
           type: string
           example: DRAFT

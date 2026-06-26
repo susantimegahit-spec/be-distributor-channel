@@ -241,7 +241,8 @@ class SalesOrderController extends Controller
                 'address2' => 'nullable|string',
                 'comments' => 'nullable|string',
                 'id_discount' => 'nullable|string|max:100',
-                'series' => 'nullable|string|max:50',
+                'series' => 'nullable|integer',
+                'series_name' => 'nullable|string|max:100',
                 'status' => 'nullable|string', // ignored but allowed in input
                 'lines' => 'sometimes|required|array|min:1',
                 'lines.*.item_code' => 'required_with:lines|string|max:50',
@@ -300,7 +301,8 @@ class SalesOrderController extends Controller
             'address2' => 'nullable|string',
             'comments' => 'nullable|string',
             'id_discount' => 'nullable|string|max:100',
-            'series' => 'nullable|string|max:50',
+            'series' => 'nullable|integer',
+            'series_name' => 'nullable|string|max:100',
             'status' => 'nullable|string', // ignored but allowed in input
             'lines' => 'required|array|min:1',
             'lines.*.item_code' => 'required|string|max:50',

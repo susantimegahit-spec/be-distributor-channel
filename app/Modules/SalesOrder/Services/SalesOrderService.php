@@ -275,6 +275,8 @@ class SalesOrderService
             'IdDiskon' => 'id_discount',
             'series' => 'series',
             'Series' => 'series',
+            'series_name' => 'series_name',
+            'SeriesName' => 'series_name',
             'status' => 'status',
             'Status' => 'status',
         ];
@@ -283,7 +285,7 @@ class SalesOrderService
             if (array_key_exists($incomingKey, $payload)) {
                 $value = $payload[$incomingKey];
                 // Treat empty string as null for nullable/numeric fields
-                if (in_array($targetKey, ['slp_code', 'cntct_code', 'id_discount']) && $value === '') {
+                if (in_array($targetKey, ['slp_code', 'cntct_code', 'id_discount', 'series']) && $value === '') {
                     $value = null;
                 }
                 $normalized[$targetKey] = $value;
@@ -463,7 +465,7 @@ class SalesOrderService
             'Address2' => $salesOrder->address2,
             'Comments' => $salesOrder->comments,
             'IdDiskon' => $salesOrder->id_discount,
-            'Series' => $salesOrder->series ? (string)$salesOrder->series : null,
+            'Series' => $salesOrder->series ? (int)$salesOrder->series : null,
             'DocTotal' => $salesOrder->doc_total_after_discount,
             'Lines' => $salesOrder->details->map(function ($line) {
                 return [
@@ -788,6 +790,12 @@ class SalesOrderService
             if (array_key_exists('series', $normalizedData)) {
                 $salesOrder->update([
                     'series' => $normalizedData['series'] ?? $salesOrder->series,
+                ]);
+            }
+
+            if (array_key_exists('series_name', $normalizedData)) {
+                $salesOrder->update([
+                    'series_name' => $normalizedData['series_name'] ?? $salesOrder->series_name,
                 ]);
             }
         }

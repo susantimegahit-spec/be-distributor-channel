@@ -94,7 +94,8 @@ class SalesOrderSapIntegrationTest extends TestCase
             'doc_total' => 50000,
             'status' => 'DRAFT',
             'id_discount' => 'DISC123',
-            'series' => '4185',
+            'series' => 4185,
+            'series_name' => 'SBY26-01',
         ]);
         $order->details()->create([
             'item_code' => 'E65',
@@ -144,7 +145,8 @@ class SalesOrderSapIntegrationTest extends TestCase
             'status' => 'ORDER_APPROVED',
             'sap_doc_entry' => 9999,
             'sap_doc_num' => 'SO9999',
-            'series' => '4185',
+            'series' => 4185,
+            'series_name' => 'SBY26-01',
             'sap_error' => null,
         ]);
 
