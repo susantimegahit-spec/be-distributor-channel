@@ -784,6 +784,12 @@ class SalesOrderService
                     'id_discount' => $normalizedData['id_discount'] ?? $salesOrder->id_discount,
                 ]);
             }
+
+            if (array_key_exists('series', $normalizedData)) {
+                $salesOrder->update([
+                    'series' => $normalizedData['series'] ?? $salesOrder->series,
+                ]);
+            }
         }
 
         $statusMap = [
