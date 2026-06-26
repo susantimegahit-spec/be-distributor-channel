@@ -1725,6 +1725,73 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/sales-orders/credit-limit:
+    get:
+      summary: Get Credit Limit from SAP
+      description: Mendapatkan data Credit Limit dari SAP berdasarkan CodeCustomer / CustomQuery.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: CustomQuery
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kode Customer / CardCode dari SAP (Bisa menggunakan param 'CodeCustomer' juga).
+          example: C110003175
+        - name: CodeCustomer
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kode Customer / CardCode dari SAP.
+          example: C110003175
+      responses:
+        '200':
+          description: Sukses mendapatkan data credit limit
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Data credit limit berhasil diambil."
+                  data:
+                    type: object
+                    properties:
+                      ErrorCode:
+                        type: integer
+                        example: 0
+                      Message:
+                        type: string
+                        example: ""
+                      Result:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            CardCode:
+                              type: string
+                              example: "C110003175"
+                            CardName:
+                              type: string
+                              example: "PT SUSANTI MEGAH"
+                            CreditLimit:
+                              type: number
+                              example: 500000000
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /v1/sales-orders:
     get:
       summary: List all sales orders

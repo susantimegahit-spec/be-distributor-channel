@@ -513,4 +513,35 @@ class SalesOrderSapIntegrationTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.1.Series', '4185');
     }
+
+    /**
+     * Test getting credit limit successfully.
+     */
+    public function test_get_credit_limit_success(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        Http::fake([
+            '103.18.133.187:3100/api/getCreditlimit' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => '',
+                'Result' => [
+                    [
+                        'CardCode' => 'C110003175',
+                        'CardName' => 'PT SUSANTI MEGAH',
+                        'CreditLimit' => 500000000.00
+                    ]
+                ]
+            ], 200),
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson("/api/distributor-channel/v1/sales-orders/credit-limit?CustomQuery=C110003175");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.Result.0.CardCode', 'C110003175')
+            ->assertJsonPath('data.Result.0.CreditLimit', 500000000.00);
+    }
 }

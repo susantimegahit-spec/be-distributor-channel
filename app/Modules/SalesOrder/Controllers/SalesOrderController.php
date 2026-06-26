@@ -472,6 +472,42 @@ class SalesOrderController extends Controller
     }
 
     /**
+     * Get Credit Limit data from SAP.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getCreditLimit(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $customQuery = $request->query('CustomQuery') ?? $request->input('CustomQuery') 
+            ?? $request->query('CodeCustomer') ?? $request->input('CodeCustomer') 
+            ?? $user->code_customer;
+
+        if (empty($customQuery)) {
+            return $this->errorResponse('Parameter CustomQuery atau CodeCustomer wajib diisi.', [], 400);
+        }
+
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(15)
+                ->post('http://103.18.133.187:3100/api/getCreditlimit', [
+                    'CustomQuery' => $customQuery
+                ]);
+
+            if (!$response->successful()) {
+                return $this->errorResponse('Gagal menghubungi API SAP getCreditlimit.', [], 502);
+            }
+
+            $sapData = $response->json();
+            $resultData = $sapData['Result'] ?? $sapData['result'] ?? $sapData;
+
+            return $this->successResponse($resultData, 'Data credit limit berhasil diambil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), [], 500);
+        }
+    }
+
+    /**
      * Download Proforma Invoice PDF directly from backend.
      *
      * @param  int  $id
