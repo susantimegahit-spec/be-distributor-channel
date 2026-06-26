@@ -463,7 +463,7 @@ class SalesOrderService
             'Address2' => $salesOrder->address2,
             'Comments' => $salesOrder->comments,
             'IdDiskon' => $salesOrder->id_discount,
-            'Series' => $salesOrder->series ? (int)$salesOrder->series : null,
+            'Series' => $salesOrder->series ? (string)$salesOrder->series : null,
             'DocTotal' => $salesOrder->doc_total_after_discount,
             'Lines' => $salesOrder->details->map(function ($line) {
                 return [
