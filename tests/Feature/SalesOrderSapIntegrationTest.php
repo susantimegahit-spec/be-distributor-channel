@@ -510,7 +510,7 @@ class SalesOrderSapIntegrationTest extends TestCase
         ])->getJson("/api/distributor-channel/v1/sales-orders/series?CustomQuery=20260101");
 
         $response->assertStatus(200)
-            ->assertJsonPath('ErrorCode', 0)
-            ->assertJsonPath('Result.1.Series', '4185');
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.1.Series', '4185');
     }
 }

@@ -1701,13 +1701,13 @@ paths:
               schema:
                 type: object
                 properties:
-                  ErrorCode:
-                    type: integer
-                    example: 0
-                  Message:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
                     type: string
-                    example: ""
-                  Result:
+                    example: "Daftar series berhasil diambil."
+                  data:
                     type: array
                     items:
                       type: object

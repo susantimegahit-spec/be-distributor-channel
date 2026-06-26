@@ -462,7 +462,10 @@ class SalesOrderController extends Controller
                 return $this->errorResponse('Gagal menghubungi API SAP getSeries.', [], 502);
             }
 
-            return response()->json($response->json());
+            $sapData = $response->json();
+            $seriesList = $sapData['Result'] ?? $sapData['result'] ?? [];
+
+            return $this->successResponse($seriesList, 'Daftar series berhasil diambil.');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), [], 500);
         }
