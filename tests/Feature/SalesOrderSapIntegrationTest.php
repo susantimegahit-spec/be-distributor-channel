@@ -529,7 +529,8 @@ class SalesOrderSapIntegrationTest extends TestCase
                     [
                         'CardCode' => 'C110003175',
                         'CardName' => 'PT SUSANTI MEGAH',
-                        'CreditLimit' => 500000000.00
+                        'CreditLimit' => 500000000,
+                        'SisaCredit' => '250000.000000'
                     ]
                 ]
             ], 200),
@@ -542,6 +543,6 @@ class SalesOrderSapIntegrationTest extends TestCase
         $response->assertStatus(200)
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.0.CardCode', 'C110003175')
-            ->assertJsonPath('data.0.CreditLimit', 500000000);
+            ->assertJsonPath('data.0.SisaCredit', '250000,000000');
     }
 }

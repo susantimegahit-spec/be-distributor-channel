@@ -501,10 +501,31 @@ class SalesOrderController extends Controller
             $sapData = $response->json();
             $resultData = $sapData['Result'] ?? $sapData['result'] ?? $sapData;
 
+            $resultData = $this->formatSapNumbersRecursive($resultData);
+
             return $this->successResponse($resultData, 'Data credit limit berhasil diambil.');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), [], 500);
         }
+    }
+
+    /**
+     * Recursively format numbers by swapping commas and dots.
+     */
+    private function formatSapNumbersRecursive($data)
+    {
+        if (is_array($data)) {
+            foreach ($data as $key => $value) {
+                $data[$key] = $this->formatSapNumbersRecursive($value);
+            }
+        } elseif (is_string($data) && is_numeric($data)) {
+            $data = strtr($data, ['.' => ',', ',' => '.']);
+        } elseif (is_numeric($data)) {
+            $strVal = (string)$data;
+            $data = strtr($strVal, ['.' => ',', ',' => '.']);
+        }
+
+        return $data;
     }
 
     /**
