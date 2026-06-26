@@ -829,11 +829,14 @@ class SalesOrderService
                 $sapResult = $this->postToSap($salesOrder->id, $userId);
                 $salesOrder->setAttribute('sap_payload', $sapResult['sap_payload'] ?? null);
 
-                // Send email to submitter / hardcoded recipient as requested
+                // Send email to the creator (submitter) of the order
                 try {
                     $salesOrder->load('attachments');
-                    \Illuminate\Support\Facades\Mail::to('sanjayfirmanzyah@gmail.com')
-                        ->send(new \App\Mail\FinanceApprovedNotificationMail($salesOrder));
+                    $creator = \App\Models\User::find($salesOrder->created_by);
+                    if ($creator && $creator->email) {
+                        \Illuminate\Support\Facades\Mail::to($creator->email)
+                            ->send(new \App\Mail\FinanceApprovedNotificationMail($salesOrder));
+                    }
                 } catch (\Exception $eMail) {
                     \Illuminate\Support\Facades\Log::error("Failed to send Finance Approved email notification: " . $eMail->getMessage());
                 }
@@ -1031,18 +1034,35 @@ class SalesOrderService
         $notificationType = $stage->notification_type;
 
         if ($notificationType && str_contains($notificationType, 'email')) {
-            // Find target users for email (usually ASM)
-            $asmUser = \App\Models\User::whereHas('role.roleMenu', function ($q) use ($targetStageId) {
+            // Find target users for email (usually ASM / OM / Admin Sales / Finance)
+            $targetUsers = \App\Models\User::whereHas('role.roleMenu', function ($q) use ($targetStageId) {
                 $q->where('approval_id', $targetStageId);
-            })->first();
-            $asmUserId = $asmUser?->id ?? $salesOrder->created_by;
+            })->get();
 
-            try {
-                // Route to sanjayfirmanzyah@gmail.com as requested by user
-                \Illuminate\Support\Facades\Mail::to('sanjayfirmanzyah@gmail.com')
-                    ->send(new \App\Mail\AsmApprovalNotificationMail($salesOrder, $asmUserId));
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error("Failed to send stage notification email: " . $e->getMessage());
+            // If it's rolling back to DRAFT (Stage 1), notify the creator of the order
+            if ($targetStageId === SalesOrder::STAGE_DRAFT) {
+                $creator = \App\Models\User::find($salesOrder->created_by);
+                if ($creator) {
+                    $targetUsers = collect([$creator]);
+                }
+            }
+
+            if ($targetUsers->isEmpty()) {
+                $creator = \App\Models\User::find($salesOrder->created_by);
+                if ($creator) {
+                    $targetUsers = collect([$creator]);
+                }
+            }
+
+            foreach ($targetUsers as $targetUser) {
+                if ($targetUser->email) {
+                    try {
+                        \Illuminate\Support\Facades\Mail::to($targetUser->email)
+                            ->send(new \App\Mail\AsmApprovalNotificationMail($salesOrder, $targetUser->id));
+                    } catch (\Exception $e) {
+                        \Illuminate\Support\Facades\Log::error("Failed to send stage notification email to {$targetUser->email}: " . $e->getMessage());
+                    }
+                }
             }
         }
 
