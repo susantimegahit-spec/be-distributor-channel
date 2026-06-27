@@ -745,8 +745,18 @@ class SalesOrderService
                         $quantity = (float)$orderDetail->quantity;
                         $unitPrice = (float)$orderDetail->unit_price;
 
-                        // Recalculate line total based on discount percentage
-                        $lineTotal = ($quantity * $unitPrice) * (1 - ($discPercent / 100));
+                        $vatGroup = array_key_exists('vat_group', $line) ? $line['vat_group'] : $orderDetail->vat_group;
+                        $vatRate = 0.00;
+                        if ($vatGroup) {
+                            $vat = \App\Models\Vat::where('code', $vatGroup)->first();
+                            if ($vat) {
+                                $vatRate = (float)$vat->rate;
+                            }
+                        }
+
+                        // Recalculate line total based on discount percentage and vat rate
+                        $lineTotalBeforeVat = ($quantity * $unitPrice) * (1 - ($discPercent / 100));
+                        $lineTotal = $lineTotalBeforeVat * (1 + ($vatRate / 100));
 
                         $updateData = [
                             'disc_percent' => $discPercent,
@@ -969,8 +979,18 @@ class SalesOrderService
                 $quantity = (float)$orderDetail->quantity;
                 $unitPrice = (float)$orderDetail->unit_price;
 
-                // Recalculate line total based on discount percentage
-                $lineTotal = ($quantity * $unitPrice) * (1 - ($discPercent / 100));
+                $vatGroup = array_key_exists('vat_group', $line) ? $line['vat_group'] : $orderDetail->vat_group;
+                $vatRate = 0.00;
+                if ($vatGroup) {
+                    $vat = \App\Models\Vat::where('code', $vatGroup)->first();
+                    if ($vat) {
+                        $vatRate = (float)$vat->rate;
+                    }
+                }
+
+                // Recalculate line total based on discount percentage and vat rate
+                $lineTotalBeforeVat = ($quantity * $unitPrice) * (1 - ($discPercent / 100));
+                $lineTotal = $lineTotalBeforeVat * (1 + ($vatRate / 100));
 
                 $updateData = [
                     'disc_percent' => $discPercent,
