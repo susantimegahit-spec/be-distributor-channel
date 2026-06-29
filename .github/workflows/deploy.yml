@@ -24,25 +24,14 @@ jobs:
         run: |
           composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 
-      - name: Deploy via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      - name: Deploy via SFTP/SSH
+        uses: easingthemes/ssh-deploy@main
         with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: ${{ secrets.FTP_PORT }}
-          local-dir: ./
-          server-dir: ${{ secrets.FTP_SERVER_DIR }}
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            **/tests/**
-            .env
-            .env.example
-            .editorconfig
-            .gitattributes
-            .gitignore
-            phpunit.xml
-            README.md
-            dstrbtr.md
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          ARGS: "-rlgoDzvO --delete"
+          SOURCE: "./"
+          REMOTE_HOST: "103.89.4.98"
+          REMOTE_USER: "susantimegah"
+          REMOTE_PORT: "22"
+          TARGET: "/home/susantimegah/public_html/api-dev.susantimegah.com"
+          EXCLUDE: "/node_modules/, /.git/, /.github/, /tests/, .env, .env.example, phpunit.xml, README.md"
