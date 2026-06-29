@@ -754,9 +754,9 @@ class SalesOrderService
                             }
                         }
 
-                        // Recalculate line total based on discount percentage and vat rate
+                        // Recalculate line total based on discount percentage (without tax)
                         $lineTotalBeforeVat = ($quantity * $unitPrice) * (1 - ($discPercent / 100));
-                        $lineTotal = $lineTotalBeforeVat * (1 + ($vatRate / 100));
+                        $lineTotal = (float)($line['line_total'] ?? $lineTotalBeforeVat);
 
                         $updateData = [
                             'disc_percent' => $discPercent,
@@ -782,7 +782,8 @@ class SalesOrderService
 
                         $orderDetail->update($updateData);
 
-                        $docTotal += $lineTotal;
+                        $vatTotal = $lineTotal * ($vatRate / 100);
+                        $docTotal += ($lineTotal + $vatTotal);
                     }
                 }
 
@@ -988,9 +989,9 @@ class SalesOrderService
                     }
                 }
 
-                // Recalculate line total based on discount percentage and vat rate
+                // Recalculate line total based on discount percentage (without tax)
                 $lineTotalBeforeVat = ($quantity * $unitPrice) * (1 - ($discPercent / 100));
-                $lineTotal = $lineTotalBeforeVat * (1 + ($vatRate / 100));
+                $lineTotal = (float)($line['line_total'] ?? $lineTotalBeforeVat);
 
                 $updateData = [
                     'disc_percent' => $discPercent,
@@ -1016,7 +1017,8 @@ class SalesOrderService
 
                 $orderDetail->update($updateData);
 
-                $docTotal += $lineTotal;
+                $vatTotal = $lineTotal * ($vatRate / 100);
+                $docTotal += ($lineTotal + $vatTotal);
             }
         }
 
