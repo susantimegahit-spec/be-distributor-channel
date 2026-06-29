@@ -1,13 +1,13 @@
-name: Deploy Laravel App to cPanel
+name: Deploy Laravel App to cPanel (Production)
 
 on:
   push:
     branches:
-      - development
+      - production
 
 jobs:
   deploy:
-    name: Deploy to Server
+    name: Deploy to Production Server
     runs-on: ubuntu-latest
 
     steps:
@@ -27,12 +27,12 @@ jobs:
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: ${{ secrets.FTP_PORT }}
+          server: ${{ secrets.FTP_SERVER_PROD }}
+          username: ${{ secrets.FTP_USERNAME_PROD }}
+          password: ${{ secrets.FTP_PASSWORD_PROD }}
+          port: ${{ secrets.FTP_PORT_PROD }}
           local-dir: ./
-          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          server-dir: ${{ secrets.FTP_SERVER_DIR_PROD }}
           exclude: |
             **/.git*
             **/.git*/**
@@ -46,3 +46,5 @@ jobs:
             phpunit.xml
             README.md
             dstrbtr.md
+            fitur_klaim.md
+            integrasi_sap.md
