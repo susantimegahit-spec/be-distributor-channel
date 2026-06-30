@@ -12,6 +12,9 @@ return Application::configure(basePath: dirname(__DIR__))
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
     )
+    ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule) {
+        $schedule->command('sap:sync-order-status')->everyFifteenMinutes();
+    })
     ->withMiddleware(function (Middleware $middleware) {
         //
     })
