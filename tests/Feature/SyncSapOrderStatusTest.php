@@ -79,9 +79,9 @@ class SyncSapOrderStatusTest extends TestCase
                 'Result' => [
                     [
                         'NOSO' => '260130002',
-                        'StatusOrder' => 'Closed',
+                        'StatusOrder' => 'open',
                         'Nomor' => '260130002',
-                        'Doc' => 'DO'
+                        'Doc' => 'AR'
                     ]
                 ]
             ], 200)
@@ -94,8 +94,8 @@ class SyncSapOrderStatusTest extends TestCase
         $response->assertJsonPath('success', true);
 
         $order->refresh();
-        $this->assertEquals('Closed', $order->sap_status);
-        $this->assertEquals('DO', $order->sap_last_doc_type);
+        $this->assertEquals('open', $order->sap_status);
+        $this->assertEquals('AR', $order->sap_last_doc_type);
         $this->assertEquals('260130002', $order->sap_last_doc_num);
         $this->assertEquals('ARRIVED', $order->status);
     }

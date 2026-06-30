@@ -1192,7 +1192,7 @@ class SalesOrderService
                 if (empty($salesOrder->delivery_date)) {
                     $updateData['delivery_date'] = now();
                 }
-            } elseif (strcasecmp($sapStatus, 'Closed') === 0) {
+            } elseif (strcasecmp($docType, 'AR') === 0 && (strcasecmp($sapStatus, 'open') === 0 || strcasecmp($sapStatus, 'Closed') === 0)) {
                 $updateData['status'] = 'ARRIVED';
                 if (empty($salesOrder->arrived_date)) {
                     $updateData['arrived_date'] = now();
@@ -1220,11 +1220,13 @@ class SalesOrderService
      */
     public function syncAllPendingOrders(): array
     {
-        // Get up to 1000 orders that are integrated but not closed from the past 1 month
+        // Get up to 1000 orders that are integrated but not fully closed with A/R Invoice from the past 1 month
         $orders = SalesOrder::whereNotNull('sap_doc_num')
             ->where(function ($query) {
                 $query->whereNull('sap_status')
-                      ->orWhere('sap_status', '!=', 'Closed');
+                      ->orWhere('sap_status', '!=', 'Closed')
+                      ->orWhereNull('sap_last_doc_type')
+                      ->orWhere('sap_last_doc_type', '!=', 'AR');
             })
             ->where('created_at', '>=', now()->subMonth())
             ->limit(1000)
@@ -1281,7 +1283,7 @@ class SalesOrderService
                         if (empty($order->delivery_date)) {
                             $updateData['delivery_date'] = now();
                         }
-                    } elseif (strcasecmp($sapStatus, 'Closed') === 0) {
+                    } elseif (strcasecmp($docType, 'AR') === 0 && (strcasecmp($sapStatus, 'open') === 0 || strcasecmp($sapStatus, 'Closed') === 0)) {
                         $updateData['status'] = 'ARRIVED';
                         if (empty($order->arrived_date)) {
                             $updateData['arrived_date'] = now();
