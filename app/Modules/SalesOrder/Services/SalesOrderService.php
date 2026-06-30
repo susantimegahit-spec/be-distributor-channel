@@ -1220,13 +1220,13 @@ class SalesOrderService
      */
     public function syncAllPendingOrders(): array
     {
-        // Get up to 1000 orders that are integrated but not closed
+        // Get up to 1000 orders that are integrated but not closed from the past 1 month
         $orders = SalesOrder::whereNotNull('sap_doc_num')
             ->where(function ($query) {
                 $query->whereNull('sap_status')
                       ->orWhere('sap_status', '!=', 'Closed');
             })
-            ->whereNotIn('status', ['ARRIVED', 'REJECTED', 'FAILED'])
+            ->where('created_at', '>=', now()->subMonth())
             ->limit(1000)
             ->get();
 

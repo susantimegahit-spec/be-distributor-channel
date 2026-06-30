@@ -586,4 +586,27 @@ class SalesOrderController extends Controller
             return $this->errorResponse($e->getMessage(), [], 400);
         }
     }
+
+    /**
+     * Batch sync all pending Sales Orders from SAP.
+     *
+     * @param  Request  $request
+     * @return JsonResponse
+     */
+    public function syncAll(Request $request): JsonResponse
+    {
+        try {
+            $result = $this->salesOrderService->syncAllPendingOrders();
+
+            if (!$result['success']) {
+                return $this->errorResponse($result['message'], [], 400);
+            }
+
+            return $this->successResponse([
+                'updated_count' => $result['updated_count']
+            ], $result['message']);
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), [], 400);
+        }
+    }
 }
