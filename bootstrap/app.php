@@ -12,6 +12,66 @@ return Application::configure(basePath: dirname(__DIR__))
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
     )
+    ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule) {
+        try {
+            // Cek apakah tabel cron_jobs sudah termigrasi
+            if (\Illuminate\Support\Facades\Schema::hasTable('cron_jobs')) {
+                $jobs = \App\Models\CronJob::where('is_active', true)->get();
+                foreach ($jobs as $job) {
+                    $logId = null;
+
+                    $schedule->command($job->command)
+                        ->cron($job->expression)
+                        ->before(function () use ($job, &$logId) {
+                            $log = \App\Models\CronJobLog::create([
+                                'cron_job_id' => $job->id,
+                                'run_at' => now(),
+                                'status' => 'running',
+                            ]);
+                            $logId = $log->id;
+                        })
+                        ->onSuccess(function () use ($job, &$logId) {
+                            $job->update([
+                                'last_run_at' => now(),
+                                'last_run_status' => 'success'
+                            ]);
+                            if ($logId) {
+                                $log = \App\Models\CronJobLog::find($logId);
+                                if ($log) {
+                                    $log->update([
+                                        'finished_at' => now(),
+                                        'status' => 'success',
+                                        'duration_seconds' => now()->diffInSeconds($log->run_at),
+                                        'message' => 'Executed successfully via Scheduler.'
+                                    ]);
+                                }
+                            }
+                        })
+                        ->onFailure(function () use ($job, &$logId) {
+                            $job->update([
+                                'last_run_at' => now(),
+                                'last_run_status' => 'failed'
+                            ]);
+                            if ($logId) {
+                                $log = \App\Models\CronJobLog::find($logId);
+                                if ($log) {
+                                    $log->update([
+                                        'finished_at' => now(),
+                                        'status' => 'failed',
+                                        'duration_seconds' => now()->diffInSeconds($log->run_at),
+                                        'message' => 'Execution failed.'
+                                    ]);
+                                }
+                            }
+                        });
+                }
+            } else {
+                $schedule->command('sap:sync-order-status')->everyFifteenMinutes();
+            }
+        } catch (\Throwable $e) {
+            $schedule->command('sap:sync-order-status')->everyFifteenMinutes();
+        }
+    })
     ->withMiddleware(function (Middleware $middleware) {
         //
     })

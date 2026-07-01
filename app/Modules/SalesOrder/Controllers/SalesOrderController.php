@@ -555,4 +555,58 @@ class SalesOrderController extends Controller
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ]);
     }
+
+    /**
+     * Sync SAP status of a specific sales order.
+     *
+     * @param  Request  $request
+     * @param  int  $id
+     * @return JsonResponse
+     */
+    public function syncSapStatus(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $distributorId = null;
+
+        // Restriction: if user is a distributor, restrict to their own ID
+        if ($user->code_customer) {
+            $distributor = Distributor::where('code_customer', $user->code_customer)->first();
+            $distributorId = $distributor?->id;
+        }
+
+        try {
+            $result = $this->salesOrderService->syncOrderStatusFromSap($id, $distributorId);
+
+            if (!$result['success']) {
+                return $this->errorResponse($result['message'], [], 400);
+            }
+
+            return $this->successResponse($result['data'], $result['message']);
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), [], 400);
+        }
+    }
+
+    /**
+     * Batch sync all pending Sales Orders from SAP.
+     *
+     * @param  Request  $request
+     * @return JsonResponse
+     */
+    public function syncAll(Request $request): JsonResponse
+    {
+        try {
+            $result = $this->salesOrderService->syncAllPendingOrders();
+
+            if (!$result['success']) {
+                return $this->errorResponse($result['message'], [], 400);
+            }
+
+            return $this->successResponse([
+                'updated_count' => $result['updated_count']
+            ], $result['message']);
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), [], 400);
+        }
+    }
 }

@@ -1130,4 +1130,184 @@ class SalesOrderService
             }
         }
     }
+
+    /**
+     * Sync status of a single Sales Order from SAP.
+     *
+     * @param int $salesOrderId
+     * @param int|null $distributorId
+     * @return array
+     * @throws Exception
+     */
+    public function syncOrderStatusFromSap(int $salesOrderId, ?int $distributorId = null): array
+    {
+        $salesOrder = $this->getOrderById($salesOrderId, $distributorId);
+
+        if (!$salesOrder) {
+            throw new Exception('Sales order tidak ditemukan.');
+        }
+
+        if (empty($salesOrder->sap_doc_num)) {
+            throw new Exception('Sales order belum terintegrasi ke SAP.');
+        }
+
+        try {
+            $response = Http::timeout(15)->post('http://103.18.133.187:3100/api/Status', [
+                'CustomQuery' => $salesOrder->sap_doc_num
+            ]);
+
+            if (!$response->successful()) {
+                throw new Exception('Gagal menghubungi API SAP Status.');
+            }
+
+            $body = $response->json();
+            if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
+                throw new Exception('API SAP Status mengembalikan error: ' . ($body['Message'] ?? 'Unknown error'));
+            }
+
+            $results = $body['Result'] ?? [];
+            $sapData = collect($results)->firstWhere('NOSO', $salesOrder->sap_doc_num);
+
+            if (!$sapData) {
+                return [
+                    'success' => false,
+                    'message' => 'Status SO tidak ditemukan di SAP.',
+                ];
+            }
+
+            $sapStatus = $sapData['StatusOrder'] ?? '';
+            $docType = $sapData['Doc'] ?? '';
+            $docNum = $sapData['Nomor'] ?? '';
+
+            $updateData = [
+                'sap_status' => $sapStatus,
+                'sap_last_doc_type' => $docType,
+                'sap_last_doc_num' => $docNum,
+                'sap_last_synced_at' => now(),
+            ];
+
+            // Local status mapping logic
+            if (strcasecmp($docType, 'DO') === 0 && strcasecmp($sapStatus, 'open') === 0) {
+                $updateData['status'] = 'DELIVERY';
+                if (empty($salesOrder->delivery_date)) {
+                    $updateData['delivery_date'] = now();
+                }
+            } elseif (strcasecmp($docType, 'AR') === 0 && (strcasecmp($sapStatus, 'open') === 0 || strcasecmp($sapStatus, 'Closed') === 0)) {
+                $updateData['status'] = 'ARRIVED';
+                if (empty($salesOrder->arrived_date)) {
+                    $updateData['arrived_date'] = now();
+                }
+            }
+
+            $salesOrder->update($updateData);
+
+            return [
+                'success' => true,
+                'message' => 'Status SAP berhasil disinkronisasi.',
+                'data' => $salesOrder
+            ];
+
+        } catch (Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to sync manual status for SO ID {$salesOrderId} from SAP: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Batch sync all pending Sales Orders from SAP.
+     *
+     * @return array
+     */
+    public function syncAllPendingOrders(): array
+    {
+        // Get up to 1000 orders that are integrated but not fully closed with A/R Invoice from the past 1 month
+        $orders = SalesOrder::whereNotNull('sap_doc_num')
+            ->where(function ($query) {
+                $query->whereNull('sap_status')
+                      ->orWhere('sap_status', '!=', 'Closed')
+                      ->orWhereNull('sap_last_doc_type')
+                      ->orWhere('sap_last_doc_type', '!=', 'AR');
+            })
+            ->where('created_at', '>=', now()->subMonth())
+            ->limit(1000)
+            ->get();
+
+        if ($orders->isEmpty()) {
+            return [
+                'success' => true,
+                'message' => 'Tidak ada order yang perlu disinkronkan.',
+                'updated_count' => 0
+            ];
+        }
+
+        $docNums = $orders->pluck('sap_doc_num')->toArray();
+        $commaSeparatedDocNums = implode(',', $docNums);
+
+        try {
+            $response = Http::timeout(30)->post('http://103.18.133.187:3100/api/Status', [
+                'CustomQuery' => $commaSeparatedDocNums
+            ]);
+
+            if (!$response->successful()) {
+                throw new Exception('Gagal menghubungi API SAP Status.');
+            }
+
+            $body = $response->json();
+            if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
+                throw new Exception('API SAP Status mengembalikan error: ' . ($body['Message'] ?? 'Unknown error'));
+            }
+
+            $results = $body['Result'] ?? [];
+            $updatedCount = 0;
+
+            foreach ($results as $sapData) {
+                $noso = $sapData['NOSO'] ?? null;
+                if (!$noso) continue;
+
+                $order = $orders->firstWhere('sap_doc_num', $noso);
+                if ($order) {
+                    $sapStatus = $sapData['StatusOrder'] ?? '';
+                    $docType = $sapData['Doc'] ?? '';
+                    $docNum = $sapData['Nomor'] ?? '';
+
+                    $updateData = [
+                        'sap_status' => $sapStatus,
+                        'sap_last_doc_type' => $docType,
+                        'sap_last_doc_num' => $docNum,
+                        'sap_last_synced_at' => now(),
+                    ];
+
+                    // Local status mapping logic
+                    if (strcasecmp($docType, 'DO') === 0 && strcasecmp($sapStatus, 'open') === 0) {
+                        $updateData['status'] = 'DELIVERY';
+                        if (empty($order->delivery_date)) {
+                            $updateData['delivery_date'] = now();
+                        }
+                    } elseif (strcasecmp($docType, 'AR') === 0 && (strcasecmp($sapStatus, 'open') === 0 || strcasecmp($sapStatus, 'Closed') === 0)) {
+                        $updateData['status'] = 'ARRIVED';
+                        if (empty($order->arrived_date)) {
+                            $updateData['arrived_date'] = now();
+                        }
+                    }
+
+                    $order->update($updateData);
+                    $updatedCount++;
+                }
+            }
+
+            return [
+                'success' => true,
+                'message' => 'Batch sinkronisasi status selesai.',
+                'updated_count' => $updatedCount
+            ];
+
+        } catch (Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to batch sync SO statuses from SAP: " . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Gagal melakukan sinkronisasi batch: ' . $e->getMessage(),
+                'updated_count' => 0
+            ];
+        }
+    }
 }

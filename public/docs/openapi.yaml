@@ -2049,6 +2049,83 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/sales-orders/{id}/sync-sap:
+    post:
+      summary: Sync SAP status of a specific sales order
+      description: Mensinkronisasikan status pengiriman (Delivery) dan pembayaran dari SAP Business One ke database lokal.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order yang ingin disinkronisasi
+      responses:
+        '200':
+          description: Status SAP berhasil disinkronisasi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Status SAP berhasil disinkronisasi.
+                  data:
+                    $ref: '#/components/schemas/SalesOrder'
+        '400':
+          description: Gagal sinkronisasi status SAP (misal data SO tidak ditemukan di SAP, atau belum terintegrasi)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-orders/sync-all:
+    post:
+      summary: Batch sync all pending Sales Orders status from SAP
+      description: Mensinkronisasikan status pengiriman (Delivery) dan pembayaran dari SAP Business One secara masal untuk semua Sales Order dari 1 bulan ke belakang yang sudah memiliki sap_doc_num dan belum berstatus Closed.
+      tags:
+        - Sales Orders
+      responses:
+        '200':
+          description: Batch sinkronisasi status selesai
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Batch sinkronisasi status selesai.
+                  data:
+                    type: object
+                    properties:
+                      updated_count:
+                        type: integer
+                        example: 5
+        '400':
+          description: Gagal melakukan sinkronisasi batch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /v1/sales-orders/{id}/submit:
     post:
       summary: Submit sales order to OM
