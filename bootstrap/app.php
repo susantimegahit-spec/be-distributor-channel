@@ -41,7 +41,7 @@ return Application::configure(basePath: dirname(__DIR__))
                                     $log->update([
                                         'finished_at' => now(),
                                         'status' => 'success',
-                                        'duration_seconds' => now()->diffInSeconds($log->run_at),
+                                        'duration_seconds' => (int) abs(now()->timestamp - $log->run_at->timestamp),
                                         'message' => 'Executed successfully via Scheduler.'
                                     ]);
                                 }
@@ -58,7 +58,7 @@ return Application::configure(basePath: dirname(__DIR__))
                                     $log->update([
                                         'finished_at' => now(),
                                         'status' => 'failed',
-                                        'duration_seconds' => now()->diffInSeconds($log->run_at),
+                                        'duration_seconds' => (int) abs(now()->timestamp - $log->run_at->timestamp),
                                         'message' => 'Execution failed.'
                                     ]);
                                 }

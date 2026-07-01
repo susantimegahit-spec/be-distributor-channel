@@ -83,7 +83,7 @@ class CronJobController extends Controller
             $log->update([
                 'finished_at' => now(),
                 'status' => 'success',
-                'duration_seconds' => now()->diffInSeconds($startTime),
+                'duration_seconds' => (int) abs(now()->timestamp - $startTime->timestamp),
                 'message' => $output ?: 'Executed successfully via manual trigger.'
             ]);
 
@@ -97,7 +97,7 @@ class CronJobController extends Controller
             $log->update([
                 'finished_at' => now(),
                 'status' => 'failed',
-                'duration_seconds' => now()->diffInSeconds($startTime),
+                'duration_seconds' => (int) abs(now()->timestamp - $startTime->timestamp),
                 'message' => $e->getMessage()
             ]);
 
