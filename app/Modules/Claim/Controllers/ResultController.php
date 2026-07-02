@@ -5,10 +5,13 @@ namespace App\Modules\Claim\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Claim\Repositories\ResultRepositoryInterface;
 use App\Modules\Claim\Services\ExportService;
+use App\Traits\ApiResponseFormatter;
 use Illuminate\Http\Request;
 
 class ResultController extends Controller
 {
+    use ApiResponseFormatter;
+
     /**
      * @var ResultRepositoryInterface
      */
@@ -50,7 +53,7 @@ class ResultController extends Controller
 
         $results = $this->resultRepository->paginateResults($filters, $request->get('per_page', 15));
 
-        return response()->json($results);
+        return $this->successResponse($results, 'Daftar hasil kalkulasi berhasil diambil.');
     }
 
     /**
@@ -90,9 +93,7 @@ class ResultController extends Controller
 
         $this->resultRepository->verifyResults($ids, $isVerified);
 
-        return response()->json([
-            'message' => count($ids) . ' transaksi sell out berhasil diverifikasi.'
-        ]);
+        return $this->successResponse(null, count($ids) . ' transaksi sell out berhasil diverifikasi.');
     }
 
     /**
@@ -112,6 +113,6 @@ class ResultController extends Controller
 
         $summary = $this->resultRepository->getRewardSummary($customerCode);
 
-        return response()->json($summary);
+        return $this->successResponse($summary, 'Summary saldo reward berhasil diambil.');
     }
 }

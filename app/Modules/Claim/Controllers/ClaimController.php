@@ -6,12 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Modules\Claim\Services\ClaimService;
 use App\Modules\Claim\Repositories\ResultRepositoryInterface;
 use App\Modules\Item\Repositories\ItemRepositoryInterface;
+use App\Traits\ApiResponseFormatter;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Http\JsonResponse;
 
 class ClaimController extends Controller
 {
+    use ApiResponseFormatter;
+
     /**
      * @var ClaimService
      */
@@ -79,7 +82,7 @@ class ClaimController extends Controller
             ];
         });
 
-        return response()->json($mapped);
+        return $this->successResponse($mapped, 'Pencarian item berhasil.');
     }
 
     /**
@@ -91,6 +94,6 @@ class ClaimController extends Controller
     {
         $summary = $this->resultRepository->getDashboardSummary();
 
-        return response()->json($summary);
+        return $this->successResponse($summary, 'Statistik dashboard klaim berhasil diambil.');
     }
 }

@@ -5,12 +5,15 @@ namespace App\Modules\Claim\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Claim\Repositories\WithdrawRepositoryInterface;
 use App\Modules\Claim\Repositories\ResultRepositoryInterface;
+use App\Traits\ApiResponseFormatter;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 
 class WithdrawController extends Controller
 {
+    use ApiResponseFormatter;
+
     /**
      * @var WithdrawRepositoryInterface
      */
@@ -51,7 +54,7 @@ class WithdrawController extends Controller
 
         $withdraws = $this->withdrawRepository->getWithdrawsPaginated($filters, $request->get('per_page', 15));
 
-        return response()->json($withdraws);
+        return $this->successResponse($withdraws, 'Daftar withdraw berhasil diambil.');
     }
 
     /**
@@ -68,9 +71,7 @@ class WithdrawController extends Controller
 
         $user = $request->user();
         if (!$user || !$user->code_customer) {
-            return response()->json([
-                'message' => 'Hanya distributor yang dapat mengajukan withdraw.'
-            ], Response::HTTP_FORBIDDEN);
+            return $this->errorResponse('Hanya distributor yang dapat mengajukan withdraw.', null, Response::HTTP_FORBIDDEN);
         }
 
         $customerCode = $user->code_customer;
@@ -81,9 +82,7 @@ class WithdrawController extends Controller
         $balance = $summary['available_balance'];
 
         if ($amount > $balance) {
-            return response()->json([
-                'message' => 'Saldo reward tidak mencukupi untuk melakukan penarikan. Saldo tersedia: Rp ' . number_format($balance, 0, ',', '.')
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->errorResponse('Saldo reward tidak mencukupi untuk melakukan penarikan. Saldo tersedia: Rp ' . number_format($balance, 0, ',', '.'), null, Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         // Generate withdraw number: WD-YYYYMMDD-XXX
@@ -113,10 +112,7 @@ class WithdrawController extends Controller
             ]);
         });
 
-        return response()->json([
-            'message' => 'Pengajuan withdraw berhasil dibuat.',
-            'data' => $withdraw
-        ], Response::HTTP_CREATED);
+        return $this->successResponse($withdraw, 'Pengajuan withdraw berhasil dibuat.', Response::HTTP_CREATED);
     }
 
     /**
@@ -139,9 +135,6 @@ class WithdrawController extends Controller
             $request->get('transfer_date')
         );
 
-        return response()->json([
-            'message' => 'Status withdraw berhasil diperbarui.',
-            'data' => $withdraw
-        ]);
+        return $this->successResponse($withdraw, 'Status withdraw berhasil diperbarui.');
     }
 }

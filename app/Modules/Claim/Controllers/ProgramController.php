@@ -6,11 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Modules\Claim\Services\ProgramService;
 use App\Modules\Claim\Requests\StoreProgramRequest;
 use App\Modules\Claim\Requests\UpdateProgramRequest;
+use App\Traits\ApiResponseFormatter;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 class ProgramController extends Controller
 {
+    use ApiResponseFormatter;
+
     /**
      * @var ProgramService
      */
@@ -37,7 +40,7 @@ class ProgramController extends Controller
         $filters = $request->only(['search', 'status']);
         $programs = $this->programService->listPrograms($filters, $request->get('per_page', 15));
         
-        return response()->json($programs);
+        return $this->successResponse($programs, 'Daftar program promosi berhasil diambil.');
     }
 
     /**
@@ -53,7 +56,7 @@ class ProgramController extends Controller
         $data['created_by'] = $request->user()->username ?? 'admin';
         $program = $this->programService->createProgram($data);
 
-        return response()->json($program, Response::HTTP_CREATED);
+        return $this->successResponse($program, 'Program promosi berhasil dibuat.', Response::HTTP_CREATED);
     }
 
     /**
@@ -66,10 +69,10 @@ class ProgramController extends Controller
     {
         $program = $this->programService->getProgramDetail((int)$id);
         if (!$program) {
-            return response()->json(['message' => 'Program tidak ditemukan'], Response::HTTP_NOT_FOUND);
+            return $this->errorResponse('Program tidak ditemukan.', null, Response::HTTP_NOT_FOUND);
         }
 
-        return response()->json($program);
+        return $this->successResponse($program, 'Detail program promosi berhasil diambil.');
     }
 
     /**
@@ -83,7 +86,7 @@ class ProgramController extends Controller
     {
         $program = $this->programService->updateProgram((int)$id, $request->validated());
 
-        return response()->json($program);
+        return $this->successResponse($program, 'Program promosi berhasil diperbarui.');
     }
 
     /**
@@ -96,6 +99,10 @@ class ProgramController extends Controller
     {
         $deleted = $this->programService->deleteProgram((int)$id);
 
-        return response()->json(['success' => $deleted]);
+        if (!$deleted) {
+            return $this->errorResponse('Gagal menghapus program promosi.', null, Response::HTTP_BAD_REQUEST);
+        }
+
+        return $this->successResponse(null, 'Program promosi berhasil dihapus.');
     }
 }

@@ -5,11 +5,14 @@ namespace App\Modules\Claim\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Claim\Services\UploadService;
 use App\Modules\Claim\Requests\UploadTransactionRequest;
+use App\Traits\ApiResponseFormatter;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 class UploadController extends Controller
 {
+    use ApiResponseFormatter;
+
     /**
      * @var UploadService
      */
@@ -38,7 +41,7 @@ class UploadController extends Controller
         
         $result = $this->uploadService->handleUpload($file, $uploadedBy);
 
-        return response()->json($result, Response::HTTP_CREATED);
+        return $this->successResponse($result, 'File transaksi berhasil diunggah dan dikalkulasi.', Response::HTTP_CREATED);
     }
 
     /**
@@ -51,7 +54,7 @@ class UploadController extends Controller
     {
         $batches = $this->uploadService->listBatches($request->get('per_page', 15));
         
-        return response()->json($batches);
+        return $this->successResponse($batches, 'Daftar batch upload berhasil diambil.');
     }
 
     /**
@@ -64,9 +67,9 @@ class UploadController extends Controller
     {
         $batch = $this->uploadService->getBatchDetail((int)$id);
         if (!$batch) {
-            return response()->json(['message' => 'Batch tidak ditemukan'], Response::HTTP_NOT_FOUND);
+            return $this->errorResponse('Batch tidak ditemukan.', null, Response::HTTP_NOT_FOUND);
         }
 
-        return response()->json($batch);
+        return $this->successResponse($batch, 'Detail batch upload berhasil diambil.');
     }
 }
