@@ -26,6 +26,7 @@ class SalesOrder extends Model
         'po_number',
         'doc_date',
         'doc_due_date',
+        'eta_date',
         'slp_code',
         'cntct_code',
         'pay_to_code',
@@ -64,6 +65,7 @@ class SalesOrder extends Model
     protected $casts = [
         'doc_date' => 'date',
         'doc_due_date' => 'date',
+        'eta_date' => 'date',
         'disc_percent' => 'decimal:2',
         'doc_total' => 'decimal:2',
         'approval_id' => 'integer',

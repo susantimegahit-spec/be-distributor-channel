@@ -4125,6 +4125,11 @@ components:
           type: string
           format: date
           example: "2026-02-25"
+        eta_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-03-04"
         slp_code:
           type: integer
           example: 0
@@ -4326,6 +4331,11 @@ components:
           format: date
           nullable: true
           example: "2026-02-25"
+        eta_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-03-04"
         slp_code:
           type: integer
           nullable: true

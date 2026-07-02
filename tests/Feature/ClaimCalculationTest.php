@@ -157,7 +157,7 @@ class ClaimCalculationTest extends TestCase
 
         $response->assertStatus(201);
         $response->assertJsonFragment(['program_code' => 'PRG202606']);
-        $programId = $response->json('id');
+        $programId = $response->json('data.id');
 
         // 2. Read Program
         $response = $this->withHeaders($this->getAuthHeader())
@@ -165,8 +165,8 @@ class ClaimCalculationTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJsonFragment(['program_name' => 'Program Garam Juni 2026']);
-        $this->assertCount(2, $response->json('items'));
-        $this->assertCount(2, $response->json('strata'));
+        $this->assertCount(2, $response->json('data.items'));
+        $this->assertCount(2, $response->json('data.strata'));
 
         // 3. Update Program
         $payload['program_name'] = 'Updated Program Name';
@@ -181,7 +181,7 @@ class ClaimCalculationTest extends TestCase
             ->getJson('/api/distributor-channel/v1/claims/programs');
 
         $response->assertStatus(200);
-        $response->assertJsonStructure(['data', 'current_page', 'last_page', 'per_page', 'total']);
+        $response->assertJsonStructure(['data' => ['data', 'current_page', 'last_page', 'per_page', 'total']]);
 
         // 5. Delete Program
         $response = $this->withHeaders($this->getAuthHeader())
@@ -241,20 +241,22 @@ class ClaimCalculationTest extends TestCase
 
         $response->assertStatus(201);
         $response->assertJsonStructure([
-            'batch_id',
-            'batch_no',
-            'total_rows',
-            'processed_rows',
-            'invalid_rows',
-            'total_diskon'
+            'data' => [
+                'batch_id',
+                'batch_no',
+                'total_rows',
+                'processed_rows',
+                'invalid_rows',
+                'total_diskon'
+            ]
         ]);
 
-        $this->assertEquals(4, $response->json('total_rows'));
-        $this->assertEquals(1, $response->json('processed_rows')); // 1 row VALID_PROGRAM
-        $this->assertEquals(3, $response->json('invalid_rows')); // 3 rows invalid (ITEM_NOT_FOUND, PROGRAM_NOT_FOUND, STRATA_NOT_FOUND)
-        $this->assertEquals(20000, $response->json('total_diskon')); // 100 Qty * 200 Diskon = 20000
+        $this->assertEquals(4, $response->json('data.total_rows'));
+        $this->assertEquals(1, $response->json('data.processed_rows')); // 1 row VALID_PROGRAM
+        $this->assertEquals(3, $response->json('data.invalid_rows')); // 3 rows invalid (ITEM_NOT_FOUND, PROGRAM_NOT_FOUND, STRATA_NOT_FOUND)
+        $this->assertEquals(20000, $response->json('data.total_diskon')); // 100 Qty * 200 Diskon = 20000
 
-        $batchId = $response->json('batch_id');
+        $batchId = $response->json('data.batch_id');
 
         // Check Batch Detail API
         $response = $this->withHeaders($this->getAuthHeader())
@@ -273,10 +275,10 @@ class ClaimCalculationTest extends TestCase
             ->getJson('/api/distributor-channel/v1/claims/results?batch_id=' . $batchId);
 
         $response->assertStatus(200);
-        $response->assertJsonStructure(['data', 'current_page', 'last_page', 'per_page', 'total']);
-        $this->assertCount(4, $response->json('data'));
+        $response->assertJsonStructure(['data' => ['data', 'current_page', 'last_page', 'per_page', 'total']]);
+        $this->assertCount(4, $response->json('data.data'));
 
-        $data = $response->json('data');
+        $data = $response->json('data.data');
         $this->assertEquals('VALID_PROGRAM', $data[0]['status']);
         $this->assertEquals('ITEM_NOT_FOUND', $data[1]['status']);
         $this->assertEquals('PROGRAM_NOT_FOUND', $data[2]['status']);
