@@ -130,9 +130,14 @@ class WithdrawController extends Controller
     {
         $request->validate([
             'status' => 'required|string|in:APPROVED,REJECTED,PENDING',
+            'transfer_date' => 'nullable|date',
         ]);
 
-        $withdraw = $this->withdrawRepository->updateStatus((int)$id, $request->get('status'));
+        $withdraw = $this->withdrawRepository->updateStatus(
+            (int)$id, 
+            $request->get('status'), 
+            $request->get('transfer_date')
+        );
 
         return response()->json([
             'message' => 'Status withdraw berhasil diperbarui.',

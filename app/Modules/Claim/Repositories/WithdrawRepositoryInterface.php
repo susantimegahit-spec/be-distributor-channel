@@ -26,9 +26,10 @@ interface WithdrawRepositoryInterface
      *
      * @param int $id
      * @param string $status
+     * @param string|null $transferDate
      * @return \App\Models\TrxProgramWithdraw
      */
-    public function updateStatus(int $id, string $status);
+    public function updateStatus(int $id, string $status, ?string $transferDate = null);
 
     /**
      * Find a withdrawal by ID.

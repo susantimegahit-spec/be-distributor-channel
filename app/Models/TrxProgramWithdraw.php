@@ -27,6 +27,7 @@ class TrxProgramWithdraw extends Model
         'amount',
         'status',
         'created_by',
+        'transfer_date',
     ];
 
     /**
@@ -36,6 +37,7 @@ class TrxProgramWithdraw extends Model
      */
     protected $casts = [
         'amount' => 'decimal:2',
+        'transfer_date' => 'date:Y-m-d',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',

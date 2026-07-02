@@ -3207,6 +3207,11 @@ paths:
                   type: string
                   enum: [APPROVED, REJECTED, PENDING]
                   example: APPROVED
+                transfer_date:
+                  type: string
+                  format: date
+                  nullable: true
+                  example: "2026-07-02"
       responses:
         '200':
           description: Status withdraw berhasil diperbarui
@@ -4932,6 +4937,11 @@ components:
         status:
           type: string
           example: PENDING
+        transfer_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-07-02"
         created_by:
           type: string
           example: distributor

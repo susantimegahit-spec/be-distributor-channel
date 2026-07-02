@@ -35,10 +35,13 @@ class WithdrawRepository implements WithdrawRepositoryInterface
     /**
      * Update withdrawal status.
      */
-    public function updateStatus(int $id, string $status)
+    public function updateStatus(int $id, string $status, ?string $transferDate = null)
     {
         $withdraw = TrxProgramWithdraw::findOrFail($id);
         $withdraw->status = $status;
+        if ($transferDate !== null) {
+            $withdraw->transfer_date = $transferDate;
+        }
         $withdraw->save();
         
         return $withdraw;
