@@ -18,7 +18,11 @@ return new class extends Migration
     public function up(): void
     {
         // Pastikan skema ekspedisi terbuat di Postgres
-        DB::statement('CREATE SCHEMA IF NOT EXISTS ekspedisi');
+        try {
+            DB::statement('CREATE SCHEMA IF NOT EXISTS ekspedisi');
+        } catch (\Throwable $e) {
+            // Abaikan jika tidak memiliki hak akses (skema mungkin sudah dibuat manual)
+        }
 
         Schema::connection($this->connection)->create('provinces', function (Blueprint $table) {
             $table->id();
