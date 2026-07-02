@@ -27,4 +27,21 @@ interface ResultRepositoryInterface
      * @return array
      */
     public function getDashboardSummary();
+
+    /**
+     * Bulk verify result records.
+     *
+     * @param array $ids
+     * @param bool $status
+     * @return int
+     */
+    public function verifyResults(array $ids, bool $status);
+
+    /**
+     * Get reward summary statistics (claimed, verified, withdrawn, balance).
+     *
+     * @param string|null $customerCode
+     * @return array
+     */
+    public function getRewardSummary(string $customerCode = null);
 }

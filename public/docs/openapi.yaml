@@ -3014,6 +3014,219 @@ paths:
                 type: string
                 format: binary
 
+  /v1/claims/results/verify:
+    post:
+      summary: Bulk verify calculation results
+      description: Melakukan verifikasi data hasil kalkulasi klaim secara massal oleh Finance.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ids
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: integer
+                  example: [1, 2, 3]
+                is_verified:
+                  type: boolean
+                  default: true
+                  example: true
+      responses:
+        '200':
+          description: Verifikasi berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "3 transaksi sell out berhasil diverifikasi."
+        '422':
+          description: Validasi input gagal
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/claims/reward-summary:
+    get:
+      summary: Get claim reward balance and summary
+      description: Mendapatkan ringkasan saldo klaim reward distributor (total klaim, total terverifikasi, total penarikan, sisa saldo).
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: customer_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan kode customer (opsional jika login sebagai admin/sales).
+      responses:
+        '200':
+          description: Summary saldo reward berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_claimed:
+                    type: number
+                    example: 1500000.00
+                  total_verified:
+                    type: number
+                    example: 1200000.00
+                  total_withdrawn:
+                    type: number
+                    example: 500000.00
+                  available_balance:
+                    type: number
+                    example: 700000.00
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/claims/withdraws:
+    get:
+      summary: Get list of withdrawals
+      description: Mendapatkan daftar riwayat pengajuan penarikan reward distributor (paginated).
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED]
+        - name: customer_code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Daftar withdraw berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Withdraw'
+                  current_page:
+                    type: integer
+                  last_page:
+                    type: integer
+                  per_page:
+                    type: integer
+                  total:
+                    type: integer
+        '401':
+          description: Tidak terautentikasi
+
+    post:
+      summary: Submit a new withdrawal request
+      description: Mengajukan penarikan saldo reward baru oleh distributor.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amount
+              properties:
+                amount:
+                  type: number
+                  example: 250000.00
+      responses:
+        '201':
+          description: Pengajuan withdraw berhasil dibuat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Pengajuan withdraw berhasil dibuat.
+                  data:
+                    $ref: '#/components/schemas/Withdraw'
+        '422':
+          description: Saldo tidak mencukupi atau nominal tidak valid
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/claims/withdraws/{id}/status:
+    post:
+      summary: Update withdrawal status (Approve/Reject)
+      description: Memperbarui status persetujuan penarikan reward distributor oleh finance/admin.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari withdraw
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [APPROVED, REJECTED, PENDING]
+                  example: APPROVED
+      responses:
+        '200':
+          description: Status withdraw berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Status withdraw berhasil diperbarui.
+                  data:
+                    $ref: '#/components/schemas/Withdraw'
+        '422':
+          description: Status tidak valid
+        '404':
+          description: Data tidak ditemukan
+        '401':
+          description: Tidak terautentikasi
+
   /v1/sales-distributors:
     get:
       summary: List all sales-distributor mappings
@@ -4700,4 +4913,34 @@ components:
         desc_status:
           type: string
           example: VALID
+
+    Withdraw:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        withdraw_no:
+          type: string
+          example: WD-20260702-001
+        customer_code:
+          type: string
+          example: C110000411
+        amount:
+          type: number
+          example: 250000.00
+        status:
+          type: string
+          example: PENDING
+        created_by:
+          type: string
+          example: distributor
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-02T09:05:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-02T09:05:00.000000Z"
 

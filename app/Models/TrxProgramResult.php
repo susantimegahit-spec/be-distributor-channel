@@ -40,6 +40,7 @@ class TrxProgramResult extends Model
         'total_diskon',
         'transaction_date',
         'status',
+        'is_verified',
     ];
 
     /**
@@ -54,6 +55,7 @@ class TrxProgramResult extends Model
         'diskon_per_kg' => 'decimal:2',
         'total_diskon' => 'decimal:2',
         'transaction_date' => 'date:Y-m-d',
+        'is_verified' => 'boolean',
     ];
 
     /**

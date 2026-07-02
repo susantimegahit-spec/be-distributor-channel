@@ -4,6 +4,7 @@ use App\Modules\Claim\Controllers\ClaimController;
 use App\Modules\Claim\Controllers\ProgramController;
 use App\Modules\Claim\Controllers\UploadController;
 use App\Modules\Claim\Controllers\ResultController;
+use App\Modules\Claim\Controllers\WithdrawController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/claims')->middleware('auth:sanctum')->group(function () {
@@ -27,4 +28,11 @@ Route::prefix('v1/claims')->middleware('auth:sanctum')->group(function () {
     // Calculation Results & Export
     Route::get('/results', [ResultController::class, 'index']);
     Route::get('/results/export', [ResultController::class, 'export']);
+    Route::post('/results/verify', [ResultController::class, 'verifyBulk']);
+    Route::get('/reward-summary', [ResultController::class, 'getSummary']);
+
+    // Withdraws
+    Route::get('/withdraws', [WithdrawController::class, 'index']);
+    Route::post('/withdraws', [WithdrawController::class, 'store']);
+    Route::post('/withdraws/{id}/status', [WithdrawController::class, 'updateStatus']);
 });

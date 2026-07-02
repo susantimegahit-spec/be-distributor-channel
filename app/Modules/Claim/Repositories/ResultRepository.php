@@ -63,4 +63,47 @@ class ResultRepository implements ResultRepositoryInterface
             'total_diskon' => (float)$totalDiskon,
         ];
     }
+
+    /**
+     * Bulk verify result records.
+     */
+    public function verifyResults(array $ids, bool $status)
+    {
+        return TrxProgramResult::whereIn('id', $ids)->update(['is_verified' => $status]);
+    }
+
+    /**
+     * Get reward summary statistics (claimed, verified, withdrawn, balance).
+     */
+    public function getRewardSummary(string $customerCode = null)
+    {
+        $queryResult = DB::table('trx_program_result')
+            ->where('status', 'VALID_PROGRAM');
+
+        if ($customerCode) {
+            $queryResult->where('customer_code', $customerCode);
+        }
+
+        $totalClaimed = $queryResult->sum('total_diskon');
+        
+        $queryVerified = clone $queryResult;
+        $totalVerified = $queryVerified->where('is_verified', true)->sum('total_diskon');
+
+        $queryWithdraw = DB::table('trx_program_withdraw')
+            ->whereNull('deleted_at')
+            ->whereIn('status', ['PENDING', 'APPROVED', 'COMPLETED']);
+
+        if ($customerCode) {
+            $queryWithdraw->where('customer_code', $customerCode);
+        }
+
+        $totalWithdrawn = $queryWithdraw->sum('amount');
+
+        return [
+            'total_claimed' => (float)$totalClaimed,
+            'total_verified' => (float)$totalVerified,
+            'total_withdrawn' => (float)$totalWithdrawn,
+            'available_balance' => (float)($totalVerified - $totalWithdrawn),
+        ];
+    }
 }
