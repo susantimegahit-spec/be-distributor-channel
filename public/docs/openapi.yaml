@@ -3232,6 +3232,143 @@ paths:
         '401':
           description: Tidak terautentikasi
 
+  /v1/ekspedisi/wilayah/provinces:
+    get:
+      summary: Get list of all provinces
+      description: Mendapatkan daftar semua provinsi di Indonesia.
+      tags:
+        - Ekspedisi Wilayah
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar provinsi berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar provinsi berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Province'
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/ekspedisi/wilayah/regencies:
+    get:
+      summary: Get list of regencies
+      description: Mendapatkan daftar kabupaten/kota di Indonesia, dapat difilter berdasarkan ID provinsi.
+      tags:
+        - Ekspedisi Wilayah
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: province_id
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: ID Provinsi
+      responses:
+        '200':
+          description: Daftar kabupaten/kota berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar kabupaten/kota berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Regency'
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/ekspedisi/wilayah/districts:
+    get:
+      summary: Get list of districts
+      description: Mendapatkan daftar kecamatan di Indonesia, dapat difilter berdasarkan ID kabupaten/kota.
+      tags:
+        - Ekspedisi Wilayah
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: regency_id
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: ID Kabupaten/Kota
+      responses:
+        '200':
+          description: Daftar kecamatan berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar kecamatan berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/District'
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/ekspedisi/wilayah/villages:
+    get:
+      summary: Get list of villages
+      description: Mendapatkan daftar desa/kelurahan di Indonesia, dapat difilter berdasarkan ID kecamatan.
+      tags:
+        - Ekspedisi Wilayah
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: district_id
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: ID Kecamatan
+      responses:
+        '200':
+          description: Daftar desa/kelurahan berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar desa/kelurahan berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Village'
+        '401':
+          description: Tidak terautentikasi
+
   /v1/sales-distributors:
     get:
       summary: List all sales-distributor mappings
@@ -4955,6 +5092,87 @@ components:
         created_by:
           type: string
           example: distributor
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-02T09:05:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-02T09:05:00.000000Z"
+
+    Province:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 35
+        name:
+          type: string
+          example: JAWA TIMUR
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-02T09:05:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-02T09:05:00.000000Z"
+
+    Regency:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 3578
+        province_id:
+          type: integer
+          example: 35
+        name:
+          type: string
+          example: KOTA SURABAYA
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-02T09:05:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-02T09:05:00.000000Z"
+
+    District:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 3578080
+        regency_id:
+          type: integer
+          example: 3578
+        name:
+          type: string
+          example: RUNGKUT
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-02T09:05:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-02T09:05:00.000000Z"
+
+    Village:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 3578080001
+        district_id:
+          type: integer
+          example: 3578080
+        name:
+          type: string
+          example: KALIRUNGKUT
         created_at:
           type: string
           format: date-time
