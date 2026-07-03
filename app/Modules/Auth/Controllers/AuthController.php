@@ -55,6 +55,7 @@ class AuthController extends Controller
                 'id_distributor' => $user->distributor?->id,
                 'name_distributor' => $user->distributor?->name,
                 'is_active' => $user->is_active,
+                'accessible_systems' => $user->accessible_systems,
             ],
             'menu' => $user->role?->roleMenu?->menu ?? [],
             'access_token' => $result['token'],

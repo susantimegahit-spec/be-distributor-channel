@@ -175,4 +175,55 @@ class UserTest extends TestCase
             'code_customer' => 'C110000411',
         ]);
     }
+
+    /**
+     * Test user creation with accessible_systems.
+     */
+    public function test_create_user_with_accessible_systems(): void
+    {
+        $token = $this->adminUser->createToken('test_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/api/distributor-channel/v1/users', [
+            'name' => 'Systems User',
+            'username' => 'sysuser',
+            'email' => 'sysuser@example.com',
+            'password' => 'password123',
+            'role_id' => $this->role->id,
+            'accessible_systems' => ['distributor', 'ekspedisi'],
+            'is_active' => true,
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertEquals(['distributor', 'ekspedisi'], $response->json('data.accessible_systems'));
+
+        $this->assertDatabaseHas('users', [
+            'username' => 'sysuser',
+            'accessible_systems' => 'distributor,ekspedisi',
+        ]);
+    }
+
+    /**
+     * Test user update with accessible_systems.
+     */
+    public function test_update_user_with_accessible_systems(): void
+    {
+        $token = $this->adminUser->createToken('test_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->putJson('/api/distributor-channel/v1/users/' . $this->adminUser->id, [
+            'name' => 'Admin User Updated',
+            'accessible_systems' => ['ekspedisi'],
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertEquals(['ekspedisi'], $response->json('data.accessible_systems'));
+
+        $this->assertDatabaseHas('users', [
+            'id' => $this->adminUser->id,
+            'accessible_systems' => 'ekspedisi',
+        ]);
+    }
 }

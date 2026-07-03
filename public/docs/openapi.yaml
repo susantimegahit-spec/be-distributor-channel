@@ -3833,6 +3833,11 @@ components:
                 is_active:
                   type: boolean
                   example: true
+                accessible_systems:
+                  type: array
+                  items:
+                    type: string
+                  example: ["distributor", "ekspedisi"]
             menu:
               type: array
               items:
@@ -4004,6 +4009,11 @@ components:
         is_active:
           type: boolean
           example: true
+        accessible_systems:
+          type: array
+          items:
+            type: string
+          example: ["distributor", "ekspedisi"]
         created_at:
           type: string
           format: date-time

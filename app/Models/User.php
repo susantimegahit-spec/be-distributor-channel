@@ -27,6 +27,7 @@ class User extends Authenticatable
         'password',
         'code_customer',
         'is_active',
+        'accessible_systems',
     ];
 
     /**
@@ -67,5 +68,28 @@ class User extends Authenticatable
     public function distributor(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Distributor::class, 'code_customer', 'code_customer');
+    }
+
+    /**
+     * Get the accessible systems list as an array.
+     */
+    public function getAccessibleSystemsAttribute($value): array
+    {
+        if (empty($value)) {
+            return [];
+        }
+        return explode(',', $value);
+    }
+
+    /**
+     * Set the accessible systems list from an array.
+     */
+    public function setAccessibleSystemsAttribute($value)
+    {
+        if (is_array($value)) {
+            $this->attributes['accessible_systems'] = implode(',', $value);
+        } else {
+            $this->attributes['accessible_systems'] = $value;
+        }
     }
 }

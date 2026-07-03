@@ -36,11 +36,12 @@ class AuthTest extends TestCase
         ]);
     }
 
-    /**
-     * Test login success.
-     */
     public function test_login_success(): void
     {
+        $this->user->update([
+            'accessible_systems' => ['distributor', 'ekspedisi']
+        ]);
+
         $response = $this->postJson('/api/distributor-channel/v1/auth/login', [
             'username' => 'activeuser',
             'password' => $this->password,
@@ -51,7 +52,7 @@ class AuthTest extends TestCase
                 'success',
                 'message',
                 'data' => [
-                    'user' => ['id', 'name', 'username', 'email', 'code_customer', 'is_active'],
+                    'user' => ['id', 'name', 'username', 'email', 'code_customer', 'is_active', 'accessible_systems'],
                     'access_token',
                     'token_type',
                 ]
@@ -63,6 +64,7 @@ class AuthTest extends TestCase
                     'user' => [
                         'username' => 'activeuser',
                         'code_customer' => 'DUMMY001',
+                        'accessible_systems' => ['distributor', 'ekspedisi'],
                     ]
                 ]
             ]);
