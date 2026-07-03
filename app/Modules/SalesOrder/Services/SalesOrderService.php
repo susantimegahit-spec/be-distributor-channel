@@ -1229,14 +1229,10 @@ class SalesOrderService
      */
     public function syncAllPendingOrders(): array
     {
-        // Get up to 1000 orders that are integrated but not fully closed with A/R Invoice from the past 1 month
+        // Get up to 1000 orders that are integrated, not ARRIVED, and do not have delivery_date filled yet, from the past 1 month
         $orders = SalesOrder::whereNotNull('sap_doc_num')
-            ->where(function ($query) {
-                $query->whereNull('sap_status')
-                      ->orWhere('sap_status', '!=', 'Closed')
-                      ->orWhereNull('sap_last_doc_type')
-                      ->orWhere('sap_last_doc_type', '!=', 'AR');
-            })
+            ->where('status', '!=', 'ARRIVED')
+            ->whereNull('delivery_date')
             ->where('created_at', '>=', now()->subMonth())
             ->limit(1000)
             ->get();
