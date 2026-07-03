@@ -609,4 +609,31 @@ class SalesOrderController extends Controller
             return $this->errorResponse($e->getMessage(), [], 400);
         }
     }
+
+    /**
+     * Mark a sales order as arrived.
+     *
+     * @param  Request  $request
+     * @param  int  $id
+     * @return JsonResponse
+     */
+    public function markArrived(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $distributorId = null;
+
+        // Restriction: if user is a distributor, restrict to their own ID
+        if ($user->code_customer) {
+            $distributor = Distributor::where('code_customer', $user->code_customer)->first();
+            $distributorId = $distributor?->id;
+        }
+
+        try {
+            $result = $this->salesOrderService->markAsArrived($id, $distributorId);
+
+            return $this->successResponse($result['data'], $result['message']);
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), [], 400);
+        }
+    }
 }

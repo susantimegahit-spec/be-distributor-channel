@@ -81,7 +81,8 @@ class SyncSapOrderStatusTest extends TestCase
                         'NOSO' => '260130002',
                         'StatusOrder' => 'open',
                         'Nomor' => '260130002',
-                        'Doc' => 'AR'
+                        'Doc' => 'DO',
+                        'Tanggal' => '20260102'
                     ]
                 ]
             ], 200)
@@ -92,12 +93,14 @@ class SyncSapOrderStatusTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJsonPath('success', true);
+        $response->assertJsonPath('message', 'SAP status synchronized successfully.');
 
         $order->refresh();
         $this->assertEquals('open', $order->sap_status);
-        $this->assertEquals('AR', $order->sap_last_doc_type);
+        $this->assertEquals('DO', $order->sap_last_doc_type);
         $this->assertEquals('260130002', $order->sap_last_doc_num);
-        $this->assertEquals('ARRIVED', $order->status);
+        $this->assertEquals('DELIVERY', $order->status);
+        $this->assertEquals('2026-01-02 00:00:00', $order->delivery_date->format('Y-m-d H:i:s'));
     }
 
     public function test_distributor_cannot_sync_others_order_status(): void
@@ -119,7 +122,7 @@ class SyncSapOrderStatusTest extends TestCase
 
         $response->assertStatus(400);
         $response->assertJsonPath('success', false);
-        $response->assertJsonPath('message', 'Sales order tidak ditemukan.');
+        $response->assertJsonPath('message', 'Sales order not found.');
     }
 
     public function test_batch_sync_artisan_command(): void
@@ -155,13 +158,15 @@ class SyncSapOrderStatusTest extends TestCase
                         'NOSO' => '260130004',
                         'StatusOrder' => 'open',
                         'Nomor' => 'DO-9999',
-                        'Doc' => 'DO'
+                        'Doc' => 'DO',
+                        'Tanggal' => '20260110'
                     ],
                     [
                         'NOSO' => '260130005',
                         'StatusOrder' => 'Closed',
                         'Nomor' => 'INV-8888',
-                        'Doc' => 'AR'
+                        'Doc' => 'AR',
+                        'Tanggal' => '20260115'
                     ]
                 ]
             ], 200)
@@ -169,7 +174,7 @@ class SyncSapOrderStatusTest extends TestCase
 
         $this->artisan('sap:sync-order-status')
             ->expectsOutput('Starting SAP status synchronization...')
-            ->expectsOutput('Batch sinkronisasi status selesai. Total updated: 2')
+            ->expectsOutput('Batch status synchronization completed. Total updated: 2')
             ->assertExitCode(0);
 
         $order1->refresh();
@@ -177,12 +182,15 @@ class SyncSapOrderStatusTest extends TestCase
         $this->assertEquals('DO', $order1->sap_last_doc_type);
         $this->assertEquals('DO-9999', $order1->sap_last_doc_num);
         $this->assertEquals('DELIVERY', $order1->status);
+        $this->assertEquals('2026-01-10 00:00:00', $order1->delivery_date->format('Y-m-d H:i:s'));
 
         $order2->refresh();
         $this->assertEquals('Closed', $order2->sap_status);
         $this->assertEquals('AR', $order2->sap_last_doc_type);
         $this->assertEquals('INV-8888', $order2->sap_last_doc_num);
-        $this->assertEquals('ARRIVED', $order2->status);
+        // Should remain ORDER_APPROVED because AR is no longer mapped to ARRIVED
+        $this->assertEquals('ORDER_APPROVED', $order2->status);
+        $this->assertNull($order2->arrived_date);
     }
 
     public function test_sync_all_route(): void
@@ -218,13 +226,15 @@ class SyncSapOrderStatusTest extends TestCase
                         'NOSO' => '260130104',
                         'StatusOrder' => 'open',
                         'Nomor' => 'DO-9999',
-                        'Doc' => 'DO'
+                        'Doc' => 'DO',
+                        'Tanggal' => '20260120'
                     ],
                     [
                         'NOSO' => '260130105',
                         'StatusOrder' => 'Closed',
                         'Nomor' => 'INV-8888',
-                        'Doc' => 'AR'
+                        'Doc' => 'AR',
+                        'Tanggal' => '20260125'
                     ]
                 ]
             ], 200)
@@ -241,11 +251,60 @@ class SyncSapOrderStatusTest extends TestCase
         $this->assertEquals('DO', $order1->sap_last_doc_type);
         $this->assertEquals('DO-9999', $order1->sap_last_doc_num);
         $this->assertEquals('DELIVERY', $order1->status);
+        $this->assertEquals('2026-01-20 00:00:00', $order1->delivery_date->format('Y-m-d H:i:s'));
 
         $order2->refresh();
         $this->assertEquals('Closed', $order2->sap_status);
         $this->assertEquals('AR', $order2->sap_last_doc_type);
         $this->assertEquals('INV-8888', $order2->sap_last_doc_num);
-        $this->assertEquals('ARRIVED', $order2->status);
+        // Should remain ORDER_APPROVED because AR is no longer mapped to ARRIVED
+        $this->assertEquals('ORDER_APPROVED', $order2->status);
+        $this->assertNull($order2->arrived_date);
+    }
+
+    public function test_distributor_can_mark_order_as_arrived(): void
+    {
+        $order = SalesOrder::create([
+            'order_no' => 'SO-TEST-200',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => $this->distributor->code_customer,
+            'customer_name' => $this->distributor->name,
+            'doc_date' => now(),
+            'status' => 'DELIVERY',
+            'sap_doc_num' => '260130200',
+            'approval_id' => 6,
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->postJson("/api/distributor-channel/v1/sales-orders/{$order->id}/arrive");
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('success', true);
+        $response->assertJsonPath('message', 'Order status marked as arrived successfully.');
+
+        $order->refresh();
+        $this->assertEquals('ARRIVED', $order->status);
+        $this->assertNotNull($order->arrived_date);
+    }
+
+    public function test_distributor_cannot_mark_non_delivery_order_as_arrived(): void
+    {
+        $order = SalesOrder::create([
+            'order_no' => 'SO-TEST-201',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => $this->distributor->code_customer,
+            'customer_name' => $this->distributor->name,
+            'doc_date' => now(),
+            'status' => 'ORDER_APPROVED',
+            'sap_doc_num' => '260130201',
+            'approval_id' => 6,
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->postJson("/api/distributor-channel/v1/sales-orders/{$order->id}/arrive");
+
+        $response->assertStatus(400);
+        $response->assertJsonPath('success', false);
+        $response->assertJsonPath('message', 'Order status must be DELIVERY to be updated to ARRIVED.');
     }
 }

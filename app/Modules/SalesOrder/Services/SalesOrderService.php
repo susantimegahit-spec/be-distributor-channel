@@ -1144,11 +1144,11 @@ class SalesOrderService
         $salesOrder = $this->getOrderById($salesOrderId, $distributorId);
 
         if (!$salesOrder) {
-            throw new Exception('Sales order tidak ditemukan.');
+            throw new Exception('Sales order not found.');
         }
 
         if (empty($salesOrder->sap_doc_num)) {
-            throw new Exception('Sales order belum terintegrasi ke SAP.');
+            throw new Exception('Sales order has not been integrated with SAP.');
         }
 
         try {
@@ -1157,12 +1157,12 @@ class SalesOrderService
             ]);
 
             if (!$response->successful()) {
-                throw new Exception('Gagal menghubungi API SAP Status.');
+                throw new Exception('Failed to connect to SAP Status API.');
             }
 
             $body = $response->json();
             if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
-                throw new Exception('API SAP Status mengembalikan error: ' . ($body['Message'] ?? 'Unknown error'));
+                throw new Exception('SAP Status API returned an error: ' . ($body['Message'] ?? 'Unknown error'));
             }
 
             $results = $body['Result'] ?? [];
@@ -1171,13 +1171,27 @@ class SalesOrderService
             if (!$sapData) {
                 return [
                     'success' => false,
-                    'message' => 'Status SO tidak ditemukan di SAP.',
+                    'message' => 'SO status not found in SAP.',
                 ];
             }
 
             $sapStatus = $sapData['StatusOrder'] ?? '';
             $docType = $sapData['Doc'] ?? '';
             $docNum = $sapData['Nomor'] ?? '';
+            $tanggalRaw = $sapData['Tanggal'] ?? null;
+
+            $parsedDate = now();
+            if ($tanggalRaw) {
+                try {
+                    $parsedDate = \Carbon\Carbon::createFromFormat('Ymd', $tanggalRaw)->startOfDay();
+                } catch (\Exception $e) {
+                    try {
+                        $parsedDate = \Carbon\Carbon::parse($tanggalRaw)->startOfDay();
+                    } catch (\Exception $ex) {
+                        $parsedDate = now();
+                    }
+                }
+            }
 
             $updateData = [
                 'sap_status' => $sapStatus,
@@ -1190,12 +1204,7 @@ class SalesOrderService
             if (strcasecmp($docType, 'DO') === 0 && strcasecmp($sapStatus, 'open') === 0) {
                 $updateData['status'] = 'DELIVERY';
                 if (empty($salesOrder->delivery_date)) {
-                    $updateData['delivery_date'] = now();
-                }
-            } elseif (strcasecmp($docType, 'AR') === 0 && (strcasecmp($sapStatus, 'open') === 0 || strcasecmp($sapStatus, 'Closed') === 0)) {
-                $updateData['status'] = 'ARRIVED';
-                if (empty($salesOrder->arrived_date)) {
-                    $updateData['arrived_date'] = now();
+                    $updateData['delivery_date'] = $parsedDate;
                 }
             }
 
@@ -1203,7 +1212,7 @@ class SalesOrderService
 
             return [
                 'success' => true,
-                'message' => 'Status SAP berhasil disinkronisasi.',
+                'message' => 'SAP status synchronized successfully.',
                 'data' => $salesOrder
             ];
 
@@ -1235,7 +1244,7 @@ class SalesOrderService
         if ($orders->isEmpty()) {
             return [
                 'success' => true,
-                'message' => 'Tidak ada order yang perlu disinkronkan.',
+                'message' => 'No orders need synchronization.',
                 'updated_count' => 0
             ];
         }
@@ -1249,12 +1258,12 @@ class SalesOrderService
             ]);
 
             if (!$response->successful()) {
-                throw new Exception('Gagal menghubungi API SAP Status.');
+                throw new Exception('Failed to connect to SAP Status API.');
             }
 
             $body = $response->json();
             if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
-                throw new Exception('API SAP Status mengembalikan error: ' . ($body['Message'] ?? 'Unknown error'));
+                throw new Exception('SAP Status API returned an error: ' . ($body['Message'] ?? 'Unknown error'));
             }
 
             $results = $body['Result'] ?? [];
@@ -1269,6 +1278,20 @@ class SalesOrderService
                     $sapStatus = $sapData['StatusOrder'] ?? '';
                     $docType = $sapData['Doc'] ?? '';
                     $docNum = $sapData['Nomor'] ?? '';
+                    $tanggalRaw = $sapData['Tanggal'] ?? null;
+
+                    $parsedDate = now();
+                    if ($tanggalRaw) {
+                        try {
+                            $parsedDate = \Carbon\Carbon::createFromFormat('Ymd', $tanggalRaw)->startOfDay();
+                        } catch (\Exception $e) {
+                            try {
+                                $parsedDate = \Carbon\Carbon::parse($tanggalRaw)->startOfDay();
+                            } catch (\Exception $ex) {
+                                $parsedDate = now();
+                            }
+                        }
+                    }
 
                     $updateData = [
                         'sap_status' => $sapStatus,
@@ -1281,12 +1304,7 @@ class SalesOrderService
                     if (strcasecmp($docType, 'DO') === 0 && strcasecmp($sapStatus, 'open') === 0) {
                         $updateData['status'] = 'DELIVERY';
                         if (empty($order->delivery_date)) {
-                            $updateData['delivery_date'] = now();
-                        }
-                    } elseif (strcasecmp($docType, 'AR') === 0 && (strcasecmp($sapStatus, 'open') === 0 || strcasecmp($sapStatus, 'Closed') === 0)) {
-                        $updateData['status'] = 'ARRIVED';
-                        if (empty($order->arrived_date)) {
-                            $updateData['arrived_date'] = now();
+                            $updateData['delivery_date'] = $parsedDate;
                         }
                     }
 
@@ -1297,7 +1315,7 @@ class SalesOrderService
 
             return [
                 'success' => true,
-                'message' => 'Batch sinkronisasi status selesai.',
+                'message' => 'Batch status synchronization completed.',
                 'updated_count' => $updatedCount
             ];
 
@@ -1305,9 +1323,41 @@ class SalesOrderService
             \Illuminate\Support\Facades\Log::error("Failed to batch sync SO statuses from SAP: " . $e->getMessage());
             return [
                 'success' => false,
-                'message' => 'Gagal melakukan sinkronisasi batch: ' . $e->getMessage(),
+                'message' => 'Failed to run batch synchronization: ' . $e->getMessage(),
                 'updated_count' => 0
             ];
         }
+    }
+
+    /**
+     * Mark a sales order status as ARRIVED.
+     *
+     * @param  int  $salesOrderId
+     * @param  int|null  $distributorId
+     * @return array
+     * @throws Exception
+     */
+    public function markAsArrived(int $salesOrderId, ?int $distributorId = null): array
+    {
+        $salesOrder = $this->getOrderById($salesOrderId, $distributorId);
+
+        if (!$salesOrder) {
+            throw new Exception('Sales order not found.');
+        }
+
+        if ($salesOrder->status !== 'DELIVERY') {
+            throw new Exception('Order status must be DELIVERY to be updated to ARRIVED.');
+        }
+
+        $salesOrder->update([
+            'status' => 'ARRIVED',
+            'arrived_date' => now(),
+        ]);
+
+        return [
+            'success' => true,
+            'message' => 'Order status marked as arrived successfully.',
+            'data' => $salesOrder
+        ];
     }
 }

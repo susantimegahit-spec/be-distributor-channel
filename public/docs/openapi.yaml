@@ -2066,7 +2066,7 @@ paths:
           description: ID dari sales order yang ingin disinkronisasi
       responses:
         '200':
-          description: Status SAP berhasil disinkronisasi
+          description: SAP status synchronized successfully
           content:
             application/json:
               schema:
@@ -2077,11 +2077,55 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: Status SAP berhasil disinkronisasi.
+                    example: SAP status synchronized successfully.
                   data:
                     $ref: '#/components/schemas/SalesOrder'
         '400':
           description: Gagal sinkronisasi status SAP (misal data SO tidak ditemukan di SAP, atau belum terintegrasi)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-orders/{id}/arrive:
+    post:
+      summary: Mark sales order as arrived (order completed)
+      description: Mengubah status sales order dari DELIVERY menjadi ARRIVED secara manual oleh distributor (pesanan selesai).
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order yang ingin diubah statusnya menjadi ARRIVED
+      responses:
+        '200':
+          description: Order status marked as arrived successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Order status marked as arrived successfully.
+                  data:
+                    $ref: '#/components/schemas/SalesOrder'
+        '400':
+          description: Gagal mengubah status (misal status order bukan DELIVERY)
           content:
             application/json:
               schema:
@@ -2101,7 +2145,7 @@ paths:
         - Sales Orders
       responses:
         '200':
-          description: Batch sinkronisasi status selesai
+          description: Batch status synchronization completed
           content:
             application/json:
               schema:
@@ -2112,7 +2156,7 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: Batch sinkronisasi status selesai.
+                    example: Batch status synchronization completed.
                   data:
                     type: object
                     properties:
