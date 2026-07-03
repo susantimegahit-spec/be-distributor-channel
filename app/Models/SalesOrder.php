@@ -60,6 +60,7 @@ class SalesOrder extends Model
         'reject_reason',
         'created_by',
         'updated_by',
+        'sales_pic_id',
     ];
 
     protected $casts = [
@@ -167,6 +168,14 @@ class SalesOrder extends Model
     public function approval(): BelongsTo
     {
         return $this->belongsTo(MasterApproval::class, 'approval_id');
+    }
+
+    /**
+     * Get the Admin Sales user who approved/handled this sales order.
+     */
+    public function salesPic(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'sales_pic_id');
     }
 
     /**

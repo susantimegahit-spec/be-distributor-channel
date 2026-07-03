@@ -465,6 +465,8 @@ class SalesOrderService
             'Address2' => $salesOrder->address2,
             'Comments' => $salesOrder->comments,
             'IdDiskon' => $salesOrder->id_discount,
+            'UserId' => $salesOrder->sales_pic_id ? (int)$salesOrder->sales_pic_id : null,
+            'AddonId' => 2,
             'Series' => $salesOrder->series ? (int)$salesOrder->series : null,
             'DocTotal' => $salesOrder->doc_total_after_discount,
             'Lines' => $salesOrder->details->map(function ($line) {
@@ -820,11 +822,17 @@ class SalesOrderService
 
         $nextStatus = $statusMap[$nextStage] ?? 'ORDER_APPROVED';
 
-        $salesOrder->update([
+        $updateAttributes = [
             'status' => $nextStatus,
             'approval_id' => $nextStage,
             'reject_reason' => null, // Clear reject reason on approval
-        ]);
+        ];
+
+        if ($currentStage === SalesOrder::STAGE_WAITING_ADMIN_SALES) {
+            $updateAttributes['sales_pic_id'] = $userId;
+        }
+
+        $salesOrder->update($updateAttributes);
 
         \App\Models\SalesOrderApprovalHistory::create([
             'sales_order_id' => $salesOrder->id,
@@ -1029,6 +1037,7 @@ class SalesOrderService
             'status' => 'WAITING_FINANCE',
             'approval_id' => SalesOrder::STAGE_WAITING_FINANCE,
             'reject_reason' => null, // Clear reject reason
+            'sales_pic_id' => $userId,
         ]);
 
         \App\Models\SalesOrderApprovalHistory::create([

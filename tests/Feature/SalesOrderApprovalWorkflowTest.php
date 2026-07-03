@@ -197,6 +197,7 @@ class SalesOrderApprovalWorkflowTest extends TestCase
             'status' => 'WAITING_FINANCE',
             'approval_id' => SalesOrder::STAGE_WAITING_FINANCE,
             'doc_total' => 90000, // 10% discount applied
+            'sales_pic_id' => $this->adminSalesUser->id,
         ]);
 
         // 6. Approve by Finance -> Transitions to COMPLETED & posts to SAP
@@ -212,7 +213,14 @@ class SalesOrderApprovalWorkflowTest extends TestCase
             'approval_id' => SalesOrder::STAGE_COMPLETED,
             'sap_doc_entry' => 1234,
             'sap_doc_num' => 'SO1234',
+            'sales_pic_id' => $this->adminSalesUser->id,
         ]);
+
+        Http::assertSent(function (\Illuminate\Http\Client\Request $request) {
+            return $request->url() === 'http://103.18.133.187:3100/api/addso' &&
+                $request['UserId'] === $this->adminSalesUser->id &&
+                $request['AddonId'] === 2;
+        });
     }
 
     /**
