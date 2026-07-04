@@ -4991,6 +4991,10 @@ components:
         description:
           type: string
           example: Deskripsi...
+        code_customer:
+          type: string
+          nullable: true
+          example: C110000411
         items:
           type: array
           items:
