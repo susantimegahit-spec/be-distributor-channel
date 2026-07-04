@@ -5058,6 +5058,22 @@ components:
           type: string
           format: date-time
           example: "2026-06-13T11:32:00.000000Z"
+        code_customer:
+          type: string
+          nullable: true
+          example: C110000411
+        customer_name:
+          type: string
+          nullable: true
+          example: PT XYZ
+        name_customer:
+          type: string
+          nullable: true
+          example: PT XYZ
+        depo:
+          type: string
+          nullable: true
+          example: DEPO SURABAYA
         total_rows:
           type: integer
           example: 105
@@ -5162,6 +5178,22 @@ components:
         customer_code:
           type: string
           example: C110000411
+        code_customer:
+          type: string
+          nullable: true
+          example: C110000411
+        customer_name:
+          type: string
+          nullable: true
+          example: PT XYZ
+        name_customer:
+          type: string
+          nullable: true
+          example: PT XYZ
+        depo:
+          type: string
+          nullable: true
+          example: DEPO SURABAYA
         amount:
           type: number
           example: 250000.00

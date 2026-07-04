@@ -58,6 +58,11 @@ class UploadRepository implements UploadRepositoryInterface
         }
 
         $query = DB::table('trx_program_upload_batch as b')
+            ->leftJoin('trx_program_upload as u', function ($join) {
+                $join->on('u.batch_id', '=', 'b.id')
+                     ->whereRaw('u.id = (SELECT MIN(id) FROM trx_program_upload WHERE batch_id = b.id)');
+            })
+            ->leftJoin('distributors as d', 'd.code_customer', '=', 'u.customer_code')
             ->select([
                 'b.id as batch_id',
                 'b.id',
@@ -65,6 +70,10 @@ class UploadRepository implements UploadRepositoryInterface
                 'b.file_name',
                 'b.uploaded_by',
                 'b.uploaded_at',
+                'd.code_customer as code_customer',
+                'd.name as customer_name',
+                'd.name as name_customer',
+                'd.depo as depo'
             ])
             ->selectSub($totalRowsQuery->selectRaw('COUNT(*)'), 'total_rows')
             ->selectSub($validRowsQuery->selectRaw('COUNT(*)'), 'valid_rows')

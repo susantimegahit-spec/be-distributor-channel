@@ -37,6 +37,7 @@ class ClaimMultipleCustomerFilterTest extends TestCase
         Distributor::create([
             'code_customer' => 'CUST01',
             'name' => 'Distributor 1',
+            'depo' => 'DEPO SURABAYA',
             'status' => 1,
         ]);
         $this->distributorUser1 = User::create([
@@ -52,6 +53,7 @@ class ClaimMultipleCustomerFilterTest extends TestCase
         Distributor::create([
             'code_customer' => 'CUST02',
             'name' => 'Distributor 2',
+            'depo' => 'DEPO JAKARTA',
             'status' => 1,
         ]);
         $this->distributorUser2 = User::create([
@@ -112,6 +114,10 @@ class ClaimMultipleCustomerFilterTest extends TestCase
         $this->assertCount(1, $response->json('data.data'));
         $this->assertEquals('B-001', $response->json('data.data.0.batch_no'));
         $this->assertEquals(1000, $response->json('data.data.0.total_diskon'));
+        $this->assertEquals('CUST01', $response->json('data.data.0.code_customer'));
+        $this->assertEquals('Distributor 1', $response->json('data.data.0.customer_name'));
+        $this->assertEquals('Distributor 1', $response->json('data.data.0.name_customer'));
+        $this->assertEquals('DEPO SURABAYA', $response->json('data.data.0.depo'));
 
         // Admin requests with customer_codes as comma-separated string
         $response = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
@@ -210,6 +216,10 @@ class ClaimMultipleCustomerFilterTest extends TestCase
         $response->assertStatus(200);
         $this->assertCount(1, $response->json('data.data'));
         $this->assertEquals('WD-001', $response->json('data.data.0.withdraw_no'));
+        $this->assertEquals('CUST01', $response->json('data.data.0.code_customer'));
+        $this->assertEquals('Distributor 1', $response->json('data.data.0.customer_name'));
+        $this->assertEquals('Distributor 1', $response->json('data.data.0.name_customer'));
+        $this->assertEquals('DEPO SURABAYA', $response->json('data.data.0.depo'));
     }
 
     public function test_reward_summary_multiple_customer_filter(): void

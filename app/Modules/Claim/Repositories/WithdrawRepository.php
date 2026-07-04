@@ -11,19 +11,27 @@ class WithdrawRepository implements WithdrawRepositoryInterface
      */
     public function getWithdrawsPaginated(array $filters, int $perPage = 15)
     {
-        $query = TrxProgramWithdraw::query();
+        $query = TrxProgramWithdraw::query()
+            ->leftJoin('distributors as d', 'd.code_customer', '=', 'trx_program_withdraw.customer_code')
+            ->select([
+                'trx_program_withdraw.*',
+                'd.code_customer as code_customer',
+                'd.name as customer_name',
+                'd.name as name_customer',
+                'd.depo as depo'
+            ]);
 
         if (!empty($filters['customer_codes'])) {
-            $query->whereIn('customer_code', $filters['customer_codes']);
+            $query->whereIn('trx_program_withdraw.customer_code', $filters['customer_codes']);
         } elseif (!empty($filters['customer_code'])) {
-            $query->where('customer_code', $filters['customer_code']);
+            $query->where('trx_program_withdraw.customer_code', $filters['customer_code']);
         }
 
         if (!empty($filters['status'])) {
-            $query->where('status', $filters['status']);
+            $query->where('trx_program_withdraw.status', $filters['status']);
         }
 
-        return $query->orderBy('created_at', 'desc')->paginate($perPage);
+        return $query->orderBy('trx_program_withdraw.created_at', 'desc')->paginate($perPage);
     }
 
     /**
