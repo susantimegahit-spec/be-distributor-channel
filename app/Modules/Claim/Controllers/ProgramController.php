@@ -38,7 +38,15 @@ class ProgramController extends Controller
     public function index(Request $request)
     {
         $filters = $request->only(['search', 'status']);
-        $programs = $this->programService->listPrograms($filters, $request->get('per_page', 15));
+        
+        if ($request->user() && $request->user()->code_customer) {
+            $filters['code_customer'] = $request->user()->code_customer;
+            $filters['include_general'] = true;
+        } elseif ($request->has('code_customer')) {
+            $filters['code_customer'] = $request->get('code_customer');
+        }
+
+        $programs = $this->programService->listPrograms($filters, (int)$request->get('per_page', 15));
         
         return $this->successResponse($programs, 'Daftar program promosi berhasil diambil.');
     }

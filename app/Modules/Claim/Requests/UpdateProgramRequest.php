@@ -26,6 +26,7 @@ class UpdateProgramRequest extends FormRequest
             'start_date' => 'required|date|date_format:Y-m-d',
             'end_date' => 'required|date|date_format:Y-m-d|after_or_equal:start_date',
             'description' => 'nullable|string',
+            'code_customer' => 'nullable|string|exists:distributors,code_customer',
             'items' => 'required|array|min:1',
             'items.*' => 'required|string|exists:items,item_code',
             'strata' => 'required|array|min:1',

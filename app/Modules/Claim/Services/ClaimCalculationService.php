@@ -39,13 +39,18 @@ class ClaimCalculationService
                 continue;
             }
 
-            // 3. Find Active Program for item_id & transaction_date
+            // 3. Find Active Program for item_id & transaction_date & code_customer
             $program = MstProgram::where('status', 'ACTIVE')
                 ->whereDate('start_date', '<=', $upload->transaction_date)
                 ->whereDate('end_date', '>=', $upload->transaction_date)
                 ->whereHas('items', function ($query) use ($item) {
                     $query->where('items.id', $item->id);
                 })
+                ->where(function ($query) use ($upload) {
+                    $query->where('code_customer', $upload->customer_code)
+                          ->orWhereNull('code_customer');
+                })
+                ->orderByRaw('CASE WHEN code_customer IS NULL THEN 1 ELSE 0 END ASC')
                 ->first();
 
             if (!$program) {

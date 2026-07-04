@@ -26,6 +26,15 @@ class ProgramRepository implements ProgramRepositoryInterface
             $query->where('status', $filters['status']);
         }
 
+        if (isset($filters['code_customer'])) {
+            $query->where(function ($q) use ($filters) {
+                $q->where('code_customer', $filters['code_customer']);
+                if (!empty($filters['include_general'])) {
+                    $q->orWhereNull('code_customer');
+                }
+            });
+        }
+
         return $query->orderBy('created_at', 'desc')->paginate($perPage);
     }
 
@@ -61,6 +70,7 @@ class ProgramRepository implements ProgramRepositoryInterface
                 'description' => $data['description'] ?? null,
                 'status' => $data['status'] ?? 'ACTIVE',
                 'created_by' => $data['created_by'] ?? null,
+                'code_customer' => $data['code_customer'] ?? null,
             ]);
 
             if (!empty($data['items'])) {
@@ -98,6 +108,7 @@ class ProgramRepository implements ProgramRepositoryInterface
                 'end_date' => $data['end_date'],
                 'description' => $data['description'] ?? null,
                 'status' => $data['status'] ?? 'ACTIVE',
+                'code_customer' => $data['code_customer'] ?? null,
             ];
 
             if (!empty($data['program_code'])) {

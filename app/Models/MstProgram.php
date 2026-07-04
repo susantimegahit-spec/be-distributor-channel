@@ -31,6 +31,7 @@ class MstProgram extends Model
         'description',
         'status',
         'created_by',
+        'code_customer',
     ];
 
     /**
