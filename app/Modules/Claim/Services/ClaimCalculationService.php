@@ -47,7 +47,11 @@ class ClaimCalculationService
                     $query->where('items.id', $item->id);
                 })
                 ->where(function ($query) use ($upload) {
-                    $query->where('code_customer', $upload->customer_code)
+                    $c = $upload->customer_code;
+                    $query->where('code_customer', $c)
+                          ->orWhere('code_customer', 'like', $c . ',%')
+                          ->orWhere('code_customer', 'like', '%,' . $c)
+                          ->orWhere('code_customer', 'like', '%,' . $c . ',%')
                           ->orWhereNull('code_customer');
                 })
                 ->orderByRaw('CASE WHEN code_customer IS NULL THEN 1 ELSE 0 END ASC')

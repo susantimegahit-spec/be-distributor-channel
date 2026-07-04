@@ -14,6 +14,23 @@ class UpdateProgramRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation()
+    {
+        if ($this->has('code_customer')) {
+            $value = $this->input('code_customer');
+            if (is_array($value)) {
+                $this->merge([
+                    'code_customer' => implode(',', array_filter(array_map('trim', $value)))
+                ]);
+            } elseif (is_string($value)) {
+                $normalized = implode(',', array_filter(array_map('trim', explode(',', $value))));
+                $this->merge([
+                    'code_customer' => $normalized ?: null
+                ]);
+            }
+        }
+    }
+
     /**
      * Get the validation rules that apply to the request.
      */
@@ -26,7 +43,20 @@ class UpdateProgramRequest extends FormRequest
             'start_date' => 'required|date|date_format:Y-m-d',
             'end_date' => 'required|date|date_format:Y-m-d|after_or_equal:start_date',
             'description' => 'nullable|string',
-            'code_customer' => 'nullable|string|exists:distributors,code_customer',
+            'code_customer' => [
+                'nullable',
+                'string',
+                function ($attribute, $value, $fail) {
+                    $codes = array_filter(array_map('trim', explode(',', $value)));
+                    if (empty($codes)) {
+                        return;
+                    }
+                    $existsCount = \DB::table('distributors')->whereIn('code_customer', $codes)->count();
+                    if ($existsCount !== count($codes)) {
+                        $fail('Satu atau lebih kode customer tidak valid.');
+                    }
+                }
+            ],
             'items' => 'required|array|min:1',
             'items.*' => 'required|string|exists:items,item_code',
             'strata' => 'required|array|min:1',

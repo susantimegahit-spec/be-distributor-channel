@@ -27,8 +27,12 @@ class ProgramRepository implements ProgramRepositoryInterface
         }
 
         if (isset($filters['code_customer'])) {
-            $query->where(function ($q) use ($filters) {
-                $q->where('code_customer', $filters['code_customer']);
+            $customerCode = $filters['code_customer'];
+            $query->where(function ($q) use ($customerCode, $filters) {
+                $q->where('code_customer', $customerCode)
+                  ->orWhere('code_customer', 'like', $customerCode . ',%')
+                  ->orWhere('code_customer', 'like', '%,' . $customerCode)
+                  ->orWhere('code_customer', 'like', '%,' . $customerCode . ',%');
                 if (!empty($filters['include_general'])) {
                     $q->orWhereNull('code_customer');
                 }

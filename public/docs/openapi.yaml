@@ -4920,7 +4920,8 @@ components:
         code_customer:
           type: string
           nullable: true
-          example: C110000411
+          description: Kode customer/distributor (bisa berupa multiple kode yang dipisahkan koma, misal "CUST01,CUST02")
+          example: C110000411,CUST01
         item_names:
           type: string
           example: "TOP 250 M @ 10 KG / BAL, KOP 250 M @ 10 KG / BAL"
@@ -4994,7 +4995,8 @@ components:
         code_customer:
           type: string
           nullable: true
-          example: C110000411
+          description: Kode customer/distributor (bisa berupa array atau string yang dipisahkan koma, misal "CUST01,CUST02")
+          example: C110000411,CUST01
         items:
           type: array
           items:
