@@ -13,7 +13,9 @@ class WithdrawRepository implements WithdrawRepositoryInterface
     {
         $query = TrxProgramWithdraw::query();
 
-        if (!empty($filters['customer_code'])) {
+        if (!empty($filters['customer_codes'])) {
+            $query->whereIn('customer_code', $filters['customer_codes']);
+        } elseif (!empty($filters['customer_code'])) {
             $query->where('customer_code', $filters['customer_code']);
         }
 

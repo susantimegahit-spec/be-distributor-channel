@@ -75,13 +75,18 @@ class ResultRepository implements ResultRepositoryInterface
     /**
      * Get reward summary statistics (claimed, verified, withdrawn, balance).
      */
-    public function getRewardSummary(string $customerCode = null)
+    public function getRewardSummary($customerCodes = null)
     {
+        $codes = [];
+        if ($customerCodes) {
+            $codes = is_array($customerCodes) ? $customerCodes : [$customerCodes];
+        }
+
         $queryResult = DB::table('trx_program_result')
             ->where('status', 'VALID_PROGRAM');
 
-        if ($customerCode) {
-            $queryResult->where('customer_code', $customerCode);
+        if (!empty($codes)) {
+            $queryResult->whereIn('customer_code', $codes);
         }
 
         $totalClaimed = $queryResult->sum('total_diskon');
@@ -93,8 +98,8 @@ class ResultRepository implements ResultRepositoryInterface
             ->whereNull('deleted_at')
             ->whereIn('status', ['PENDING', 'APPROVED', 'COMPLETED']);
 
-        if ($customerCode) {
-            $queryWithdraw->where('customer_code', $customerCode);
+        if (!empty($codes)) {
+            $queryWithdraw->whereIn('customer_code', $codes);
         }
 
         $totalWithdrawn = $queryWithdraw->sum('amount');

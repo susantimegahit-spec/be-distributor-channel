@@ -40,8 +40,8 @@ interface ResultRepositoryInterface
     /**
      * Get reward summary statistics (claimed, verified, withdrawn, balance).
      *
-     * @param string|null $customerCode
+     * @param array|string|null $customerCodes
      * @return array
      */
-    public function getRewardSummary(string $customerCode = null);
+    public function getRewardSummary($customerCodes = null);
 }

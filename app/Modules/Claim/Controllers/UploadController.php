@@ -52,7 +52,21 @@ class UploadController extends Controller
      */
     public function getBatches(Request $request)
     {
-        $batches = $this->uploadService->listBatches($request->get('per_page', 15));
+        $customerCodes = [];
+        if ($request->user() && $request->user()->code_customer) {
+            $customerCodes = [$request->user()->code_customer];
+        } else {
+            $input = $request->get('customer_codes') ?? $request->get('customer_code');
+            if ($input) {
+                if (is_array($input)) {
+                    $customerCodes = $input;
+                } else {
+                    $customerCodes = array_filter(array_map('trim', explode(',', $input)));
+                }
+            }
+        }
+
+        $batches = $this->uploadService->listBatches($customerCodes, (int)$request->get('per_page', 15));
         
         return $this->successResponse($batches, 'Daftar batch upload berhasil diambil.');
     }

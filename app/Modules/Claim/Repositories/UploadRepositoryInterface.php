@@ -23,10 +23,11 @@ interface UploadRepositoryInterface
     /**
      * Get paginated list of batches.
      *
+     * @param array $customerCodes
      * @param int $perPage
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getBatchesPaginated(int $perPage = 15);
+    public function getBatchesPaginated(array $customerCodes = [], int $perPage = 15);
 
     /**
      * Find a batch by ID with calculated summary stats.

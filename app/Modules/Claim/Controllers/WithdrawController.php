@@ -47,12 +47,19 @@ class WithdrawController extends Controller
 
         // Scope by distributor user if applicable
         if ($request->user() && $request->user()->code_customer) {
-            $filters['customer_code'] = $request->user()->code_customer;
-        } elseif ($request->has('customer_code')) {
-            $filters['customer_code'] = $request->get('customer_code');
+            $filters['customer_codes'] = [$request->user()->code_customer];
+        } else {
+            $input = $request->get('customer_codes') ?? $request->get('customer_code');
+            if ($input) {
+                if (is_array($input)) {
+                    $filters['customer_codes'] = $input;
+                } else {
+                    $filters['customer_codes'] = array_filter(array_map('trim', explode(',', $input)));
+                }
+            }
         }
 
-        $withdraws = $this->withdrawRepository->getWithdrawsPaginated($filters, $request->get('per_page', 15));
+        $withdraws = $this->withdrawRepository->getWithdrawsPaginated($filters, (int)$request->get('per_page', 15));
 
         return $this->successResponse($withdraws, 'Daftar withdraw berhasil diambil.');
     }

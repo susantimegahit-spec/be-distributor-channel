@@ -104,14 +104,21 @@ class ResultController extends Controller
      */
     public function getSummary(Request $request)
     {
-        $customerCode = null;
+        $customerCodes = [];
         if ($request->user() && $request->user()->code_customer) {
-            $customerCode = $request->user()->code_customer;
-        } elseif ($request->has('customer_code')) {
-            $customerCode = $request->get('customer_code');
+            $customerCodes = [$request->user()->code_customer];
+        } else {
+            $input = $request->get('customer_codes') ?? $request->get('customer_code');
+            if ($input) {
+                if (is_array($input)) {
+                    $customerCodes = $input;
+                } else {
+                    $customerCodes = array_filter(array_map('trim', explode(',', $input)));
+                }
+            }
         }
 
-        $summary = $this->resultRepository->getRewardSummary($customerCode);
+        $summary = $this->resultRepository->getRewardSummary($customerCodes);
 
         return $this->successResponse($summary, 'Summary saldo reward berhasil diambil.');
     }

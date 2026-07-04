@@ -276,12 +276,13 @@ class UploadService
     /**
      * List paginated batches.
      *
+     * @param array $customerCodes
      * @param int $perPage
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function listBatches(int $perPage = 15)
+    public function listBatches(array $customerCodes = [], int $perPage = 15)
     {
-        return $this->uploadRepository->getBatchesPaginated($perPage);
+        return $this->uploadRepository->getBatchesPaginated($customerCodes, $perPage);
     }
 
     /**

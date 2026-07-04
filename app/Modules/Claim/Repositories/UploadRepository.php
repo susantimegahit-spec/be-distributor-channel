@@ -31,8 +31,32 @@ class UploadRepository implements UploadRepositoryInterface
     /**
      * Get paginated list of batches.
      */
-    public function getBatchesPaginated(int $perPage = 15)
+    public function getBatchesPaginated(array $customerCodes = [], int $perPage = 15)
     {
+        $totalRowsQuery = DB::table('trx_program_upload')
+            ->whereColumn('batch_id', 'b.id');
+
+        $validRowsQuery = DB::table('trx_program_result as r')
+            ->join('trx_program_upload as u', 'r.upload_id', '=', 'u.id')
+            ->whereColumn('u.batch_id', 'b.id')
+            ->where('r.status', 'VALID_PROGRAM');
+
+        $invalidRowsQuery = DB::table('trx_program_result as r')
+            ->join('trx_program_upload as u', 'r.upload_id', '=', 'u.id')
+            ->whereColumn('u.batch_id', 'b.id')
+            ->where('r.status', '!=', 'VALID_PROGRAM');
+
+        $totalDiskonQuery = DB::table('trx_program_result as r')
+            ->join('trx_program_upload as u', 'r.upload_id', '=', 'u.id')
+            ->whereColumn('u.batch_id', 'b.id');
+
+        if (!empty($customerCodes)) {
+            $totalRowsQuery->whereIn('customer_code', $customerCodes);
+            $validRowsQuery->whereIn('r.customer_code', $customerCodes);
+            $invalidRowsQuery->whereIn('r.customer_code', $customerCodes);
+            $totalDiskonQuery->whereIn('r.customer_code', $customerCodes);
+        }
+
         $query = DB::table('trx_program_upload_batch as b')
             ->select([
                 'b.id as batch_id',
@@ -41,12 +65,21 @@ class UploadRepository implements UploadRepositoryInterface
                 'b.file_name',
                 'b.uploaded_by',
                 'b.uploaded_at',
-                DB::raw('(SELECT COUNT(*) FROM trx_program_upload WHERE batch_id = b.id) as total_rows'),
-                DB::raw('(SELECT COUNT(*) FROM trx_program_result r JOIN trx_program_upload u ON r.upload_id = u.id WHERE u.batch_id = b.id AND r.status = \'VALID_PROGRAM\') as valid_rows'),
-                DB::raw('(SELECT COUNT(*) FROM trx_program_result r JOIN trx_program_upload u ON r.upload_id = u.id WHERE u.batch_id = b.id AND r.status != \'VALID_PROGRAM\') as invalid_rows'),
-                DB::raw('(SELECT COALESCE(SUM(r.total_diskon), 0) FROM trx_program_result r JOIN trx_program_upload u ON r.upload_id = u.id WHERE u.batch_id = b.id) as total_diskon'),
             ])
+            ->selectSub($totalRowsQuery->selectRaw('COUNT(*)'), 'total_rows')
+            ->selectSub($validRowsQuery->selectRaw('COUNT(*)'), 'valid_rows')
+            ->selectSub($invalidRowsQuery->selectRaw('COUNT(*)'), 'invalid_rows')
+            ->selectSub($totalDiskonQuery->selectRaw('COALESCE(SUM(r.total_diskon), 0)'), 'total_diskon')
             ->orderBy('b.uploaded_at', 'desc');
+
+        if (!empty($customerCodes)) {
+            $query->whereExists(function ($q) use ($customerCodes) {
+                $q->select(DB::raw(1))
+                    ->from('trx_program_upload')
+                    ->whereColumn('batch_id', 'b.id')
+                    ->whereIn('customer_code', $customerCodes);
+            });
+        }
 
         $paginator = $query->paginate($perPage);
 

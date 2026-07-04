@@ -2919,6 +2919,20 @@ paths:
       security:
         - BearerAuth: []
       parameters:
+        - name: customer_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter batch berdasarkan satu kode customer.
+        - name: customer_codes
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+          description: Filter batch berdasarkan beberapa kode customer (multiple).
         - name: per_page
           in: query
           required: false
@@ -3115,6 +3129,14 @@ paths:
           schema:
             type: string
           description: Filter berdasarkan kode customer (opsional jika login sebagai admin/sales).
+        - name: customer_codes
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+          description: Filter berdasarkan beberapa kode customer (multiple).
       responses:
         '200':
           description: Summary saldo reward berhasil diambil
@@ -3158,6 +3180,14 @@ paths:
           required: false
           schema:
             type: string
+        - name: customer_codes
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+          description: Filter berdasarkan beberapa kode customer (multiple).
         - name: per_page
           in: query
           required: false
