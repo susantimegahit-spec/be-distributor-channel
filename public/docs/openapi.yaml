@@ -1792,6 +1792,120 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/sales-orders/dashboard:
+    get:
+      summary: Get Sales Order Dashboard Summary
+      description: Mendapatkan data ringkasan dashboard penjualan bulanan, volume, status order, tren harian, produk terlaris, dan distributor terbaik (hanya admin). Jika login sebagai distributor, otomatis difilter khusus untuk distributor tersebut.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sukses mendapatkan data statistik dashboard
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Statistik dashboard sales order berhasil diambil."
+                  data:
+                    type: object
+                    properties:
+                      sales_summary:
+                        type: object
+                        properties:
+                          total_revenue_this_month:
+                            type: number
+                            example: 1500000.00
+                          total_volume_kg_this_month:
+                            type: number
+                            example: 1000.5
+                          total_orders_this_month:
+                            type: integer
+                            example: 15
+                      order_statuses:
+                        type: object
+                        properties:
+                          DRAFT:
+                            type: integer
+                            example: 0
+                          CREATED:
+                            type: integer
+                            example: 2
+                          WAITING_APPROVAL:
+                            type: integer
+                            example: 1
+                          APPROVED:
+                            type: integer
+                            example: 5
+                          DELIVERY:
+                            type: integer
+                            example: 3
+                          ARRIVED:
+                            type: integer
+                            example: 20
+                          REJECTED:
+                            type: integer
+                            example: 1
+                          FAILED:
+                            type: integer
+                            example: 0
+                      daily_sales_trend:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            date:
+                              type: string
+                              example: "2026-07-06"
+                            count:
+                              type: integer
+                              example: 3
+                            total:
+                              type: number
+                              example: 300000.00
+                      top_products:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            item_code:
+                              type: string
+                              example: "E65"
+                            item_name:
+                              type: string
+                              example: "TOP 250 M @ 10 KG / BAL"
+                            total_qty:
+                              type: number
+                              example: 50.0000
+                      top_distributors:
+                        type: array
+                        description: Hanya dikembalikan jika diakses oleh Admin.
+                        items:
+                          type: object
+                          properties:
+                            distributor_id:
+                              type: integer
+                              example: 1
+                            name:
+                              type: string
+                              example: "PT XYZ"
+                            total_spent:
+                              type: number
+                              example: 150000.00
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /v1/sales-orders:
     get:
       summary: List all sales orders

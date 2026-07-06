@@ -1365,4 +1365,15 @@ class SalesOrderService
             'data' => $salesOrder
         ];
     }
+
+    /**
+     * Get dashboard summary statistics.
+     *
+     * @param  int|null  $distributorId
+     * @return array
+     */
+    public function getDashboardSummary(?int $distributorId = null): array
+    {
+        return $this->salesOrderRepository->getDashboardSummary($distributorId);
+    }
 }

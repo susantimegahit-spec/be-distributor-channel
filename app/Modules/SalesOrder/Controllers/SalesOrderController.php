@@ -636,4 +636,26 @@ class SalesOrderController extends Controller
             return $this->errorResponse($e->getMessage(), [], 400);
         }
     }
+
+    /**
+     * Get sales order dashboard summary metrics.
+     *
+     * @param  Request  $request
+     * @return JsonResponse
+     */
+    public function dashboard(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $distributorId = null;
+
+        // If the user has a code_customer, restrict them to their own distributor data
+        if ($user->code_customer) {
+            $distributor = Distributor::where('code_customer', $user->code_customer)->first();
+            $distributorId = $distributor?->id;
+        }
+
+        $summary = $this->salesOrderService->getDashboardSummary($distributorId);
+
+        return $this->successResponse($summary, 'Statistik dashboard sales order berhasil diambil.');
+    }
 }

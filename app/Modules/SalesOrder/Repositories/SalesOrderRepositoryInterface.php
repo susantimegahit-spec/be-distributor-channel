@@ -47,4 +47,12 @@ interface SalesOrderRepositoryInterface
      * @return bool
      */
     public function delete(SalesOrder $salesOrder): bool;
+
+    /**
+     * Get dashboard summary statistics.
+     *
+     * @param  int|null  $distributorId
+     * @return array
+     */
+    public function getDashboardSummary(?int $distributorId = null): array;
 }
