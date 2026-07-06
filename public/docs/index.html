@@ -1,82 +1,375 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="id">
+
 <head>
-    <meta charset="UTF-8">
-    <title>PT Susanti Megah - Distributor Channel API Docs</title>
-    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
-    <link rel="icon" type="image/png" href="https://unpkg.com/swagger-ui-dist@5/favicon-32x32.png" sizes="32x32" />
-    <link rel="icon" type="image/png" href="https://unpkg.com/swagger-ui-dist@5/favicon-16x16.png" sizes="16x16" />
-    <style>
-        html {
-            box-sizing: border-box;
-            overflow: -moz-scrollbars-vertical;
-            overflow-y: scroll;
-        }
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>PT Susanti Megah - SM Connect Docs</title>
 
-        *, *:before, *:after {
-            box-sizing: inherit;
-        }
+  <!-- Import Google Fonts (Inter) -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
 
-        body {
-            margin: 0;
-            background: #fafafa;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        }
+  <!-- Import Stoplight Elements web component styles and scripts -->
+  <script src="https://unpkg.com/@stoplight/elements/web-components.min.js" defer></script>
+  <link rel="stylesheet" href="https://unpkg.com/@stoplight/elements/styles.min.css">
 
-        .header-bar {
-            background-color: #1a202c;
-            color: #ffffff;
-            padding: 15px 30px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+      background-color: #ffffff;
+    }
 
-        .header-bar h1 {
-            margin: 0;
-            font-size: 1.25rem;
-            font-weight: 700;
-            letter-spacing: 0.05em;
-        }
+    elements-api {
+      height: calc(100vh - 60px);
+    }
 
-        .header-bar span {
-            font-size: 0.875rem;
-            color: #cbd5e0;
-        }
-    </style>
+    /* Premium Header Bar matching Light Theme */
+    .header-bar {
+      background-color: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+      box-sizing: border-box;
+    }
+
+    .header-title-wrapper h1 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+      color: #0f172a;
+      letter-spacing: 0.05em;
+    }
+
+    .header-title-wrapper span {
+      font-size: 11px;
+      color: #3b82f6;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Premium Preloader Screen */
+    .loader-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: #ffffff;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.5s ease, visibility 0.5s ease;
+    }
+
+    .logo-area {
+      position: relative;
+      width: 80px;
+      height: 80px;
+      margin-bottom: 24px;
+    }
+
+    .pulse-ring {
+      border: 3px solid #3b82f6;
+      border-radius: 50%;
+      height: 80px;
+      width: 80px;
+      position: absolute;
+      left: 0;
+      top: 0;
+      animation: pulsate 1.5s ease-out infinite;
+      opacity: 0;
+    }
+
+    .pulse-dot {
+      background-color: #3b82f6;
+      border-radius: 50%;
+      height: 24px;
+      width: 24px;
+      position: absolute;
+      left: 28px;
+      top: 28px;
+      box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+    }
+
+    .loader-title {
+      color: #0f172a;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      margin-bottom: 6px;
+    }
+
+    .loader-subtitle {
+      color: #64748b;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 32px;
+      letter-spacing: 0.05em;
+    }
+
+    .loader-bar {
+      width: 240px;
+      height: 4px;
+      background-color: #f1f5f9;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .loader-progress {
+      width: 0%;
+      height: 100%;
+      background-color: #3b82f6;
+      animation: load 2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    @keyframes pulsate {
+      0% {
+        transform: scale(0.1, 0.1);
+        opacity: 0.0;
+      }
+
+      50% {
+        opacity: 1.0;
+      }
+
+      100% {
+        transform: scale(1.2, 1.2);
+        opacity: 0.0;
+      }
+    }
+
+    @keyframes load {
+      0% {
+        width: 0%;
+      }
+
+      60% {
+        width: 75%;
+      }
+
+      100% {
+        width: 100%;
+      }
+    }
+  </style>
 </head>
 
 <body>
-    <div class="header-bar">
-        <h1>PT SUSANTI MEGAH</h1>
-        <span>Distributor Channel API v1.0.0</span>
+
+  <!-- Loading Screen -->
+  <div id="loader" class="loader-container">
+    <div class="logo-area">
+      <div class="pulse-ring"></div>
+      <div class="pulse-dot"></div>
     </div>
+    <div class="loader-title">PT SUSANTI MEGAH</div>
+    <div class="loader-subtitle">IT Department - SM Connect API</div>
+    <div class="loader-bar">
+      <div class="loader-progress"></div>
+    </div>
+  </div>
 
-    <div id="swagger-ui"></div>
+  <!-- Header bar -->
+  <div class="header-bar">
+    <div class="header-title-wrapper">
+      <h1>PT SUSANTI MEGAH</h1>
+      <span>IT Department - SM Connect API</span>
+    </div>
+  </div>
 
-    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js" charset="UTF-8"></script>
-    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js" charset="UTF-8"></script>
-    <script>
-        window.onload = function() {
-            // Begin Swagger UI call region
-            const ui = SwaggerUIBundle({
-                url: "./openapi.yaml",
-                dom_id: '#swagger-ui',
-                deepLinking: true,
-                presets: [
-                    SwaggerUIBundle.presets.apis,
-                    SwaggerUIStandalonePreset
-                ],
-                plugins: [
-                    SwaggerUIBundle.plugins.DownloadUrl
-                ],
-                layout: "BaseLayout",
-                persistAuthorization: true
+  <!-- Stoplight Elements API Doc Component -->
+  <elements-api id="api-docs" apiDescriptionUrl="./openapi.yaml" router="hash" layout="sidebar" hideTryIt="false" />
+
+  <script>
+    // Function to inject custom branding and search bar into Stoplight's shadow DOM
+    function customizeStoplightBranding() {
+      const api = document.getElementById('api-docs');
+      if (!api || !api.shadowRoot) return;
+
+      // 1. Inject CSS to hide "Powered by Stoplight"
+      if (!api.shadowRoot.getElementById('custom-branding-style')) {
+        const style = document.createElement('style');
+        style.id = 'custom-branding-style';
+        style.textContent = `
+            /* Hide default branding links and classes */
+            a[href*="stoplight"],
+            a[href*="stoplight.io"],
+            .sl-powered-by,
+            div[class*="powered-by"],
+            div[class*="sl-py-3"] > a[href*="stoplight"] {
+              display: none !important;
+              opacity: 0 !important;
+              visibility: hidden !important;
+              height: 0 !important;
+              padding: 0 !important;
+              margin: 0 !important;
+            }
+            .sl-elements-api {
+              font-family: 'Inter', sans-serif !important;
+            }
+          `;
+        api.shadowRoot.appendChild(style);
+      }
+
+      // 2. Deep scan shadow DOM using JS to hide any residual branding links
+      const allAnchors = api.shadowRoot.querySelectorAll('a');
+      allAnchors.forEach(a => {
+        if (a.href.includes('stoplight.io') || a.href.includes('stoplight') || a.textContent.toLowerCase().includes('stoplight')) {
+          a.style.display = 'none';
+          a.style.opacity = '0';
+          a.style.height = '0';
+          a.style.padding = '0';
+
+          // Also hide its direct parent wrapper if it has no other content
+          const parent = a.parentElement;
+          if (parent && (parent.children.length === 1 || parent.textContent.trim().toLowerCase().includes('powered by'))) {
+            parent.style.display = 'none';
+            parent.style.opacity = '0';
+            parent.style.height = '0';
+            parent.style.padding = '0';
+          }
+        }
+      });
+
+      // 3. Locate navigation sidebar container
+      const sidebar = api.shadowRoot.querySelector('.sl-overflow-y-auto') || api.shadowRoot.querySelector('nav');
+      if (sidebar) {
+        // Append "Developed by IT Department" footer if not already present
+        if (!api.shadowRoot.getElementById('custom-sidebar-footer')) {
+          const footer = document.createElement('div');
+          footer.id = 'custom-sidebar-footer';
+          footer.style.padding = '20px 16px';
+          footer.style.borderTop = '1px solid #f1f5f9';
+          footer.style.fontSize = '11px';
+          footer.style.color = '#94a3b8';
+          footer.style.textAlign = 'center';
+          footer.style.fontWeight = '600';
+          footer.style.letterSpacing = '0.05em';
+          footer.innerHTML = 'DEVELOPED BY<br><span style="color: #64748b;">IT Department PT. Susanti Megah</span>';
+          sidebar.appendChild(footer);
+        }
+
+        // Inject Search Bar if not already present
+        if (!api.shadowRoot.getElementById('custom-sidebar-search-container')) {
+          const searchContainer = document.createElement('div');
+          searchContainer.id = 'custom-sidebar-search-container';
+          searchContainer.style.padding = '12px 16px';
+          searchContainer.style.borderBottom = '1px solid #f1f5f9';
+          searchContainer.style.backgroundColor = '#ffffff';
+          searchContainer.style.position = 'sticky';
+          searchContainer.style.top = '0';
+          searchContainer.style.zIndex = '10';
+          searchContainer.innerHTML = `
+              <input type="text" id="custom-sidebar-search" placeholder="Cari API..." style="
+                width: 100%;
+                padding: 8px 12px;
+                border: 1px solid #cbd5e1;
+                border-radius: 6px;
+                font-size: 13px;
+                font-family: 'Inter', sans-serif;
+                box-sizing: border-box;
+                outline: none;
+                transition: border-color 0.2s;
+              ">
+            `;
+
+          const searchInput = searchContainer.querySelector('#custom-sidebar-search');
+          searchInput.addEventListener('focus', () => {
+            searchInput.style.borderColor = '#3b82f6';
+          });
+          searchInput.addEventListener('blur', () => {
+            searchInput.style.borderColor = '#cbd5e1';
+          });
+
+          // Implement sidebar search filter logic
+          searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            const links = sidebar.querySelectorAll('a');
+
+            links.forEach(link => {
+              if (link.closest('#custom-sidebar-footer')) return;
+
+              const text = link.textContent.toLowerCase();
+              const href = link.getAttribute('href') || '';
+
+              if (query === '') {
+                link.style.display = '';
+                let parent = link.parentElement;
+                while (parent && parent !== sidebar) {
+                  if (parent.tagName === 'DIV') {
+                    parent.style.display = '';
+                  }
+                  parent = parent.parentElement;
+                }
+              } else {
+                if (text.includes(query) || href.toLowerCase().includes(query)) {
+                  link.style.display = '';
+                  let parent = link.parentElement;
+                  while (parent && parent !== sidebar) {
+                    if (parent.tagName === 'DIV') {
+                      parent.style.display = '';
+                    }
+                    parent = parent.parentElement;
+                  }
+                } else {
+                  link.style.display = 'none';
+                }
+              }
             });
-            // End Swagger UI call region
-            window.ui = ui;
-        };
-    </script>
+
+            // Hide empty tag sections when searching
+            if (query !== '') {
+              const divs = sidebar.querySelectorAll('div');
+              divs.forEach(div => {
+                if (div.querySelector('a') && !div.id && div !== searchContainer) {
+                  const total = div.querySelectorAll('a').length;
+                  const hidden = div.querySelectorAll('a[style*="display: none"]').length;
+                  if (total > 0 && total === hidden) {
+                    div.style.display = 'none';
+                  } else {
+                    div.style.display = '';
+                  }
+                }
+              });
+            }
+          });
+
+          // Insert search bar at the top of the sidebar
+          sidebar.insertBefore(searchContainer, sidebar.firstChild);
+        }
+      }
+    }
+
+    // Check shadow DOM rendering on interval
+    const customizeInterval = setInterval(() => {
+      customizeStoplightBranding();
+    }, 100);
+
+    // Stop polling after 6 seconds
+    setTimeout(() => clearInterval(customizeInterval), 6000);
+
+    // Hide loading screen smoothly
+    window.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => {
+        const loader = document.getElementById('loader');
+        if (loader) {
+          loader.style.opacity = '0';
+          loader.style.visibility = 'hidden';
+        }
+      }, 2200);
+    });
+  </script>
+
 </body>
+
 </html>

@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: PT Susanti Megah - Distributor Channel API
+  title: SM Connect
   description: Dokumentasi API Backend Distributor Channel menggunakan Laravel 12.
   version: 1.0.0
 servers:
