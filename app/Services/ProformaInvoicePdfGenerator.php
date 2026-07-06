@@ -135,7 +135,7 @@ class ProformaInvoicePdfGenerator
 
         // Nomor: gunakan SAP Doc Number jika tersedia, fallback ke order_no
         $orderNumber = $order->sap_doc_num ?: ($order->order_no ?: '-');
-        $poNumber    = $order->po_number ?: ($order->order_no ?: '-');
+        $poNumber    = $order->po_number ?: '-';
 
         $customerName    = $order->customer_name ?: ($order->distributor?->name ?? '-');
         $customerAddress = $order->address ?: ($order->distributor?->address ?? '');
@@ -157,12 +157,37 @@ class ProformaInvoicePdfGenerator
         if ($signaturePath && Storage::disk('public')->exists($signaturePath)) {
             $fullPath = Storage::disk('public')->path($signaturePath);
             $size = @getimagesize($fullPath);
-            if ($size && $size[2] === IMAGETYPE_JPEG) {
-                $imgWidth = $size[0];
-                $imgHeight = $size[1];
-                $imgData = @file_get_contents($fullPath);
-                if ($imgData !== false) {
-                    $hasSignature = true;
+            if ($size) {
+                if ($size[2] === IMAGETYPE_JPEG) {
+                    $imgWidth = $size[0];
+                    $imgHeight = $size[1];
+                    $imgData = @file_get_contents($fullPath);
+                    if ($imgData !== false) {
+                        $hasSignature = true;
+                    }
+                } elseif ($size[2] === IMAGETYPE_PNG && function_exists('imagecreatefrompng')) {
+                    $image = @imagecreatefrompng($fullPath);
+                    if ($image) {
+                        $imgWidth = imagesx($image);
+                        $imgHeight = imagesy($image);
+                        
+                        // Create a white background to replace transparency
+                        $bg = imagecreatetruecolor($imgWidth, $imgHeight);
+                        $white = imagecolorallocate($bg, 255, 255, 255);
+                        imagefill($bg, 0, 0, $white);
+                        imagecopy($bg, $image, 0, 0, 0, 0, $imgWidth, $imgHeight);
+                        
+                        ob_start();
+                        imagejpeg($bg, null, 95);
+                        $imgData = ob_get_clean();
+                        
+                        imagedestroy($image);
+                        imagedestroy($bg);
+                        
+                        if ($imgData !== false && strlen($imgData) > 0) {
+                            $hasSignature = true;
+                        }
+                    }
                 }
             }
         }
@@ -219,7 +244,6 @@ class ProformaInvoicePdfGenerator
 
         // Judul dokumen
         $this->centerText('PROFORMA INVOICE', self::PAGE_WIDTH / 2, 718, 14, ['bold' => true, 'color' => self::BLUE]);
-        $this->line(28, 710, 566, 710, 0.4);
 
         // ── NOMOR & TANGGAL ─────────────────────────────────────────
         $labelX  = 86;
@@ -232,15 +256,13 @@ class ProformaInvoicePdfGenerator
 
         $this->text('No. PO',  $labelX, 682, 9.5);
         $this->text(':',       $colonX, 682, 9.5);
-        $this->text($poNumber !== $orderNumber ? $poNumber : '-', $valueX, 682, 9.5);
+        $this->text($poNumber, $valueX, 682, 9.5);
 
         $this->text('Perihal', $labelX, 669, 9.5);
         $this->text(':',       $colonX, 669, 9.5);
         $this->text('Proforma Invoice', $valueX, 669, 9.5);
 
         $this->text("Surabaya, {$docDate}", 370, 695, 9.5);
-
-        $this->line(28, 657, 566, 657, 0.4);
 
         // ── KEPADA ──────────────────────────────────────────────────
         $this->text('Kepada Yth.',    $labelX, 643, 9.5, ['bold' => true]);
