@@ -596,4 +596,39 @@ class SalesOrderTest extends TestCase
             'vat_group' => 'S2',
         ]);
     }
+
+    /**
+     * Test downloading sales order proforma invoice PDF.
+     */
+    public function test_download_sales_order_pdf(): void
+    {
+        $order = SalesOrder::create([
+            'order_no' => 'SO-TEST-PDF-001',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'PT XYZ',
+            'doc_date' => '2026-02-25',
+            'slp_code' => 0,
+            'doc_total' => 50000,
+            'status' => 'DRAFT',
+            'approval_id' => 1,
+        ]);
+        $order->details()->create([
+            'item_code' => 'E65',
+            'quantity' => 10,
+            'unit_price' => 5000,
+            'line_total' => 50000,
+            'vat_group' => 'S1',
+        ]);
+
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->get('/api/distributor-channel/v1/sales-orders/' . $order->id . '/pdf');
+
+        $response->assertStatus(200);
+        $response->assertHeader('Content-Type', 'application/pdf');
+        $this->assertNotEmpty($response->getContent());
+    }
 }

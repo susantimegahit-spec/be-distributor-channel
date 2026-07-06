@@ -165,10 +165,47 @@ class ProformaInvoicePdfGenerator
             }
         }
 
+        // Load custom PI logo
+        $hasLogo = false;
+        $logoWidth = 0;
+        $logoHeight = 0;
+        $logoData = '';
+        $logoPath = public_path('assets/customer-portal-mark.png');
+        if (function_exists('imagecreatefrompng') && file_exists($logoPath)) {
+            $image = @imagecreatefrompng($logoPath);
+            if ($image) {
+                $logoWidth = imagesx($image);
+                $logoHeight = imagesy($image);
+                
+                ob_start();
+                imagejpeg($image, null, 90);
+                $logoData = ob_get_clean();
+                imagedestroy($image);
+                
+                if ($logoData !== false && strlen($logoData) > 0) {
+                    $hasLogo = true;
+                }
+            }
+        }
+
         $this->text('PT. SUSANTI MEGAH', 110, 775, 21, ['bold' => true, 'color' => self::BLUE]);
         $this->text('INDUSTRI GARAM BERIODIUM', 112, 758, 11, ['bold' => true, 'color' => self::BLUE]);
-        $this->rect(62, 756, 34, 34, ['color' => self::BLUE]);
-        $this->text('SM', 70, 770, 12, ['bold' => true, 'color' => '1 1 1']);
+
+        if ($hasLogo) {
+            $boxWidth = 36.0;
+            $boxHeight = 36.0;
+            $scale = min($boxWidth / $logoWidth, $boxHeight / $logoHeight);
+            $drawLogoWidth = $logoWidth * $scale;
+            $drawLogoHeight = $logoHeight * $scale;
+            $drawLogoX = 79 - ($drawLogoWidth / 2);
+            $drawLogoY = 773 - ($drawLogoHeight / 2);
+            
+            $this->commands[] = sprintf("q %.2f 0 0 %.2f %.2f %.2f cm /Img2 Do Q", $drawLogoWidth, $drawLogoHeight, $drawLogoX, $drawLogoY);
+        } else {
+            $this->rect(62, 756, 34, 34, ['color' => self::BLUE]);
+            $this->text('SM', 70, 770, 12, ['bold' => true, 'color' => '1 1 1']);
+        }
+
         $this->text('Jl. Dupak Rukun No. 71-73, Surabaya 60182', 365, 776, 7.5);
         $this->text('T. (031) 5312526 - 5314071 - 5452765', 365, 764, 7.5);
         $this->text('email. kapal@susantimegah.com', 365, 752, 7.5);
@@ -262,9 +299,28 @@ class ProformaInvoicePdfGenerator
 
         $content = implode("\n", $this->commands);
 
-        $pageResources = '<< /Font << /F1 4 0 R /F2 5 0 R >>';
+        // Assign object IDs dynamically
+        $nextObjId = 7;
+        $sigObjId = null;
+        $logoObjId = null;
+
         if ($hasSignature) {
-            $pageResources .= ' /XObject << /Img1 7 0 R >>';
+            $sigObjId = $nextObjId++;
+        }
+        if ($hasLogo) {
+            $logoObjId = $nextObjId++;
+        }
+
+        $pageResources = '<< /Font << /F1 4 0 R /F2 5 0 R >>';
+        if ($hasSignature || $hasLogo) {
+            $pageResources .= ' /XObject <<';
+            if ($hasSignature) {
+                $pageResources .= " /Img1 {$sigObjId} 0 R";
+            }
+            if ($hasLogo) {
+                $pageResources .= " /Img2 {$logoObjId} 0 R";
+            }
+            $pageResources .= ' >>';
         }
         $pageResources .= ' >>';
 
@@ -284,6 +340,16 @@ class ProformaInvoicePdfGenerator
                 $imgHeight,
                 strlen($imgData),
                 $imgData
+            );
+        }
+
+        if ($hasLogo) {
+            $objects[] = sprintf(
+                "<< /Type /XObject /Subtype /Image /Width %d /Height %d /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length %d >>\nstream\n%s\nendstream",
+                $logoWidth,
+                $logoHeight,
+                strlen($logoData),
+                $logoData
             );
         }
 
