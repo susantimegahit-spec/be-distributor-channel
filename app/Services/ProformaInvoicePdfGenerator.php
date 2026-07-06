@@ -154,8 +154,18 @@ class ProformaInvoicePdfGenerator
         $imgHeight = 0;
         $imgData = '';
 
-        if ($signaturePath && Storage::disk('public')->exists($signaturePath)) {
-            $fullPath = Storage::disk('public')->path($signaturePath);
+        $fullPath = null;
+        if ($signaturePath) {
+            if (Storage::disk('public')->exists($signaturePath)) {
+                $fullPath = Storage::disk('public')->path($signaturePath);
+            } elseif (file_exists(public_path('storage/' . $signaturePath))) {
+                $fullPath = public_path('storage/' . $signaturePath);
+            } elseif (file_exists(storage_path('app/public/' . $signaturePath))) {
+                $fullPath = storage_path('app/public/' . $signaturePath);
+            }
+        }
+
+        if ($fullPath) {
             $size = @getimagesize($fullPath);
             if ($size) {
                 if ($size[2] === IMAGETYPE_JPEG) {
@@ -339,8 +349,8 @@ class ProformaInvoicePdfGenerator
         $this->text('Demikianlah, atas perhatian serta kerjasama yang baik kami ucapkan terima kasih.', 36, $payY - 64, 9.5);
 
         // ── TANDA TANGAN ────────────────────────────────────────────
-        $this->text('Hormat kami,', 375, 212, 9.5);
-        $this->text('PT. SUSANTI MEGAH', 344, 196, 9.5, ['bold' => true, 'color' => self::BLUE]);
+        $this->centerText('Hormat kami,', 418, 212, 9.5);
+        $this->centerText('PT. SUSANTI MEGAH', 418, 196, 9.5, ['bold' => true, 'color' => self::BLUE]);
 
         if ($hasSignature) {
             $boxWidth  = 100.0;
