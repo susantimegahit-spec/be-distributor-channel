@@ -77,14 +77,28 @@ class DashboardService
         return [
             'sales_summary' => $salesData['sales_summary'],
             'order_statuses' => $salesData['order_statuses'],
-            'daily_sales_trend' => $salesData['daily_sales_trend'] ?? [],
-            'top_products' => $salesData['top_products'] ?? [],
             'rewards' => [
                 'total_accrued' => (float) ($claimData['total_claimed'] ?? 0.00),
                 'available_balance' => (float) ($claimData['balance'] ?? 0.00),
                 'pending_verification' => (float) (($claimData['total_claimed'] ?? 0.00) - ($claimData['total_verified'] ?? 0.00)),
                 'withdrawn' => (float) ($claimData['withdrawn'] ?? 0.00),
             ]
+        ];
+    }
+
+    /**
+     * Get chart metrics for a specific Distributor.
+     *
+     * @param  int  $distributorId
+     * @return array
+     */
+    public function getDistributorCharts(int $distributorId): array
+    {
+        $salesData = $this->salesOrderRepository->getDashboardSummary($distributorId);
+
+        return [
+            'daily_sales_trend' => $salesData['daily_sales_trend'] ?? [],
+            'top_products' => $salesData['top_products'] ?? [],
         ];
     }
 }

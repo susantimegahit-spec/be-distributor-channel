@@ -145,8 +145,6 @@ class CentralizedDashboardTest extends TestCase
                 'data' => [
                     'sales_summary',
                     'order_statuses',
-                    'daily_sales_trend',
-                    'top_products',
                     'rewards' => [
                         'total_accrued',
                         'available_balance',
@@ -159,6 +157,29 @@ class CentralizedDashboardTest extends TestCase
         // Admin - Should be 403
         $responseAdmin = $this->actingAs($this->adminUser, 'sanctum')
             ->getJson('/api/distributor-channel/v1/dashboard/distributor/summary');
+
+        $responseAdmin->assertStatus(403);
+    }
+
+    public function test_distributor_can_access_distributor_charts_but_admin_cannot(): void
+    {
+        // Distributor - Should be 200
+        $responseDist = $this->actingAs($this->distUser, 'sanctum')
+            ->getJson('/api/distributor-channel/v1/dashboard/distributor/charts');
+
+        $responseDist->assertStatus(200)
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'data' => [
+                    'daily_sales_trend',
+                    'top_products'
+                ]
+            ]);
+
+        // Admin - Should be 403
+        $responseAdmin = $this->actingAs($this->adminUser, 'sanctum')
+            ->getJson('/api/distributor-channel/v1/dashboard/distributor/charts');
 
         $responseAdmin->assertStatus(403);
     }

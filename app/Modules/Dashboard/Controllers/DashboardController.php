@@ -89,4 +89,29 @@ class DashboardController extends Controller
 
         return $this->successResponse($summary, 'Statistik ringkasan distributor berhasil diambil.');
     }
+
+    /**
+     * Get chart metrics for Distributor.
+     *
+     * @param  Request  $request
+     * @return JsonResponse
+     */
+    public function distributorCharts(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        // Security check: only users with code_customer (distributors) can view distributor charts
+        if (!$user->code_customer) {
+            return $this->errorResponse('Akses ditolak. Anda bukan user Distributor.', null, 403);
+        }
+
+        $distributor = Distributor::where('code_customer', $user->code_customer)->first();
+        if (!$distributor) {
+            return $this->errorResponse('Data distributor Anda tidak ditemukan.', null, 404);
+        }
+
+        $charts = $this->dashboardService->getDistributorCharts($distributor->id);
+
+        return $this->successResponse($charts, 'Statistik grafik distributor berhasil diambil.');
+    }
 }

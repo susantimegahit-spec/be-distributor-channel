@@ -2081,7 +2081,7 @@ paths:
   /v1/dashboard/distributor/summary:
     get:
       summary: Get Centralized Distributor Dashboard Summary
-      description: Mendapatkan data ringkasan belanja, grafik tren harian belanja, produk terlaris, serta saldo klaim reward khusus untuk Distributor yang terautentikasi.
+      description: Mendapatkan data ringkasan belanja, status order, serta saldo klaim reward khusus untuk Distributor yang terautentikasi.
       tags:
         - Dashboard
       security:
@@ -2142,6 +2142,59 @@ paths:
                           FAILED:
                             type: integer
                             example: 0
+                      rewards:
+                        type: object
+                        properties:
+                          total_accrued:
+                            type: number
+                            example: 12500000.00
+                          available_balance:
+                            type: number
+                            example: 8000000.00
+                          pending_verification:
+                            type: number
+                            example: 4500000.00
+                          withdrawn:
+                            type: number
+                            example: 1000000.00
+        '403':
+          description: Akses ditolak karena bukan Distributor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/dashboard/distributor/charts:
+    get:
+      summary: Get Centralized Distributor Dashboard Charts
+      description: Mendapatkan data grafik tren belanja harian (30 hari terakhir) dan produk terfavorit yang sering dibeli khusus untuk Distributor yang terautentikasi.
+      tags:
+        - Dashboard
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sukses mendapatkan data grafik distributor
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Statistik grafik distributor berhasil diambil."
+                  data:
+                    type: object
+                    properties:
                       daily_sales_trend:
                         type: array
                         items:
@@ -2170,21 +2223,6 @@ paths:
                             total_qty:
                               type: number
                               example: 200.00
-                      rewards:
-                        type: object
-                        properties:
-                          total_accrued:
-                            type: number
-                            example: 12500000.00
-                          available_balance:
-                            type: number
-                            example: 8000000.00
-                          pending_verification:
-                            type: number
-                            example: 4500000.00
-                          withdrawn:
-                            type: number
-                            example: 1000000.00
         '403':
           description: Akses ditolak karena bukan Distributor
           content:
