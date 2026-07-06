@@ -132,13 +132,15 @@ class ProformaInvoicePdfGenerator
         }
 
         $docTotal = (float)($order->doc_total ?: ($subtotal - $discountTotal));
-        $orderNumber = $order->order_no ?: '-';
-        $poNumber = $order->po_number ?: $orderNumber;
-        
-        $customerName = $order->customer_name ?: ($order->distributor?->name ?? '-');
+
+        // Nomor: gunakan SAP Doc Number jika tersedia, fallback ke order_no
+        $orderNumber = $order->sap_doc_num ?: ($order->order_no ?: '-');
+        $poNumber    = $order->po_number ?: ($order->order_no ?: '-');
+
+        $customerName    = $order->customer_name ?: ($order->distributor?->name ?? '-');
         $customerAddress = $order->address ?: ($order->distributor?->address ?? '');
-        $customerCity = $order->city ?: '';
-        
+        $customerCity    = $order->city ?: '';
+
         $docDate = $this->formatDate($order->doc_date ?: $order->created_at);
         $dueDate = $this->formatDate($order->doc_due_date);
 
@@ -188,48 +190,80 @@ class ProformaInvoicePdfGenerator
             }
         }
 
-        $this->text('PT. SUSANTI MEGAH', 110, 775, 21, ['bold' => true, 'color' => self::BLUE]);
-        $this->text('INDUSTRI GARAM BERIODIUM', 112, 758, 11, ['bold' => true, 'color' => self::BLUE]);
+        // ── HEADER PERUSAHAAN ───────────────────────────────────────
+        $this->text('PT. SUSANTI MEGAH', 110, 778, 20, ['bold' => true, 'color' => self::BLUE]);
+        $this->text('INDUSTRI GARAM BERIODIUM', 112, 762, 10.5, ['bold' => true, 'color' => self::BLUE]);
 
         if ($hasLogo) {
-            $boxWidth = 36.0;
-            $boxHeight = 36.0;
-            $scale = min($boxWidth / $logoWidth, $boxHeight / $logoHeight);
-            $drawLogoWidth = $logoWidth * $scale;
+            $boxWidth  = 38.0;
+            $boxHeight = 38.0;
+            $scale          = min($boxWidth / $logoWidth, $boxHeight / $logoHeight);
+            $drawLogoWidth  = $logoWidth  * $scale;
             $drawLogoHeight = $logoHeight * $scale;
-            $drawLogoX = 79 - ($drawLogoWidth / 2);
-            $drawLogoY = 773 - ($drawLogoHeight / 2);
-            
+            $drawLogoX      = 74 - ($drawLogoWidth  / 2);
+            $drawLogoY      = 772 - ($drawLogoHeight / 2);
             $this->commands[] = sprintf("q %.2f 0 0 %.2f %.2f %.2f cm /Img2 Do Q", $drawLogoWidth, $drawLogoHeight, $drawLogoX, $drawLogoY);
         } else {
-            $this->rect(62, 756, 34, 34, ['color' => self::BLUE]);
-            $this->text('SM', 70, 770, 12, ['bold' => true, 'color' => '1 1 1']);
+            $this->rect(58, 757, 36, 36, ['color' => self::BLUE, 'fill' => true]);
+            $this->text('SM', 66, 772, 13, ['bold' => true, 'color' => '1 1 1']);
         }
 
-        $this->text('Jl. Dupak Rukun No. 71-73, Surabaya 60182', 365, 776, 7.5);
-        $this->text('T. (031) 5312526 - 5314071 - 5452765', 365, 764, 7.5);
-        $this->text('email. kapal@susantimegah.com', 365, 752, 7.5);
+        // Alamat di kanan atas
+        $this->text('Jl. Dupak Rukun No. 71-73, Surabaya 60182', 340, 778, 7.5);
+        $this->text('Telp. (031) 5312526 - 5314071 - 5452765', 340, 766, 7.5);
+        $this->text('Email: kapal@susantimegah.com', 340, 754, 7.5);
+        $this->text('www.susantimegah.com', 340, 742, 7.5);
 
-        $this->text("Nomor  : {$orderNumber}", 86, 710, 9.5);
-        $this->text('Perihal : Proforma Invoice', 86, 697, 9.5);
-        $this->text("Surabaya, {$docDate}", 380, 710, 9.5);
+        // Garis bawah header
+        $this->line(28, 734, 566, 734, 1.5, self::BLUE);
 
-        $this->text('Kepada:', 86, 648, 9.5);
-        $this->text($customerName, 86, 634, 10, ['bold' => true]);
-        if ($customerAddress) $this->wrapText($customerAddress, 86, 620, 230, 9, 12);
-        if ($customerCity) $this->text($customerCity, 86, 596, 9);
+        // Judul dokumen
+        $this->centerText('PROFORMA INVOICE', self::PAGE_WIDTH / 2, 718, 14, ['bold' => true, 'color' => self::BLUE]);
+        $this->line(28, 710, 566, 710, 0.4);
 
-        $this->text('Dengan hormat,', 86, 555, 9.5);
+        // ── NOMOR & TANGGAL ─────────────────────────────────────────
+        $labelX  = 86;
+        $colonX  = 154;
+        $valueX  = 160;
+
+        $this->text('Nomor',   $labelX, 695, 9.5);
+        $this->text(':',       $colonX, 695, 9.5);
+        $this->text($orderNumber, $valueX, 695, 9.5, ['bold' => true]);
+
+        $this->text('No. PO',  $labelX, 682, 9.5);
+        $this->text(':',       $colonX, 682, 9.5);
+        $this->text($poNumber !== $orderNumber ? $poNumber : '-', $valueX, 682, 9.5);
+
+        $this->text('Perihal', $labelX, 669, 9.5);
+        $this->text(':',       $colonX, 669, 9.5);
+        $this->text('Proforma Invoice', $valueX, 669, 9.5);
+
+        $this->text("Surabaya, {$docDate}", 370, 695, 9.5);
+
+        $this->line(28, 657, 566, 657, 0.4);
+
+        // ── KEPADA ──────────────────────────────────────────────────
+        $this->text('Kepada Yth.',    $labelX, 643, 9.5, ['bold' => true]);
+        $this->text($customerName,    $labelX, 629, 10,  ['bold' => true]);
+        if ($customerAddress) $this->wrapText($customerAddress, $labelX, 615, 240, 9, 12);
+        if ($customerCity)    $this->text($customerCity, $labelX, 591, 9);
+
+        // ── PEMBUKA ──────────────────────────────────────────────────
+        $this->text('Dengan hormat,', $labelX, 560, 9.5);
         $this->wrapText(
             'Dengan ini kami mohon, untuk pesanan Garam Beryodium Cap Kapal untuk segera diselesaikan pembayarannya dengan rincian sebagai berikut:',
-            86,
-            520,
-            430,
-            9.5,
-            13
+            $labelX, 530, 430, 9.5, 13
         );
 
-        $y = 470;
+        // ── HEADER TABEL ─────────────────────────────────────────────
+        $tableY = 507;
+        $this->line(28, $tableY, 566, $tableY, 0.6);
+        $this->text('Keterangan',          90,  $tableY - 12, 9.5, ['bold' => true]);
+        $this->text('Harga Satuan',        335, $tableY - 12, 9.5, ['bold' => true]);
+        $this->text('Jumlah',              455, $tableY - 12, 9.5, ['bold' => true]);
+        $this->line(28, $tableY - 20, 566, $tableY - 20, 0.6);
+
+        $y = $tableY - 35;
         foreach ($lines as $index => $line) {
             $itemName = $line->item_name ?: ($line->item?->name ?? "Item " . ($index + 1));
             $qtyVal = (float)$line->quantity;
@@ -241,61 +275,73 @@ class ProformaInvoicePdfGenerator
             }
             $description = "{$itemName} : " . $this->formatNumber($qtyVal) . " {$unit} @ " . $this->formatMoney($unitPrice) . "/{$unit}";
 
-            $this->text($description, 86, $y, 9.5);
-            $this->text('= Rp', 382, $y, 9.5, ['bold' => true]);
-            $this->rightText($this->formatNumber($lineTotal) . ',-', 492, $y, 9.5, ['bold' => true]);
-            $y -= 14;
+            // Baris 1: Nama item (bold) + harga satuan + jumlah
+            $this->text($itemName, 35, $y, 9.5, ['bold' => true]);
+            $this->rightText($this->formatMoney($unitPrice, false), 440, $y, 9.5);
+            $this->rightText($this->formatNumber($lineTotal) . ',-', 540, $y, 9.5, ['bold' => true]);
+            // Baris 2: qty dan satuan
+            $this->text($this->formatNumber($qtyVal) . ' ' . $unit, 35, $y - 12, 9, ['color' => '0.35 0.35 0.35']);
+            $y -= 28; // 2 baris: 14pt * 2
         }
+
+        // ── SUBTOTAL & DISCOUNT ──────────────────────────────────────
+        $this->line(28, $y + 8, 566, $y + 8, 0.5);
 
         if ($discountTotal > 0) {
-            $this->text('Discount', 260, $y, 9.5, ['bold' => true]);
-            $this->text('= Rp', 382, $y, 9.5, ['bold' => true]);
-            $this->rightText('(' . $this->formatNumber($discountTotal) . '),-', 492, $y, 9.5, ['bold' => true]);
-            $y -= 14;
+            $this->text('Subtotal', 350, $y - 4, 9.5);
+            $this->rightText('Rp ' . $this->formatNumber($subtotal) . ',-', 540, $y - 4, 9.5);
+            $y -= 16;
+
+            $this->text('Diskon', 350, $y - 4, 9.5, ['color' => '0.8 0 0']);
+            $this->rightText('(Rp ' . $this->formatNumber($discountTotal) . ',-)' , 540, $y - 4, 9.5, ['color' => '0.8 0 0']);
+            $y -= 16;
         }
 
-        $this->line(382, $y + 6, 492, $y + 6, 0.7);
-        $this->text('Total', 300, $y - 4, 9.5, ['bold' => true]);
-        $this->text('=Rp', 382, $y - 4, 9.5, ['bold' => true]);
-        $this->rightText($this->formatNumber($docTotal) . ',-', 492, $y - 4, 9.5, ['bold' => true]);
+        // Garis sebelum total
+        $this->line(310, $y + 4, 566, $y + 4, 0.7);
+        $this->text('TOTAL', 320, $y - 8, 10, ['bold' => true]);
+        $this->rightText('Rp ' . $this->formatNumber($docTotal) . ',-', 540, $y - 8, 10.5, ['bold' => true, 'color' => self::BLUE]);
+        $this->line(310, $y - 20, 566, $y - 20, 1.2, self::BLUE);
 
+        // ── INFORMASI PEMBAYARAN ─────────────────────────────────────
+        $payY = $y - 38;
         $this->wrapText(
-            'Pembayaran dapat ditransfer melalui Bank Central Asia Cabang Semut Surabaya A/C No. 256.01.0308.8 atas nama PT. Susanti Megah.',
-            86,
-            345,
-            430,
-            9.5,
-            13
+            'Pembayaran dapat ditransfer melalui Bank Central Asia (BCA) Cabang Semut Surabaya A/C No. 256.01.0308.8 atas nama PT. Susanti Megah.',
+            36, $payY, 490, 9.5, 13
         );
-        $this->text('Setelah pembayaran ditransfer harap dikonfirmasikan kembali kepada kami.', 86, 305, 9.5);
-        if ($dueDate) $this->text("Tanggal request kirim: {$dueDate}", 86, 288, 9.5);
-        $this->text('Demikianlah, atas perhatian serta kerjasama yang baik kami ucapkan terima kasih.', 86, 270, 9.5);
+        $this->text('Setelah pembayaran ditransfer harap dikonfirmasikan kembali kepada kami.', 36, $payY - 32, 9.5);
+        if ($dueDate) {
+            $this->text('Tanggal Pengiriman:', 36, $payY - 48, 9.5, ['bold' => true]);
+            $this->text($dueDate, 155, $payY - 48, 9.5);
+        }
+        $this->text('Demikianlah, atas perhatian serta kerjasama yang baik kami ucapkan terima kasih.', 36, $payY - 64, 9.5);
 
-        $this->text('Hormat kami,', 385, 210, 9.5);
-        $this->text('PT. SUSANTI MEGAH', 350, 185, 9.5, ['bold' => true, 'color' => self::BLUE]);
-        
-        // Render digital signature if loaded successfully
+        // ── TANDA TANGAN ────────────────────────────────────────────
+        $this->text('Hormat kami,', 375, 212, 9.5);
+        $this->text('PT. SUSANTI MEGAH', 344, 196, 9.5, ['bold' => true, 'color' => self::BLUE]);
+
         if ($hasSignature) {
-            $boxWidth = 90.0;
-            $boxHeight = 38.0;
-            $scale = min($boxWidth / $imgWidth, $boxHeight / $imgHeight);
-            $drawWidth = $imgWidth * $scale;
+            $boxWidth  = 100.0;
+            $boxHeight = 42.0;
+            $scale      = min($boxWidth / $imgWidth, $boxHeight / $imgHeight);
+            $drawWidth  = $imgWidth  * $scale;
             $drawHeight = $imgHeight * $scale;
-            $drawX = 417.5 - ($drawWidth / 2); // Center horizontally aligned with center of line
-            $drawY = 163 - ($drawHeight / 2);  // Center vertically between 185 and 142
-            
+            $drawX      = 417.5 - ($drawWidth  / 2);
+            $drawY      = 165    - ($drawHeight / 2);
             $this->commands[] = sprintf("q %.2f 0 0 %.2f %.2f %.2f cm /Img1 Do Q", $drawWidth, $drawHeight, $drawX, $drawY);
         }
 
-        $this->line(360, 142, 475, 142, 0.5);
-        $this->centerText($signerName, 417.5, 128, 9.5);
+        $this->line(348, 144, 488, 144, 0.5);
+        $this->centerText($signerName, 418, 131, 9.5, ['bold' => true]);
+        $this->centerText('PT. Susanti Megah', 418, 119, 8.5);
 
-        $this->line(28, 74, 566, 74, 1.2, self::BLUE);
-        $this->text('Branch Factory', 32, 54, 6.8, ['bold' => true, 'color' => self::BLUE]);
-        $this->text('Jl. Raya Serang Km. 32-33, Tangerang 15610', 32, 43, 6.5);
-        $this->text('Marketing Lounge Garam Cap Kapal', 374, 54, 6.8, ['bold' => true, 'color' => self::BLUE]);
-        $this->text('Lt. UG - Golden City Mall, Jl. KH Abdul Wahab Siamin No.2-8, Surabaya 60225', 374, 43, 6.2);
-        $this->text('http://www.susantimegah.com', 242, 25, 6.5, ['bold' => true, 'color' => self::BLUE]);
+        // ── FOOTER ──────────────────────────────────────────────────
+        $this->line(28, 80, 566, 80, 1.2, self::BLUE);
+        $this->text('Branch Factory', 32, 60, 6.8, ['bold' => true, 'color' => self::BLUE]);
+        $this->text('Jl. Raya Serang Km. 32-33, Tangerang 15610', 32, 49, 6.5);
+        $this->text('Marketing Lounge Garam Cap Kapal', 330, 60, 6.8, ['bold' => true, 'color' => self::BLUE]);
+        $this->text('Lt. UG - Golden City Mall, Jl. KH Abdul Wahab Siamin No.2-8, Surabaya 60225', 330, 49, 6.0);
+        $this->centerText('http://www.susantimegah.com', self::PAGE_WIDTH / 2, 31, 7, ['bold' => true, 'color' => self::BLUE]);
 
         $content = implode("\n", $this->commands);
 
