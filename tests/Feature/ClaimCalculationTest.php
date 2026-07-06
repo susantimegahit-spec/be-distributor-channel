@@ -270,15 +270,14 @@ class ClaimCalculationTest extends TestCase
             'total_diskon' => 20000,
         ]);
 
-        // Check Results Pagination API
+        // Check Results API
         $response = $this->withHeaders($this->getAuthHeader())
             ->getJson('/api/distributor-channel/v1/claims/results?batch_id=' . $batchId);
 
         $response->assertStatus(200);
-        $response->assertJsonStructure(['data' => ['data', 'current_page', 'last_page', 'per_page', 'total']]);
-        $this->assertCount(4, $response->json('data.data'));
+        $this->assertCount(4, $response->json('data'));
 
-        $data = $response->json('data.data');
+        $data = $response->json('data');
         $this->assertEquals('VALID_PROGRAM', $data[0]['status']);
         $this->assertEquals('ITEM_NOT_FOUND', $data[1]['status']);
         $this->assertEquals('PROGRAM_NOT_FOUND', $data[2]['status']);

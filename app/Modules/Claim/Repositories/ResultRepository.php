@@ -47,6 +47,37 @@ class ResultRepository implements ResultRepositoryInterface
     }
 
     /**
+     * Get all results without pagination.
+     */
+    public function getResults(array $filters)
+    {
+        $query = TrxProgramResult::with('upload');
+
+        if (!empty($filters['batch_id'])) {
+            $batchId = $filters['batch_id'];
+            $query->whereIn('upload_id', function ($q) use ($batchId) {
+                $q->select('id')
+                  ->from('trx_program_upload')
+                  ->where('batch_id', $batchId);
+            });
+        }
+
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        if (!empty($filters['customer_code'])) {
+            $query->where('customer_code', $filters['customer_code']);
+        }
+
+        if (!empty($filters['program_id'])) {
+            $query->where('program_id', $filters['program_id']);
+        }
+
+        return $query->orderBy('id', 'asc')->get();
+    }
+
+    /**
      * Get overall summary statistics for dashboard.
      */
     public function getDashboardSummary()

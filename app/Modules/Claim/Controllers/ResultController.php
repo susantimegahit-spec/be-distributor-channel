@@ -51,7 +51,7 @@ class ResultController extends Controller
             $filters['customer_code'] = $request->user()->code_customer;
         }
 
-        $results = $this->resultRepository->paginateResults($filters, $request->get('per_page', 15));
+        $results = $this->resultRepository->getResults($filters);
 
         return $this->successResponse($results, 'Daftar hasil kalkulasi berhasil diambil.');
     }

@@ -3475,14 +3475,6 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/CalculationResult'
-                  current_page:
-                    type: integer
-                  last_page:
-                    type: integer
-                  per_page:
-                    type: integer
-                  total:
-                    type: integer
 
   /v1/claims/results/export:
     get:

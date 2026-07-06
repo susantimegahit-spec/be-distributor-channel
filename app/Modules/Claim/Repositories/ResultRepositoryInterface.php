@@ -22,6 +22,14 @@ interface ResultRepositoryInterface
     public function paginateResults(array $filters, int $perPage = 15);
 
     /**
+     * Get all results without pagination.
+     *
+     * @param array $filters
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function getResults(array $filters);
+
+    /**
      * Get overall summary statistics for dashboard.
      *
      * @return array
