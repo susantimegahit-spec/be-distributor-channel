@@ -1906,6 +1906,298 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/dashboard/admin/summary:
+    get:
+      summary: Get Centralized Admin Dashboard Summary
+      description: Mendapatkan ringkasan statistik makro (penjualan bulanan, volume barang, jumlah status order, dan metrik klaim promo) khusus untuk Admin Internal.
+      tags:
+        - Dashboard
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sukses mendapatkan ringkasan data admin
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Statistik ringkasan admin berhasil diambil."
+                  data:
+                    type: object
+                    properties:
+                      sales_summary:
+                        type: object
+                        properties:
+                          total_revenue_this_month:
+                            type: number
+                            example: 1500000000.00
+                          total_volume_kg_this_month:
+                            type: number
+                            example: 185000.00
+                          total_orders_this_month:
+                            type: integer
+                            example: 342
+                      order_statuses:
+                        type: object
+                        properties:
+                          DRAFT:
+                            type: integer
+                            example: 12
+                          CREATED:
+                            type: integer
+                            example: 5
+                          WAITING_APPROVAL:
+                            type: integer
+                            example: 8
+                          APPROVED:
+                            type: integer
+                            example: 22
+                          DELIVERY:
+                            type: integer
+                            example: 14
+                          ARRIVED:
+                            type: integer
+                            example: 280
+                          REJECTED:
+                            type: integer
+                            example: 3
+                          FAILED:
+                            type: integer
+                            example: 1
+                      claims_summary:
+                        type: object
+                        properties:
+                          total_program:
+                            type: integer
+                            example: 3
+                          total_batch:
+                            type: integer
+                            example: 5
+                          total_valid_rows:
+                            type: integer
+                            example: 1240
+                          total_diskon:
+                            type: number
+                            example: 45000000.00
+        '403':
+          description: Akses ditolak karena bukan Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/dashboard/admin/charts:
+    get:
+      summary: Get Centralized Admin Dashboard Charts
+      description: Mendapatkan data tren harian penjualan 30 hari terakhir, produk terlaris, dan distributor terbaik khusus untuk Admin Internal.
+      tags:
+        - Dashboard
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sukses mendapatkan data chart admin
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Statistik grafik admin berhasil diambil."
+                  data:
+                    type: object
+                    properties:
+                      daily_sales_trend:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            date:
+                              type: string
+                              example: "2026-07-06"
+                            count:
+                              type: integer
+                              example: 5
+                            total:
+                              type: number
+                              example: 50000000.00
+                      top_products:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            item_code:
+                              type: string
+                              example: "E65"
+                            item_name:
+                              type: string
+                              example: "TOP 250 M @ 10 KG / BAL"
+                            total_qty:
+                              type: number
+                              example: 1500.00
+                      top_distributors:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            distributor_id:
+                              type: integer
+                              example: 1
+                            name:
+                              type: string
+                              example: "PT XYZ"
+                            total_spent:
+                              type: number
+                              example: 15000000.00
+        '403':
+          description: Akses ditolak karena bukan Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/dashboard/distributor/summary:
+    get:
+      summary: Get Centralized Distributor Dashboard Summary
+      description: Mendapatkan data ringkasan belanja, grafik tren harian belanja, produk terlaris, serta saldo klaim reward khusus untuk Distributor yang terautentikasi.
+      tags:
+        - Dashboard
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sukses mendapatkan ringkasan data distributor
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Statistik ringkasan distributor berhasil diambil."
+                  data:
+                    type: object
+                    properties:
+                      sales_summary:
+                        type: object
+                        properties:
+                          total_revenue_this_month:
+                            type: number
+                            example: 450000000.00
+                          total_volume_kg_this_month:
+                            type: number
+                            example: 12000.00
+                          total_orders_this_month:
+                            type: integer
+                            example: 15
+                      order_statuses:
+                        type: object
+                        properties:
+                          DRAFT:
+                            type: integer
+                            example: 2
+                          CREATED:
+                            type: integer
+                            example: 1
+                          WAITING_APPROVAL:
+                            type: integer
+                            example: 2
+                          APPROVED:
+                            type: integer
+                            example: 1
+                          DELIVERY:
+                            type: integer
+                            example: 1
+                          ARRIVED:
+                            type: integer
+                            example: 8
+                          REJECTED:
+                            type: integer
+                            example: 0
+                          FAILED:
+                            type: integer
+                            example: 0
+                      daily_sales_trend:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            date:
+                              type: string
+                              example: "2026-07-06"
+                            count:
+                              type: integer
+                              example: 1
+                            total:
+                              type: number
+                              example: 15000000.00
+                      top_products:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            item_code:
+                              type: string
+                              example: "E65"
+                            item_name:
+                              type: string
+                              example: "TOP 250 M @ 10 KG / BAL"
+                            total_qty:
+                              type: number
+                              example: 200.00
+                      rewards:
+                        type: object
+                        properties:
+                          total_accrued:
+                            type: number
+                            example: 12500000.00
+                          available_balance:
+                            type: number
+                            example: 8000000.00
+                          pending_verification:
+                            type: number
+                            example: 4500000.00
+                          withdrawn:
+                            type: number
+                            example: 1000000.00
+        '403':
+          description: Akses ditolak karena bukan Distributor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /v1/sales-orders:
     get:
       summary: List all sales orders
