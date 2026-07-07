@@ -15,6 +15,7 @@ Route::prefix('v1/sales-orders')->middleware('auth:sanctum')->group(function () 
     Route::post('/', [SalesOrderController::class, 'store']);
     Route::get('/{id}', [SalesOrderController::class, 'show']);
     Route::put('/{id}', [SalesOrderController::class, 'update']);
+    Route::post('/{id}', [SalesOrderController::class, 'update']);
     Route::delete('/{id}', [SalesOrderController::class, 'destroy']);
     Route::post('/post-sap', [SalesOrderController::class, 'postNewToSap']);
     Route::post('/{id}/post-sap', [SalesOrderController::class, 'postToSap']);
