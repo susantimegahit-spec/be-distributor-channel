@@ -341,5 +341,77 @@ class ClaimCalculationTest extends TestCase
         $expectedCode2 = 'PRG' . date('Ym') . '002';
         $response2->assertJsonFragment(['program_code' => $expectedCode2]);
     }
+
+    /**
+     * Test deleting a batch and verifying database records and cascading deletes.
+     */
+    public function test_delete_batch_success_and_cascades(): void
+    {
+        // Setup active program with strata
+        $program = MstProgram::create([
+            'program_code' => 'PRG202606',
+            'program_name' => 'Program Garam Juni 2026',
+            'start_date' => '2026-06-01',
+            'end_date' => '2026-06-30',
+            'status' => 'ACTIVE',
+        ]);
+        $program->items()->sync([$this->itemA26->id]);
+        $program->strata()->create([
+            'customer_type' => 'GT',
+            'min_qty_kg' => 3,
+            'max_qty_kg' => 199,
+            'harga_program_per_kg' => 7700,
+            'diskon_per_kg' => 200,
+        ]);
+
+        $excelRows = [
+            ['TEMPLATE UPLOAD KLAIM DISTRIBUTOR'],
+            [''],
+            ['Kode Customer', 'Nama Customer', 'Item', 'Nama Item', 'Harga Jual @ Kg', 'Qty @ Kg', 'Type Customer', 'Transaction Date'],
+            ['C110000411', 'DUA JAYA, CV', 'A26', 'TOP 250 M @ 10 KG / BAL', '6400', '100', 'GT', '2026-06-12'],
+        ];
+
+        $excelFile = $this->createTestExcel($excelRows);
+
+        // 1. Upload Excel
+        $response = $this->withHeaders($this->getAuthHeader())
+            ->postJson('/api/distributor-channel/v1/claims/upload', [
+                'file' => $excelFile,
+            ]);
+
+        $response->assertStatus(201);
+        $batchId = $response->json('data.batch_id');
+
+        // Verify records exist in database
+        $this->assertDatabaseHas('trx_program_upload_batch', ['id' => $batchId]);
+        $this->assertDatabaseHas('trx_program_upload', ['batch_id' => $batchId]);
+        $this->assertDatabaseHas('trx_program_result', ['customer_code' => 'C110000411']);
+
+        // 2. Delete Batch
+        $response = $this->withHeaders($this->getAuthHeader())
+            ->deleteJson('/api/distributor-channel/v1/claims/batches/' . $batchId);
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'success' => true,
+            'message' => 'Batch upload dan detailnya berhasil dihapus.'
+        ]);
+
+        // 3. Verify batch is deleted and details/results cascaded
+        $this->assertDatabaseMissing('trx_program_upload_batch', ['id' => $batchId]);
+        $this->assertDatabaseMissing('trx_program_upload', ['batch_id' => $batchId]);
+        // Also result detail should be missing
+        $this->assertDatabaseMissing('trx_program_result', ['customer_code' => 'C110000411']);
+
+        // 4. GET batch detail should return 404
+        $response = $this->withHeaders($this->getAuthHeader())
+            ->getJson('/api/distributor-channel/v1/claims/batches/' . $batchId);
+        $response->assertStatus(404);
+        
+        // 5. Try deleting non-existent batch should return 404
+        $response = $this->withHeaders($this->getAuthHeader())
+            ->deleteJson('/api/distributor-channel/v1/claims/batches/999999');
+        $response->assertStatus(404);
+    }
 }
 

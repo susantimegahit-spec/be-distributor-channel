@@ -86,4 +86,20 @@ class UploadController extends Controller
 
         return $this->successResponse($batch, 'Detail batch upload berhasil diambil.');
     }
+
+    /**
+     * Delete an upload batch and all its associated upload rows and results.
+     *
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function destroy($id)
+    {
+        $deleted = $this->uploadService->deleteBatch((int)$id);
+        if (!$deleted) {
+            return $this->errorResponse('Batch tidak ditemukan.', null, Response::HTTP_NOT_FOUND);
+        }
+
+        return $this->successResponse(null, 'Batch upload dan detailnya berhasil dihapus.');
+    }
 }

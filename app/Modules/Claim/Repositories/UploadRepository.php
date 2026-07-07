@@ -145,4 +145,16 @@ class UploadRepository implements UploadRepositoryInterface
             'total_diskon' => (float)$totalDiskon,
         ];
     }
+
+    /**
+     * Delete a batch by ID.
+     */
+    public function deleteBatch(int $id)
+    {
+        $batch = TrxProgramUploadBatch::find($id);
+        if (!$batch) {
+            return false;
+        }
+        return (bool)$batch->delete();
+    }
 }

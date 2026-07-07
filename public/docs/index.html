@@ -14,8 +14,7 @@
   <link rel="stylesheet" href="https://unpkg.com/@stoplight/elements/styles.min.css">
 
   <style>
-    html,
-    body {
+    html, body {
       height: 100%;
       margin: 0;
       padding: 0;
@@ -27,7 +26,9 @@
       height: calc(100vh - 60px);
     }
 
-    /* Premium Header Bar matching Light Theme */
+    /* ============================================================
+       Header Bar
+    ============================================================ */
     .header-bar {
       background-color: #ffffff;
       border-bottom: 1px solid #e2e8f0;
@@ -55,13 +56,52 @@
       letter-spacing: 0.05em;
     }
 
-    /* Premium Preloader Screen */
+    /* ============================================================
+       Search Box Overlay — fixed over Stoplight sidebar
+    ============================================================ */
+    #sidebar-search-overlay {
+      position: fixed;
+      left: 0;
+      width: 300px;          /* matches Stoplight sidebar width */
+      top: 60px;             /* right below our header */
+      z-index: 9000;
+      background: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 9px 12px;
+      box-sizing: border-box;
+    }
+
+    #sidebar-search-input {
+      display: block;
+      width: 100%;
+      padding: 7px 10px 7px 32px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: 'Inter', sans-serif;
+      box-sizing: border-box;
+      outline: none;
+      /* Inline SVG search icon */
+      background: #f8fafc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 10px center;
+      color: #0f172a;
+      transition: border-color .2s, box-shadow .2s, background-color .2s;
+    }
+
+    #sidebar-search-input:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+      background-color: #fff;
+    }
+
+    #sidebar-search-input::placeholder { color: #94a3b8; }
+
+    /* ============================================================
+       Preloader
+    ============================================================ */
     .loader-container {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
       background-color: #ffffff;
       z-index: 9999;
       display: flex;
@@ -73,19 +113,15 @@
 
     .logo-area {
       position: relative;
-      width: 80px;
-      height: 80px;
+      width: 80px; height: 80px;
       margin-bottom: 24px;
     }
 
     .pulse-ring {
       border: 3px solid #3b82f6;
       border-radius: 50%;
-      height: 80px;
-      width: 80px;
-      position: absolute;
-      left: 0;
-      top: 0;
+      height: 80px; width: 80px;
+      position: absolute; left: 0; top: 0;
       animation: pulsate 1.5s ease-out infinite;
       opacity: 0;
     }
@@ -93,73 +129,43 @@
     .pulse-dot {
       background-color: #3b82f6;
       border-radius: 50%;
-      height: 24px;
-      width: 24px;
-      position: absolute;
-      left: 28px;
-      top: 28px;
-      box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+      height: 24px; width: 24px;
+      position: absolute; left: 28px; top: 28px;
+      box-shadow: 0 0 20px rgba(59,130,246,0.4);
     }
 
     .loader-title {
-      color: #0f172a;
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: 0.15em;
-      margin-bottom: 6px;
+      color: #0f172a; font-size: 20px; font-weight: 700;
+      letter-spacing: 0.15em; margin-bottom: 6px;
     }
 
     .loader-subtitle {
-      color: #64748b;
-      font-size: 13px;
-      font-weight: 500;
-      margin-bottom: 32px;
-      letter-spacing: 0.05em;
+      color: #64748b; font-size: 13px; font-weight: 500;
+      margin-bottom: 32px; letter-spacing: 0.05em;
     }
 
     .loader-bar {
-      width: 240px;
-      height: 4px;
+      width: 240px; height: 4px;
       background-color: #f1f5f9;
-      border-radius: 2px;
-      overflow: hidden;
+      border-radius: 2px; overflow: hidden;
     }
 
     .loader-progress {
-      width: 0%;
-      height: 100%;
+      width: 0%; height: 100%;
       background-color: #3b82f6;
-      animation: load 2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      animation: load 2s cubic-bezier(0.4,0,0.2,1) forwards;
     }
 
     @keyframes pulsate {
-      0% {
-        transform: scale(0.1, 0.1);
-        opacity: 0.0;
-      }
-
-      50% {
-        opacity: 1.0;
-      }
-
-      100% {
-        transform: scale(1.2, 1.2);
-        opacity: 0.0;
-      }
+      0%   { transform: scale(0.1,0.1); opacity: 0; }
+      50%  { opacity: 1; }
+      100% { transform: scale(1.2,1.2); opacity: 0; }
     }
 
     @keyframes load {
-      0% {
-        width: 0%;
-      }
-
-      60% {
-        width: 75%;
-      }
-
-      100% {
-        width: 100%;
-      }
+      0%   { width: 0%; }
+      60%  { width: 75%; }
+      100% { width: 100%; }
     }
   </style>
 </head>
@@ -179,7 +185,7 @@
     </div>
   </div>
 
-  <!-- Header bar -->
+  <!-- Header -->
   <div class="header-bar">
     <div class="header-title-wrapper">
       <h1>PT SUSANTI MEGAH</h1>
@@ -187,189 +193,194 @@
     </div>
   </div>
 
-  <!-- Stoplight Elements API Doc Component -->
-  <elements-api id="api-docs" apiDescriptionUrl="./openapi.yaml" router="hash" layout="sidebar" hideTryIt="false" />
+  <!-- Search overlay — sits on top of the Stoplight sidebar -->
+  <div id="sidebar-search-overlay">
+    <input
+      id="sidebar-search-input"
+      type="text"
+      placeholder="Cari endpoint..."
+      autocomplete="off"
+      oninput="filterSidebar(this.value)"
+    >
+  </div>
+
+  <!-- Stoplight Elements component -->
+  <elements-api
+    id="api-docs"
+    apiDescriptionUrl="./openapi.yaml"
+    router="hash"
+    layout="sidebar"
+    hideTryIt="false"
+  />
 
   <script>
-    // Function to inject custom branding and search bar into Stoplight's shadow DOM
-    function customizeStoplightBranding() {
+    /* ============================================================
+       STEP 1 — Push sidebar content down so our search overlay
+                 doesn't cover the first nav item
+    ============================================================ */
+    function adjustSidebarPadding() {
+      const api = document.getElementById('api-docs');
+      if (!api || !api.shadowRoot) return false;
+
+      const sidebar = api.shadowRoot.querySelector('.sl-overflow-y-auto');
+      if (!sidebar) return false;
+
+      if (sidebar.dataset.padded) return true;   // already done
+      sidebar.dataset.padded = '1';
+      sidebar.style.paddingTop = '48px';          // height of our search bar
+      return true;
+    }
+
+    /* ============================================================
+       STEP 2 — Hide Stoplight branding inside shadow DOM
+    ============================================================ */
+    function hideBranding() {
       const api = document.getElementById('api-docs');
       if (!api || !api.shadowRoot) return;
+      if (api.shadowRoot.getElementById('custom-branding-style')) return;
 
-      // 1. Inject CSS to hide "Powered by Stoplight"
-      if (!api.shadowRoot.getElementById('custom-branding-style')) {
-        const style = document.createElement('style');
-        style.id = 'custom-branding-style';
-        style.textContent = `
-            /* Hide default branding links and classes */
-            a[href*="stoplight"],
-            a[href*="stoplight.io"],
-            .sl-powered-by,
-            div[class*="powered-by"],
-            div[class*="sl-py-3"] > a[href*="stoplight"] {
-              display: none !important;
-              opacity: 0 !important;
-              visibility: hidden !important;
-              height: 0 !important;
-              padding: 0 !important;
-              margin: 0 !important;
-            }
-            .sl-elements-api {
-              font-family: 'Inter', sans-serif !important;
-            }
-          `;
-        api.shadowRoot.appendChild(style);
-      }
+      const style = document.createElement('style');
+      style.id = 'custom-branding-style';
+      style.textContent = `
+        a[href*="stoplight"], a[href*="stoplight.io"],
+        .sl-powered-by, div[class*="powered-by"] {
+          display: none !important;
+          height: 0 !important;
+          overflow: hidden !important;
+        }
+      `;
+      api.shadowRoot.appendChild(style);
 
-      // 2. Deep scan shadow DOM using JS to hide any residual branding links
-      const allAnchors = api.shadowRoot.querySelectorAll('a');
-      allAnchors.forEach(a => {
-        if (a.href.includes('stoplight.io') || a.href.includes('stoplight') || a.textContent.toLowerCase().includes('stoplight')) {
-          a.style.display = 'none';
-          a.style.opacity = '0';
-          a.style.height = '0';
-          a.style.padding = '0';
+      // JS scan for any residual branding links
+      api.shadowRoot.querySelectorAll('a').forEach(a => {
+        if (
+          a.href.includes('stoplight') ||
+          a.textContent.toLowerCase().includes('stoplight') ||
+          a.textContent.toLowerCase().includes('powered by')
+        ) {
+          const p = a.parentElement;
+          if (p) p.style.display = 'none';
+        }
+      });
+    }
 
-          // Also hide its direct parent wrapper if it has no other content
-          const parent = a.parentElement;
-          if (parent && (parent.children.length === 1 || parent.textContent.trim().toLowerCase().includes('powered by'))) {
-            parent.style.display = 'none';
-            parent.style.opacity = '0';
-            parent.style.height = '0';
-            parent.style.padding = '0';
-          }
+    /* ============================================================
+       STEP 3 — Search / filter sidebar
+       
+       Stoplight sidebar DOM structure:
+         .sl-overflow-y-auto              ← sidebar (we query this)
+           └─ div (title wrapper)
+           └─ div (TOC nav container)     ← this has many children
+                └─ div (Overview)
+                └─ div (ENDPOINTS header)
+                └─ div (PI Settings group)
+                └─ div (Sales Orders group)
+                └─ ...
+       
+       We must go ONE level deeper to find the actual group items.
+    ============================================================ */
+    function filterSidebar(query) {
+      var api = document.getElementById('api-docs');
+      if (!api || !api.shadowRoot) return;
+
+      var sidebar = api.shadowRoot.querySelector('.sl-overflow-y-auto');
+      if (!sidebar) return;
+
+      var q = query.toLowerCase().trim();
+
+      // --- Find the real nav container ---
+      // The TOC wrapper is the direct child with the MOST children
+      var allChildren = Array.from(sidebar.children).filter(function(c) {
+        return !c.id; // skip our injected elements (footer etc.)
+      });
+
+      var navContainer = sidebar; // fallback
+      var maxCount = 0;
+      allChildren.forEach(function(child) {
+        if (child.children.length > maxCount) {
+          maxCount = child.children.length;
+          navContainer = child;
         }
       });
 
-      // 3. Locate navigation sidebar container
-      const sidebar = api.shadowRoot.querySelector('.sl-overflow-y-auto') || api.shadowRoot.querySelector('nav');
-      if (sidebar) {
-        // Append "Developed by IT Department" footer if not already present
-        if (!api.shadowRoot.getElementById('custom-sidebar-footer')) {
-          const footer = document.createElement('div');
-          footer.id = 'custom-sidebar-footer';
-          footer.style.padding = '20px 16px';
-          footer.style.borderTop = '1px solid #f1f5f9';
-          footer.style.fontSize = '11px';
-          footer.style.color = '#94a3b8';
-          footer.style.textAlign = 'center';
-          footer.style.fontWeight = '600';
-          footer.style.letterSpacing = '0.05em';
-          footer.innerHTML = 'DEVELOPED BY<br><span style="color: #64748b;">IT Department PT. Susanti Megah</span>';
-          sidebar.appendChild(footer);
-        }
-
-        // Inject Search Bar if not already present
-        if (!api.shadowRoot.getElementById('custom-sidebar-search-container')) {
-          const searchContainer = document.createElement('div');
-          searchContainer.id = 'custom-sidebar-search-container';
-          searchContainer.style.padding = '12px 16px';
-          searchContainer.style.borderBottom = '1px solid #f1f5f9';
-          searchContainer.style.backgroundColor = '#ffffff';
-          searchContainer.style.position = 'sticky';
-          searchContainer.style.top = '0';
-          searchContainer.style.zIndex = '10';
-          searchContainer.innerHTML = `
-              <input type="text" id="custom-sidebar-search" placeholder="Cari API..." style="
-                width: 100%;
-                padding: 8px 12px;
-                border: 1px solid #cbd5e1;
-                border-radius: 6px;
-                font-size: 13px;
-                font-family: 'Inter', sans-serif;
-                box-sizing: border-box;
-                outline: none;
-                transition: border-color 0.2s;
-              ">
-            `;
-
-          const searchInput = searchContainer.querySelector('#custom-sidebar-search');
-          searchInput.addEventListener('focus', () => {
-            searchInput.style.borderColor = '#3b82f6';
-          });
-          searchInput.addEventListener('blur', () => {
-            searchInput.style.borderColor = '#cbd5e1';
-          });
-
-          // Implement sidebar search filter logic
-          searchInput.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase().trim();
-            const links = sidebar.querySelectorAll('a');
-
-            links.forEach(link => {
-              if (link.closest('#custom-sidebar-footer')) return;
-
-              const text = link.textContent.toLowerCase();
-              const href = link.getAttribute('href') || '';
-
-              if (query === '') {
-                link.style.display = '';
-                let parent = link.parentElement;
-                while (parent && parent !== sidebar) {
-                  if (parent.tagName === 'DIV') {
-                    parent.style.display = '';
-                  }
-                  parent = parent.parentElement;
-                }
-              } else {
-                if (text.includes(query) || href.toLowerCase().includes(query)) {
-                  link.style.display = '';
-                  let parent = link.parentElement;
-                  while (parent && parent !== sidebar) {
-                    if (parent.tagName === 'DIV') {
-                      parent.style.display = '';
-                    }
-                    parent = parent.parentElement;
-                  }
-                } else {
-                  link.style.display = 'none';
-                }
-              }
-            });
-
-            // Hide empty tag sections when searching
-            if (query !== '') {
-              const divs = sidebar.querySelectorAll('div');
-              divs.forEach(div => {
-                if (div.querySelector('a') && !div.id && div !== searchContainer) {
-                  const total = div.querySelectorAll('a').length;
-                  const hidden = div.querySelectorAll('a[style*="display: none"]').length;
-                  if (total > 0 && total === hidden) {
-                    div.style.display = 'none';
-                  } else {
-                    div.style.display = '';
-                  }
-                }
-              });
-            }
-          });
-
-          // Insert search bar at the top of the sidebar
-          sidebar.insertBefore(searchContainer, sidebar.firstChild);
-        }
+      // If navContainer still has very few children, go one more level
+      if (maxCount <= 2) {
+        var deeper = Array.from(navContainer.children).filter(function(c) {
+          return !c.id;
+        });
+        deeper.forEach(function(child) {
+          if (child.children.length > maxCount) {
+            maxCount = child.children.length;
+            navContainer = child;
+          }
+        });
       }
+
+      // === DEBUG: log what we found (remove after debugging) ===
+      console.log('[SM-SEARCH] query:', q);
+      console.log('[SM-SEARCH] sidebar.children.length:', sidebar.children.length);
+      console.log('[SM-SEARCH] navContainer.children.length:', navContainer.children.length);
+      Array.from(navContainer.children).slice(0, 5).forEach(function(c, i) {
+        console.log('[SM-SEARCH] navChild[' + i + ']:', c.tagName, '|', c.textContent.trim().substring(0, 40));
+      });
+      // ========================================================
+
+      if (q === '') {
+        // Clear: restore everything
+        Array.from(navContainer.children).forEach(function(child) {
+          child.style.display = '';
+        });
+        return;
+      }
+
+      // Hide/show each group item based on text match
+      Array.from(navContainer.children).forEach(function(child) {
+        if (child.id) return; // never hide our injected elements
+        var text = child.textContent.toLowerCase();
+        child.style.display = text.includes(q) ? '' : 'none';
+      });
     }
 
-    // Check shadow DOM rendering on interval
-    const customizeInterval = setInterval(() => {
-      customizeStoplightBranding();
-    }, 100);
+    /* ============================================================
+       STEP 4 + 5 + 6 — Wire everything inside DOMContentLoaded
+       so the input element is guaranteed to exist in the DOM
+    ============================================================ */
+    window.addEventListener('DOMContentLoaded', function () {
 
-    // Stop polling after 6 seconds
-    setTimeout(() => clearInterval(customizeInterval), 6000);
-
-    // Hide loading screen smoothly
-    window.addEventListener('DOMContentLoaded', () => {
-      setTimeout(() => {
-        const loader = document.getElementById('loader');
-        if (loader) {
-          loader.style.opacity = '0';
-          loader.style.visibility = 'hidden';
+      // --- Wire search input events ---
+      var searchEl = document.getElementById('sidebar-search-input');
+      if (searchEl) {
+        function onSearchChange() {
+          filterSidebar(searchEl.value);
         }
+        searchEl.addEventListener('input',   onSearchChange);
+        searchEl.addEventListener('keyup',   onSearchChange);
+        searchEl.addEventListener('keydown', function() { setTimeout(onSearchChange, 0); });
+        searchEl.addEventListener('change',  onSearchChange);
+
+        // Force the overlay to always be on top and interactive
+        var overlay = document.getElementById('sidebar-search-overlay');
+        if (overlay) {
+          overlay.addEventListener('click', function() { searchEl.focus(); });
+        }
+      }
+
+      // --- Poll until sidebar renders ---
+      var sidebarReady = false;
+      var pollTimer = setInterval(function () {
+        hideBranding();
+        if (!sidebarReady) sidebarReady = adjustSidebarPadding();
+        if (sidebarReady) clearInterval(pollTimer);
+      }, 200);
+      setTimeout(function () { clearInterval(pollTimer); }, 15000);
+
+      // --- Fade out loading screen after 2.2 s ---
+      setTimeout(function () {
+        var loader = document.getElementById('loader');
+        if (loader) { loader.style.opacity = '0'; loader.style.visibility = 'hidden'; }
       }, 2200);
     });
   </script>
 
 </body>
-
 </html>

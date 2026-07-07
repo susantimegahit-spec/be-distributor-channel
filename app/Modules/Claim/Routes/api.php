@@ -24,6 +24,7 @@ Route::prefix('v1/claims')->middleware('auth:sanctum')->group(function () {
     Route::post('/upload', [UploadController::class, 'upload']);
     Route::get('/batches', [UploadController::class, 'getBatches']);
     Route::get('/batches/{id}', [UploadController::class, 'showBatch']);
+    Route::delete('/batches/{id}', [UploadController::class, 'destroy']);
 
     // Calculation Results & Export
     Route::get('/results', [ResultController::class, 'index']);

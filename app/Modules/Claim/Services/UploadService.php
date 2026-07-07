@@ -295,4 +295,15 @@ class UploadService
     {
         return $this->uploadRepository->findBatchWithSummary($id);
     }
+
+    /**
+     * Delete a batch and its associated details.
+     *
+     * @param int $id
+     * @return bool
+     */
+    public function deleteBatch(int $id)
+    {
+        return $this->uploadRepository->deleteBatch($id);
+    }
 }

@@ -36,4 +36,12 @@ interface UploadRepositoryInterface
      * @return array|null
      */
     public function findBatchWithSummary(int $id);
+
+    /**
+     * Delete a batch by ID.
+     *
+     * @param int $id
+     * @return bool
+     */
+    public function deleteBatch(int $id);
 }
