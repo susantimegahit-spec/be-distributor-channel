@@ -631,4 +631,83 @@ class SalesOrderTest extends TestCase
         $response->assertHeader('Content-Type', 'application/pdf');
         $this->assertNotEmpty($response->getContent());
     }
+
+    /**
+     * Test updating a sales order draft with a new PDF attachment.
+     */
+    public function test_update_sales_order_draft_attachment(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+        
+        // 1. Create a draft with an initial attachment
+        $order = \App\Models\SalesOrder::create([
+            'order_no' => 'SO-TEST-UPDATE-ATT',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'PT XYZ',
+            'doc_date' => '2026-02-25',
+            'status' => 'DRAFT',
+            'approval_id' => 1,
+            'doc_total' => 50000,
+        ]);
+        
+        $order->details()->create([
+            'item_code' => 'E65',
+            'quantity' => 10,
+            'unit_price' => 5000,
+            'line_total' => 50000,
+        ]);
+        
+        // Create initial attachment file
+        $oldFile = \Illuminate\Http\UploadedFile::fake()->create('old_doc.pdf', 100, 'application/pdf');
+        $oldPath = $oldFile->storeAs('attachments/order', 'old_doc.pdf', 'public');
+        
+        $order->attachments()->create([
+            'file_name' => 'old_doc.pdf',
+            'file_path' => $oldPath,
+            'file_type' => 'application/pdf',
+            'file_size' => 100000,
+            'uploaded_by' => $this->user->id,
+        ]);
+
+        \Illuminate\Support\Facades\Storage::disk('public')->assertExists($oldPath);
+
+        // 2. Prepare update payload with a new file
+        $newFile = \Illuminate\Http\UploadedFile::fake()->create('new_doc.pdf', 200, 'application/pdf');
+        
+        $payload = [
+            '_method' => 'PUT',
+            'card_code' => 'C110003074',
+            'customer_name' => 'PT XYZ',
+            'po_number' => 'PO-ATTACH-UPDATED',
+            'doc_date' => '2026-02-25',
+            'lines' => [
+                [
+                    'item_code' => 'E65',
+                    'quantity' => 10,
+                    'unit_price' => 5000,
+                    'line_total' => 50000,
+                ]
+            ],
+            'attachment' => $newFile,
+        ];
+
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        // Perform request using POST with _method=PUT to emulate multipart PUT
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->post('/api/distributor-channel/v1/sales-orders/' . $order->id, $payload);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.po_number', 'PO-ATTACH-UPDATED')
+            ->assertJsonPath('data.attachments.0.file_name', 'new_doc.pdf');
+
+        // 3. Verify old file is deleted and new file exists
+        \Illuminate\Support\Facades\Storage::disk('public')->assertMissing($oldPath);
+        
+        $newAttachment = \App\Models\SalesOrderAttachment::where('sales_order_id', $order->id)->first();
+        $this->assertEquals('new_doc.pdf', $newAttachment->file_name);
+        \Illuminate\Support\Facades\Storage::disk('public')->assertExists($newAttachment->file_path);
+    }
 }

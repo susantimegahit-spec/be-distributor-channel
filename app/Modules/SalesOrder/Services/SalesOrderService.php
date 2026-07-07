@@ -156,6 +156,10 @@ class SalesOrderService
             ]);
         }
 
+        // Extract attachment
+        $attachment = $data['attachment'] ?? null;
+        unset($data['attachment']);
+
         $distributor = \App\Models\Distributor::find($distributorId);
         $data['customer_name'] = $distributor ? $distributor->name : $salesOrder->customer_name;
         $data['status'] = $data['status'] ?? $salesOrder->status;
@@ -170,13 +174,31 @@ class SalesOrderService
 
         $updatedOrder = $this->salesOrderRepository->update($salesOrder, $data);
 
+        // Store attachment if present
+        if ($attachment instanceof \Illuminate\Http\UploadedFile) {
+            try {
+                // Delete old files from storage and database
+                $oldAttachments = $updatedOrder->attachments;
+                foreach ($oldAttachments as $oldAttachment) {
+                    if (\Illuminate\Support\Facades\Storage::disk('public')->exists($oldAttachment->file_path)) {
+                        \Illuminate\Support\Facades\Storage::disk('public')->delete($oldAttachment->file_path);
+                    }
+                    $oldAttachment->delete();
+                }
+
+                $this->storeAttachment($updatedOrder, $attachment, $userId);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to update Sales Order attachment: " . $e->getMessage());
+            }
+        }
+
         $this->auditLogService->log(
             $userId,
             'UPDATE_SALES_ORDER_DRAFT',
             "Updated Sales Order draft {$updatedOrder->order_no}."
         );
 
-        return $updatedOrder;
+        return $updatedOrder->load('attachments');
     }
 
     /**
@@ -809,6 +831,18 @@ class SalesOrderService
             if (array_key_exists('series_name', $normalizedData)) {
                 $salesOrder->update([
                     'series_name' => $normalizedData['series_name'] ?? $salesOrder->series_name,
+                ]);
+            }
+
+            if (array_key_exists('slp_code', $normalizedData)) {
+                $salesOrder->update([
+                    'slp_code' => $normalizedData['slp_code'] ?? $salesOrder->slp_code,
+                ]);
+            }
+
+            if (array_key_exists('cntct_code', $normalizedData)) {
+                $salesOrder->update([
+                    'cntct_code' => $normalizedData['cntct_code'] ?? $salesOrder->cntct_code,
                 ]);
             }
         }
