@@ -17,11 +17,37 @@ class PiSettingController extends Controller
     /**
      * Get the active PI setting.
      */
-    public function show(): JsonResponse
+    public function show(Request $request): JsonResponse
     {
-        $setting = PiSetting::first();
+        $userId = $request->query('user_id');
+        $documentTag = $request->query('document_tag');
+
+        $query = PiSetting::query();
+
+        if ($userId !== null) {
+            $query->where('user_id', $userId);
+        } else {
+            $query->whereNull('user_id');
+        }
+
+        if ($documentTag !== null) {
+            $query->where('document_tag', $documentTag);
+        } else {
+            $query->whereNull('document_tag');
+        }
+
+        $setting = $query->first();
+
+        // Fallback to default setting if a specific one was requested but not found
+        if (!$setting && ($userId !== null || $documentTag !== null)) {
+            $setting = PiSetting::whereNull('user_id')->whereNull('document_tag')->first();
+        }
+
+        // If still no setting exists (e.g. completely empty table), create a default
         if (!$setting) {
             $setting = PiSetting::create([
+                'user_id' => null,
+                'document_tag' => null,
                 'signer_name' => 'Kushan Wijono',
                 'signer_title' => 'Branch Manager',
                 'signature_path' => null,
@@ -37,6 +63,8 @@ class PiSettingController extends Controller
     public function update(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
+            'user_id' => 'nullable|integer|exists:users,id',
+            'document_tag' => 'nullable|string|max:255',
             'signer_name' => 'required|string|max:255',
             'signer_title' => 'required|string|max:255',
             'signature_file' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp|max:2048',
@@ -46,9 +74,17 @@ class PiSettingController extends Controller
             return $this->errorResponse($validator->errors()->first(), [], 422);
         }
 
-        $setting = PiSetting::first();
+        $userId = $request->input('user_id');
+        $documentTag = $request->input('document_tag');
+
+        $setting = PiSetting::where('user_id', $userId)
+            ->where('document_tag', $documentTag)
+            ->first();
+
         if (!$setting) {
             $setting = new PiSetting();
+            $setting->user_id = $userId;
+            $setting->document_tag = $documentTag;
         }
 
         $setting->signer_name = $request->input('signer_name');

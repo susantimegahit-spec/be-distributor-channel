@@ -13,9 +13,15 @@ class PiSetting extends Model
     protected $table = 'pi_settings';
 
     protected $fillable = [
+        'user_id',
+        'document_tag',
         'signer_name',
         'signer_title',
         'signature_path',
+    ];
+
+    protected $casts = [
+        'user_id' => 'integer',
     ];
 
     protected $appends = [

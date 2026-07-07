@@ -17,6 +17,19 @@ paths:
         - PI Settings
       security:
         - BearerAuth: []
+      parameters:
+        - name: user_id
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: ID User pemilik tanda tangan.
+        - name: document_tag
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Tag pengelompokan dokumen (misal INVOICE).
       responses:
         '200':
           description: Konfigurasi berhasil diambil.
@@ -36,6 +49,14 @@ paths:
                 - signer_name
                 - signer_title
               properties:
+                user_id:
+                  type: integer
+                  description: ID User pemilik tanda tangan.
+                  nullable: true
+                document_tag:
+                  type: string
+                  description: Tag pengelompokan dokumen (misal INVOICE).
+                  nullable: true
                 signer_name:
                   type: string
                   example: Kushan Wijono
@@ -3430,6 +3451,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UploadBatchDetail'
+        '404':
+          description: Batch tidak ditemukan
+
+    delete:
+      summary: Delete claim batch
+      description: Menghapus data batch upload beserta seluruh detail transaksi dan hasil kalkulasinya (cascade delete).
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Batch berhasil dihapus
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Batch upload dan detailnya berhasil dihapus.
+                  data:
+                    type: object
+                    example: {}
         '404':
           description: Batch tidak ditemukan
 
