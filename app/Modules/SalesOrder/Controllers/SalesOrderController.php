@@ -101,7 +101,7 @@ class SalesOrderController extends Controller
     public function store(SaveSalesOrderRequest $request): JsonResponse
     {
         $user = $request->user();
-        
+
         if (!$user->code_customer) {
             abort(403, 'Hanya user distributor yang dapat membuat sales order.');
         }
@@ -143,8 +143,8 @@ class SalesOrderController extends Controller
     {
         $user = $request->user();
 
-        // Handle workflow actions if 'action' parameter is present
-        if ($request->has('action')) {
+        // Handle workflow actions if 'action' parameter is present and not empty
+        if ($request->filled('action')) {
             $action = $request->input('action');
             $notes = $request->input('notes');
 
@@ -482,8 +482,8 @@ class SalesOrderController extends Controller
     public function getCreditLimit(Request $request): JsonResponse
     {
         $user = $request->user();
-        $customQuery = $request->query('CustomQuery') ?? $request->input('CustomQuery') 
-            ?? $request->query('CodeCustomer') ?? $request->input('CodeCustomer') 
+        $customQuery = $request->query('CustomQuery') ?? $request->input('CustomQuery')
+            ?? $request->query('CodeCustomer') ?? $request->input('CodeCustomer')
             ?? $user->code_customer;
 
         if (empty($customQuery)) {
