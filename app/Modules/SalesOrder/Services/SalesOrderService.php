@@ -673,9 +673,9 @@ class SalesOrderService
         $timestamp = time();
         $random = \Illuminate\Support\Str::random(6);
 
-        // Rename format: {YYYYMMDD}_{order_no}.{extension}
+        // Rename format: {YYYYMMDD}_{timestamp}_{random}_{order_no}.{extension}
         $sanitizedOrderNo = str_replace(['/', '\\', ' '], '_', $salesOrder->order_no);
-        $fileName = date('Ymd') . '_' . $sanitizedOrderNo . '.' . $extension;
+        $fileName = date('Ymd') . '_' . $timestamp . '_' . $random . '_' . $sanitizedOrderNo . '.' . $extension;
 
         // Store file in 'public/attachments/order' directory
         $path = $file->storeAs('attachments/order', $fileName, 'public');
