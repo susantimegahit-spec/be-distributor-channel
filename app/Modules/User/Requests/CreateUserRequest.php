@@ -29,8 +29,6 @@ class CreateUserRequest extends FormRequest
             'role_id' => 'required|integer|exists:roles,id',
             'code_customer' => 'nullable|string|exists:distributors,code_customer',
             'is_active' => 'sometimes|boolean',
-            'accessible_systems' => 'nullable|array',
-            'accessible_systems.*' => 'string',
         ];
     }
 }

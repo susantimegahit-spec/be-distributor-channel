@@ -25,6 +25,7 @@ class UserTest extends TestCase
         $this->role = Role::create([
             'name' => 'distributor',
             'is_active' => true,
+            'accessible_systems' => ['distributor', 'ekspedisi'],
         ]);
 
         // Create distributor
@@ -177,7 +178,7 @@ class UserTest extends TestCase
     }
 
     /**
-     * Test user creation with accessible_systems.
+     * Test user creation with accessible_systems inherited from role.
      */
     public function test_create_user_with_accessible_systems(): void
     {
@@ -191,7 +192,6 @@ class UserTest extends TestCase
             'email' => 'sysuser@example.com',
             'password' => 'password123',
             'role_id' => $this->role->id,
-            'accessible_systems' => ['distributor', 'ekspedisi'],
             'is_active' => true,
         ]);
 
@@ -200,12 +200,11 @@ class UserTest extends TestCase
 
         $this->assertDatabaseHas('users', [
             'username' => 'sysuser',
-            'accessible_systems' => 'distributor,ekspedisi',
         ]);
     }
 
     /**
-     * Test user update with accessible_systems.
+     * Test user update with accessible_systems inherited from role.
      */
     public function test_update_user_with_accessible_systems(): void
     {
@@ -215,15 +214,9 @@ class UserTest extends TestCase
             'Authorization' => 'Bearer ' . $token,
         ])->putJson('/api/distributor-channel/v1/users/' . $this->adminUser->id, [
             'name' => 'Admin User Updated',
-            'accessible_systems' => ['ekspedisi'],
         ]);
 
         $response->assertStatus(200);
-        $this->assertEquals(['ekspedisi'], $response->json('data.accessible_systems'));
-
-        $this->assertDatabaseHas('users', [
-            'id' => $this->adminUser->id,
-            'accessible_systems' => 'ekspedisi',
-        ]);
+        $this->assertEquals(['distributor', 'ekspedisi'], $response->json('data.accessible_systems'));
     }
 }

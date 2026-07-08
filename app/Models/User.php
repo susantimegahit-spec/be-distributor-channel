@@ -27,7 +27,6 @@ class User extends Authenticatable
         'password',
         'code_customer',
         'is_active',
-        'accessible_systems',
     ];
 
     /**
@@ -38,6 +37,15 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+    ];
+
+    /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array
+     */
+    protected $appends = [
+        'accessible_systems',
     ];
 
     /**
@@ -71,25 +79,10 @@ class User extends Authenticatable
     }
 
     /**
-     * Get the accessible systems list as an array.
+     * Get the accessible systems list as an array (delegated to Role).
      */
-    public function getAccessibleSystemsAttribute($value): array
+    public function getAccessibleSystemsAttribute(): array
     {
-        if (empty($value)) {
-            return [];
-        }
-        return explode(',', $value);
-    }
-
-    /**
-     * Set the accessible systems list from an array.
-     */
-    public function setAccessibleSystemsAttribute($value)
-    {
-        if (is_array($value)) {
-            $this->attributes['accessible_systems'] = implode(',', $value);
-        } else {
-            $this->attributes['accessible_systems'] = $value;
-        }
-    }
+        return $this->role ? $this->role->accessible_systems : [];
+     }
 }

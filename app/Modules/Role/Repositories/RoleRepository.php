@@ -36,6 +36,7 @@ class RoleRepository implements RoleRepositoryInterface
             $role = Role::create([
                 'name' => $data['name'],
                 'is_active' => $data['is_active'] ?? true,
+                'accessible_systems' => $data['accessible_systems'] ?? null,
             ]);
 
             $role->roleMenu()->create([
@@ -66,6 +67,9 @@ class RoleRepository implements RoleRepositoryInterface
                 }
                 if (isset($data['is_active'])) {
                     $roleUpdateData['is_active'] = $data['is_active'];
+                }
+                if (array_key_exists('accessible_systems', $data)) {
+                    $roleUpdateData['accessible_systems'] = $data['accessible_systems'];
                 }
                 if (!empty($roleUpdateData)) {
                     $role->update($roleUpdateData);

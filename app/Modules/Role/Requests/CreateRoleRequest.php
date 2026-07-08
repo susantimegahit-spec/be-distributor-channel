@@ -26,6 +26,8 @@ class CreateRoleRequest extends FormRequest
             'is_active' => 'sometimes|boolean',
             'menu' => 'nullable|array',
             'approval_id' => 'nullable|integer|exists:master_approvals,id',
+            'accessible_systems' => 'nullable|array',
+            'accessible_systems.*' => 'string',
         ];
     }
 }

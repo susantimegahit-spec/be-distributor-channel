@@ -308,6 +308,11 @@ paths:
                   items:
                     type: object
                   example: []
+                accessible_systems:
+                  type: array
+                  items:
+                    type: string
+                  example: ["distributor", "ekspedisi"]
       responses:
         '200':
           description: Role berhasil dibuat
@@ -399,6 +404,11 @@ paths:
                   items:
                     type: object
                   example: []
+                accessible_systems:
+                  type: array
+                  items:
+                    type: string
+                  example: ["distributor", "ekspedisi"]
       responses:
         '200':
           description: Role berhasil diperbarui
@@ -4446,6 +4456,11 @@ components:
         is_active:
           type: boolean
           example: true
+        accessible_systems:
+          type: array
+          items:
+            type: string
+          example: ["distributor", "ekspedisi"]
         created_at:
           type: string
           format: date-time

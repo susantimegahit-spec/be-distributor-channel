@@ -25,12 +25,18 @@ class AuthTest extends TestCase
             'status' => 1,
         ]);
 
+        $role = \App\Models\Role::create([
+            'name' => 'distributor',
+            'is_active' => true,
+        ]);
+
         // Create standard active user
         $this->user = User::create([
             'name' => 'Active User',
             'username' => 'activeuser',
             'email' => 'active@example.com',
             'password' => Hash::make($this->password),
+            'role_id' => $role->id,
             'code_customer' => 'DUMMY001',
             'is_active' => true,
         ]);
@@ -38,7 +44,7 @@ class AuthTest extends TestCase
 
     public function test_login_success(): void
     {
-        $this->user->update([
+        $this->user->role->update([
             'accessible_systems' => ['distributor', 'ekspedisi']
         ]);
 
