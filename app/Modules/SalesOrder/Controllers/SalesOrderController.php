@@ -658,4 +658,34 @@ class SalesOrderController extends Controller
 
         return $this->successResponse($summary, 'Statistik dashboard sales order berhasil diambil.');
     }
+
+    /**
+     * Cek ETA untuk sales orders.
+     *
+     * @param  Request  $request
+     * @return JsonResponse
+     */
+    public function checkEta(Request $request): JsonResponse
+    {
+        $request->validate([
+            'customer_code' => 'nullable|string|max:50',
+            'eta_date_request' => 'required|date',
+        ]);
+
+        $customerCode = $request->query('customer_code');
+        $etaDateRequest = $request->query('eta_date_request');
+
+        $query = \App\Models\SalesOrder::query()
+            ->with(['details', 'distributor'])
+            ->whereNotNull('eta_date')
+            ->where('eta_date', '<', $etaDateRequest);
+
+        if (!empty($customerCode)) {
+            $query->where('card_code', $customerCode);
+        }
+
+        $orders = $query->orderBy('eta_date', 'asc')->get();
+
+        return $this->successResponse($orders, 'Data sales order berdasarkan cek ETA berhasil diambil.');
+    }
 }

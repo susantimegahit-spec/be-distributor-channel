@@ -717,4 +717,89 @@ class SalesOrderTest extends TestCase
         $this->assertEquals('new_doc.pdf', $newAttachment->file_name);
         \Illuminate\Support\Facades\Storage::disk('public')->assertExists($newAttachment->file_path);
     }
+
+    /**
+     * Test checking ETA API.
+     */
+    public function test_check_eta_api(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        // Create a few sales orders with different eta_dates and card_codes
+        SalesOrder::create([
+            'order_no' => 'SO-ETA-0001',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'PT XYZ',
+            'doc_date' => '2026-02-25',
+            'eta_date' => '2026-03-01',
+            'slp_code' => 0,
+            'doc_total' => 50000,
+            'status' => 'DRAFT',
+        ]);
+
+        SalesOrder::create([
+            'order_no' => 'SO-ETA-0002',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'PT XYZ',
+            'doc_date' => '2026-02-25',
+            'eta_date' => '2026-03-10',
+            'slp_code' => 0,
+            'doc_total' => 50000,
+            'status' => 'DRAFT',
+        ]);
+
+        SalesOrder::create([
+            'order_no' => 'SO-ETA-0003',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C999999999',
+            'customer_name' => 'PT OTHER',
+            'doc_date' => '2026-02-25',
+            'eta_date' => '2026-03-05',
+            'slp_code' => 0,
+            'doc_total' => 50000,
+            'status' => 'DRAFT',
+        ]);
+
+        // 1. Missing eta_date_request parameter should trigger validation failure (returned as 200 with status_code 422)
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/distributor-channel/v1/sales-orders/check-eta');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => false,
+                'status_code' => 422,
+                'message' => 'The eta date request field is required.',
+            ]);
+
+        // 2. Querying with eta_date_request = '2026-03-06' should return orders 1 and 3 (eta_date < 2026-03-06)
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/distributor-channel/v1/sales-orders/check-eta?eta_date_request=2026-03-06');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Data sales order berdasarkan cek ETA berhasil diambil.',
+            ]);
+
+        $data = $response->json('data');
+        $this->assertCount(2, $data);
+        $orderNumbers = collect($data)->pluck('order_no')->toArray();
+        $this->assertContains('SO-ETA-0001', $orderNumbers);
+        $this->assertContains('SO-ETA-0003', $orderNumbers);
+        $this->assertNotContains('SO-ETA-0002', $orderNumbers);
+
+        // 3. Querying with eta_date_request = '2026-03-06' and customer_code = 'C110003074' should return only order 1
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/distributor-channel/v1/sales-orders/check-eta?eta_date_request=2026-03-06&customer_code=C110003074');
+
+        $response->assertStatus(200);
+        $data = $response->json('data');
+        $this->assertCount(1, $data);
+        $this->assertEquals('SO-ETA-0001', $data[0]['order_no']);
+    }
 }

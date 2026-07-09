@@ -12,6 +12,7 @@ Route::prefix('v1/sales-orders')->middleware('auth:sanctum')->group(function () 
     Route::get('/series', [SalesOrderController::class, 'getSeries']);
     Route::get('/credit-limit', [SalesOrderController::class, 'getCreditLimit']);
     Route::get('/dashboard', [SalesOrderController::class, 'dashboard']);
+    Route::get('/check-eta', [SalesOrderController::class, 'checkEta']);
     Route::post('/', [SalesOrderController::class, 'store']);
     Route::get('/{id}', [SalesOrderController::class, 'show']);
     Route::put('/{id}', [SalesOrderController::class, 'update']);
