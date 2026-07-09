@@ -9,26 +9,28 @@
   <!-- Import Google Fonts (Inter) -->
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
 
-  <!-- Import Stoplight Elements web component styles and scripts -->
-  <script src="https://unpkg.com/@stoplight/elements/web-components.min.js" defer></script>
-  <link rel="stylesheet" href="https://unpkg.com/@stoplight/elements/styles.min.css">
+  <!-- Import RapiDoc web component -->
+  <script type="module" src="https://unpkg.com/rapidoc/dist/rapidoc-min.js"></script>
 
   <style>
-    html, body {
+    html,
+    body {
       height: 100%;
       margin: 0;
       padding: 0;
       font-family: 'Inter', sans-serif;
       background-color: #ffffff;
+      overflow: hidden;
     }
 
-    elements-api {
+    rapi-doc {
+      width: 100%;
       height: calc(100vh - 60px);
     }
 
     /* ============================================================
        Header Bar
-    ============================================================ */
+     ============================================================ */
     .header-bar {
       background-color: #ffffff;
       border-bottom: 1px solid #e2e8f0;
@@ -57,133 +59,44 @@
     }
 
     /* ============================================================
-       Search Box Overlay — fixed over Stoplight sidebar
-    ============================================================ */
-    #sidebar-search-overlay {
-      position: fixed;
-      left: 0;
-      width: 300px;          /* matches Stoplight sidebar width */
-      top: 60px;             /* right below our header */
-      z-index: 9000;
-      background: #ffffff;
-      border-bottom: 1px solid #e2e8f0;
-      padding: 9px 12px;
-      box-sizing: border-box;
-    }
-
-    #sidebar-search-input {
-      display: block;
-      width: 100%;
-      padding: 7px 10px 7px 32px;
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      font-size: 13px;
-      font-family: 'Inter', sans-serif;
-      box-sizing: border-box;
-      outline: none;
-      /* Inline SVG search icon */
-      background: #f8fafc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 10px center;
-      color: #0f172a;
-      transition: border-color .2s, box-shadow .2s, background-color .2s;
-    }
-
-    #sidebar-search-input:focus {
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 3px rgba(59,130,246,.12);
-      background-color: #fff;
-    }
-
-    #sidebar-search-input::placeholder { color: #94a3b8; }
-
-    /* ============================================================
-       Preloader
-    ============================================================ */
-    .loader-container {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100vw; height: 100vh;
-      background-color: #ffffff;
-      z-index: 9999;
+       Header Controls (Expand / Collapse)
+     ============================================================ */
+    .header-controls {
       display: flex;
-      flex-direction: column;
+      gap: 8px;
       align-items: center;
-      justify-content: center;
-      transition: opacity 0.5s ease, visibility 0.5s ease;
     }
 
-    .logo-area {
-      position: relative;
-      width: 80px; height: 80px;
-      margin-bottom: 24px;
+    .control-btn {
+      background-color: #f8fafc;
+      border: 1px solid #e2e8f0;
+      color: #64748b;
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      transition: background-color 0.2s, border-color 0.2s, color 0.2s;
     }
 
-    .pulse-ring {
-      border: 3px solid #3b82f6;
-      border-radius: 50%;
-      height: 80px; width: 80px;
-      position: absolute; left: 0; top: 0;
-      animation: pulsate 1.5s ease-out infinite;
-      opacity: 0;
-    }
-
-    .pulse-dot {
-      background-color: #3b82f6;
-      border-radius: 50%;
-      height: 24px; width: 24px;
-      position: absolute; left: 28px; top: 28px;
-      box-shadow: 0 0 20px rgba(59,130,246,0.4);
-    }
-
-    .loader-title {
-      color: #0f172a; font-size: 20px; font-weight: 700;
-      letter-spacing: 0.15em; margin-bottom: 6px;
-    }
-
-    .loader-subtitle {
-      color: #64748b; font-size: 13px; font-weight: 500;
-      margin-bottom: 32px; letter-spacing: 0.05em;
-    }
-
-    .loader-bar {
-      width: 240px; height: 4px;
+    .control-btn:hover {
       background-color: #f1f5f9;
-      border-radius: 2px; overflow: hidden;
+      border-color: #cbd5e1;
+      color: #0f172a;
     }
 
-    .loader-progress {
-      width: 0%; height: 100%;
-      background-color: #3b82f6;
-      animation: load 2s cubic-bezier(0.4,0,0.2,1) forwards;
-    }
-
-    @keyframes pulsate {
-      0%   { transform: scale(0.1,0.1); opacity: 0; }
-      50%  { opacity: 1; }
-      100% { transform: scale(1.2,1.2); opacity: 0; }
-    }
-
-    @keyframes load {
-      0%   { width: 0%; }
-      60%  { width: 75%; }
-      100% { width: 100%; }
+    .control-btn svg {
+      stroke: currentColor;
     }
   </style>
 </head>
 
 <body>
-
-  <!-- Loading Screen -->
-  <div id="loader" class="loader-container">
-    <div class="logo-area">
-      <div class="pulse-ring"></div>
-      <div class="pulse-dot"></div>
-    </div>
-    <div class="loader-title">PT SUSANTI MEGAH</div>
-    <div class="loader-subtitle">IT Department - SM Connect API</div>
-    <div class="loader-bar">
-      <div class="loader-progress"></div>
-    </div>
-  </div>
 
   <!-- Header -->
   <div class="header-bar">
@@ -191,196 +104,39 @@
       <h1>PT SUSANTI MEGAH</h1>
       <span>IT Department - SM Connect API</span>
     </div>
+    <div class="header-controls">
+      <button class="control-btn" onclick="toggleNavStyle('expanded')" title="Expand Semua Kategori">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+        </svg>
+        Expand All
+      </button>
+      <button class="control-btn" onclick="toggleNavStyle('collapsed')" title="Collapse Semua Kategori">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M10 14l-7 7" />
+        </svg>
+        Collapse All
+      </button>
+    </div>
   </div>
 
-  <!-- Search overlay — sits on top of the Stoplight sidebar -->
-  <div id="sidebar-search-overlay">
-    <input
-      id="sidebar-search-input"
-      type="text"
-      placeholder="Cari endpoint..."
-      autocomplete="off"
-      oninput="filterSidebar(this.value)"
-    >
-  </div>
-
-  <!-- Stoplight Elements component -->
-  <elements-api
-    id="api-docs"
-    apiDescriptionUrl="./openapi.yaml"
-    router="hash"
-    layout="sidebar"
-    hideTryIt="false"
-  />
+  <!-- RapiDoc Component with focused style (makes categories/modules collapsible in sidebar) -->
+  <rapi-doc id="api-docs" spec-url="./openapi.yaml" theme="light" render-style="focused" nav-item-style="collapsed"
+    on-nav-tag-click="expand-collapse" show-header="false" allow-search="true" allow-try="true"
+    allow-spec-download="true" regular-font="Inter, sans-serif" primary-color="#3b82f6" nav-bg-color="#ffffff"
+    nav-accent-color="#3b82f6" nav-item-spacing="relaxed" layout="row"> </rapi-doc>
 
   <script>
-    /* ============================================================
-       STEP 1 — Push sidebar content down so our search overlay
-                 doesn't cover the first nav item
-    ============================================================ */
-    function adjustSidebarPadding() {
-      const api = document.getElementById('api-docs');
-      if (!api || !api.shadowRoot) return false;
-
-      const sidebar = api.shadowRoot.querySelector('.sl-overflow-y-auto');
-      if (!sidebar) return false;
-
-      if (sidebar.dataset.padded) return true;   // already done
-      sidebar.dataset.padded = '1';
-      sidebar.style.paddingTop = '48px';          // height of our search bar
-      return true;
-    }
-
-    /* ============================================================
-       STEP 2 — Hide Stoplight branding inside shadow DOM
-    ============================================================ */
-    function hideBranding() {
-      const api = document.getElementById('api-docs');
-      if (!api || !api.shadowRoot) return;
-      if (api.shadowRoot.getElementById('custom-branding-style')) return;
-
-      const style = document.createElement('style');
-      style.id = 'custom-branding-style';
-      style.textContent = `
-        a[href*="stoplight"], a[href*="stoplight.io"],
-        .sl-powered-by, div[class*="powered-by"] {
-          display: none !important;
-          height: 0 !important;
-          overflow: hidden !important;
-        }
-      `;
-      api.shadowRoot.appendChild(style);
-
-      // JS scan for any residual branding links
-      api.shadowRoot.querySelectorAll('a').forEach(a => {
-        if (
-          a.href.includes('stoplight') ||
-          a.textContent.toLowerCase().includes('stoplight') ||
-          a.textContent.toLowerCase().includes('powered by')
-        ) {
-          const p = a.parentElement;
-          if (p) p.style.display = 'none';
-        }
-      });
-    }
-
-    /* ============================================================
-       STEP 3 — Search / filter sidebar
-       
-       Stoplight sidebar DOM structure:
-         .sl-overflow-y-auto              ← sidebar (we query this)
-           └─ div (title wrapper)
-           └─ div (TOC nav container)     ← this has many children
-                └─ div (Overview)
-                └─ div (ENDPOINTS header)
-                └─ div (PI Settings group)
-                └─ div (Sales Orders group)
-                └─ ...
-       
-       We must go ONE level deeper to find the actual group items.
-    ============================================================ */
-    function filterSidebar(query) {
-      var api = document.getElementById('api-docs');
-      if (!api || !api.shadowRoot) return;
-
-      var sidebar = api.shadowRoot.querySelector('.sl-overflow-y-auto');
-      if (!sidebar) return;
-
-      var q = query.toLowerCase().trim();
-
-      // --- Find the real nav container ---
-      // The TOC wrapper is the direct child with the MOST children
-      var allChildren = Array.from(sidebar.children).filter(function(c) {
-        return !c.id; // skip our injected elements (footer etc.)
-      });
-
-      var navContainer = sidebar; // fallback
-      var maxCount = 0;
-      allChildren.forEach(function(child) {
-        if (child.children.length > maxCount) {
-          maxCount = child.children.length;
-          navContainer = child;
-        }
-      });
-
-      // If navContainer still has very few children, go one more level
-      if (maxCount <= 2) {
-        var deeper = Array.from(navContainer.children).filter(function(c) {
-          return !c.id;
-        });
-        deeper.forEach(function(child) {
-          if (child.children.length > maxCount) {
-            maxCount = child.children.length;
-            navContainer = child;
-          }
-        });
+    function toggleNavStyle(style) {
+      const apiDocs = document.getElementById('api-docs');
+      if (apiDocs) {
+        apiDocs.setAttribute('nav-item-style', style);
       }
-
-      // === DEBUG: log what we found (remove after debugging) ===
-      console.log('[SM-SEARCH] query:', q);
-      console.log('[SM-SEARCH] sidebar.children.length:', sidebar.children.length);
-      console.log('[SM-SEARCH] navContainer.children.length:', navContainer.children.length);
-      Array.from(navContainer.children).slice(0, 5).forEach(function(c, i) {
-        console.log('[SM-SEARCH] navChild[' + i + ']:', c.tagName, '|', c.textContent.trim().substring(0, 40));
-      });
-      // ========================================================
-
-      if (q === '') {
-        // Clear: restore everything
-        Array.from(navContainer.children).forEach(function(child) {
-          child.style.display = '';
-        });
-        return;
-      }
-
-      // Hide/show each group item based on text match
-      Array.from(navContainer.children).forEach(function(child) {
-        if (child.id) return; // never hide our injected elements
-        var text = child.textContent.toLowerCase();
-        child.style.display = text.includes(q) ? '' : 'none';
-      });
     }
-
-    /* ============================================================
-       STEP 4 + 5 + 6 — Wire everything inside DOMContentLoaded
-       so the input element is guaranteed to exist in the DOM
-    ============================================================ */
-    window.addEventListener('DOMContentLoaded', function () {
-
-      // --- Wire search input events ---
-      var searchEl = document.getElementById('sidebar-search-input');
-      if (searchEl) {
-        function onSearchChange() {
-          filterSidebar(searchEl.value);
-        }
-        searchEl.addEventListener('input',   onSearchChange);
-        searchEl.addEventListener('keyup',   onSearchChange);
-        searchEl.addEventListener('keydown', function() { setTimeout(onSearchChange, 0); });
-        searchEl.addEventListener('change',  onSearchChange);
-
-        // Force the overlay to always be on top and interactive
-        var overlay = document.getElementById('sidebar-search-overlay');
-        if (overlay) {
-          overlay.addEventListener('click', function() { searchEl.focus(); });
-        }
-      }
-
-      // --- Poll until sidebar renders ---
-      var sidebarReady = false;
-      var pollTimer = setInterval(function () {
-        hideBranding();
-        if (!sidebarReady) sidebarReady = adjustSidebarPadding();
-        if (sidebarReady) clearInterval(pollTimer);
-      }, 200);
-      setTimeout(function () { clearInterval(pollTimer); }, 15000);
-
-      // --- Fade out loading screen after 2.2 s ---
-      setTimeout(function () {
-        var loader = document.getElementById('loader');
-        if (loader) { loader.style.opacity = '0'; loader.style.visibility = 'hidden'; }
-      }, 2200);
-    });
   </script>
 
 </body>
+
 </html>
