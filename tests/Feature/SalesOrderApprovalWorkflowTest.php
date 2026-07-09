@@ -214,6 +214,12 @@ class SalesOrderApprovalWorkflowTest extends TestCase
             'sap_doc_entry' => 1234,
             'sap_doc_num' => 'SO1234',
             'sales_pic_id' => $this->adminSalesUser->id,
+            'doc_total' => 99900.00,
+        ]);
+
+        $this->assertDatabaseHas('sales_order_details', [
+            'sales_order_id' => $order->id,
+            'vat_group' => 'S4',
         ]);
 
         Http::assertSent(function (\Illuminate\Http\Client\Request $request) {

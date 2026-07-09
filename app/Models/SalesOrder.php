@@ -61,6 +61,7 @@ class SalesOrder extends Model
         'created_by',
         'updated_by',
         'sales_pic_id',
+        'use_balance',
     ];
 
     protected $casts = [
@@ -78,6 +79,7 @@ class SalesOrder extends Model
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
         'series' => 'integer',
+        'use_balance' => 'boolean',
     ];
 
     protected $appends = [

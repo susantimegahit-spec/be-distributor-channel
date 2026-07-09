@@ -866,6 +866,27 @@ class SalesOrderService
             $updateAttributes['sales_pic_id'] = $userId;
         }
 
+        if ($currentStage === SalesOrder::STAGE_WAITING_FINANCE) {
+            $vatRate = 11.00;
+            $vat = \App\Models\Vat::where('code', 'S4')->first();
+            if ($vat) {
+                $vatRate = (float)$vat->rate;
+            }
+
+            $docTotal = 0;
+            foreach ($salesOrder->details as $orderDetail) {
+                $lineTotal = (float)$orderDetail->line_total;
+                $vatTotal = $lineTotal * ($vatRate / 100);
+                $docTotal += ($lineTotal + $vatTotal);
+
+                $orderDetail->update([
+                    'vat_group' => 'S4',
+                ]);
+            }
+
+            $updateAttributes['doc_total'] = $docTotal;
+        }
+
         $salesOrder->update($updateAttributes);
 
         \App\Models\SalesOrderApprovalHistory::create([

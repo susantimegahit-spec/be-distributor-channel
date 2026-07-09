@@ -107,6 +107,7 @@ class SalesOrderTest extends TestCase
             'po_number' => 'PO1212-ABC',
             'doc_date' => '2026-02-25',
             'doc_due_date' => '2026-02-25',
+            'use_balance' => true,
             'slp_code' => 0,
             'cntct_code' => -1,
             'pay_to_code' => 'ALAMAT PENAGIHAN',
@@ -146,6 +147,7 @@ class SalesOrderTest extends TestCase
                     'card_code' => 'C110003074',
                     'status' => 'DRAFT',
                     'doc_total' => 50000,
+                    'use_balance' => true,
                 ]
             ]);
 
@@ -153,6 +155,7 @@ class SalesOrderTest extends TestCase
             'card_code' => 'C110003074',
             'status' => 'DRAFT',
             'doc_total' => 50000,
+            'use_balance' => 1,
         ]);
 
         $this->assertDatabaseHas('sales_order_details', [
@@ -178,6 +181,7 @@ class SalesOrderTest extends TestCase
             'slp_code' => 0,
             'doc_total' => 50000,
             'status' => 'DRAFT',
+            'use_balance' => false,
         ]);
         $order->details()->create([
             'item_code' => 'E65',
@@ -191,6 +195,7 @@ class SalesOrderTest extends TestCase
             'customer_name' => 'PT XYZ',
             'po_number' => 'PO-UPDATED',
             'doc_date' => '2026-02-25',
+            'use_balance' => true,
             'slp_code' => 0,
             'lines' => [
                 [
@@ -213,6 +218,7 @@ class SalesOrderTest extends TestCase
                 'data' => [
                     'po_number' => 'PO-UPDATED',
                     'doc_total' => 100000,
+                    'use_balance' => true,
                 ]
             ]);
 
@@ -220,6 +226,7 @@ class SalesOrderTest extends TestCase
             'id' => $order->id,
             'po_number' => 'PO-UPDATED',
             'doc_total' => 100000,
+            'use_balance' => 1,
         ]);
 
         $this->assertDatabaseHas('sales_order_details', [
