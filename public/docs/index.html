@@ -13,13 +13,13 @@
   <script type="module" src="https://unpkg.com/rapidoc/dist/rapidoc-min.js"></script>
 
   <style>
-    html,
-    body {
+    html, body {
       height: 100%;
       margin: 0;
       padding: 0;
       font-family: 'Inter', sans-serif;
-      background-color: #ffffff;
+      background-color: #0f172a; /* Slate Dark */
+      color: #f8fafc;
       overflow: hidden;
     }
 
@@ -29,11 +29,11 @@
     }
 
     /* ============================================================
-       Header Bar
+       Header Bar (Dark Theme)
      ============================================================ */
     .header-bar {
-      background-color: #ffffff;
-      border-bottom: 1px solid #e2e8f0;
+      background-color: #0f172a;
+      border-bottom: 1px solid #1e293b;
       padding: 14px 24px;
       display: flex;
       align-items: center;
@@ -46,13 +46,13 @@
       margin: 0;
       font-size: 16px;
       font-weight: 700;
-      color: #0f172a;
+      color: #ffffff;
       letter-spacing: 0.05em;
     }
 
     .header-title-wrapper span {
       font-size: 11px;
-      color: #3b82f6;
+      color: #38bdf8; /* Cyan Highlight */
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.05em;
@@ -68,9 +68,9 @@
     }
 
     .control-btn {
-      background-color: #f8fafc;
-      border: 1px solid #e2e8f0;
-      color: #64748b;
+      background-color: #1e293b;
+      border: 1px solid #334155;
+      color: #94a3b8;
       padding: 6px 12px;
       font-size: 11px;
       font-weight: 600;
@@ -85,9 +85,9 @@
     }
 
     .control-btn:hover {
-      background-color: #f1f5f9;
-      border-color: #cbd5e1;
-      color: #0f172a;
+      background-color: #334155;
+      border-color: #475569;
+      color: #ffffff;
     }
 
     .control-btn svg {
@@ -106,35 +106,86 @@
     </div>
     <div class="header-controls">
       <button class="control-btn" onclick="toggleNavStyle('expanded')" title="Expand Semua Kategori">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
         Expand All
       </button>
       <button class="control-btn" onclick="toggleNavStyle('collapsed')" title="Collapse Semua Kategori">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M10 14l-7 7" />
-        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M10 14l-7 7"/></svg>
         Collapse All
       </button>
     </div>
   </div>
 
-  <!-- RapiDoc Component with focused style (makes categories/modules collapsible in sidebar) -->
-  <rapi-doc id="api-docs" spec-url="./openapi.yaml" theme="light" render-style="focused" nav-item-style="collapsed"
-    on-nav-tag-click="expand-collapse" show-header="false" allow-search="true" allow-try="true"
-    allow-spec-download="true" regular-font="Inter, sans-serif" primary-color="#3b82f6" nav-bg-color="#ffffff"
-    nav-accent-color="#3b82f6" nav-item-spacing="relaxed" layout="row"> </rapi-doc>
+  <!-- RapiDoc Component (Dark Theme with Collapsible Sidebar) -->
+  <rapi-doc
+    id="api-docs"
+    spec-url="./openapi.yaml"
+    theme="dark"
+    render-style="focused"
+    nav-item-style="collapsed"
+    on-nav-tag-click="expand-collapse"
+    show-header="false"
+    allow-search="true"
+    allow-try="true"
+    allow-spec-download="true"
+    regular-font="Inter, sans-serif"
+    primary-color="#38bdf8"
+    bg-color="#0f172a"
+    nav-bg-color="#0b0f19"
+    nav-accent-color="#38bdf8"
+    nav-item-spacing="relaxed"
+    layout="row"
+  > </rapi-doc>
 
   <script>
+    // Fungsi expand/collapse all untuk semua kategori di shadow DOM
     function toggleNavStyle(style) {
       const apiDocs = document.getElementById('api-docs');
-      if (apiDocs) {
-        apiDocs.setAttribute('nav-item-style', style);
-      }
+      if (!apiDocs || !apiDocs.shadowRoot) return;
+
+      const headers = apiDocs.shadowRoot.querySelectorAll('.nav-bar-tag');
+      headers.forEach(header => {
+        const next = header.nextElementSibling;
+        const isExpanded = header.classList.contains('expanded') || (next && next.classList.contains('nav-bar-path'));
+        
+        if (style === 'expanded' && !isExpanded) {
+          header.click();
+        } else if (style === 'collapsed' && isExpanded) {
+          header.click();
+        }
+      });
     }
+
+    window.addEventListener('DOMContentLoaded', function () {
+      const apiDocs = document.getElementById('api-docs');
+
+      // Polling untuk menemukan kolom input pencarian bawaan RapiDoc di shadow DOM
+      const attachSearchListener = setInterval(function() {
+        if (apiDocs && apiDocs.shadowRoot) {
+          const searchInput = apiDocs.shadowRoot.querySelector('#nav-bar-search');
+          if (searchInput) {
+            clearInterval(attachSearchListener);
+            
+            // Dengarkan input pencarian
+            searchInput.addEventListener('input', function(e) {
+              const query = e.target.value.trim();
+              if (query === '') {
+                // Jika pencarian kosong, ciutkan kembali semua kategori agar rapi
+                toggleNavStyle('collapsed');
+              } else {
+                // Jika sedang menyaring, buka kategori agar item pencarian terlihat
+                toggleNavStyle('expanded');
+              }
+            });
+          }
+        }
+      }, 200);
+
+      // Batasi polling agar berhenti setelah 15 detik jika tidak ditemukan
+      setTimeout(function() {
+        clearInterval(attachSearchListener);
+      }, 15000);
+    });
   </script>
 
 </body>
