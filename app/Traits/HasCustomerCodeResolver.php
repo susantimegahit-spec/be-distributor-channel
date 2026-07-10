@@ -17,7 +17,9 @@ trait HasCustomerCodeResolver
         $user = $request->user();
         $allowedCodes = null;
 
-        if ($user && $user->code_customer) {
+        $isAdmin = $user && $user->role && in_array(strtolower($user->role->name), ['administrator', 'admin finance', 'admin sales', 'admin logistic']);
+
+        if (!$isAdmin && $user && $user->code_customer) {
             $allowedCodes = array_filter(array_map('trim', explode(',', $user->code_customer)));
         }
 
