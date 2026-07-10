@@ -85,14 +85,14 @@ class ClaimService
         $xml .= ' <Worksheet ss:Name="template upload klaim">' . "\n";
         $xml .= '  <Table ss:DefaultRowHeight="18">' . "\n";
         // Define Column Widths
-        $xml .= '   <Column ss:Width="120"/>' . "\n"; // Kode Customer
-        $xml .= '   <Column ss:Width="180"/>' . "\n"; // Nama Customer
+        $xml .= '   <Column ss:Width="120"/>' . "\n"; // Kode Distributor
+        $xml .= '   <Column ss:Width="180"/>' . "\n"; // Nama Distributor
         $xml .= '   <Column ss:Width="100"/>' . "\n"; // Item
         $xml .= '   <Column ss:Width="200"/>' . "\n"; // Nama Item
         $xml .= '   <Column ss:Width="110"/>' . "\n"; // Harga Jual @Kg
         $xml .= '   <Column ss:Width="100"/>' . "\n"; // Qty @Kg
         $xml .= '   <Column ss:Width="110"/>' . "\n"; // Type Customer
-        $xml .= '   <Column ss:Width="130"/>' . "\n"; // Tr ansaction Date
+        $xml .= '   <Column ss:Width="130"/>' . "\n"; // Transaction Date
         
         // Title Row
         $xml .= '   <Row ss:Height="40">' . "\n";
@@ -104,8 +104,8 @@ class ClaimService
 
         // Header Row
         $xml .= '   <Row ss:Height="26" ss:StyleID="Header">' . "\n";
-        $xml .= '    <Cell><Data ss:Type="String">Kode Customer</Data></Cell>' . "\n";
-        $xml .= '    <Cell><Data ss:Type="String">Nama Customer</Data></Cell>' . "\n";
+        $xml .= '    <Cell><Data ss:Type="String">Kode Distributor</Data></Cell>' . "\n";
+        $xml .= '    <Cell><Data ss:Type="String">Nama Distributor</Data></Cell>' . "\n";
         $xml .= '    <Cell><Data ss:Type="String">Item</Data></Cell>' . "\n";
         $xml .= '    <Cell><Data ss:Type="String">Nama Item</Data></Cell>' . "\n";
         $xml .= '    <Cell><Data ss:Type="String">Harga Jual @Kg</Data></Cell>' . "\n";

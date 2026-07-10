@@ -224,7 +224,7 @@ class ClaimCalculationTest extends TestCase
         $excelRows = [
             ['TEMPLATE UPLOAD KLAIM DISTRIBUTOR'],
             [''],
-            ['Kode Customer', 'Nama Customer', 'Item', 'Nama Item', 'Harga Jual @ Kg', 'Qty @ Kg', 'Type Customer', 'Transaction Date'],
+            ['Kode Distributor', 'Nama Distributor', 'Item', 'Nama Item', 'Harga Jual @ Kg', 'Qty @ Kg', 'Type Customer', 'Transaction Date'],
             ['C110000411', 'DUA JAYA, CV', 'A26', 'TOP 250 M @ 10 KG / BAL', '6400', '100', 'GT', '2026-06-12'],
             ['C110000411', 'DUA JAYA, CV', 'X001', 'UNKNOWN ITEM', '6400', '100', 'GT', '2026-06-12'],
             ['C110000411', 'DUA JAYA, CV', 'B26.B', 'KOP 250 M @ 10 KG / BAL', '7700', '100', 'GT', '2026-06-12'],
@@ -367,7 +367,7 @@ class ClaimCalculationTest extends TestCase
         $excelRows = [
             ['TEMPLATE UPLOAD KLAIM DISTRIBUTOR'],
             [''],
-            ['Kode Customer', 'Nama Customer', 'Item', 'Nama Item', 'Harga Jual @ Kg', 'Qty @ Kg', 'Type Customer', 'Transaction Date'],
+            ['Kode Distributor', 'Nama Distributor', 'Item', 'Nama Item', 'Harga Jual @ Kg', 'Qty @ Kg', 'Type Customer', 'Transaction Date'],
             ['C110000411', 'DUA JAYA, CV', 'A26', 'TOP 250 M @ 10 KG / BAL', '6400', '100', 'GT', '2026-06-12'],
         ];
 

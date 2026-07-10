@@ -103,8 +103,8 @@ class UploadService
             }
         }
 
-        $colCustomerCode = $headersMap['Kode Customer'] ?? $headersMap['Kode Distributor'] ?? null;
-        $colCustomerName = $headersMap['Nama Customer'] ?? null;
+        $colCustomerCode = $headersMap['Kode Distributor'] ?? $headersMap['Kode Customer'] ?? null;
+        $colCustomerName = $headersMap['Nama Distributor'] ?? $headersMap['Nama Customer'] ?? null;
         $colItemCode = $headersMap['Item'] ?? $headersMap['Kode Item'] ?? null;
         $colItemName = $headersMap['Nama Item'] ?? null;
         $colSellPrice = $headersMap['Harga Jual @ Kg'] ?? $headersMap['Harga Jual'] ?? $headersMap['Harga Jual (kg)'] ?? $headersMap['Harga Jual@Kg'] ?? null;
@@ -114,7 +114,7 @@ class UploadService
 
         if ($colCustomerCode === null || $colItemCode === null || $colQty === null || $colCustomerType === null || $colDate === null) {
             throw ValidationException::withMessages([
-                'file' => ['Struktur header Excel tidak valid. Kolom wajib (Kode Customer/Distributor, Item/Kode Item, Qty, Type/Tipe Customer, Transaction Date) harus tersedia.']
+                'file' => ['Struktur header Excel tidak valid. Kolom wajib (Kode Distributor, Item/Kode Item, Qty, Type/Tipe Customer, Transaction Date) harus tersedia.']
             ]);
         }
 
@@ -160,7 +160,7 @@ class UploadService
             $date = $this->parseExcelDate($rawDate);
 
             if (empty($customerCode)) {
-                $rowErrors[] = "Kode Customer tidak boleh kosong.";
+                $rowErrors[] = "Kode Distributor tidak boleh kosong.";
             }
             if (empty($itemCode)) {
                 $rowErrors[] = "Kode Item tidak boleh kosong.";

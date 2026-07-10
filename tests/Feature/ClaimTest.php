@@ -96,8 +96,8 @@ class ClaimTest extends TestCase
         $this->assertStringContainsString('ss:Name="master data item"', $content);
         
         // Assert headers on sheet 1 exist
-        $this->assertStringContainsString('<Data ss:Type="String">Kode Customer</Data>', $content);
-        $this->assertStringContainsString('<Data ss:Type="String">Nama Customer</Data>', $content);
+        $this->assertStringContainsString('<Data ss:Type="String">Kode Distributor</Data>', $content);
+        $this->assertStringContainsString('<Data ss:Type="String">Nama Distributor</Data>', $content);
         $this->assertStringContainsString('<Data ss:Type="String">Item</Data>', $content);
         $this->assertStringContainsString('<Data ss:Type="String">Nama Item</Data>', $content);
         
