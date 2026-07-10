@@ -6,12 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Modules\Claim\Services\UploadService;
 use App\Modules\Claim\Requests\UploadTransactionRequest;
 use App\Traits\ApiResponseFormatter;
+use App\Traits\HasCustomerCodeResolver;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 class UploadController extends Controller
 {
-    use ApiResponseFormatter;
+    use ApiResponseFormatter, HasCustomerCodeResolver;
 
     /**
      * @var UploadService
@@ -52,19 +53,7 @@ class UploadController extends Controller
      */
     public function getBatches(Request $request)
     {
-        $customerCodes = [];
-        if ($request->user() && $request->user()->code_customer) {
-            $customerCodes = [$request->user()->code_customer];
-        } else {
-            $input = $request->get('customer_codes') ?? $request->get('customer_code');
-            if ($input) {
-                if (is_array($input)) {
-                    $customerCodes = $input;
-                } else {
-                    $customerCodes = array_filter(array_map('trim', explode(',', $input)));
-                }
-            }
-        }
+        $customerCodes = $this->resolveCustomerCodes($request);
 
         $batches = $this->uploadService->listBatches($customerCodes, (int)$request->get('per_page', 15));
         

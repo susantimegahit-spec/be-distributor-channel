@@ -6,13 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Modules\Claim\Repositories\WithdrawRepositoryInterface;
 use App\Modules\Claim\Repositories\ResultRepositoryInterface;
 use App\Traits\ApiResponseFormatter;
+use App\Traits\HasCustomerCodeResolver;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 
 class WithdrawController extends Controller
 {
-    use ApiResponseFormatter;
+    use ApiResponseFormatter, HasCustomerCodeResolver;
 
     /**
      * @var WithdrawRepositoryInterface
@@ -45,19 +46,7 @@ class WithdrawController extends Controller
     {
         $filters = $request->only(['status']);
 
-        // Scope by distributor user if applicable
-        if ($request->user() && $request->user()->code_customer) {
-            $filters['customer_codes'] = [$request->user()->code_customer];
-        } else {
-            $input = $request->get('customer_codes') ?? $request->get('customer_code');
-            if ($input) {
-                if (is_array($input)) {
-                    $filters['customer_codes'] = $input;
-                } else {
-                    $filters['customer_codes'] = array_filter(array_map('trim', explode(',', $input)));
-                }
-            }
-        }
+        $filters['customer_codes'] = $this->resolveCustomerCodes($request);
 
         $withdraws = $this->withdrawRepository->getWithdrawsPaginated($filters, (int)$request->get('per_page', 15));
 

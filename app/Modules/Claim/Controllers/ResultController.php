@@ -6,11 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Modules\Claim\Repositories\ResultRepositoryInterface;
 use App\Modules\Claim\Services\ExportService;
 use App\Traits\ApiResponseFormatter;
+use App\Traits\HasCustomerCodeResolver;
 use Illuminate\Http\Request;
 
 class ResultController extends Controller
 {
-    use ApiResponseFormatter;
+    use ApiResponseFormatter, HasCustomerCodeResolver;
 
     /**
      * @var ResultRepositoryInterface
@@ -44,12 +45,8 @@ class ResultController extends Controller
      */
     public function index(Request $request)
     {
-        $filters = $request->only(['batch_id', 'status', 'customer_code', 'program_id']);
-        
-        // Scope by distributor user if applicable
-        if ($request->user() && $request->user()->code_customer) {
-            $filters['customer_code'] = $request->user()->code_customer;
-        }
+        $filters = $request->only(['batch_id', 'status', 'program_id']);
+        $filters['customer_code'] = $this->resolveCustomerCodes($request);
 
         $results = $this->resultRepository->getResults($filters);
 
@@ -64,12 +61,8 @@ class ResultController extends Controller
      */
     public function export(Request $request)
     {
-        $filters = $request->only(['batch_id', 'status', 'customer_code', 'program_id']);
-
-        // Scope by distributor user if applicable
-        if ($request->user() && $request->user()->code_customer) {
-            $filters['customer_code'] = $request->user()->code_customer;
-        }
+        $filters = $request->only(['batch_id', 'status', 'program_id']);
+        $filters['customer_code'] = $this->resolveCustomerCodes($request);
 
         return $this->exportService->exportResults($filters);
     }
@@ -104,19 +97,7 @@ class ResultController extends Controller
      */
     public function getSummary(Request $request)
     {
-        $customerCodes = [];
-        if ($request->user() && $request->user()->code_customer) {
-            $customerCodes = [$request->user()->code_customer];
-        } else {
-            $input = $request->get('customer_codes') ?? $request->get('customer_code');
-            if ($input) {
-                if (is_array($input)) {
-                    $customerCodes = $input;
-                } else {
-                    $customerCodes = array_filter(array_map('trim', explode(',', $input)));
-                }
-            }
-        }
+        $customerCodes = $this->resolveCustomerCodes($request);
 
         $summary = $this->resultRepository->getRewardSummary($customerCodes);
 

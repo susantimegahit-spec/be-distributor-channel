@@ -36,7 +36,10 @@ class ResultRepository implements ResultRepositoryInterface
         }
 
         if (!empty($filters['customer_code'])) {
-            $query->where('customer_code', $filters['customer_code']);
+            $codes = is_array($filters['customer_code'])
+                ? $filters['customer_code']
+                : array_filter(array_map('trim', explode(',', $filters['customer_code'])));
+            $query->whereIn('customer_code', $codes);
         }
 
         if (!empty($filters['program_id'])) {
@@ -67,7 +70,10 @@ class ResultRepository implements ResultRepositoryInterface
         }
 
         if (!empty($filters['customer_code'])) {
-            $query->where('customer_code', $filters['customer_code']);
+            $codes = is_array($filters['customer_code'])
+                ? $filters['customer_code']
+                : array_filter(array_map('trim', explode(',', $filters['customer_code'])));
+            $query->whereIn('customer_code', $codes);
         }
 
         if (!empty($filters['program_id'])) {
