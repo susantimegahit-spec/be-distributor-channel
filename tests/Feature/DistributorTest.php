@@ -32,6 +32,10 @@ class DistributorTest extends TestCase
             'sub_group' => 'Distributor',
             'depo' => 'TULUNGAGUNG',
             'status' => 1,
+            'bank_code' => 'BCA',
+            'bank_name' => 'Bank Central Asia',
+            'client_bank_name' => 'PT XYZ',
+            'account_bank_number' => '1234567890',
         ]);
 
         // Create active user associated with distributor
@@ -77,6 +81,10 @@ class DistributorTest extends TestCase
                         'sub_group',
                         'depo',
                         'status',
+                        'bank_code',
+                        'bank_name',
+                        'client_bank_name',
+                        'account_bank_number',
                     ]
                 ]
             ]);
@@ -125,6 +133,10 @@ class DistributorTest extends TestCase
                         'CntctPrsn' => 'John Doe',
                         'SubGroup' => 'Distributor',
                         'Depo' => 'TULUNGAGUNG',
+                        'Bank' => 'BCA',
+                        'BankName' => 'Bank Central Asia',
+                        'AtasNama' => 'Bank Central Asia',
+                        'Col12' => '9755182391',
                     ],
                     [
                         'CardCode' => 'C110000412',
@@ -136,6 +148,10 @@ class DistributorTest extends TestCase
                         'CntctPrsn' => 'Jane Smith',
                         'SubGroup' => 'Distributor',
                         'Depo' => 'SURABAYA',
+                        'Bank' => '-1',
+                        'BankName' => 'Some Bank',
+                        'AtasNama' => 'Some Owner',
+                        'Col12' => '9999999',
                     ],
                     [
                         'CardCode' => 'C110000413',
@@ -178,6 +194,10 @@ class DistributorTest extends TestCase
             'contact_person' => 'John Doe',
             'sub_group' => 'Distributor',
             'depo' => 'TULUNGAGUNG',
+            'bank_code' => 'BCA',
+            'bank_name' => 'Bank Central Asia',
+            'client_bank_name' => 'Bank Central Asia',
+            'account_bank_number' => '9755182391',
         ]);
         $this->assertDatabaseHas('distributors', [
             'code_customer' => 'C110000412',
@@ -186,6 +206,10 @@ class DistributorTest extends TestCase
             'contact_person' => 'Jane Smith',
             'sub_group' => 'Distributor',
             'depo' => 'SURABAYA',
+            'bank_code' => null,
+            'bank_name' => null,
+            'client_bank_name' => null,
+            'account_bank_number' => null,
         ]);
 
         // Assert retail subgroup was NOT synced
@@ -211,6 +235,10 @@ class DistributorTest extends TestCase
             'sub_group' => 'Distributor',
             'depo' => 'SURABAYA',
             'status' => 1,
+            'bank_code' => 'MANDIRI',
+            'bank_name' => 'Bank Mandiri',
+            'client_bank_name' => 'PT Berkah Abadi',
+            'account_bank_number' => '9876543210',
         ]);
 
         $token = $this->user->createToken('test_token')->plainTextToken;
@@ -232,6 +260,24 @@ class DistributorTest extends TestCase
         $response->assertStatus(200)
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.code_customer', 'C110000412');
+
+        // Search by bank_name "Mandiri"
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/distributor-channel/v1/distributors?search=mandiri');
+
+        $response->assertStatus(200)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.code_customer', 'C110000412');
+
+        // Search by bank account number
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/distributor-channel/v1/distributors?search=1234567890');
+
+        $response->assertStatus(200)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.code_customer', 'C110000411');
 
         // Search with non-matching query
         $response = $this->withHeaders([

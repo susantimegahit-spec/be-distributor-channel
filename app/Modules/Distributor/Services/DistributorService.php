@@ -81,6 +81,8 @@ class DistributorService
         foreach ($sapData as $item) {
             // Kita filter hanya yang SubGroup nya 'Distributor' (case-insensitive)
             if (isset($item['SubGroup']) && strcasecmp($item['SubGroup'], 'distributor') === 0) {
+                $isBankEmpty = !isset($item['Bank']) || (string)$item['Bank'] === '-1' || trim((string)$item['Bank']) === '';
+
                 $synced[] = $this->distributorRepository->upsertByCode([
                     'code_customer' => $item['CardCode'],
                     'name' => $item['CardName'],
@@ -92,6 +94,10 @@ class DistributorService
                     'sub_group' => $item['SubGroup'] ?? null,
                     'depo' => $item['Depo'] ?? null,
                     'status' => 1,
+                    'bank_code' => $isBankEmpty ? null : ($item['Bank'] ?? null),
+                    'bank_name' => $isBankEmpty ? null : ($item['BankName'] ?? null),
+                    'client_bank_name' => $isBankEmpty ? null : ($item['AtasNama'] ?? null),
+                    'account_bank_number' => $isBankEmpty ? null : ($item['Col12'] ?? null),
                 ]);
             }
         }

@@ -27,7 +27,11 @@ class DistributorRepository implements DistributorRepositoryInterface
                   ->orWhere('mail_address', $operator, "%{$search}%")
                   ->orWhere('contact_person', $operator, "%{$search}%")
                   ->orWhere('sub_group', $operator, "%{$search}%")
-                  ->orWhere('depo', $operator, "%{$search}%");
+                  ->orWhere('depo', $operator, "%{$search}%")
+                  ->orWhere('bank_code', $operator, "%{$search}%")
+                  ->orWhere('bank_name', $operator, "%{$search}%")
+                  ->orWhere('client_bank_name', $operator, "%{$search}%")
+                  ->orWhere('account_bank_number', $operator, "%{$search}%");
             });
         }
 

@@ -21,6 +21,10 @@ class Distributor extends Model
         'sub_group',
         'depo',
         'status',
+        'bank_code',
+        'bank_name',
+        'client_bank_name',
+        'account_bank_number',
     ];
 
     protected $casts = [

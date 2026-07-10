@@ -4678,6 +4678,22 @@ components:
           type: string
           nullable: true
           example: TULUNGAGUNG
+        bank_code:
+          type: string
+          nullable: true
+          example: BCA
+        bank_name:
+          type: string
+          nullable: true
+          example: Bank Central Asia
+        client_bank_name:
+          type: string
+          nullable: true
+          example: PT SAKTI SETIA SANTOSA
+        account_bank_number:
+          type: string
+          nullable: true
+          example: "9755182391"
         status:
           type: integer
           example: 1
