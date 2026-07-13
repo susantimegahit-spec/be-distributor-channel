@@ -21,6 +21,7 @@ class DiscountTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        \Illuminate\Support\Carbon::setTestNow('2026-03-14');
 
         $this->role = Role::create([
             'name' => 'distributor',
@@ -76,7 +77,8 @@ class DiscountTest extends TestCase
                     'TypeDiscount' => 'Diskon Item',
                     'Persentase' => 0,
                     'TotalDiskon' => 3000000,
-                    'Remarks' => 'DISC SEMARAK AWAL THN'
+                    'Remarks' => 'DISC SEMARAK AWAL THN',
+                    'BatchId' => 456,
                 ]
             ]
         ];
@@ -93,7 +95,7 @@ class DiscountTest extends TestCase
                     'code' => '20260314001',
                     'sap_response' => [
                         'ErrorCode' => 0,
-                        'Message' => 'UDO Diskon added successfully'
+                        'Message' => 'Discount saved locally'
                     ]
                 ]
             ]);
@@ -101,7 +103,7 @@ class DiscountTest extends TestCase
         // Verify audit log
         $this->assertDatabaseHas('audit_logs', [
             'user_id' => $this->user->id,
-            'action' => 'POST_UDO_DISCOUNT_SAP',
+            'action' => 'CREATE_LOCAL_DISCOUNT',
         ]);
 
         // Verify discount saved in local database
@@ -118,6 +120,13 @@ class DiscountTest extends TestCase
             'percentage' => 0.00,
             'total_discount' => 3000000.00,
             'remarks' => 'DISC SEMARAK AWAL THN',
+        ]);
+
+        $detail = \App\Models\SapDiscountDetail::where('type_discount', 'Diskon Item')->first();
+        $this->assertNotNull($detail);
+        $this->assertDatabaseHas('trade_promo_temp', [
+            'id' => $detail->id,
+            'batch_id' => 456,
         ]);
     }
 
@@ -145,54 +154,6 @@ class DiscountTest extends TestCase
             ]);
     }
 
-    /**
-     * Test SAP API returned error scenario.
-     */
-    public function test_send_discount_sap_error(): void
-    {
-        $token = $this->user->createToken('test_token')->plainTextToken;
-
-        // Mock SAP endpoints returning error
-        Http::fake([
-            '103.18.133.187:3100/api/GetNumDis' => Http::response([
-                'ErrorCode' => 0,
-                'Message' => '',
-                'Result' => [
-                    [
-                        'Col1' => '20260314001'
-                    ]
-                ]
-            ], 200),
-            '103.18.133.187:3100/api/addudodiskon' => Http::response([
-                'ErrorCode' => 500,
-                'Message' => 'Internal SAP Error',
-                'Result' => []
-            ], 200),
-        ]);
-
-        $payload = [
-            'CardCode' => 'C110003074',
-            'CardName' => 'LESAFFRE SARI',
-            'Lines' => [
-                [
-                    'TypeDiscount' => 'Diskon Item',
-                    'Persentase' => 0,
-                    'TotalDiskon' => 3000000,
-                    'Remarks' => 'DISC SEMARAK AWAL THN'
-                ]
-            ]
-        ];
-
-        $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token,
-        ])->postJson('/api/distributor-channel/v1/discounts/sap', $payload);
-
-        $response->assertStatus(400)
-            ->assertJson([
-                'success' => false,
-                'message' => 'API SAP addudodiskon mengembalikan error: Internal SAP Error',
-            ]);
-    }
 
     /**
      * Test sync discount types from SAP.

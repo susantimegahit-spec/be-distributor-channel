@@ -323,4 +323,97 @@ class SalesOrderApprovalWorkflowTest extends TestCase
             'reject_reason' => 'Rejected',
         ]);
     }
+
+    /**
+     * Test that workflow approval by Finance records claim reward usage in ledger.
+     */
+    public function test_finance_approval_records_reward_ledger(): void
+    {
+        // 1. Create a claim batch
+        $batch = \App\Models\TrxProgramUploadBatch::create([
+            'batch_no' => 'BATCH-TEST-123',
+            'file_name' => 'rewards_june.xlsx',
+            'uploaded_by' => 'admin',
+        ]);
+
+        // 2. Create discount header
+        $discountHeader = \App\Models\SapDiscountHeader::create([
+            'discount_code' => 'DISC_TEST_WF_001',
+            'card_code' => 'C110003074',
+            'card_name' => 'PT XYZ',
+            'total_so' => 0.00,
+            'user_id' => $this->distributorUser->id,
+        ]);
+
+        // 3. Create discount details
+        $detail = \App\Models\SapDiscountDetail::create([
+            'sap_discount_header_id' => $discountHeader->id,
+            'type_discount' => 'Trade Promo A',
+            'percentage' => 0.00,
+            'total_discount' => 150000.00,
+            'remarks' => 'Promo discount remarks',
+        ]);
+
+        // 4. Create mapping in trade_promo_temp
+        \Illuminate\Support\Facades\DB::table('trade_promo_temp')->insert([
+            'id' => $detail->id,
+            'batch_id' => $batch->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Mock SAP endpoint for order integration
+        Http::fake([
+            '103.18.133.187:3100/api/addso' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => 'SO added successfully',
+                'Result' => [
+                    [
+                        'DocEntry' => 5678,
+                        'DocNum' => 'SO5678',
+                    ]
+                ]
+            ], 200),
+        ]);
+
+        // 5. Create order in WAITING_FINANCE stage
+        $order = SalesOrder::create([
+            'order_no' => 'SO-TEST-REWARD-001',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'PT XYZ',
+            'doc_date' => '2026-07-13',
+            'status' => 'WAITING_FINANCE',
+            'approval_id' => SalesOrder::STAGE_WAITING_FINANCE,
+            'id_discount' => 'DISC_TEST_WF_001',
+            'doc_total' => 500000.00,
+        ]);
+
+        $order->details()->create([
+            'item_code' => 'E65',
+            'quantity' => 100,
+            'unit_price' => 5000.00,
+            'line_total' => 500000.00,
+        ]);
+
+        // 6. Approve by Finance
+        \Laravel\Sanctum\Sanctum::actingAs($this->financeUser);
+        $response = $this->putJson("/api/distributor-channel/v1/sales-orders/{$order->id}", [
+            'action' => 'approve',
+        ]);
+
+        $response->assertStatus(200);
+
+        // 7. Verify ledger entry is created
+        $this->assertDatabaseHas('trx_claim_balance_ledger', [
+            'customer_code' => 'C110003074',
+            'ref_number' => 'SO-TEST-REWARD-001',
+            'type' => 'WITHDRAW',
+            'debit' => 0.00,
+            'credit' => 150000.00,
+            'description' => 'Penggunaan Reward (Trade Promo) - Batch BATCH-TEST-123 pada SO SO-TEST-REWARD-001',
+            'referenceable_id' => $order->id,
+            'referenceable_type' => SalesOrder::class,
+        ]);
+    }
 }

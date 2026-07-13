@@ -30,6 +30,7 @@ class CreateSapDiscountRequest extends FormRequest
             'Lines.*.Persentase' => 'required|numeric|min:0|max:100',
             'Lines.*.TotalDiskon' => 'required|numeric|min:0',
             'Lines.*.Remarks' => 'nullable|string|max:255',
+            'Lines.*.BatchId' => 'nullable|integer',
         ];
     }
 }

@@ -885,6 +885,39 @@ class SalesOrderService
             }
 
             $updateAttributes['doc_total'] = $docTotal;
+
+            // Record Claim Reward usage to Balance Ledger
+            if ($salesOrder->id_discount) {
+                $sapDiscount = \App\Models\SapDiscountHeader::where('discount_code', $salesOrder->id_discount)->first();
+                if ($sapDiscount && $sapDiscount->details) {
+                    $ledgerRepository = app(\App\Modules\Claim\Repositories\TrxClaimBalanceLedgerRepositoryInterface::class);
+
+                    foreach ($sapDiscount->details as $detail) {
+                        $tempRecord = \Illuminate\Support\Facades\DB::table('trade_promo_temp')
+                            ->where('id', $detail->id)
+                            ->first();
+
+                        if ($tempRecord) {
+                            $batchId = $tempRecord->batch_id;
+                            $batch = \App\Models\TrxProgramUploadBatch::find($batchId);
+                            $batchNo = $batch ? $batch->batch_no : "-";
+
+                            $ledgerRepository->recordTransaction([
+                                'customer_code' => $salesOrder->card_code,
+                                'ref_number' => $salesOrder->order_no,
+                                'transaction_date' => now()->toDateString(),
+                                'type' => 'WITHDRAW',
+                                'debit' => 0.00,
+                                'credit' => (float)$detail->total_discount,
+                                'description' => "Penggunaan Reward (Trade Promo) - Batch " . $batchNo . " pada SO " . $salesOrder->order_no,
+                                'referenceable_id' => $salesOrder->id,
+                                'referenceable_type' => SalesOrder::class,
+                                'created_by' => $user->username ?? 'admin',
+                            ]);
+                        }
+                    }
+                }
+            }
         }
 
         $salesOrder->update($updateAttributes);

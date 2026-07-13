@@ -49,7 +49,7 @@ class DiscountService
         }
 
         // 1. Generate Discount Code manually (YYYYMMDD + 8-digit running counter starting from 1)
-        $todayPrefix = date('Ymd');
+        $todayPrefix = now()->format('Ymd');
         $maxDiscountCode = SapDiscountHeader::where('discount_code', 'like', $todayPrefix . '%')
             ->orderByRaw('CAST(discount_code AS BIGINT) DESC')
             ->value('discount_code');
@@ -74,13 +74,22 @@ class DiscountService
             ]);
 
             foreach ($data['Lines'] as $line) {
-                SapDiscountDetail::create([
+                $detail = SapDiscountDetail::create([
                     'sap_discount_header_id' => $header->id,
                     'type_discount' => $line['TypeDiscount'],
                     'percentage' => (float)$line['Persentase'],
                     'total_discount' => (float)$line['TotalDiskon'],
                     'remarks' => $line['Remarks'] ?? null,
                 ]);
+
+                if (!empty($line['BatchId'])) {
+                    DB::table('trade_promo_temp')->insert([
+                        'id' => $detail->id,
+                        'batch_id' => $line['BatchId'],
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
             }
         });
 
