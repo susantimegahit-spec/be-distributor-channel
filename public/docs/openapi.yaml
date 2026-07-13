@@ -201,7 +201,6 @@ paths:
               required:
                 - customer_code
                 - adjustment_type
-                - amount
                 - description
                 - type
               properties:

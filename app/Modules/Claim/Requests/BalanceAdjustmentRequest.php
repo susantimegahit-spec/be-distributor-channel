@@ -22,7 +22,7 @@ class BalanceAdjustmentRequest extends FormRequest
         return [
             'customer_code' => 'required|string|exists:distributors,code_customer',
             'adjustment_type' => 'required|string|in:DEBIT,CREDIT',
-            'amount' => 'required|numeric|min:0.01',
+            'amount' => 'nullable|numeric|min:0',
             'description' => 'required|string|max:255',
             'type' => 'required|string|in:CLAIM,TRANSACTION,WITHDRAW,CORRECTION,claim,transaction,withdraw,correction',
             'ref_number' => 'nullable|string|max:100',

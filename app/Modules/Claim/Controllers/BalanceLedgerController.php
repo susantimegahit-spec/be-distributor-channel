@@ -85,7 +85,7 @@ class BalanceLedgerController extends Controller
 
         $customerCode = $request->get('customer_code');
         $adjustmentType = $request->get('adjustment_type');
-        $amount = (float)$request->get('amount');
+        $amount = (float)$request->get('amount', 0.00);
         $description = $request->get('description');
         $type = strtoupper($request->get('type'));
         $inputRefNumber = $request->get('ref_number');
