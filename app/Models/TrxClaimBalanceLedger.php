@@ -82,7 +82,7 @@ class TrxClaimBalanceLedger extends Model
      */
     public function uploadBatch()
     {
-        return $this->belongsTo(TrxProgramUploadBatch::class, 'ref_number', 'batch_no');
+        return $this->belongsTo(TrxProgramUploadBatch::class, 'ref_number', 'id');
     }
 
     /**

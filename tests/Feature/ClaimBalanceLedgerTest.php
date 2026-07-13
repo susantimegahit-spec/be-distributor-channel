@@ -236,7 +236,7 @@ class ClaimBalanceLedgerTest extends TestCase
         $this->assertDatabaseHas('trx_claim_balance_ledger', [
             'customer_code' => 'C110003074',
             'type' => 'CLAIM',
-            'ref_number' => 'B-001',
+            'ref_number' => (string)$batch->id,
             'debit' => 250000.00,
             'claim_type' => 'BULANAN',
             'running_balance' => 250000.00,
