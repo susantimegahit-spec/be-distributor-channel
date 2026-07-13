@@ -44,6 +44,12 @@ class DiscountTest extends TestCase
         ]);
     }
 
+    protected function tearDown(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow();
+        parent::tearDown();
+    }
+
     /**
      * Test sending discount successfully to SAP.
      */

@@ -243,11 +243,28 @@ class ClaimMultipleCustomerFilterTest extends TestCase
             'status' => 'VALID_PROGRAM',
             'is_verified' => true,
         ]);
+        \Illuminate\Support\Facades\DB::table('trx_claim_balance_ledger')->insert([
+            'customer_code' => 'CUST01',
+            'type' => 'CLAIM',
+            'debit' => 1000000.00,
+            'credit' => 0.00,
+            'running_balance' => 1000000.00,
+            'transaction_date' => now()->toDateString(),
+        ]);
+
         TrxProgramWithdraw::create([
             'withdraw_no' => 'WD-001',
             'customer_code' => 'CUST01',
             'amount' => 300000,
             'status' => 'COMPLETED',
+        ]);
+        \Illuminate\Support\Facades\DB::table('trx_claim_balance_ledger')->insert([
+            'customer_code' => 'CUST01',
+            'type' => 'WITHDRAW',
+            'debit' => 0.00,
+            'credit' => 300000.00,
+            'running_balance' => 700000.00,
+            'transaction_date' => now()->toDateString(),
         ]);
 
         // Setup results for CUST02
@@ -266,11 +283,28 @@ class ClaimMultipleCustomerFilterTest extends TestCase
             'status' => 'VALID_PROGRAM',
             'is_verified' => true,
         ]);
+        \Illuminate\Support\Facades\DB::table('trx_claim_balance_ledger')->insert([
+            'customer_code' => 'CUST02',
+            'type' => 'CLAIM',
+            'debit' => 2000000.00,
+            'credit' => 0.00,
+            'running_balance' => 2000000.00,
+            'transaction_date' => now()->toDateString(),
+        ]);
+
         TrxProgramWithdraw::create([
             'withdraw_no' => 'WD-002',
             'customer_code' => 'CUST02',
             'amount' => 500000,
             'status' => 'APPROVED',
+        ]);
+        \Illuminate\Support\Facades\DB::table('trx_claim_balance_ledger')->insert([
+            'customer_code' => 'CUST02',
+            'type' => 'WITHDRAW',
+            'debit' => 0.00,
+            'credit' => 500000.00,
+            'running_balance' => 1500000.00,
+            'transaction_date' => now()->toDateString(),
         ]);
 
         // Request summary for CUST01 only
