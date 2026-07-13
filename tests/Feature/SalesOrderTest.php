@@ -147,7 +147,7 @@ class SalesOrderTest extends TestCase
                     'card_code' => 'C110003074',
                     'status' => 'DRAFT',
                     'doc_total' => 50000,
-                    'use_balance' => true,
+                    'use_balance' => 1,
                 ]
             ]);
 
@@ -218,7 +218,7 @@ class SalesOrderTest extends TestCase
                 'data' => [
                     'po_number' => 'PO-UPDATED',
                     'doc_total' => 100000,
-                    'use_balance' => true,
+                    'use_balance' => 1,
                 ]
             ]);
 

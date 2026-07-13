@@ -878,6 +878,10 @@ paths:
                       Remarks:
                         type: string
                         example: DISC SEMARAK AWAL THN
+                      BatchId:
+                        type: integer
+                        nullable: true
+                        example: 12
       responses:
         '200':
           description: Diskon UDO berhasil dikirim ke SAP
@@ -4947,9 +4951,10 @@ components:
           type: string
           example: "260310699"
         use_balance:
-          type: boolean
-          description: Flag to indicate if the distributor uses their reward balance
-          example: true
+          type: integer
+          enum: [0, 1]
+          description: Flag to indicate if the distributor uses their reward balance (1 for true, 0 for false)
+          example: 1
         series:
           type: integer
           nullable: true
@@ -5181,9 +5186,10 @@ components:
           nullable: true
           example: "260310699"
         use_balance:
-          type: boolean
-          description: Flag to indicate if the distributor uses their reward balance
-          example: true
+          type: integer
+          enum: [0, 1]
+          description: Flag to indicate if the distributor uses their reward balance (1 for true, 0 for false)
+          example: 1
         series:
           type: integer
           nullable: true

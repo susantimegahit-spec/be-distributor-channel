@@ -79,7 +79,7 @@ class SalesOrder extends Model
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
         'series' => 'integer',
-        'use_balance' => 'boolean',
+        'use_balance' => 'integer',
     ];
 
     protected $appends = [
