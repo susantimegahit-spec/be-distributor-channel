@@ -187,7 +187,7 @@ paths:
   /v1/claims/balance-ledger/adjustment:
     post:
       summary: Create Manual Balance Adjustment
-      description: Membuat penyesuaian/koreksi saldo secara manual (Debit/Kredit) untuk customer. Khusus Admin.
+      description: Membuat penyesuaian/koreksi saldo secara manual (Debit/Kredit) untuk customer.
       tags:
         - Balance Ledger
       security:

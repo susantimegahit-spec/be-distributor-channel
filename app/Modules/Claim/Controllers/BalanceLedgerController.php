@@ -68,20 +68,6 @@ class BalanceLedgerController extends Controller
     public function storeAdjustment(BalanceAdjustmentRequest $request)
     {
         $user = $request->user();
-        
-        // Authorization check for Admin
-        $isAdmin = $user && $user->role && in_array(
-            strtolower($user->role->name), 
-            ['administrator', 'admin finance', 'admin sales', 'admin logistic']
-        );
-
-        if (!$isAdmin) {
-            return $this->errorResponse(
-                'Hanya admin yang dapat membuat koreksi saldo.', 
-                null, 
-                Response::HTTP_FORBIDDEN
-            );
-        }
 
         $customerCode = $request->get('customer_code');
         $adjustmentType = $request->get('adjustment_type');

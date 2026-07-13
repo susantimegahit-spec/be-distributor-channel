@@ -104,7 +104,7 @@ class ClaimBalanceLedgerTest extends TestCase
         $this->assertEquals('PT XYZ', $response->json('data.data.0.customer_name'));
         $this->assertNull($response->json('data.data.0.depo'));
 
-        // Post adjustment should fail (forbidden)
+        // Post adjustment should succeed (no longer forbidden)
         $responseAdj = $this->actingAs($this->distributorUser, 'sanctum')
             ->postJson('/api/distributor-channel/v1/claims/balance-ledger/adjustment', [
                 'customer_code' => 'C110003074',
@@ -114,7 +114,7 @@ class ClaimBalanceLedgerTest extends TestCase
                 'type' => 'CORRECTION',
             ]);
 
-        $responseAdj->assertStatus(403);
+        $responseAdj->assertStatus(201);
     }
 
     /**
