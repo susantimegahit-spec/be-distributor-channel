@@ -78,6 +78,14 @@ class TrxClaimBalanceLedger extends Model
     }
 
     /**
+     * Get the upload batch associated with the ledger entry.
+     */
+    public function uploadBatch()
+    {
+        return $this->belongsTo(TrxProgramUploadBatch::class, 'ref_number', 'batch_no');
+    }
+
+    /**
      * Accessor for customer_name.
      */
     public function getCustomerNameAttribute(): ?string
