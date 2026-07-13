@@ -25,6 +25,15 @@ class SaveSalesOrderRequest extends FormRequest
                 $this->merge(['lines' => $decoded]);
             }
         }
+
+        if ($this->has('use_balance')) {
+            $val = $this->use_balance;
+            if ($val === 'true' || $val === true || $val === 1 || $val === '1') {
+                $this->merge(['use_balance' => 1]);
+            } else {
+                $this->merge(['use_balance' => 0]);
+            }
+        }
     }
 
     /**
@@ -42,7 +51,7 @@ class SaveSalesOrderRequest extends FormRequest
         return [
             'action' => 'nullable|string|in:submit,approve,reject',
             'card_code' => 'required|string|max:50',
-            'use_balance' => 'nullable|boolean',
+            'use_balance' => 'nullable|in:0,1',
             'po_number' => 'nullable|string|max:100',
             'doc_date' => 'required|date',
             'doc_due_date' => 'nullable|date',
