@@ -123,7 +123,7 @@ class ResultRepository implements ResultRepositoryInterface
             $unverifiedResults = TrxProgramResult::whereIn('id', $ids)
                 ->where('is_verified', false)
                 ->where('status', 'VALID_PROGRAM')
-                ->with('program')
+                ->with(['program', 'upload.batch'])
                 ->get();
 
             // Group by customer_code and program_id
@@ -138,11 +138,12 @@ class ResultRepository implements ResultRepositoryInterface
                 $totalDiscount = $items->sum('total_diskon');
                 $firstItem = $items->first();
                 $program = $firstItem->program;
+                $batchNo = $firstItem->upload && $firstItem->upload->batch ? $firstItem->upload->batch->batch_no : null;
 
                 // Record transaction in balance ledger
                 $this->ledgerRepository->recordTransaction([
                     'customer_code' => $customerCode,
-                    'ref_number' => $program ? $program->program_code : null,
+                    'ref_number' => $batchNo ?: ($program ? $program->program_code : null),
                     'transaction_date' => now()->toDateString(),
                     'type' => 'CLAIM',
                     'debit' => $totalDiscount,
