@@ -18,8 +18,8 @@
       margin: 0;
       padding: 0;
       font-family: 'Inter', sans-serif;
-      background-color: #0f172a; /* Slate Dark */
-      color: #f8fafc;
+      background-color: #ffffff; /* White */
+      color: #0f172a; /* Slate Dark text */
       overflow: hidden;
     }
 
@@ -29,11 +29,11 @@
     }
 
     /* ============================================================
-       Header Bar (Dark Theme)
+       Header Bar (Light Theme)
      ============================================================ */
     .header-bar {
-      background-color: #0f172a;
-      border-bottom: 1px solid #1e293b;
+      background-color: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
       padding: 14px 24px;
       display: flex;
       align-items: center;
@@ -46,13 +46,13 @@
       margin: 0;
       font-size: 16px;
       font-weight: 700;
-      color: #ffffff;
+      color: #0f172a;
       letter-spacing: 0.05em;
     }
 
     .header-title-wrapper span {
       font-size: 11px;
-      color: #38bdf8; /* Cyan Highlight */
+      color: #0284c7; /* Sky Blue Highlight */
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.05em;
@@ -68,9 +68,9 @@
     }
 
     .control-btn {
-      background-color: #1e293b;
-      border: 1px solid #334155;
-      color: #94a3b8;
+      background-color: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      color: #64748b;
       padding: 6px 12px;
       font-size: 11px;
       font-weight: 600;
@@ -85,9 +85,9 @@
     }
 
     .control-btn:hover {
-      background-color: #334155;
-      border-color: #475569;
-      color: #ffffff;
+      background-color: #e2e8f0;
+      border-color: #94a3b8;
+      color: #0f172a;
     }
 
     .control-btn svg {
@@ -116,11 +116,11 @@
     </div>
   </div>
 
-  <!-- RapiDoc Component (Dark Theme with Collapsible Sidebar) -->
+  <!-- RapiDoc Component (Light Theme with Collapsible Sidebar) -->
   <rapi-doc
     id="api-docs"
     spec-url="./openapi.yaml"
-    theme="dark"
+    theme="light"
     render-style="focused"
     nav-item-style="collapsed"
     on-nav-tag-click="expand-collapse"
@@ -129,10 +129,10 @@
     allow-try="true"
     allow-spec-download="true"
     regular-font="Inter, sans-serif"
-    primary-color="#38bdf8"
-    bg-color="#0f172a"
-    nav-bg-color="#0b0f19"
-    nav-accent-color="#38bdf8"
+    primary-color="#0284c7"
+    bg-color="#ffffff"
+    nav-bg-color="#f8fafc"
+    nav-accent-color="#0284c7"
     nav-item-spacing="relaxed"
     layout="row"
   > </rapi-doc>

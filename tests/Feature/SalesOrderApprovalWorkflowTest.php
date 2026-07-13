@@ -407,11 +407,11 @@ class SalesOrderApprovalWorkflowTest extends TestCase
         // 7. Verify ledger entry is created
         $this->assertDatabaseHas('trx_claim_balance_ledger', [
             'customer_code' => 'C110003074',
-            'ref_number' => 'SO-TEST-REWARD-001',
+            'ref_number' => 'SO1234',
             'type' => 'WITHDRAW',
             'debit' => 0.00,
             'credit' => 150000.00,
-            'description' => 'Penggunaan Reward (Trade Promo) - Batch BATCH-TEST-123 pada SO SO-TEST-REWARD-001',
+            'description' => 'Penggunaan Reward (Trade Promo) - Batch BATCH-TEST-123 pada SO SO1234',
             'referenceable_id' => $order->id,
             'referenceable_type' => SalesOrder::class,
         ]);
