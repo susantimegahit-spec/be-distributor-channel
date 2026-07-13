@@ -87,22 +87,29 @@ class BalanceLedgerController extends Controller
         $adjustmentType = $request->get('adjustment_type');
         $amount = (float)$request->get('amount');
         $description = $request->get('description');
+        $type = strtoupper($request->get('type'));
+        $inputRefNumber = $request->get('ref_number');
+        $startDate = $request->get('start_date');
+        $endDate = $request->get('end_date');
 
-        // Generate adjustment reference number: ADJ-YYYYMMDD-XXX
+        // Generate adjustment reference number if not supplied: ADJ-YYYYMMDD-XXX
         $prefix = 'ADJ-' . date('Ymd') . '-';
         
-        $ledgerRecord = DB::transaction(function() use ($customerCode, $adjustmentType, $amount, $description, $prefix, $user) {
-            $lastAdj = DB::table('trx_claim_balance_ledger')
-                ->where('ref_number', 'like', $prefix . '%')
-                ->orderBy('ref_number', 'desc')
-                ->first();
+        $ledgerRecord = DB::transaction(function() use ($customerCode, $adjustmentType, $amount, $description, $prefix, $user, $type, $inputRefNumber, $startDate, $endDate) {
+            $refNumber = $inputRefNumber;
+            if (empty($refNumber)) {
+                $lastAdj = DB::table('trx_claim_balance_ledger')
+                    ->where('ref_number', 'like', $prefix . '%')
+                    ->orderBy('ref_number', 'desc')
+                    ->first();
 
-            $num = 1;
-            if ($lastAdj) {
-                $lastNum = intval(substr($lastAdj->ref_number, -3));
-                $num = $lastNum + 1;
+                $num = 1;
+                if ($lastAdj) {
+                    $lastNum = intval(substr($lastAdj->ref_number, -3));
+                    $num = $lastNum + 1;
+                }
+                $refNumber = $prefix . str_pad($num, 3, '0', STR_PAD_LEFT);
             }
-            $refNumber = $prefix . str_pad($num, 3, '0', STR_PAD_LEFT);
 
             $debit = $adjustmentType === 'DEBIT' ? $amount : 0.00;
             $credit = $adjustmentType === 'CREDIT' ? $amount : 0.00;
@@ -111,10 +118,12 @@ class BalanceLedgerController extends Controller
                 'customer_code' => $customerCode,
                 'ref_number' => $refNumber,
                 'transaction_date' => now()->toDateString(),
-                'type' => 'CORRECTION',
+                'type' => $type,
                 'debit' => $debit,
                 'credit' => $credit,
                 'description' => $description,
+                'claim_start' => $startDate,
+                'claim_end' => $endDate,
                 'created_by' => $user->username ?? 'admin',
             ]);
         });

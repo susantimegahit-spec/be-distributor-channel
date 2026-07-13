@@ -52,10 +52,44 @@ class TrxClaimBalanceLedger extends Model
     ];
 
     /**
+     * The accessors to append to the model's array form.
+     *
+     * @var list<string>
+     */
+    protected $appends = [
+        'customer_name',
+        'depo',
+    ];
+
+    /**
      * Get the parent referenceable model.
      */
     public function referenceable()
     {
         return $this->morphTo();
+    }
+
+    /**
+     * Get the distributor associated with the ledger entry.
+     */
+    public function distributor()
+    {
+        return $this->belongsTo(Distributor::class, 'customer_code', 'code_customer');
+    }
+
+    /**
+     * Accessor for customer_name.
+     */
+    public function getCustomerNameAttribute(): ?string
+    {
+        return $this->distributor?->name;
+    }
+
+    /**
+     * Accessor for depo.
+     */
+    public function getDepoAttribute(): ?string
+    {
+        return $this->distributor?->depo;
     }
 }

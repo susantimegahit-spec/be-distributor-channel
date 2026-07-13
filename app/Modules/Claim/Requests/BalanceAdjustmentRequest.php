@@ -24,6 +24,10 @@ class BalanceAdjustmentRequest extends FormRequest
             'adjustment_type' => 'required|string|in:DEBIT,CREDIT',
             'amount' => 'required|numeric|min:0.01',
             'description' => 'required|string|max:255',
+            'type' => 'required|string|in:CLAIM,TRANSACTION,WITHDRAW,CORRECTION,claim,transaction,withdraw,correction',
+            'ref_number' => 'nullable|string|max:100',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date',
         ];
     }
 }

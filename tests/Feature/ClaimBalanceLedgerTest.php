@@ -101,6 +101,8 @@ class ClaimBalanceLedgerTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertCount(1, $response->json('data.data'));
+        $this->assertEquals('PT XYZ', $response->json('data.data.0.customer_name'));
+        $this->assertNull($response->json('data.data.0.depo'));
 
         // Post adjustment should fail (forbidden)
         $responseAdj = $this->actingAs($this->distributorUser, 'sanctum')
@@ -109,6 +111,7 @@ class ClaimBalanceLedgerTest extends TestCase
                 'adjustment_type' => 'DEBIT',
                 'amount' => 500000.00,
                 'description' => 'Bonus',
+                'type' => 'CORRECTION',
             ]);
 
         $responseAdj->assertStatus(403);
@@ -125,19 +128,29 @@ class ClaimBalanceLedgerTest extends TestCase
                 'adjustment_type' => 'DEBIT',
                 'amount' => 500000.00,
                 'description' => 'Manual Correction',
+                'type' => 'CORRECTION',
+                'ref_number' => 'REF-CUSTOM-123',
+                'start_date' => '2026-07-01',
+                'end_date' => '2026-07-31',
             ]);
 
         $response->assertStatus(201);
         $this->assertEquals(500000.00, $response->json('data.debit'));
         $this->assertEquals(500000.00, $response->json('data.running_balance'));
+        $this->assertEquals('REF-CUSTOM-123', $response->json('data.ref_number'));
+        $this->assertEquals('2026-07-01', $response->json('data.claim_start'));
+        $this->assertEquals('2026-07-31', $response->json('data.claim_end'));
 
         // Check DB
         $this->assertDatabaseHas('trx_claim_balance_ledger', [
             'customer_code' => 'C110003074',
             'type' => 'CORRECTION',
+            'ref_number' => 'REF-CUSTOM-123',
             'debit' => 500000.00,
             'running_balance' => 500000.00,
             'description' => 'Manual Correction',
+            'claim_start' => '2026-07-01',
+            'claim_end' => '2026-07-31',
         ]);
     }
 
@@ -222,6 +235,7 @@ class ClaimBalanceLedgerTest extends TestCase
                 'adjustment_type' => 'DEBIT',
                 'amount' => 1000000.00,
                 'description' => 'Initial Balance',
+                'type' => 'CORRECTION',
             ]);
 
         // Request withdraw via auth user (distributor)
