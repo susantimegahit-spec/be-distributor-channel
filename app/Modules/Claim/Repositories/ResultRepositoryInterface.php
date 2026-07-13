@@ -41,9 +41,10 @@ interface ResultRepositoryInterface
      *
      * @param array $ids
      * @param bool $status
+     * @param string|null $claimType
      * @return int
      */
-    public function verifyResults(array $ids, bool $status);
+    public function verifyResults(array $ids, bool $status, ?string $claimType = null);
 
     /**
      * Get reward summary statistics (claimed, verified, withdrawn, balance).

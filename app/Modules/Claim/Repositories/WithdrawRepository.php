@@ -3,9 +3,22 @@
 namespace App\Modules\Claim\Repositories;
 
 use App\Models\TrxProgramWithdraw;
+use Illuminate\Support\Facades\DB;
 
 class WithdrawRepository implements WithdrawRepositoryInterface
 {
+    /**
+     * @var TrxClaimBalanceLedgerRepositoryInterface
+     */
+    protected TrxClaimBalanceLedgerRepositoryInterface $ledgerRepository;
+
+    /**
+     * WithdrawRepository constructor.
+     */
+    public function __construct(TrxClaimBalanceLedgerRepositoryInterface $ledgerRepository)
+    {
+        $this->ledgerRepository = $ledgerRepository;
+    }
     /**
      * Get paginated list of withdrawals.
      */
@@ -39,7 +52,24 @@ class WithdrawRepository implements WithdrawRepositoryInterface
      */
     public function createWithdraw(array $data)
     {
-        return TrxProgramWithdraw::create($data);
+        return DB::transaction(function () use ($data) {
+            $withdraw = TrxProgramWithdraw::create($data);
+
+            // Record in ledger
+            $this->ledgerRepository->recordTransaction([
+                'customer_code' => $withdraw->customer_code,
+                'ref_number' => $withdraw->withdraw_no,
+                'transaction_date' => now()->toDateString(),
+                'type' => 'WITHDRAW',
+                'debit' => 0.00,
+                'credit' => $withdraw->amount,
+                'description' => "Pengajuan Penarikan Dana " . $withdraw->withdraw_no,
+                'referenceable_id' => $withdraw->id,
+                'referenceable_type' => TrxProgramWithdraw::class,
+            ]);
+
+            return $withdraw;
+        });
     }
 
     /**
@@ -47,14 +77,47 @@ class WithdrawRepository implements WithdrawRepositoryInterface
      */
     public function updateStatus(int $id, string $status, ?string $transferDate = null)
     {
-        $withdraw = TrxProgramWithdraw::findOrFail($id);
-        $withdraw->status = $status;
-        if ($transferDate !== null) {
-            $withdraw->transfer_date = $transferDate;
-        }
-        $withdraw->save();
-        
-        return $withdraw;
+        return DB::transaction(function () use ($id, $status, $transferDate) {
+            $withdraw = TrxProgramWithdraw::findOrFail($id);
+            $oldStatus = $withdraw->status;
+
+            $withdraw->status = $status;
+            if ($transferDate !== null) {
+                $withdraw->transfer_date = $transferDate;
+            }
+            $withdraw->save();
+
+            // If status is rejected, refund the balance
+            if ($status === 'REJECTED' && $oldStatus !== 'REJECTED') {
+                $this->ledgerRepository->recordTransaction([
+                    'customer_code' => $withdraw->customer_code,
+                    'ref_number' => $withdraw->withdraw_no,
+                    'transaction_date' => now()->toDateString(),
+                    'type' => 'CORRECTION',
+                    'debit' => $withdraw->amount,
+                    'credit' => 0.00,
+                    'description' => "Pengembalian dana penarikan ditolak: " . $withdraw->withdraw_no,
+                    'referenceable_id' => $withdraw->id,
+                    'referenceable_type' => TrxProgramWithdraw::class,
+                ]);
+            }
+            // If status was rejected and transitions back (unlikely but possible)
+            elseif ($oldStatus === 'REJECTED' && $status !== 'REJECTED') {
+                $this->ledgerRepository->recordTransaction([
+                    'customer_code' => $withdraw->customer_code,
+                    'ref_number' => $withdraw->withdraw_no,
+                    'transaction_date' => now()->toDateString(),
+                    'type' => 'WITHDRAW',
+                    'debit' => 0.00,
+                    'credit' => $withdraw->amount,
+                    'description' => "Pengajuan kembali Penarikan Dana " . $withdraw->withdraw_no,
+                    'referenceable_id' => $withdraw->id,
+                    'referenceable_type' => TrxProgramWithdraw::class,
+                ]);
+            }
+
+            return $withdraw;
+        });
     }
 
     /**

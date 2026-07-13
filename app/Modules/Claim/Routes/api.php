@@ -5,6 +5,7 @@ use App\Modules\Claim\Controllers\ProgramController;
 use App\Modules\Claim\Controllers\UploadController;
 use App\Modules\Claim\Controllers\ResultController;
 use App\Modules\Claim\Controllers\WithdrawController;
+use App\Modules\Claim\Controllers\BalanceLedgerController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/claims')->middleware('auth:sanctum')->group(function () {
@@ -36,4 +37,8 @@ Route::prefix('v1/claims')->middleware('auth:sanctum')->group(function () {
     Route::get('/withdraws', [WithdrawController::class, 'index']);
     Route::post('/withdraws', [WithdrawController::class, 'store']);
     Route::post('/withdraws/{id}/status', [WithdrawController::class, 'updateStatus']);
+
+    // Balance Ledger
+    Route::get('/balance-ledger', [BalanceLedgerController::class, 'index']);
+    Route::post('/balance-ledger/adjustment', [BalanceLedgerController::class, 'storeAdjustment']);
 });

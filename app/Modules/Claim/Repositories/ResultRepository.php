@@ -8,6 +8,18 @@ use Illuminate\Support\Facades\DB;
 class ResultRepository implements ResultRepositoryInterface
 {
     /**
+     * @var TrxClaimBalanceLedgerRepositoryInterface
+     */
+    protected TrxClaimBalanceLedgerRepositoryInterface $ledgerRepository;
+
+    /**
+     * ResultRepository constructor.
+     */
+    public function __construct(TrxClaimBalanceLedgerRepositoryInterface $ledgerRepository)
+    {
+        $this->ledgerRepository = $ledgerRepository;
+    }
+    /**
      * Bulk insert calculation results.
      */
     public function insertResults(array $results)
@@ -104,8 +116,47 @@ class ResultRepository implements ResultRepositoryInterface
     /**
      * Bulk verify result records.
      */
-    public function verifyResults(array $ids, bool $status)
+    public function verifyResults(array $ids, bool $status, ?string $claimType = null)
     {
+        if ($status) {
+            // Find all valid program results that are not yet verified.
+            $unverifiedResults = TrxProgramResult::whereIn('id', $ids)
+                ->where('is_verified', false)
+                ->where('status', 'VALID_PROGRAM')
+                ->with('program')
+                ->get();
+
+            // Group by customer_code and program_id
+            $groups = $unverifiedResults->groupBy(function($item) {
+                return $item->customer_code . '|' . ($item->program_id ?? 0);
+            });
+
+            foreach ($groups as $key => $items) {
+                list($customerCode, $programId) = explode('|', $key);
+                $programId = $programId > 0 ? (int)$programId : null;
+
+                $totalDiscount = $items->sum('total_diskon');
+                $firstItem = $items->first();
+                $program = $firstItem->program;
+
+                // Record transaction in balance ledger
+                $this->ledgerRepository->recordTransaction([
+                    'customer_code' => $customerCode,
+                    'ref_number' => $program ? $program->program_code : null,
+                    'transaction_date' => now()->toDateString(),
+                    'type' => 'CLAIM',
+                    'debit' => $totalDiscount,
+                    'credit' => 0.00,
+                    'claim_type' => $claimType,
+                    'claim_start' => $program ? $program->start_date : null,
+                    'claim_end' => $program ? $program->end_date : null,
+                    'description' => "Klaim Program " . ($program ? $program->program_name : 'Klaim'),
+                    'referenceable_id' => $programId,
+                    'referenceable_type' => $program ? \App\Models\MstProgram::class : null,
+                ]);
+            }
+        }
+
         return TrxProgramResult::whereIn('id', $ids)->update(['is_verified' => $status]);
     }
 
@@ -119,33 +170,33 @@ class ResultRepository implements ResultRepositoryInterface
             $codes = is_array($customerCodes) ? $customerCodes : [$customerCodes];
         }
 
+        $queryLedger = DB::table('trx_claim_balance_ledger');
+        if (!empty($codes)) {
+            $queryLedger->whereIn('customer_code', $codes);
+        }
+
+        // Sum of all CLAIM type debits
+        $totalVerified = (float) (clone $queryLedger)->where('type', 'CLAIM')->sum('debit');
+        
+        // Sum of all WITHDRAW type credits
+        $totalWithdrawn = (float) (clone $queryLedger)->where('type', 'WITHDRAW')->sum('credit');
+
+        // Total claimed (which includes unverified claims)
         $queryResult = DB::table('trx_program_result')
             ->where('status', 'VALID_PROGRAM');
-
         if (!empty($codes)) {
             $queryResult->whereIn('customer_code', $codes);
         }
+        $totalClaimed = (float)$queryResult->sum('total_diskon');
 
-        $totalClaimed = $queryResult->sum('total_diskon');
-        
-        $queryVerified = clone $queryResult;
-        $totalVerified = $queryVerified->where('is_verified', true)->sum('total_diskon');
-
-        $queryWithdraw = DB::table('trx_program_withdraw')
-            ->whereNull('deleted_at')
-            ->whereIn('status', ['PENDING', 'APPROVED', 'COMPLETED']);
-
-        if (!empty($codes)) {
-            $queryWithdraw->whereIn('customer_code', $codes);
-        }
-
-        $totalWithdrawn = $queryWithdraw->sum('amount');
+        // Current available balance: sum(debit) - sum(credit) across all ledger transactions
+        $availableBalance = (float)(clone $queryLedger)->selectRaw('SUM(debit) - SUM(credit) as bal')->value('bal') ?? 0.00;
 
         return [
-            'total_claimed' => (float)$totalClaimed,
-            'total_verified' => (float)$totalVerified,
-            'total_withdrawn' => (float)$totalWithdrawn,
-            'available_balance' => (float)($totalVerified - $totalWithdrawn),
+            'total_claimed' => $totalClaimed,
+            'total_verified' => $totalVerified,
+            'total_withdrawn' => $totalWithdrawn,
+            'available_balance' => $availableBalance,
         ];
     }
 }

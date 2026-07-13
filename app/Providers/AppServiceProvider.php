@@ -85,6 +85,10 @@ class AppServiceProvider extends ServiceProvider
             \App\Modules\Claim\Repositories\WithdrawRepository::class
         );
         $this->app->bind(
+            \App\Modules\Claim\Repositories\TrxClaimBalanceLedgerRepositoryInterface::class,
+            \App\Modules\Claim\Repositories\TrxClaimBalanceLedgerRepository::class
+        );
+        $this->app->bind(
             \App\Modules\SalesDistributor\Repositories\SalesDistributorRepositoryInterface::class,
             \App\Modules\SalesDistributor\Repositories\SalesDistributorRepository::class
         );

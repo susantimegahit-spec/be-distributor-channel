@@ -79,12 +79,14 @@ class ResultController extends Controller
             'ids' => 'required|array',
             'ids.*' => 'integer|exists:trx_program_result,id',
             'is_verified' => 'boolean',
+            'claim_type' => 'nullable|string|in:BULANAN,3_BULANAN,6_BULANAN',
         ]);
 
         $ids = $request->get('ids');
         $isVerified = $request->get('is_verified', true);
+        $claimType = $request->get('claim_type');
 
-        $this->resultRepository->verifyResults($ids, $isVerified);
+        $this->resultRepository->verifyResults($ids, $isVerified, $claimType);
 
         return $this->successResponse(null, count($ids) . ' transaksi sell out berhasil diverifikasi.');
     }
