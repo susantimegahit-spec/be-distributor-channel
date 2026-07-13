@@ -155,6 +155,33 @@ class ClaimBalanceLedgerTest extends TestCase
     }
 
     /**
+     * Test admin can create manual balance adjustment without amount.
+     */
+    public function test_admin_can_create_adjustment_without_amount(): void
+    {
+        $response = $this->actingAs($this->adminUser, 'sanctum')
+            ->postJson('/api/distributor-channel/v1/claims/balance-ledger/adjustment', [
+                'customer_code' => 'C110003074',
+                'adjustment_type' => 'DEBIT',
+                'description' => 'Correction without amount',
+                'type' => 'CORRECTION',
+            ]);
+
+        $response->assertStatus(201);
+        $this->assertEquals(0.00, $response->json('data.debit'));
+        $this->assertEquals(0.00, $response->json('data.running_balance'));
+
+        // Check DB
+        $this->assertDatabaseHas('trx_claim_balance_ledger', [
+            'customer_code' => 'C110003074',
+            'type' => 'CORRECTION',
+            'debit' => 0.00,
+            'running_balance' => 0.00,
+            'description' => 'Correction without amount',
+        ]);
+    }
+
+    /**
      * Test claim verification inserts to balance ledger.
      */
     public function test_claim_verification_updates_ledger(): void
