@@ -23,6 +23,16 @@ interface TrxClaimBalanceLedgerRepositoryInterface
     public function recordTransaction(array $data);
 
     /**
+     * Update an existing CLAIM ledger entry by batch_id (when finance verifies).
+     * If no existing entry is found, a new one will be inserted.
+     *
+     * @param int $batchId
+     * @param array $data
+     * @return \App\Models\TrxClaimBalanceLedger
+     */
+    public function updateOrRecordClaimByBatch(int $batchId, array $data);
+
+    /**
      * Get current available balance for a customer.
      *
      * @param string $customerCode

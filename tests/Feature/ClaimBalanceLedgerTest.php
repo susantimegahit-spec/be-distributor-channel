@@ -214,32 +214,48 @@ class ClaimBalanceLedgerTest extends TestCase
 
         // Create result record
         $result = TrxProgramResult::create([
-            'upload_id' => $upload->id,
-            'program_id' => $program->id,
-            'customer_code' => 'C110003074',
+            'upload_id'    => $upload->id,
+            'program_id'   => $program->id,
+            'customer_code'=> 'C110003074',
             'total_diskon' => 250000.00,
-            'status' => 'VALID_PROGRAM',
-            'is_verified' => false,
+            'status'       => 'VALID_PROGRAM',
+            'is_verified'  => false,
         ]);
 
-        // Verify result via endpoint
+        // Simulate: distributor already uploaded → a pending ledger row exists (debit=0)
+        \App\Models\TrxClaimBalanceLedger::create([
+            'customer_code'    => 'C110003074',
+            'ref_number'       => 'B-001',
+            'batch_id'         => $batch->id,
+            'transaction_date' => now()->toDateString(),
+            'type'             => 'CLAIM',
+            'debit'            => 0.00,
+            'credit'           => 0.00,
+            'running_balance'  => 0.00,
+            'description'      => 'Klaim Program Program A',
+        ]);
+
+        // Verify result via endpoint (finance approves)
         $response = $this->actingAs($this->adminUser, 'sanctum')
             ->postJson('/api/distributor-channel/v1/claims/results/verify', [
-                'ids' => [$result->id],
-                'is_verified' => true,
+                'ids'        => [$result->id],
+                'is_verified'=> true,
                 'claim_type' => 'BULANAN',
             ]);
 
         $response->assertStatus(200);
 
+        // Assert only ONE CLAIM row for this batch exists (updated, not duplicated)
+        $this->assertDatabaseCount('trx_claim_balance_ledger', 1);
+
         // Check ledger — ref_number = human-readable batch_no, batch_id = FK integer
         $this->assertDatabaseHas('trx_claim_balance_ledger', [
-            'customer_code' => 'C110003074',
-            'type'          => 'CLAIM',
-            'ref_number'    => 'B-001',
-            'batch_id'      => $batch->id,
-            'debit'         => 250000.00,
-            'claim_type'    => 'BULANAN',
+            'customer_code'   => 'C110003074',
+            'type'            => 'CLAIM',
+            'ref_number'      => 'B-001',
+            'batch_id'        => $batch->id,
+            'debit'           => 250000.00,
+            'claim_type'      => 'BULANAN',
             'running_balance' => 250000.00,
         ]);
 
@@ -256,6 +272,7 @@ class ClaimBalanceLedgerTest extends TestCase
             ->getJson('/api/distributor-channel/v1/claims/balance-ledger?customer_codes=C110003074');
         $responseLedger->assertStatus(200);
         $this->assertEquals('B-001', $responseLedger->json('data.data.0.batch_no'));
+        $this->assertEquals(1, $responseLedger->json('data.total'));
     }
 
     /**

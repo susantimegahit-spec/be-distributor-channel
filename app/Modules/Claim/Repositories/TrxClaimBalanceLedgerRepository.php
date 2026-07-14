@@ -65,6 +65,58 @@ class TrxClaimBalanceLedgerRepository implements TrxClaimBalanceLedgerRepository
     }
 
     /**
+     * Update an existing CLAIM ledger entry by batch_id (finance verify flow).
+     * Updates debit/credit and cascades running_balance to all subsequent rows.
+     * Falls back to inserting a new entry if no existing one is found.
+     */
+    public function updateOrRecordClaimByBatch(int $batchId, array $data)
+    {
+        return DB::transaction(function () use ($batchId, $data) {
+            $customerCode = $data['customer_code'];
+            $newDebit  = (float)($data['debit']  ?? 0.00);
+            $newCredit = (float)($data['credit'] ?? 0.00);
+
+            // Try to find an existing CLAIM entry for this batch
+            $existing = TrxClaimBalanceLedger::where('customer_code', $customerCode)
+                ->where('batch_id', $batchId)
+                ->where('type', 'CLAIM')
+                ->lockForUpdate()
+                ->orderBy('id', 'asc')
+                ->first();
+
+            if (!$existing) {
+                // No entry yet — fall back to a normal insert
+                return $this->recordTransaction($data);
+            }
+
+            $oldDebit  = (float)$existing->debit;
+            $oldCredit = (float)$existing->credit;
+            $delta = ($newDebit - $newCredit) - ($oldDebit - $oldCredit);
+
+            // Update the existing row
+            $existing->update(array_merge($data, [
+                'debit'           => $newDebit,
+                'credit'          => $newCredit,
+                'running_balance' => (float)$existing->running_balance + $delta,
+            ]));
+
+            // Cascade the balance delta to all later rows of this customer
+            if ($delta != 0) {
+                TrxClaimBalanceLedger::where('customer_code', $customerCode)
+                    ->where('id', '>', $existing->id)
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get()
+                    ->each(function ($row) use ($delta) {
+                        $row->update(['running_balance' => (float)$row->running_balance + $delta]);
+                    });
+            }
+
+            return $existing->fresh();
+        });
+    }
+
+    /**
      * Get current available balance for a customer.
      */
     public function getCurrentBalance(string $customerCode)
