@@ -62,6 +62,7 @@ class TrxClaimBalanceLedger extends Model
         'customer_name',
         'depo',
         'batch_no',
+        'withdraw_id',
     ];
 
     /**
@@ -110,5 +111,16 @@ class TrxClaimBalanceLedger extends Model
     public function getBatchNoAttribute(): ?string
     {
         return $this->uploadBatch?->batch_no;
+    }
+
+    /**
+     * Accessor for withdraw_id.
+     */
+    public function getWithdrawIdAttribute(): ?int
+    {
+        if ($this->referenceable_type === \App\Models\TrxProgramWithdraw::class) {
+            return $this->referenceable_id;
+        }
+        return null;
     }
 }
