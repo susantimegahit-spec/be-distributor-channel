@@ -249,6 +249,12 @@ class ClaimBalanceLedgerTest extends TestCase
         $responseSummary->assertStatus(200);
         $this->assertEquals(250000.00, $responseSummary->json('data.total_verified'));
         $this->assertEquals(250000.00, $responseSummary->json('data.available_balance'));
+
+        // Fetch ledger list and verify batch_no is populated from relationship
+        $responseLedger = $this->actingAs($this->adminUser, 'sanctum')
+            ->getJson('/api/distributor-channel/v1/claims/balance-ledger?customer_codes=C110003074');
+        $responseLedger->assertStatus(200);
+        $this->assertEquals('B-001', $responseLedger->json('data.data.0.batch_no'));
     }
 
     /**

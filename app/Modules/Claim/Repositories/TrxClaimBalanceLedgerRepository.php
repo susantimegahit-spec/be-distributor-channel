@@ -32,7 +32,7 @@ class TrxClaimBalanceLedgerRepository implements TrxClaimBalanceLedgerRepository
             $query->where('type', $filters['type']);
         }
 
-        return $query->with('distributor')
+        return $query->with(['distributor', 'uploadBatch'])
             ->orderBy('transaction_date', 'desc')
             ->orderBy('id', 'desc')
             ->paginate($perPage);

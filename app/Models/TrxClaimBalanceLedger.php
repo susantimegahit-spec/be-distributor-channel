@@ -59,6 +59,8 @@ class TrxClaimBalanceLedger extends Model
     protected $appends = [
         'customer_name',
         'depo',
+        'batch_id',
+        'batch_no',
     ];
 
     /**
@@ -99,5 +101,21 @@ class TrxClaimBalanceLedger extends Model
     public function getDepoAttribute(): ?string
     {
         return $this->distributor?->depo;
+    }
+
+    /**
+     * Accessor for batch_id (integer ID of the upload batch).
+     */
+    public function getBatchIdAttribute(): ?int
+    {
+        return $this->uploadBatch?->id ?? (is_numeric($this->ref_number) ? (int)$this->ref_number : null);
+    }
+
+    /**
+     * Accessor for batch_no.
+     */
+    public function getBatchNoAttribute(): ?string
+    {
+        return $this->uploadBatch?->batch_no;
     }
 }

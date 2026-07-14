@@ -5,6 +5,7 @@ namespace App\Modules\Claim\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Claim\Repositories\TrxClaimBalanceLedgerRepositoryInterface;
 use App\Modules\Claim\Requests\BalanceAdjustmentRequest;
+use App\Modules\Claim\Services\UploadService;
 use App\Traits\ApiResponseFormatter;
 use App\Traits\HasCustomerCodeResolver;
 use Illuminate\Http\Request;
@@ -21,11 +22,19 @@ class BalanceLedgerController extends Controller
     protected TrxClaimBalanceLedgerRepositoryInterface $ledgerRepository;
 
     /**
+     * @var UploadService
+     */
+    protected UploadService $uploadService;
+
+    /**
      * BalanceLedgerController constructor.
      */
-    public function __construct(TrxClaimBalanceLedgerRepositoryInterface $ledgerRepository)
-    {
+    public function __construct(
+        TrxClaimBalanceLedgerRepositoryInterface $ledgerRepository,
+        UploadService $uploadService
+    ) {
         $this->ledgerRepository = $ledgerRepository;
+        $this->uploadService = $uploadService;
     }
 
     /**
@@ -60,7 +69,11 @@ class BalanceLedgerController extends Controller
     }
 
     /**
-     * Store a manual balance adjustment (Admin only).
+     * Store a manual balance adjustment.
+     *
+     * When type is CLAIM and a file is uploaded, the file will be processed
+     * automatically via UploadService and the resulting batch_id will be used
+     * as ref_number — no changes needed on the FE side.
      *
      * @param BalanceAdjustmentRequest $request
      * @return \Illuminate\Http\JsonResponse
@@ -78,10 +91,18 @@ class BalanceLedgerController extends Controller
         $startDate = $request->get('start_date');
         $endDate = $request->get('end_date');
 
+        // If type is CLAIM and a file is provided, process the upload first
+        // and automatically use the resulting batch_id as ref_number.
+        if ($type === 'CLAIM' && $request->hasFile('file')) {
+            $uploadedBy = $user->username ?? 'admin';
+            $uploadResult = $this->uploadService->handleUpload($request->file('file'), $uploadedBy);
+            $inputRefNumber = (string)($uploadResult['batch_id'] ?? $inputRefNumber);
+        }
+
         // Generate adjustment reference number if not supplied: ADJ-YYYYMMDD-XXX
         $prefix = 'ADJ-' . date('Ymd') . '-';
-        
-        $ledgerRecord = DB::transaction(function() use ($customerCode, $adjustmentType, $amount, $description, $prefix, $user, $type, $inputRefNumber, $startDate, $endDate) {
+
+        $ledgerRecord = DB::transaction(function () use ($customerCode, $adjustmentType, $amount, $description, $prefix, $user, $type, $inputRefNumber, $startDate, $endDate) {
             $refNumber = $inputRefNumber;
             if (empty($refNumber)) {
                 $lastAdj = DB::table('trx_claim_balance_ledger')
@@ -115,8 +136,8 @@ class BalanceLedgerController extends Controller
         });
 
         return $this->successResponse(
-            $ledgerRecord, 
-            'Koreksi saldo berhasil dibuat.', 
+            $ledgerRecord,
+            'Koreksi saldo berhasil dibuat.',
             Response::HTTP_CREATED
         );
     }

@@ -28,6 +28,7 @@ class BalanceAdjustmentRequest extends FormRequest
             'ref_number' => 'nullable|string|max:100',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date',
+            'file' => 'nullable|file|mimes:xlsx,xls|max:10240',
         ];
     }
 }
