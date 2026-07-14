@@ -40,41 +40,23 @@ class TrxClaimBalanceLedgerRepository implements TrxClaimBalanceLedgerRepository
 
     /**
      * Record a new ledger entry.
-     * This method must handle running balance calculation and locking.
+     * With on-the-fly summing, we no longer need to calculate or store a running balance.
      */
     public function recordTransaction(array $data)
     {
-        return DB::transaction(function () use ($data) {
-            $customerCode = $data['customer_code'];
-            $debit = (float)($data['debit'] ?? 0.00);
-            $credit = (float)($data['credit'] ?? 0.00);
-
-            // Fetch the last record for this customer, locking it to prevent race conditions
-            $lastLedger = TrxClaimBalanceLedger::where('customer_code', $customerCode)
-                ->lockForUpdate()
-                ->orderBy('id', 'desc')
-                ->first();
-
-            $previousBalance = $lastLedger ? (float)$lastLedger->running_balance : 0.00;
-            $runningBalance = $previousBalance + $debit - $credit;
-
-            $data['running_balance'] = $runningBalance;
-
-            return TrxClaimBalanceLedger::create($data);
-        });
+        return TrxClaimBalanceLedger::create($data);
     }
 
     /**
      * Update an existing CLAIM ledger entry by batch_id (finance verify flow).
-     * Updates debit/credit and cascades running_balance to all subsequent rows.
+     * With on-the-fly summing, we simply update the debit/credit values directly.
+     * No delta calculation or cascading updates to later rows needed!
      * Falls back to inserting a new entry if no existing one is found.
      */
     public function updateOrRecordClaimByBatch(int $batchId, array $data)
     {
         return DB::transaction(function () use ($batchId, $data) {
             $customerCode = $data['customer_code'];
-            $newDebit  = (float)($data['debit']  ?? 0.00);
-            $newCredit = (float)($data['credit'] ?? 0.00);
 
             // Try to find an existing CLAIM entry for this batch
             $existing = TrxClaimBalanceLedger::where('customer_code', $customerCode)
@@ -85,32 +67,11 @@ class TrxClaimBalanceLedgerRepository implements TrxClaimBalanceLedgerRepository
                 ->first();
 
             if (!$existing) {
-                // No entry yet — fall back to a normal insert
                 return $this->recordTransaction($data);
             }
 
-            $oldDebit  = (float)$existing->debit;
-            $oldCredit = (float)$existing->credit;
-            $delta = ($newDebit - $newCredit) - ($oldDebit - $oldCredit);
-
-            // Update the existing row
-            $existing->update(array_merge($data, [
-                'debit'           => $newDebit,
-                'credit'          => $newCredit,
-                'running_balance' => (float)$existing->running_balance + $delta,
-            ]));
-
-            // Cascade the balance delta to all later rows of this customer
-            if ($delta != 0) {
-                TrxClaimBalanceLedger::where('customer_code', $customerCode)
-                    ->where('id', '>', $existing->id)
-                    ->orderBy('id')
-                    ->lockForUpdate()
-                    ->get()
-                    ->each(function ($row) use ($delta) {
-                        $row->update(['running_balance' => (float)$row->running_balance + $delta]);
-                    });
-            }
+            // Directly update the fields
+            $existing->update($data);
 
             return $existing->fresh();
         });
@@ -118,13 +79,14 @@ class TrxClaimBalanceLedgerRepository implements TrxClaimBalanceLedgerRepository
 
     /**
      * Get current available balance for a customer.
+     * Real-time calculation: SUM(debit) - SUM(credit)
      */
     public function getCurrentBalance(string $customerCode)
     {
-        $lastLedger = TrxClaimBalanceLedger::where('customer_code', $customerCode)
-            ->orderBy('id', 'desc')
+        $sum = TrxClaimBalanceLedger::where('customer_code', $customerCode)
+            ->selectRaw('SUM(debit) - SUM(credit) as balance')
             ->first();
 
-        return $lastLedger ? (float)$lastLedger->running_balance : 0.00;
+        return $sum ? (float)$sum->balance : 0.00;
     }
 }

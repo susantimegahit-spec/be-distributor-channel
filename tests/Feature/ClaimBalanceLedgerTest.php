@@ -92,7 +92,6 @@ class ClaimBalanceLedgerTest extends TestCase
             'type' => 'WITHDRAW',
             'debit' => 0.00,
             'credit' => 100000.00,
-            'running_balance' => -100000.00,
         ]);
 
         // Get ledger should succeed
@@ -136,10 +135,6 @@ class ClaimBalanceLedgerTest extends TestCase
 
         $response->assertStatus(201);
         $this->assertEquals(500000.00, $response->json('data.debit'));
-        $this->assertEquals(500000.00, $response->json('data.running_balance'));
-        $this->assertEquals('REF-CUSTOM-123', $response->json('data.ref_number'));
-        $this->assertEquals('2026-07-01', $response->json('data.claim_start'));
-        $this->assertEquals('2026-07-31', $response->json('data.claim_end'));
 
         // Check DB
         $this->assertDatabaseHas('trx_claim_balance_ledger', [
@@ -147,11 +142,15 @@ class ClaimBalanceLedgerTest extends TestCase
             'type' => 'CORRECTION',
             'ref_number' => 'REF-CUSTOM-123',
             'debit' => 500000.00,
-            'running_balance' => 500000.00,
             'description' => 'Manual Correction',
             'claim_start' => '2026-07-01',
             'claim_end' => '2026-07-31',
         ]);
+
+        // Assert balance
+        $responseSummary = $this->actingAs($this->adminUser, 'sanctum')
+            ->getJson('/api/distributor-channel/v1/claims/reward-summary?customer_codes=C110003074');
+        $this->assertEquals(500000.00, $responseSummary->json('data.available_balance'));
     }
 
     /**
@@ -169,14 +168,12 @@ class ClaimBalanceLedgerTest extends TestCase
 
         $response->assertStatus(201);
         $this->assertEquals(0.00, $response->json('data.debit'));
-        $this->assertEquals(0.00, $response->json('data.running_balance'));
 
         // Check DB
         $this->assertDatabaseHas('trx_claim_balance_ledger', [
             'customer_code' => 'C110003074',
             'type' => 'CORRECTION',
             'debit' => 0.00,
-            'running_balance' => 0.00,
             'description' => 'Correction without amount',
         ]);
     }
@@ -231,7 +228,6 @@ class ClaimBalanceLedgerTest extends TestCase
             'type'             => 'CLAIM',
             'debit'            => 0.00,
             'credit'           => 0.00,
-            'running_balance'  => 0.00,
             'description'      => 'Klaim Program Program A',
         ]);
 
@@ -256,7 +252,6 @@ class ClaimBalanceLedgerTest extends TestCase
             'batch_id'        => $batch->id,
             'debit'           => 250000.00,
             'claim_type'      => 'BULANAN',
-            'running_balance' => 250000.00,
         ]);
 
         // Verify summary is updated using ledger
@@ -299,13 +294,17 @@ class ClaimBalanceLedgerTest extends TestCase
         $responseWd->assertStatus(201);
         $withdrawId = $responseWd->json('data.id');
 
-        // Check ledger (balance should be 600,000)
+        // Check ledger
         $this->assertDatabaseHas('trx_claim_balance_ledger', [
             'customer_code' => 'C110003074',
             'type' => 'WITHDRAW',
             'credit' => 400000.00,
-            'running_balance' => 600000.00,
         ]);
+
+        // Assert balance decreases to 600k
+        $responseSummary = $this->actingAs($this->adminUser, 'sanctum')
+            ->getJson('/api/distributor-channel/v1/claims/reward-summary?customer_codes=C110003074');
+        $this->assertEquals(600000.00, $responseSummary->json('data.available_balance'));
 
         // Reject withdraw via admin
         $responseReject = $this->actingAs($this->adminUser, 'sanctum')
@@ -315,13 +314,17 @@ class ClaimBalanceLedgerTest extends TestCase
 
         $responseReject->assertStatus(200);
 
-        // Check ledger again (should refund 400,000, so running balance is 1,000,000)
+        // Check ledger again
         $this->assertDatabaseHas('trx_claim_balance_ledger', [
             'customer_code' => 'C110003074',
             'type' => 'CORRECTION',
             'debit' => 400000.00,
-            'running_balance' => 1000000.00,
             'description' => 'Pengembalian dana penarikan ditolak: ' . $responseWd->json('data.withdraw_no'),
         ]);
+
+        // Assert balance returns to 1M
+        $responseSummary = $this->actingAs($this->adminUser, 'sanctum')
+            ->getJson('/api/distributor-channel/v1/claims/reward-summary?customer_codes=C110003074');
+        $this->assertEquals(1000000.00, $responseSummary->json('data.available_balance'));
     }
 }
