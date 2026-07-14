@@ -63,6 +63,7 @@ class TrxClaimBalanceLedger extends Model
         'depo',
         'batch_no',
         'withdraw_id',
+        'status',
     ];
 
     /**
@@ -122,5 +123,24 @@ class TrxClaimBalanceLedger extends Model
             return $this->referenceable_id;
         }
         return null;
+    }
+
+    /**
+     * Accessor for status.
+     */
+    public function getStatusAttribute(): string
+    {
+        // 1. If linked to a polymorphic referenceable (like withdraw request)
+        if ($this->referenceable_type === \App\Models\TrxProgramWithdraw::class) {
+            return $this->referenceable?->status ?? 'PENDING';
+        }
+
+        // 2. If it's a claim, status is APPROVED if debit is > 0 (verified), else PENDING
+        if ($this->type === 'CLAIM') {
+            return (float)$this->debit > 0 ? 'APPROVED' : 'PENDING';
+        }
+
+        // 3. Default to APPROVED for corrections and others
+        return 'APPROVED';
     }
 }
