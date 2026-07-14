@@ -336,4 +336,60 @@ class ClaimBalanceLedgerTest extends TestCase
             ->getJson('/api/distributor-channel/v1/claims/reward-summary?customer_codes=C110003074');
         $this->assertEquals(600000.00, $responseSummary->json('data.available_balance'));
     }
+
+    /**
+     * Test approved claims endpoint returns only claims with debit > 0
+     */
+    public function test_get_approved_claims(): void
+    {
+        // 1. Create a pending claim (debit = 0.00)
+        \App\Models\TrxClaimBalanceLedger::create([
+            'customer_code'    => 'C110003074',
+            'ref_number'       => 'BATCH-PENDING',
+            'transaction_date' => '2026-07-14',
+            'type'             => 'CLAIM',
+            'debit'            => 0.00,
+            'credit'           => 0.00,
+            'description'      => 'Pending Claim Batch',
+        ]);
+
+        // 2. Create an approved claim (debit > 0.00)
+        \App\Models\TrxClaimBalanceLedger::create([
+            'customer_code'    => 'C110003074',
+            'ref_number'       => 'BATCH-APPROVED',
+            'transaction_date' => '2026-07-14',
+            'type'             => 'CLAIM',
+            'debit'            => 250000.00,
+            'credit'           => 0.00,
+            'description'      => 'Approved Claim Batch',
+        ]);
+
+        // 3. Request approved claims as admin
+        $response = $this->actingAs($this->adminUser, 'sanctum')
+            ->getJson('/api/distributor-channel/v1/claims/balance-ledger/approved-claims?customer_code=C110003074');
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'data' => [
+                    '*' => [
+                        'batch_id',
+                        'batch_no',
+                        'debit',
+                        'customer_code',
+                        'customer_name',
+                        'depo',
+                        'transaction_date',
+                    ]
+                ]
+            ]);
+
+        $data = $response->json('data');
+        // It should contain only the approved claim, not the pending one
+        $this->assertCount(1, $data);
+        $this->assertEquals('BATCH-APPROVED', $data[0]['batch_no']);
+        $this->assertEquals(250000.00, $data[0]['debit']);
+        $this->assertEquals('C110003074', $data[0]['customer_code']);
+    }
 }

@@ -145,4 +145,42 @@ class BalanceLedgerController extends Controller
             Response::HTTP_CREATED
         );
     }
+
+    /**
+     * Get approved claims for customer.
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getApprovedClaims(Request $request)
+    {
+        $customerCodes = $this->resolveCustomerCodes($request);
+
+        if (empty($customerCodes) && !$request->user()->role) {
+            return $this->successResponse([], 'Daftar klaim disetujui kosong.');
+        }
+
+        $filters = [
+            'customer_codes' => $customerCodes,
+            'date'           => $request->get('tanggal') ?: $request->get('date'),
+            'start_date'     => $request->get('start_date'),
+            'end_date'       => $request->get('end_date'),
+        ];
+
+        $claims = $this->ledgerRepository->getApprovedClaims($filters);
+
+        $formatted = $claims->map(function ($item) {
+            return [
+                'batch_id'         => $item->batch_id,
+                'batch_no'         => $item->batch_no ?: $item->ref_number,
+                'debit'            => (float)$item->debit,
+                'customer_code'    => $item->customer_code,
+                'customer_name'    => $item->customer_name,
+                'depo'             => $item->depo,
+                'transaction_date' => $item->transaction_date ? $item->transaction_date->toDateString() : null,
+            ];
+        });
+
+        return $this->successResponse($formatted, 'Daftar klaim yang disetujui berhasil diambil.');
+    }
 }

@@ -39,4 +39,12 @@ interface TrxClaimBalanceLedgerRepositoryInterface
      * @return float
      */
     public function getCurrentBalance(string $customerCode);
+
+    /**
+     * Get approved claim entries by customer code and optional filters.
+     *
+     * @param array $filters
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function getApprovedClaims(array $filters);
 }

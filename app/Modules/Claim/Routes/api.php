@@ -39,6 +39,7 @@ Route::prefix('v1/claims')->middleware('auth:sanctum')->group(function () {
     Route::post('/withdraws/{id}/status', [WithdrawController::class, 'updateStatus']);
 
     // Balance Ledger
+    Route::get('/balance-ledger/approved-claims', [BalanceLedgerController::class, 'getApprovedClaims']);
     Route::get('/balance-ledger', [BalanceLedgerController::class, 'index']);
     Route::post('/balance-ledger/adjustment', [BalanceLedgerController::class, 'storeAdjustment']);
 });

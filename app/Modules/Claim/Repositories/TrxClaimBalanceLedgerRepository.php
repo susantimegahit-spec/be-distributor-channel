@@ -89,4 +89,34 @@ class TrxClaimBalanceLedgerRepository implements TrxClaimBalanceLedgerRepository
 
         return $sum ? (float)$sum->balance : 0.00;
     }
+
+    /**
+     * Get approved claim entries by customer code and optional filters.
+     */
+    public function getApprovedClaims(array $filters)
+    {
+        $query = TrxClaimBalanceLedger::query()
+            ->where('type', 'CLAIM')
+            ->where('debit', '>', 0);
+
+        if (!empty($filters['customer_codes'])) {
+            $query->whereIn('customer_code', $filters['customer_codes']);
+        } elseif (!empty($filters['customer_code'])) {
+            $query->where('customer_code', $filters['customer_code']);
+        }
+
+        if (!empty($filters['date'])) {
+            $query->whereDate('transaction_date', $filters['date']);
+        }
+
+        if (!empty($filters['start_date'])) {
+            $query->where('transaction_date', '>=', $filters['start_date']);
+        }
+
+        if (!empty($filters['end_date'])) {
+            $query->where('transaction_date', '<=', $filters['end_date']);
+        }
+
+        return $query->with(['distributor', 'uploadBatch'])->get();
+    }
 }

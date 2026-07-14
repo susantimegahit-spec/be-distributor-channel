@@ -286,6 +286,74 @@ paths:
                         type: string
                         example: admin
 
+  /v1/claims/balance-ledger/approved-claims:
+    get:
+      summary: Get Approved Claim Batches
+      description: Mendapatkan daftar klaim yang telah disetujui (debit > 0) berdasarkan kode customer dan opsional filter tanggal.
+      tags:
+        - Balance Ledger
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: customer_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kode customer (jika distributor, otomatis hanya melihat miliknya).
+          example: C110003074
+        - name: tanggal
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Filter tanggal transaksi (YYYY-MM-DD).
+          example: "2026-07-14"
+      responses:
+        '200':
+          description: Daftar klaim yang disetujui berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar klaim yang disetujui berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        batch_id:
+                          type: integer
+                          example: 1
+                          nullable: true
+                        batch_no:
+                          type: string
+                          example: B-001
+                          nullable: true
+                        debit:
+                          type: number
+                          example: 150000.00
+                        customer_code:
+                          type: string
+                          example: C110003074
+                        customer_name:
+                          type: string
+                          example: PT SUSANTI MEGAHIT
+                        depo:
+                          type: string
+                          example: DEPO SURABAYA
+                        transaction_date:
+                          type: string
+                          format: date
+                          example: "2026-07-14"
+
   /v1/sales-orders/{id}/pdf:
     get:
       summary: Download Sales Order PI PDF
