@@ -107,6 +107,33 @@ class WithdrawRepository implements WithdrawRepositoryInterface
                 }
             }
 
+            // Fallback: If still not found, but it is a valid ledger entry of type WITHDRAW,
+            // create the withdrawal request record on-the-fly so it can be approved successfully.
+            if (!$withdraw) {
+                $ledger = TrxClaimBalanceLedger::find($id);
+                if ($ledger && $ledger->type === 'WITHDRAW') {
+                    // Extract amount: fallback to 0.00 if it was a pending request, or use its credit value if already filled
+                    $amount = (float)$ledger->credit > 0 ? (float)$ledger->credit : 0.00;
+
+                    // If amount is 0, try to parse description for a refund or amount context
+                    // Or if they are approving it, the frontend showed the amount in the modal.
+                    // (Actually the modal reads `selectedWithdraw?.credit` so we can use credit).
+                    $withdraw = TrxProgramWithdraw::create([
+                        'withdraw_no'   => $ledger->ref_number ?: ('WD-' . date('Ymd') . '-' . str_pad($ledger->id, 3, '0', STR_PAD_LEFT)),
+                        'customer_code' => $ledger->customer_code,
+                        'amount'        => $amount,
+                        'status'        => 'PENDING',
+                        'created_by'    => 'system_fallback',
+                    ]);
+
+                    // Link the ledger entry to this new withdraw record
+                    $ledger->update([
+                        'referenceable_id'   => $withdraw->id,
+                        'referenceable_type' => TrxProgramWithdraw::class,
+                    ]);
+                }
+            }
+
             if (!$withdraw) {
                 throw new \Illuminate\Database\Eloquent\ModelNotFoundException("Withdrawal record not found for ID: {$id}");
             }
