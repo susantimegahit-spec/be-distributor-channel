@@ -294,14 +294,17 @@ class ClaimBalanceLedgerTest extends TestCase
         $responseWd->assertStatus(201);
         $withdrawId = $responseWd->json('data.id');
 
-        // Check ledger: pending withdraw should NOT create a ledger record yet!
-        $this->assertDatabaseMissing('trx_claim_balance_ledger', [
-            'customer_code' => 'C110003074',
-            'type' => 'WITHDRAW',
-            'credit' => 400000.00,
+        // Check ledger: pending withdraw should create a ledger record with credit = 0.00!
+        $this->assertDatabaseHas('trx_claim_balance_ledger', [
+            'customer_code'    => 'C110003074',
+            'type'             => 'WITHDRAW',
+            'credit'           => 0.00,
+            'referenceable_id' => $withdrawId,
         ]);
 
-        // Verify available balance remains 1,000,000 in ledger
+        $ledgerId = \App\Models\TrxClaimBalanceLedger::where('referenceable_id', $withdrawId)->value('id');
+
+        // Verify available balance remains 1,000,000 in ledger (since credit is still 0)
         $responseSummary = $this->actingAs($this->adminUser, 'sanctum')
             ->getJson('/api/distributor-channel/v1/claims/reward-summary?customer_codes=C110003074');
         $this->assertEquals(1000000.00, $responseSummary->json('data.available_balance'));
@@ -314,14 +317,14 @@ class ClaimBalanceLedgerTest extends TestCase
             ])
             ->assertStatus(422);
 
-        // Approve withdraw via admin
+        // Approve withdraw via admin using the LEDGER ID (to test robust ID resolution)
         $this->actingAs($this->adminUser, 'sanctum')
-            ->postJson("/api/distributor-channel/v1/claims/withdraws/{$withdrawId}/status", [
+            ->postJson("/api/distributor-channel/v1/claims/withdraws/{$ledgerId}/status", [
                 'status' => 'APPROVED',
             ])
             ->assertStatus(200);
 
-        // Check ledger: now withdrawal record should exist!
+        // Check ledger: now withdrawal credit should be updated to 400k!
         $this->assertDatabaseHas('trx_claim_balance_ledger', [
             'customer_code' => 'C110003074',
             'type'          => 'WITHDRAW',

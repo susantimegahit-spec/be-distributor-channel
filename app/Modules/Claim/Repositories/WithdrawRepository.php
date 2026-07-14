@@ -3,6 +3,7 @@
 namespace App\Modules\Claim\Repositories;
 
 use App\Models\TrxProgramWithdraw;
+use App\Models\TrxClaimBalanceLedger;
 use Illuminate\Support\Facades\DB;
 
 class WithdrawRepository implements WithdrawRepositoryInterface
@@ -50,57 +51,110 @@ class WithdrawRepository implements WithdrawRepositoryInterface
 
     /**
      * Create a new withdrawal record.
-     * When requested by customer, it defaults to PENDING and does not record credit in ledger yet.
+     * When requested by customer, it creates a pending withdraw record in DB,
+     * and also creates a pending ledger entry with credit = 0.00 (doesn't reduce balance yet).
      */
     public function createWithdraw(array $data)
     {
-        return TrxProgramWithdraw::create($data);
+        return DB::transaction(function () use ($data) {
+            $withdraw = TrxProgramWithdraw::create($data);
+
+            // Record in ledger with credit = 0.00 initially (pending approval)
+            $this->ledgerRepository->recordTransaction([
+                'customer_code'      => $withdraw->customer_code,
+                'ref_number'         => $withdraw->withdraw_no,
+                'transaction_date'   => now()->toDateString(),
+                'type'               => 'WITHDRAW',
+                'debit'              => 0.00,
+                'credit'             => 0.00, // 0.00 since it is not yet approved
+                'status'             => 'PENDING',
+                'description'        => "Pengajuan Penarikan Dana " . $withdraw->withdraw_no,
+                'referenceable_id'   => $withdraw->id,
+                'referenceable_type' => TrxProgramWithdraw::class,
+            ]);
+
+            return $withdraw;
+        });
     }
 
     /**
      * Update withdrawal status.
-     * Transaction is only recorded as credit in the ledger when status transitions to APPROVED.
+     * Resolves ID which can be either the direct withdrawal ID or the ledger record ID.
+     * When status becomes APPROVED, the ledger entry's credit is updated to the actual amount.
      */
     public function updateStatus(int $id, string $status, ?string $transferDate = null)
     {
         return DB::transaction(function () use ($id, $status, $transferDate) {
-            $withdraw = TrxProgramWithdraw::findOrFail($id);
-            $oldStatus = $withdraw->status;
+            // Support resolving ID from either trx_program_withdraw OR trx_claim_balance_ledger
+            $withdraw = TrxProgramWithdraw::find($id);
 
+            if (!$withdraw) {
+                // Try resolving via polymorphic relation in ledger table
+                $ledger = TrxClaimBalanceLedger::where('id', $id)
+                    ->where('referenceable_type', TrxProgramWithdraw::class)
+                    ->first();
+
+                if ($ledger && $ledger->referenceable_id) {
+                    $withdraw = TrxProgramWithdraw::find($ledger->referenceable_id);
+                }
+            }
+
+            if (!$withdraw) {
+                // Try resolving via ref_number mapping
+                $ledger = TrxClaimBalanceLedger::find($id);
+                if ($ledger && $ledger->ref_number) {
+                    $withdraw = TrxProgramWithdraw::where('withdraw_no', $ledger->ref_number)->first();
+                }
+            }
+
+            if (!$withdraw) {
+                throw new \Illuminate\Database\Eloquent\ModelNotFoundException("Withdrawal record not found for ID: {$id}");
+            }
+
+            $oldStatus = $withdraw->status;
             $withdraw->status = $status;
             if ($transferDate !== null) {
                 $withdraw->transfer_date = $transferDate;
             }
             $withdraw->save();
 
-            // 1. Record credit in ledger only when approved
-            if ($status === 'APPROVED' && $oldStatus !== 'APPROVED') {
-                $this->ledgerRepository->recordTransaction([
-                    'customer_code'      => $withdraw->customer_code,
-                    'ref_number'         => $withdraw->withdraw_no,
-                    'transaction_date'   => now()->toDateString(),
-                    'type'               => 'WITHDRAW',
-                    'debit'              => 0.00,
-                    'credit'             => $withdraw->amount,
-                    'description'        => "Penarikan Dana " . $withdraw->withdraw_no,
-                    'referenceable_id'   => $withdraw->id,
-                    'referenceable_type' => TrxProgramWithdraw::class,
-                ]);
-            }
+            // Find the associated pending ledger entry
+            $ledgerEntry = TrxClaimBalanceLedger::where('referenceable_type', TrxProgramWithdraw::class)
+                ->where('referenceable_id', $withdraw->id)
+                ->first();
 
-            // 2. If it was already approved and somehow gets rejected, refund/reverse the credit
-            if ($status === 'REJECTED' && $oldStatus === 'APPROVED') {
-                $this->ledgerRepository->recordTransaction([
-                    'customer_code'      => $withdraw->customer_code,
-                    'ref_number'         => $withdraw->withdraw_no,
-                    'transaction_date'   => now()->toDateString(),
-                    'type'               => 'CORRECTION',
-                    'debit'              => $withdraw->amount,
-                    'credit'             => 0.00,
-                    'description'        => "Pengembalian dana penarikan ditolak: " . $withdraw->withdraw_no,
-                    'referenceable_id'   => $withdraw->id,
-                    'referenceable_type' => TrxProgramWithdraw::class,
-                ]);
+            if ($status === 'APPROVED') {
+                if ($ledgerEntry) {
+                    // Update credit to the withdrawal amount and update status to APPROVED
+                    $ledgerEntry->update([
+                        'credit' => $withdraw->amount,
+                        'status' => 'APPROVED',
+                        'description' => "Penarikan Dana " . $withdraw->withdraw_no
+                    ]);
+                } else {
+                    // Fallback to record a new transaction if for some reason the ledger entry didn't exist
+                    $this->ledgerRepository->recordTransaction([
+                        'customer_code'      => $withdraw->customer_code,
+                        'ref_number'         => $withdraw->withdraw_no,
+                        'transaction_date'   => now()->toDateString(),
+                        'type'               => 'WITHDRAW',
+                        'debit'              => 0.00,
+                        'credit'             => $withdraw->amount,
+                        'status'             => 'APPROVED',
+                        'description'        => "Penarikan Dana " . $withdraw->withdraw_no,
+                        'referenceable_id'   => $withdraw->id,
+                        'referenceable_type' => TrxProgramWithdraw::class,
+                    ]);
+                }
+            } elseif ($status === 'REJECTED') {
+                if ($ledgerEntry) {
+                    // Update ledger entry to REJECTED, credit remains 0.00
+                    $ledgerEntry->update([
+                        'credit' => 0.00,
+                        'status' => 'REJECTED',
+                        'description' => "Penarikan Dana Ditolak: " . $withdraw->withdraw_no
+                    ]);
+                }
             }
 
             return $withdraw;
