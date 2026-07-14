@@ -21,6 +21,7 @@ class TrxClaimBalanceLedger extends Model
     protected $fillable = [
         'customer_code',
         'ref_number',
+        'batch_id',
         'transaction_date',
         'type',
         'debit',
@@ -41,14 +42,15 @@ class TrxClaimBalanceLedger extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'debit' => 'decimal:2',
-        'credit' => 'decimal:2',
+        'debit'           => 'decimal:2',
+        'credit'          => 'decimal:2',
         'running_balance' => 'decimal:2',
-        'transaction_date' => 'date:Y-m-d',
-        'claim_start' => 'date:Y-m-d',
-        'claim_end' => 'date:Y-m-d',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
+        'transaction_date'=> 'date:Y-m-d',
+        'claim_start'     => 'date:Y-m-d',
+        'claim_end'       => 'date:Y-m-d',
+        'batch_id'        => 'integer',
+        'created_at'      => 'datetime',
+        'updated_at'      => 'datetime',
     ];
 
     /**
@@ -59,7 +61,6 @@ class TrxClaimBalanceLedger extends Model
     protected $appends = [
         'customer_name',
         'depo',
-        'batch_id',
         'batch_no',
     ];
 
@@ -80,11 +81,11 @@ class TrxClaimBalanceLedger extends Model
     }
 
     /**
-     * Get the upload batch associated with the ledger entry.
+     * Get the upload batch linked by the dedicated batch_id column.
      */
     public function uploadBatch()
     {
-        return $this->belongsTo(TrxProgramUploadBatch::class, 'ref_number', 'id');
+        return $this->belongsTo(TrxProgramUploadBatch::class, 'batch_id', 'id');
     }
 
     /**
@@ -104,15 +105,7 @@ class TrxClaimBalanceLedger extends Model
     }
 
     /**
-     * Accessor for batch_id (integer ID of the upload batch).
-     */
-    public function getBatchIdAttribute(): ?int
-    {
-        return $this->uploadBatch?->id ?? (is_numeric($this->ref_number) ? (int)$this->ref_number : null);
-    }
-
-    /**
-     * Accessor for batch_no.
+     * Accessor for batch_no (readable batch number from the related batch).
      */
     public function getBatchNoAttribute(): ?string
     {

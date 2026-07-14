@@ -232,13 +232,14 @@ class ClaimBalanceLedgerTest extends TestCase
 
         $response->assertStatus(200);
 
-        // Check ledger
+        // Check ledger — ref_number = human-readable batch_no, batch_id = FK integer
         $this->assertDatabaseHas('trx_claim_balance_ledger', [
             'customer_code' => 'C110003074',
-            'type' => 'CLAIM',
-            'ref_number' => (string)$batch->id,
-            'debit' => 250000.00,
-            'claim_type' => 'BULANAN',
+            'type'          => 'CLAIM',
+            'ref_number'    => 'B-001',
+            'batch_id'      => $batch->id,
+            'debit'         => 250000.00,
+            'claim_type'    => 'BULANAN',
             'running_balance' => 250000.00,
         ]);
 

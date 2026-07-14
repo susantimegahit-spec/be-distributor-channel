@@ -138,21 +138,24 @@ class ResultRepository implements ResultRepositoryInterface
                 $totalDiscount = $items->sum('total_diskon');
                 $firstItem = $items->first();
                 $program = $firstItem->program;
-                $batchId = $firstItem->upload ? $firstItem->upload->batch_id : null;
+                $uploadBatch = $firstItem->upload?->batch;
+                $batchId = $firstItem->upload?->batch_id;
+                $batchNo = $uploadBatch?->batch_no;
 
                 // Record transaction in balance ledger
                 $this->ledgerRepository->recordTransaction([
-                    'customer_code' => $customerCode,
-                    'ref_number' => $batchId ?: ($program ? $program->program_code : null),
+                    'customer_code'    => $customerCode,
+                    'ref_number'       => $batchNo ?: ($program ? $program->program_code : null),
+                    'batch_id'         => $batchId,
                     'transaction_date' => now()->toDateString(),
-                    'type' => 'CLAIM',
-                    'debit' => $totalDiscount,
-                    'credit' => 0.00,
-                    'claim_type' => $claimType,
-                    'claim_start' => $program ? $program->start_date : null,
-                    'claim_end' => $program ? $program->end_date : null,
-                    'description' => "Klaim Program " . ($program ? $program->program_name : 'Klaim'),
-                    'referenceable_id' => $programId,
+                    'type'             => 'CLAIM',
+                    'debit'            => $totalDiscount,
+                    'credit'           => 0.00,
+                    'claim_type'       => $claimType,
+                    'claim_start'      => $program ? $program->start_date : null,
+                    'claim_end'        => $program ? $program->end_date : null,
+                    'description'      => "Klaim Program " . ($program ? $program->program_name : 'Klaim'),
+                    'referenceable_id'   => $programId,
                     'referenceable_type' => $program ? \App\Models\MstProgram::class : null,
                 ]);
             }

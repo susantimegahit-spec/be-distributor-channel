@@ -90,19 +90,22 @@ class BalanceLedgerController extends Controller
         $inputRefNumber = $request->get('ref_number');
         $startDate = $request->get('start_date');
         $endDate = $request->get('end_date');
+        $batchId = null;
 
-        // If type is CLAIM and a file is provided, process the upload first
-        // and automatically use the resulting batch_id as ref_number.
+        // If type is CLAIM and a file is provided, process the upload first.
+        // ref_number will use the readable batch_no (e.g. B-001).
+        // batch_id stores the integer FK for direct JOIN/link to the batch table.
         if ($type === 'CLAIM' && $request->hasFile('file')) {
             $uploadedBy = $user->username ?? 'admin';
             $uploadResult = $this->uploadService->handleUpload($request->file('file'), $uploadedBy);
-            $inputRefNumber = (string)($uploadResult['batch_id'] ?? $inputRefNumber);
+            $batchId = $uploadResult['batch_id'] ?? null;
+            $inputRefNumber = $uploadResult['batch_no'] ?? $inputRefNumber;
         }
 
         // Generate adjustment reference number if not supplied: ADJ-YYYYMMDD-XXX
         $prefix = 'ADJ-' . date('Ymd') . '-';
 
-        $ledgerRecord = DB::transaction(function () use ($customerCode, $adjustmentType, $amount, $description, $prefix, $user, $type, $inputRefNumber, $startDate, $endDate) {
+        $ledgerRecord = DB::transaction(function () use ($customerCode, $adjustmentType, $amount, $description, $prefix, $user, $type, $inputRefNumber, $startDate, $endDate, $batchId) {
             $refNumber = $inputRefNumber;
             if (empty($refNumber)) {
                 $lastAdj = DB::table('trx_claim_balance_ledger')
@@ -122,16 +125,17 @@ class BalanceLedgerController extends Controller
             $credit = $adjustmentType === 'CREDIT' ? $amount : 0.00;
 
             return $this->ledgerRepository->recordTransaction([
-                'customer_code' => $customerCode,
-                'ref_number' => $refNumber,
+                'customer_code'    => $customerCode,
+                'ref_number'       => $refNumber,
+                'batch_id'         => $batchId,
                 'transaction_date' => now()->toDateString(),
-                'type' => $type,
-                'debit' => $debit,
-                'credit' => $credit,
-                'description' => $description,
-                'claim_start' => $startDate,
-                'claim_end' => $endDate,
-                'created_by' => $user->username ?? 'admin',
+                'type'             => $type,
+                'debit'            => $debit,
+                'credit'           => $credit,
+                'description'      => $description,
+                'claim_start'      => $startDate,
+                'claim_end'        => $endDate,
+                'created_by'       => $user->username ?? 'admin',
             ]);
         });
 
