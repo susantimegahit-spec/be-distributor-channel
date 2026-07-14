@@ -19,6 +19,7 @@ class WithdrawRepository implements WithdrawRepositoryInterface
     {
         $this->ledgerRepository = $ledgerRepository;
     }
+
     /**
      * Get paginated list of withdrawals.
      */
@@ -49,31 +50,16 @@ class WithdrawRepository implements WithdrawRepositoryInterface
 
     /**
      * Create a new withdrawal record.
+     * When requested by customer, it defaults to PENDING and does not record credit in ledger yet.
      */
     public function createWithdraw(array $data)
     {
-        return DB::transaction(function () use ($data) {
-            $withdraw = TrxProgramWithdraw::create($data);
-
-            // Record in ledger
-            $this->ledgerRepository->recordTransaction([
-                'customer_code' => $withdraw->customer_code,
-                'ref_number' => $withdraw->withdraw_no,
-                'transaction_date' => now()->toDateString(),
-                'type' => 'WITHDRAW',
-                'debit' => 0.00,
-                'credit' => $withdraw->amount,
-                'description' => "Pengajuan Penarikan Dana " . $withdraw->withdraw_no,
-                'referenceable_id' => $withdraw->id,
-                'referenceable_type' => TrxProgramWithdraw::class,
-            ]);
-
-            return $withdraw;
-        });
+        return TrxProgramWithdraw::create($data);
     }
 
     /**
      * Update withdrawal status.
+     * Transaction is only recorded as credit in the ledger when status transitions to APPROVED.
      */
     public function updateStatus(int $id, string $status, ?string $transferDate = null)
     {
@@ -87,31 +73,32 @@ class WithdrawRepository implements WithdrawRepositoryInterface
             }
             $withdraw->save();
 
-            // If status is rejected, refund the balance
-            if ($status === 'REJECTED' && $oldStatus !== 'REJECTED') {
+            // 1. Record credit in ledger only when approved
+            if ($status === 'APPROVED' && $oldStatus !== 'APPROVED') {
                 $this->ledgerRepository->recordTransaction([
-                    'customer_code' => $withdraw->customer_code,
-                    'ref_number' => $withdraw->withdraw_no,
-                    'transaction_date' => now()->toDateString(),
-                    'type' => 'CORRECTION',
-                    'debit' => $withdraw->amount,
-                    'credit' => 0.00,
-                    'description' => "Pengembalian dana penarikan ditolak: " . $withdraw->withdraw_no,
-                    'referenceable_id' => $withdraw->id,
+                    'customer_code'      => $withdraw->customer_code,
+                    'ref_number'         => $withdraw->withdraw_no,
+                    'transaction_date'   => now()->toDateString(),
+                    'type'               => 'WITHDRAW',
+                    'debit'              => 0.00,
+                    'credit'             => $withdraw->amount,
+                    'description'        => "Penarikan Dana " . $withdraw->withdraw_no,
+                    'referenceable_id'   => $withdraw->id,
                     'referenceable_type' => TrxProgramWithdraw::class,
                 ]);
             }
-            // If status was rejected and transitions back (unlikely but possible)
-            elseif ($oldStatus === 'REJECTED' && $status !== 'REJECTED') {
+
+            // 2. If it was already approved and somehow gets rejected, refund/reverse the credit
+            if ($status === 'REJECTED' && $oldStatus === 'APPROVED') {
                 $this->ledgerRepository->recordTransaction([
-                    'customer_code' => $withdraw->customer_code,
-                    'ref_number' => $withdraw->withdraw_no,
-                    'transaction_date' => now()->toDateString(),
-                    'type' => 'WITHDRAW',
-                    'debit' => 0.00,
-                    'credit' => $withdraw->amount,
-                    'description' => "Pengajuan kembali Penarikan Dana " . $withdraw->withdraw_no,
-                    'referenceable_id' => $withdraw->id,
+                    'customer_code'      => $withdraw->customer_code,
+                    'ref_number'         => $withdraw->withdraw_no,
+                    'transaction_date'   => now()->toDateString(),
+                    'type'               => 'CORRECTION',
+                    'debit'              => $withdraw->amount,
+                    'credit'             => 0.00,
+                    'description'        => "Pengembalian dana penarikan ditolak: " . $withdraw->withdraw_no,
+                    'referenceable_id'   => $withdraw->id,
                     'referenceable_type' => TrxProgramWithdraw::class,
                 ]);
             }

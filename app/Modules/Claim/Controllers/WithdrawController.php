@@ -77,8 +77,16 @@ class WithdrawController extends Controller
         $summary = $this->resultRepository->getRewardSummary($customerCode);
         $balance = $summary['available_balance'];
 
-        if ($amount > $balance) {
-            return $this->errorResponse('Saldo reward tidak mencukupi untuk melakukan penarikan. Saldo tersedia: Rp ' . number_format($balance, 0, ',', '.'), null, Response::HTTP_UNPROCESSABLE_ENTITY);
+        // Also deduct any other PENDING withdraws that are not yet approved (since they are not in the ledger yet)
+        $pendingWithdraws = (float) DB::table('trx_program_withdraw')
+            ->where('customer_code', $customerCode)
+            ->where('status', 'PENDING')
+            ->sum('amount');
+
+        $availableToWithdraw = $balance - $pendingWithdraws;
+
+        if ($amount > $availableToWithdraw) {
+            return $this->errorResponse('Saldo reward tidak mencukupi untuk melakukan penarikan. Saldo yang dapat ditarik: Rp ' . number_format($availableToWithdraw, 0, ',', '.'), null, Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         // Generate withdraw number: WD-YYYYMMDD-XXX

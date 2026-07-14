@@ -285,7 +285,7 @@ class ClaimBalanceLedgerTest extends TestCase
                 'type' => 'CORRECTION',
             ]);
 
-        // Request withdraw via auth user (distributor)
+        // Request withdraw via auth user (distributor) — starts as PENDING
         $responseWd = $this->actingAs($this->distributorUser, 'sanctum')
             ->postJson('/api/distributor-channel/v1/claims/withdraws', [
                 'amount' => 400000.00,
@@ -294,37 +294,43 @@ class ClaimBalanceLedgerTest extends TestCase
         $responseWd->assertStatus(201);
         $withdrawId = $responseWd->json('data.id');
 
-        // Check ledger
-        $this->assertDatabaseHas('trx_claim_balance_ledger', [
+        // Check ledger: pending withdraw should NOT create a ledger record yet!
+        $this->assertDatabaseMissing('trx_claim_balance_ledger', [
             'customer_code' => 'C110003074',
             'type' => 'WITHDRAW',
             'credit' => 400000.00,
         ]);
 
-        // Assert balance decreases to 600k
-        $responseSummary = $this->actingAs($this->adminUser, 'sanctum')
-            ->getJson('/api/distributor-channel/v1/claims/reward-summary?customer_codes=C110003074');
-        $this->assertEquals(600000.00, $responseSummary->json('data.available_balance'));
-
-        // Reject withdraw via admin
-        $responseReject = $this->actingAs($this->adminUser, 'sanctum')
-            ->postJson("/api/distributor-channel/v1/claims/withdraws/{$withdrawId}/status", [
-                'status' => 'REJECTED',
-            ]);
-
-        $responseReject->assertStatus(200);
-
-        // Check ledger again
-        $this->assertDatabaseHas('trx_claim_balance_ledger', [
-            'customer_code' => 'C110003074',
-            'type' => 'CORRECTION',
-            'debit' => 400000.00,
-            'description' => 'Pengembalian dana penarikan ditolak: ' . $responseWd->json('data.withdraw_no'),
-        ]);
-
-        // Assert balance returns to 1M
+        // Verify available balance remains 1,000,000 in ledger
         $responseSummary = $this->actingAs($this->adminUser, 'sanctum')
             ->getJson('/api/distributor-channel/v1/claims/reward-summary?customer_codes=C110003074');
         $this->assertEquals(1000000.00, $responseSummary->json('data.available_balance'));
+
+        // Try to withdraw again with an amount greater than true available balance (1,000,000 - 400,000 pending = 600,000)
+        // This should fail due to pending withdrawal amount constraint check
+        $this->actingAs($this->distributorUser, 'sanctum')
+            ->postJson('/api/distributor-channel/v1/claims/withdraws', [
+                'amount' => 700000.00,
+            ])
+            ->assertStatus(422);
+
+        // Approve withdraw via admin
+        $this->actingAs($this->adminUser, 'sanctum')
+            ->postJson("/api/distributor-channel/v1/claims/withdraws/{$withdrawId}/status", [
+                'status' => 'APPROVED',
+            ])
+            ->assertStatus(200);
+
+        // Check ledger: now withdrawal record should exist!
+        $this->assertDatabaseHas('trx_claim_balance_ledger', [
+            'customer_code' => 'C110003074',
+            'type'          => 'WITHDRAW',
+            'credit'        => 400000.00,
+        ]);
+
+        // Assert ledger available balance is updated to 600k
+        $responseSummary = $this->actingAs($this->adminUser, 'sanctum')
+            ->getJson('/api/distributor-channel/v1/claims/reward-summary?customer_codes=C110003074');
+        $this->assertEquals(600000.00, $responseSummary->json('data.available_balance'));
     }
 }
