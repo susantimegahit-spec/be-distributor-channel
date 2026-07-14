@@ -118,29 +118,50 @@ class ResultRepository implements ResultRepositoryInterface
      */
     public function verifyResults(array $ids, bool $status, ?string $claimType = null)
     {
-        if ($status) {
-            // Find all valid program results that are not yet verified.
-            $unverifiedResults = TrxProgramResult::whereIn('id', $ids)
-                ->where('is_verified', false)
+        return DB::transaction(function () use ($ids, $status, $claimType) {
+            // 1. Get the target results before updating so we know their metadata (customer, batch, program)
+            $targetResults = TrxProgramResult::whereIn('id', $ids)
                 ->where('status', 'VALID_PROGRAM')
                 ->with(['program', 'upload.batch'])
                 ->get();
 
-            // Group by customer_code and program_id
-            $groups = $unverifiedResults->groupBy(function($item) {
-                return $item->customer_code . '|' . ($item->program_id ?? 0);
+            // 2. Perform the verification update on the results
+            TrxProgramResult::whereIn('id', $ids)->update(['is_verified' => $status]);
+
+            // 3. Group by customer, batch_id, and program_id to update the ledger rows
+            $groups = $targetResults->groupBy(function ($item) {
+                $batchId = $item->upload?->batch_id ?? 0;
+                $programId = $item->program_id ?? 0;
+                return $item->customer_code . '|' . $batchId . '|' . $programId;
             });
 
             foreach ($groups as $key => $items) {
-                list($customerCode, $programId) = explode('|', $key);
+                list($customerCode, $batchId, $programId) = explode('|', $key);
+                $batchId = $batchId > 0 ? (int)$batchId : null;
                 $programId = $programId > 0 ? (int)$programId : null;
 
-                $totalDiscount = $items->sum('total_diskon');
                 $firstItem = $items->first();
                 $program = $firstItem->program;
                 $uploadBatch = $firstItem->upload?->batch;
-                $batchId = $firstItem->upload?->batch_id;
                 $batchNo = $uploadBatch?->batch_no;
+
+                // 4. Calculate the cumulative sum of ALL verified results for this batch & program
+                $totalVerifiedDiscount = 0.00;
+                if ($batchId) {
+                    $totalVerifiedDiscount = (float)TrxProgramResult::join('trx_program_upload', 'trx_program_result.upload_id', '=', 'trx_program_upload.id')
+                        ->where('trx_program_upload.batch_id', $batchId)
+                        ->where('trx_program_result.customer_code', $customerCode)
+                        ->where('trx_program_result.status', 'VALID_PROGRAM')
+                        ->where('trx_program_result.is_verified', true)
+                        ->sum('trx_program_result.total_diskon');
+                } else {
+                    // Fallback for non-batch results
+                    $totalVerifiedDiscount = (float)TrxProgramResult::where('customer_code', $customerCode)
+                        ->where('program_id', $programId)
+                        ->where('status', 'VALID_PROGRAM')
+                        ->where('is_verified', true)
+                        ->sum('total_diskon');
+                }
 
                 $ledgerData = [
                     'customer_code'      => $customerCode,
@@ -148,7 +169,7 @@ class ResultRepository implements ResultRepositoryInterface
                     'batch_id'           => $batchId,
                     'transaction_date'   => now()->toDateString(),
                     'type'               => 'CLAIM',
-                    'debit'              => $totalDiscount,
+                    'debit'              => $totalVerifiedDiscount,
                     'credit'             => 0.00,
                     'claim_type'         => $claimType,
                     'claim_start'        => $program ? $program->start_date : null,
@@ -158,17 +179,15 @@ class ResultRepository implements ResultRepositoryInterface
                     'referenceable_type' => $program ? \App\Models\MstProgram::class : null,
                 ];
 
-                // If we have a batch_id, update the existing pending ledger row
-                // (created when distributor uploaded the file) instead of inserting a new one.
                 if ($batchId) {
                     $this->ledgerRepository->updateOrRecordClaimByBatch($batchId, $ledgerData);
                 } else {
                     $this->ledgerRepository->recordTransaction($ledgerData);
                 }
             }
-        }
 
-        return TrxProgramResult::whereIn('id', $ids)->update(['is_verified' => $status]);
+            return true;
+        });
     }
 
     /**
