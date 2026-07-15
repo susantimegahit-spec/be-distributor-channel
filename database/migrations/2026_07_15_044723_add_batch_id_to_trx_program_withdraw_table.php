@@ -28,4 +28,6 @@ return new class extends Migration
             $table->dropColumn(['batch_id', 'lines']);
         });
     }
+
+    ///tes
 };
