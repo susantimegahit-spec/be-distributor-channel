@@ -57,23 +57,12 @@ class UploadRepository implements UploadRepositoryInterface
             ->where('r.is_verified', true);
 
         $totalDeductedQuery = DB::table('trx_claim_balance_ledger as l')
-            ->leftJoin('trx_program_withdraw as w', function ($join) {
-                $join->on('l.referenceable_id', '=', 'w.id')
-                     ->where('l.referenceable_type', '=', \App\Models\TrxProgramWithdraw::class);
-            })
             ->whereColumn('l.batch_id', 'b.id')
-            ->where(function ($q) {
-                $q->whereNull('w.status')
-                  ->orWhere('w.status', '=', 'APPROVED');
-            });
+            ->where('l.status', '=', 'APPROVED');
 
         $pendingWithdrawsQuery = DB::table('trx_claim_balance_ledger as l')
-            ->join('trx_program_withdraw as w', function ($join) {
-                $join->on('l.referenceable_id', '=', 'w.id')
-                     ->where('l.referenceable_type', '=', \App\Models\TrxProgramWithdraw::class);
-            })
             ->whereColumn('l.batch_id', 'b.id')
-            ->where('w.status', '=', 'PENDING');
+            ->where('l.status', '=', 'PENDING');
 
         if (!empty($customerCodes)) {
             $totalRowsQuery->whereIn('customer_code', $customerCodes);
@@ -183,24 +172,13 @@ class UploadRepository implements UploadRepositoryInterface
             ->sum('trx_program_result.total_diskon');
 
         $totalDeducted = DB::table('trx_claim_balance_ledger as l')
-            ->leftJoin('trx_program_withdraw as w', function ($join) {
-                $join->on('l.referenceable_id', '=', 'w.id')
-                     ->where('l.referenceable_type', '=', \App\Models\TrxProgramWithdraw::class);
-            })
             ->where('l.batch_id', $id)
-            ->where(function ($q) {
-                $q->whereNull('w.status')
-                  ->orWhere('w.status', '=', 'APPROVED');
-            })
+            ->where('l.status', '=', 'APPROVED')
             ->sum('l.credit');
 
         $pendingWithdraws = DB::table('trx_claim_balance_ledger as l')
-            ->join('trx_program_withdraw as w', function ($join) {
-                $join->on('l.referenceable_id', '=', 'w.id')
-                     ->where('l.referenceable_type', '=', \App\Models\TrxProgramWithdraw::class);
-            })
             ->where('l.batch_id', $id)
-            ->where('w.status', '=', 'PENDING')
+            ->where('l.status', '=', 'PENDING')
             ->sum('l.credit');
 
         $availableBalance = max(0.00, (float)$totalDiskonVerified - (float)$totalDeducted - (float)$pendingWithdraws);

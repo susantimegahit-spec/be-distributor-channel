@@ -97,48 +97,89 @@ class WithdrawRepository implements WithdrawRepositoryInterface
     public function updateStatus(int $id, string $status, ?string $transferDate = null)
     {
         return DB::transaction(function () use ($id, $status, $transferDate) {
-            // Support resolving ID from either trx_program_withdraw OR trx_claim_balance_ledger
+            // 1. Try to resolve and find the ledger entry first
+            $ledger = TrxClaimBalanceLedger::find($id);
+
+            if ($ledger && $ledger->referenceable_type === TrxProgramWithdraw::class) {
+                // It is a specific ledger row approval!
+                $ledger->update([
+                    'status' => $status,
+                    'credit' => $status === 'REJECTED' ? 0.00 : $ledger->credit,
+                    'description' => $status === 'REJECTED' 
+                        ? "Penarikan Dana Ditolak: " . ($ledger->ref_number ?: '')
+                        : "Penarikan Dana " . ($ledger->ref_number ?: '')
+                ]);
+
+                // Update parent withdraw status if it exists and all lines are resolved
+                if ($ledger->referenceable_id) {
+                    $withdraw = TrxProgramWithdraw::find($ledger->referenceable_id);
+                    if ($withdraw) {
+                        if ($transferDate !== null) {
+                            $withdraw->transfer_date = $transferDate;
+                            $withdraw->save();
+                        }
+                        
+                        $siblings = TrxClaimBalanceLedger::where('referenceable_type', TrxProgramWithdraw::class)
+                            ->where('referenceable_id', $withdraw->id)
+                            ->get();
+
+                        $totalCount = $siblings->count();
+                        $approvedCount = $siblings->where('status', 'APPROVED')->count();
+                        $rejectedCount = $siblings->where('status', 'REJECTED')->count();
+
+                        if ($approvedCount === $totalCount) {
+                            $withdraw->update(['status' => 'APPROVED']);
+                        } elseif ($rejectedCount === $totalCount) {
+                            $withdraw->update(['status' => 'REJECTED']);
+                        } elseif ($approvedCount + $rejectedCount === $totalCount) {
+                            $withdraw->update(['status' => 'APPROVED']); // Mixed resolves to APPROVED
+                        }
+                    }
+                }
+
+                return $ledger->referenceable;
+            }
+
+            // 2. Fallback: If not found as ledger entry, check if it's a withdraw header ID
             $withdraw = TrxProgramWithdraw::find($id);
 
             if (!$withdraw) {
                 // Try resolving via polymorphic relation in ledger table
-                $ledger = TrxClaimBalanceLedger::where('id', $id)
+                $ledgerRef = TrxClaimBalanceLedger::where('id', $id)
                     ->where('referenceable_type', TrxProgramWithdraw::class)
                     ->first();
 
-                if ($ledger && $ledger->referenceable_id) {
-                    $withdraw = TrxProgramWithdraw::find($ledger->referenceable_id);
+                if ($ledgerRef && $ledgerRef->referenceable_id) {
+                    $withdraw = TrxProgramWithdraw::find($ledgerRef->referenceable_id);
                 }
             }
 
             if (!$withdraw) {
                 // Try resolving via ref_number mapping
-                $ledger = TrxClaimBalanceLedger::find($id);
-                if ($ledger && $ledger->ref_number) {
-                    $withdraw = TrxProgramWithdraw::where('withdraw_no', $ledger->ref_number)->first();
+                $ledgerRef = TrxClaimBalanceLedger::find($id);
+                if ($ledgerRef && $ledgerRef->ref_number) {
+                    $withdraw = TrxProgramWithdraw::where('withdraw_no', $ledgerRef->ref_number)->first();
                 }
             }
 
             // Fallback: If still not found, but it is a valid ledger entry of type WITHDRAW,
             // create the withdrawal request record on-the-fly so it can be approved successfully.
             if (!$withdraw) {
-                $ledger = TrxClaimBalanceLedger::find($id);
-                if ($ledger && $ledger->type === 'WITHDRAW') {
-                    // Extract amount: fallback to 0.00 if it was a pending request, or use its credit value if already filled
-                    $amount = (float)$ledger->credit > 0 ? (float)$ledger->credit : 0.00;
+                $ledgerRef = TrxClaimBalanceLedger::find($id);
+                if ($ledgerRef && $ledgerRef->type === 'WITHDRAW') {
+                    $amount = (float)$ledgerRef->credit > 0 ? (float)$ledgerRef->credit : 0.00;
 
                     $withdraw = TrxProgramWithdraw::create([
-                        'withdraw_no'   => $ledger->ref_number ?: ('WD-' . date('Ymd') . '-' . str_pad($ledger->id, 3, '0', STR_PAD_LEFT)),
-                        'customer_code' => $ledger->customer_code,
-                        'batch_id'      => $ledger->batch_id,
-                        'lines'         => [['batch_id' => $ledger->batch_id, 'amount' => $amount]],
+                        'withdraw_no'   => $ledgerRef->ref_number ?: ('WD-' . date('Ymd') . '-' . str_pad($ledgerRef->id, 3, '0', STR_PAD_LEFT)),
+                        'customer_code' => $ledgerRef->customer_code,
+                        'batch_id'      => $ledgerRef->batch_id,
+                        'lines'         => [['batch_id' => $ledgerRef->batch_id, 'amount' => $amount]],
                         'amount'        => $amount,
                         'status'        => 'PENDING',
                         'created_by'    => 'system_fallback',
                     ]);
 
-                    // Link the ledger entry to this new withdraw record
-                    $ledger->update([
+                    $ledgerRef->update([
                         'referenceable_id'   => $withdraw->id,
                         'referenceable_type' => TrxProgramWithdraw::class,
                     ]);
@@ -149,49 +190,19 @@ class WithdrawRepository implements WithdrawRepositoryInterface
                 throw new \Illuminate\Database\Eloquent\ModelNotFoundException("Withdrawal record not found for ID: {$id}");
             }
 
-            $oldStatus = $withdraw->status;
             $withdraw->status = $status;
             if ($transferDate !== null) {
                 $withdraw->transfer_date = $transferDate;
             }
             $withdraw->save();
 
-            if ($status === 'APPROVED') {
-                $exists = TrxClaimBalanceLedger::where('referenceable_type', TrxProgramWithdraw::class)
-                    ->where('referenceable_id', $withdraw->id)
-                    ->exists();
-
-                if (!$exists) {
-                    $lines = is_string($withdraw->lines) ? json_decode($withdraw->lines, true) : $withdraw->lines;
-                    if (empty($lines)) {
-                        $lines = [['batch_id' => $withdraw->batch_id, 'amount' => $withdraw->amount]];
-                    }
-
-                    foreach ($lines as $line) {
-                        $this->ledgerRepository->recordTransaction([
-                            'customer_code'      => $withdraw->customer_code,
-                            'ref_number'         => $withdraw->withdraw_no,
-                            'batch_id'           => (int)$line['batch_id'],
-                            'transaction_date'   => now()->toDateString(),
-                            'type'               => 'WITHDRAW',
-                            'debit'              => 0.00,
-                            'credit'             => (float)$line['amount'],
-                            'status'             => 'APPROVED',
-                            'description'        => "Penarikan Dana " . $withdraw->withdraw_no,
-                            'referenceable_id'   => $withdraw->id,
-                            'referenceable_type' => TrxProgramWithdraw::class,
-                        ]);
-                    }
-                }
-            } elseif ($status === 'REJECTED') {
-                // Set credit to 0 for all ledger entries referencing this rejected withdrawal
-                TrxClaimBalanceLedger::where('referenceable_type', TrxProgramWithdraw::class)
-                    ->where('referenceable_id', $withdraw->id)
-                    ->update([
-                        'credit' => 0.00,
-                        'description' => "Penarikan Dana Ditolak: " . $withdraw->withdraw_no
-                    ]);
-            }
+            // Update all ledger lines for this withdrawal
+            TrxClaimBalanceLedger::where('referenceable_type', TrxProgramWithdraw::class)
+                ->where('referenceable_id', $withdraw->id)
+                ->update([
+                    'status' => $status,
+                    'credit' => $status === 'REJECTED' ? 0.00 : DB::raw('credit'),
+                ]);
 
             return $withdraw;
         });

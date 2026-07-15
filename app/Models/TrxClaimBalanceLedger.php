@@ -24,6 +24,7 @@ class TrxClaimBalanceLedger extends Model
         'batch_id',
         'transaction_date',
         'type',
+        'status',
         'debit',
         'credit',
         'running_balance',
@@ -130,17 +131,22 @@ class TrxClaimBalanceLedger extends Model
      */
     public function getStatusAttribute(): string
     {
-        // 1. If linked to a polymorphic referenceable (like withdraw request)
+        // 1. If status is stored as a database column, return it directly
+        if (!empty($this->attributes['status'])) {
+            return $this->attributes['status'];
+        }
+
+        // 2. If linked to a polymorphic referenceable (like withdraw request)
         if ($this->referenceable_type === \App\Models\TrxProgramWithdraw::class) {
             return $this->referenceable?->status ?? 'PENDING';
         }
 
-        // 2. If it's a claim, status is APPROVED if debit is > 0 (verified), else PENDING
+        // 3. If it's a claim, status is APPROVED if debit is > 0 (verified), else PENDING
         if ($this->type === 'CLAIM') {
             return (float)$this->debit > 0 ? 'APPROVED' : 'PENDING';
         }
 
-        // 3. Default to APPROVED for corrections and others
+        // 4. Default to APPROVED for corrections and others
         return 'APPROVED';
     }
 }

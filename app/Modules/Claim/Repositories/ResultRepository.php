@@ -210,15 +210,8 @@ class ResultRepository implements ResultRepositoryInterface
         
         // Sum of all WITHDRAW type credits (only approved or immediate ones, excluding pending/rejected)
         $totalWithdrawnQuery = DB::table('trx_claim_balance_ledger as l')
-            ->leftJoin('trx_program_withdraw as w', function ($join) {
-                $join->on('l.referenceable_id', '=', 'w.id')
-                     ->where('l.referenceable_type', '=', \App\Models\TrxProgramWithdraw::class);
-            })
             ->where('l.type', 'WITHDRAW')
-            ->where(function ($q) {
-                $q->whereNull('w.status')
-                  ->orWhere('w.status', '=', 'APPROVED');
-            });
+            ->where('l.status', '=', 'APPROVED');
 
         if (!empty($codes)) {
             $totalWithdrawnQuery->whereIn('l.customer_code', $codes);
