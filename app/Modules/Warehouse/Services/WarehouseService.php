@@ -45,7 +45,7 @@ class WarehouseService
      */
     public function syncFromSap(?int $userId = null): array
     {
-        $response = Http::timeout(15)->post('http://103.18.133.187:3100/api/SearchWHFG');
+        $response = Http::timeout(15)->post('http://103.18.133.187:3100/api/SearchWH');
 
         if (!$response->successful()) {
             throw new \Exception('Gagal menghubungi API SAP untuk sinkronisasi master gudang.');
