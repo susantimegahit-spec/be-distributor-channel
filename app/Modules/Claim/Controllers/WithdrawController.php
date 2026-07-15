@@ -62,8 +62,10 @@ class WithdrawController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'amount'   => 'required|numeric|min:0.01',
-            'batch_id' => 'required|integer|exists:trx_program_upload_batch,id',
+            'amount'           => 'required|numeric|min:0.01',
+            'lines'            => 'required|array|min:1',
+            'lines.*.batch_id' => 'required|integer|exists:trx_program_upload_batch,id',
+            'lines.*.amount'   => 'required|numeric|min:0.01',
         ]);
 
         $user = $request->user();
@@ -73,38 +75,67 @@ class WithdrawController extends Controller
 
         $customerCode = $user->code_customer;
         $amount = (float)$request->get('amount');
-        $batchId = (int)$request->get('batch_id');
+        $lines = $request->get('lines');
 
-        // 1. Get the total verified discount for this batch and customer
-        $totalVerifiedDiskon = (float) DB::table('trx_program_result as r')
-            ->join('trx_program_upload as u', 'r.upload_id', '=', 'u.id')
-            ->where('u.batch_id', $batchId)
-            ->where('r.customer_code', $customerCode)
-            ->where('r.status', 'VALID_PROGRAM')
-            ->where('r.is_verified', true)
-            ->sum('r.total_diskon');
+        // Verify that sum of lines matches total amount
+        $sumLinesAmount = 0.00;
+        foreach ($lines as $line) {
+            $sumLinesAmount += (float)$line['amount'];
+        }
 
-        // 2. Get total credit (deducted/withdrawn/usages) for this batch in ledger
-        $totalDeducted = (float) DB::table('trx_claim_balance_ledger')
-            ->where('customer_code', $customerCode)
-            ->where('batch_id', $batchId)
-            ->sum('credit');
+        if (abs($amount - $sumLinesAmount) > 0.01) {
+            return $this->errorResponse('Total nominal detail batch tidak sama dengan total nominal withdraw.', null, Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
 
-        // 3. Get total pending withdrawals for this batch
-        $pendingWithdraws = (float) DB::table('trx_program_withdraw')
-            ->where('customer_code', $customerCode)
-            ->where('batch_id', $batchId)
-            ->where('status', 'PENDING')
-            ->sum('amount');
+        // Verify available balance for each batch
+        foreach ($lines as $line) {
+            $batchId = (int)$line['batch_id'];
+            $lineAmount = (float)$line['amount'];
 
-        $availableToWithdraw = $totalVerifiedDiskon - $totalDeducted - $pendingWithdraws;
+            // 1. Get the total verified discount for this batch and customer
+            $totalVerifiedDiskon = (float) DB::table('trx_program_result as r')
+                ->join('trx_program_upload as u', 'r.upload_id', '=', 'u.id')
+                ->where('u.batch_id', $batchId)
+                ->where('r.customer_code', $customerCode)
+                ->where('r.status', 'VALID_PROGRAM')
+                ->where('r.is_verified', true)
+                ->sum('r.total_diskon');
 
-        if ($amount > $availableToWithdraw) {
-            return $this->errorResponse('Saldo reward tidak mencukupi untuk melakukan penarikan. Saldo yang dapat ditarik untuk batch ini: Rp ' . number_format($availableToWithdraw, 0, ',', '.'), null, Response::HTTP_UNPROCESSABLE_ENTITY);
+            // 2. Get total credit (deducted/withdrawn/usages) for this batch in ledger (approved/settled)
+            $totalDeducted = (float) DB::table('trx_claim_balance_ledger as l')
+                ->leftJoin('trx_program_withdraw as w', function($join) {
+                    $join->on('l.referenceable_id', '=', 'w.id')
+                         ->where('l.referenceable_type', '=', 'App\Models\TrxProgramWithdraw');
+                })
+                ->where('l.customer_code', $customerCode)
+                ->where('l.batch_id', $batchId)
+                ->where(function($query) {
+                    $query->whereNull('w.status')
+                          ->orWhere('w.status', '=', 'APPROVED');
+                })
+                ->sum('l.credit');
+
+            // 3. Get total pending withdrawals for this batch
+            $pendingWithdraws = (float) DB::table('trx_claim_balance_ledger as l')
+                ->join('trx_program_withdraw as w', function($join) {
+                    $join->on('l.referenceable_id', '=', 'w.id')
+                         ->where('l.referenceable_type', '=', 'App\Models\TrxProgramWithdraw');
+                })
+                ->where('l.customer_code', $customerCode)
+                ->where('l.batch_id', $batchId)
+                ->where('w.status', '=', 'PENDING')
+                ->sum('l.credit');
+
+            $availableToWithdraw = $totalVerifiedDiskon - $totalDeducted - $pendingWithdraws;
+
+            if ($lineAmount > $availableToWithdraw) {
+                $batchNo = DB::table('trx_program_upload_batch')->where('id', $batchId)->value('batch_no') ?: $batchId;
+                return $this->errorResponse("Saldo reward batch {$batchNo} tidak mencukupi. Saldo yang dapat ditarik: Rp " . number_format($availableToWithdraw, 0, ',', '.'), null, Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
         }
 
         // Generate withdraw number: WD-YYYYMMDD-XXX
-        $withdraw = DB::transaction(function() use ($customerCode, $amount, $batchId, $user) {
+        $withdraw = DB::transaction(function() use ($customerCode, $amount, $lines, $user) {
             $dateStr = date('Ymd');
             $prefix = "WD-{$dateStr}-";
             
@@ -121,10 +152,14 @@ class WithdrawController extends Controller
             }
             $withdrawNo = $prefix . str_pad($num, 3, '0', STR_PAD_LEFT);
 
+            // Backward compatibility for single batch id
+            $firstBatchId = isset($lines[0]['batch_id']) ? (int)$lines[0]['batch_id'] : null;
+
             return $this->withdrawRepository->createWithdraw([
                 'withdraw_no' => $withdrawNo,
                 'customer_code' => $customerCode,
-                'batch_id' => $batchId,
+                'batch_id' => $firstBatchId,
+                'lines' => $lines,
                 'amount' => $amount,
                 'status' => 'PENDING',
                 'created_by' => $user->username ?? 'distributor',

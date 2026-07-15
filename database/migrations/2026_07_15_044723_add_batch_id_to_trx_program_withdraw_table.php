@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::table('trx_program_withdraw', function (Blueprint $table) {
             $table->unsignedBigInteger('batch_id')->nullable()->after('customer_code');
             $table->foreign('batch_id')->references('id')->on('trx_program_upload_batch')->nullOnDelete();
+            $table->json('lines')->nullable()->after('batch_id');
         });
     }
 
@@ -24,7 +25,7 @@ return new class extends Migration
     {
         Schema::table('trx_program_withdraw', function (Blueprint $table) {
             $table->dropForeign(['batch_id']);
-            $table->dropColumn('batch_id');
+            $table->dropColumn(['batch_id', 'lines']);
         });
     }
 };

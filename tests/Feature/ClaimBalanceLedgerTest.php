@@ -327,34 +327,44 @@ class ClaimBalanceLedgerTest extends TestCase
         $responseWd = $this->actingAs($this->distributorUser, 'sanctum')
             ->postJson('/api/distributor-channel/v1/claims/withdraws', [
                 'amount' => 400000.00,
-                'batch_id' => $batch->id,
+                'lines' => [
+                    [
+                        'batch_id' => $batch->id,
+                        'amount' => 400000.00,
+                    ]
+                ]
             ]);
 
         $responseWd->assertStatus(201);
         $withdrawId = $responseWd->json('data.id');
 
-        // Check ledger: pending withdraw should create a ledger record with credit = 0.00!
+        // Check ledger: pending withdraw should create a ledger record with credit = line amount!
         $this->assertDatabaseHas('trx_claim_balance_ledger', [
             'customer_code'    => 'C110003074',
             'type'             => 'WITHDRAW',
             'batch_id'         => $batch->id,
-            'credit'           => 0.00,
+            'credit'           => 400000.00,
             'referenceable_id' => $withdrawId,
         ]);
 
         $ledgerId = \App\Models\TrxClaimBalanceLedger::where('referenceable_id', $withdrawId)->value('id');
 
-        // Verify available balance remains 1,000,000 in ledger (since credit is still 0)
+        // Verify available balance becomes 600,000 in ledger (since credit is 400k pending)
         $responseSummary = $this->actingAs($this->adminUser, 'sanctum')
             ->getJson('/api/distributor-channel/v1/claims/reward-summary?customer_codes=C110003074');
-        $this->assertEquals(1000000.00, $responseSummary->json('data.available_balance'));
+        $this->assertEquals(600000.00, $responseSummary->json('data.available_balance'));
 
         // Try to withdraw again with an amount greater than true available balance (1,000,000 - 400,000 pending = 600,000)
         // This should fail due to pending withdrawal amount constraint check
         $this->actingAs($this->distributorUser, 'sanctum')
             ->postJson('/api/distributor-channel/v1/claims/withdraws', [
                 'amount' => 700000.00,
-                'batch_id' => $batch->id,
+                'lines' => [
+                    [
+                        'batch_id' => $batch->id,
+                        'amount' => 700000.00,
+                    ]
+                ]
             ])
             ->assertStatus(422);
 
@@ -433,5 +443,79 @@ class ClaimBalanceLedgerTest extends TestCase
         $this->assertEquals('BATCH-APPROVED', $data[0]['batch_no']);
         $this->assertEquals(250000.00, $data[0]['debit']);
         $this->assertEquals('C110003074', $data[0]['customer_code']);
+    }
+
+    /**
+     * Test multiple batch withdrawal creation and validation.
+     */
+    public function test_withdrawals_multiple_batches(): void
+    {
+        // 1. Setup two programs/batches with verified discounts
+        $program = MstProgram::create([
+            'program_code' => 'PRG-01',
+            'program_name' => 'Program A',
+            'start_date' => '2026-06-01',
+            'end_date' => '2026-06-30',
+            'status' => 'ACTIVE',
+        ]);
+
+        $batch1 = TrxProgramUploadBatch::create(['batch_no' => 'B-001', 'file_name' => 'upload1.xlsx', 'uploaded_by' => 'admin']);
+        $batch2 = TrxProgramUploadBatch::create(['batch_no' => 'B-002', 'file_name' => 'upload2.xlsx', 'uploaded_by' => 'admin']);
+
+        // Upload and verified results for batch1 (500,000)
+        $upload1 = TrxProgramUpload::create([
+            'batch_id' => $batch1->id, 'customer_code' => 'C110003074', 'item_code' => 'E65', 'qty_kg' => 10.00, 'customer_type' => 'GT', 'transaction_date' => '2026-06-15'
+        ]);
+        TrxProgramResult::create([
+            'upload_id' => $upload1->id, 'program_id' => $program->id, 'customer_code' => 'C110003074', 'total_diskon' => 500000.00, 'status' => 'VALID_PROGRAM', 'is_verified' => true
+        ]);
+        TrxClaimBalanceLedger::create([
+            'customer_code' => 'C110003074', 'ref_number' => 'B-001', 'batch_id' => $batch1->id, 'transaction_date' => now()->toDateString(), 'type' => 'CLAIM', 'debit' => 500000.00
+        ]);
+
+        // Upload and verified results for batch2 (500,000)
+        $upload2 = TrxProgramUpload::create([
+            'batch_id' => $batch2->id, 'customer_code' => 'C110003074', 'item_code' => 'E65', 'qty_kg' => 10.00, 'customer_type' => 'GT', 'transaction_date' => '2026-06-15'
+        ]);
+        TrxProgramResult::create([
+            'upload_id' => $upload2->id, 'program_id' => $program->id, 'customer_code' => 'C110003074', 'total_diskon' => 500000.00, 'status' => 'VALID_PROGRAM', 'is_verified' => true
+        ]);
+        TrxClaimBalanceLedger::create([
+            'customer_code' => 'C110003074', 'ref_number' => 'B-002', 'batch_id' => $batch2->id, 'transaction_date' => now()->toDateString(), 'type' => 'CLAIM', 'debit' => 500000.00
+        ]);
+
+        // 2. Request a withdrawal of 600,000 (200k from batch1, 400k from batch2)
+        $response = $this->actingAs($this->distributorUser, 'sanctum')
+            ->postJson('/api/distributor-channel/v1/claims/withdraws', [
+                'amount' => 600000.00,
+                'lines' => [
+                    ['batch_id' => $batch1->id, 'amount' => 200000.00],
+                    ['batch_id' => $batch2->id, 'amount' => 400000.00],
+                ]
+            ]);
+
+        $response->assertStatus(201);
+        $withdrawId = $response->json('data.id');
+
+        // 3. Verify ledger entries are created for both batches
+        $this->assertDatabaseHas('trx_claim_balance_ledger', [
+            'customer_code' => 'C110003074', 'type' => 'WITHDRAW', 'batch_id' => $batch1->id, 'credit' => 200000.00, 'referenceable_id' => $withdrawId
+        ]);
+        $this->assertDatabaseHas('trx_claim_balance_ledger', [
+            'customer_code' => 'C110003074', 'type' => 'WITHDRAW', 'batch_id' => $batch2->id, 'credit' => 400000.00, 'referenceable_id' => $withdrawId
+        ]);
+
+        // 4. Verify available balances of both batches in paginated list
+        $responseBatches = $this->actingAs($this->adminUser, 'sanctum')
+            ->getJson('/api/distributor-channel/v1/claims/batches');
+
+        $responseBatches->assertStatus(200);
+        $batches = collect($responseBatches->json('data.data'));
+
+        $b1Data = $batches->firstWhere('batch_no', 'B-001');
+        $b2Data = $batches->firstWhere('batch_no', 'B-002');
+
+        $this->assertEquals(300000.00, $b1Data['available_balance']);
+        $this->assertEquals(100000.00, $b2Data['available_balance']);
     }
 }

@@ -59,20 +59,32 @@ class WithdrawRepository implements WithdrawRepositoryInterface
         return DB::transaction(function () use ($data) {
             $withdraw = TrxProgramWithdraw::create($data);
 
-            // Record in ledger with credit = 0.00 initially (pending approval)
-            $this->ledgerRepository->recordTransaction([
-                'customer_code'      => $withdraw->customer_code,
-                'ref_number'         => $withdraw->withdraw_no,
-                'batch_id'           => $withdraw->batch_id,
-                'transaction_date'   => now()->toDateString(),
-                'type'               => 'WITHDRAW',
-                'debit'              => 0.00,
-                'credit'             => 0.00, // 0.00 since it is not yet approved
-                'status'             => 'PENDING',
-                'description'        => "Pengajuan Penarikan Dana " . $withdraw->withdraw_no,
-                'referenceable_id'   => $withdraw->id,
-                'referenceable_type' => TrxProgramWithdraw::class,
-            ]);
+            $lines = is_string($withdraw->lines) ? json_decode($withdraw->lines, true) : $withdraw->lines;
+            if (empty($lines)) {
+                $lines = [
+                    [
+                        'batch_id' => $withdraw->batch_id,
+                        'amount' => $withdraw->amount
+                    ]
+                ];
+            }
+
+            foreach ($lines as $line) {
+                // Record in ledger with credit = line amount directly (distinguished by joined w.status = PENDING)
+                $this->ledgerRepository->recordTransaction([
+                    'customer_code'      => $withdraw->customer_code,
+                    'ref_number'         => $withdraw->withdraw_no,
+                    'batch_id'           => (int)$line['batch_id'],
+                    'transaction_date'   => now()->toDateString(),
+                    'type'               => 'WITHDRAW',
+                    'debit'              => 0.00,
+                    'credit'             => (float)$line['amount'],
+                    'status'             => 'PENDING',
+                    'description'        => "Pengajuan Penarikan Dana " . $withdraw->withdraw_no,
+                    'referenceable_id'   => $withdraw->id,
+                    'referenceable_type' => TrxProgramWithdraw::class,
+                ]);
+            }
 
             return $withdraw;
         });
@@ -81,7 +93,6 @@ class WithdrawRepository implements WithdrawRepositoryInterface
     /**
      * Update withdrawal status.
      * Resolves ID which can be either the direct withdrawal ID or the ledger record ID.
-     * When status becomes APPROVED, the ledger entry's credit is updated to the actual amount.
      */
     public function updateStatus(int $id, string $status, ?string $transferDate = null)
     {
@@ -116,13 +127,11 @@ class WithdrawRepository implements WithdrawRepositoryInterface
                     // Extract amount: fallback to 0.00 if it was a pending request, or use its credit value if already filled
                     $amount = (float)$ledger->credit > 0 ? (float)$ledger->credit : 0.00;
 
-                    // If amount is 0, try to parse description for a refund or amount context
-                    // Or if they are approving it, the frontend showed the amount in the modal.
-                    // (Actually the modal reads `selectedWithdraw?.credit` so we can use credit).
                     $withdraw = TrxProgramWithdraw::create([
                         'withdraw_no'   => $ledger->ref_number ?: ('WD-' . date('Ymd') . '-' . str_pad($ledger->id, 3, '0', STR_PAD_LEFT)),
                         'customer_code' => $ledger->customer_code,
                         'batch_id'      => $ledger->batch_id,
+                        'lines'         => [['batch_id' => $ledger->batch_id, 'amount' => $amount]],
                         'amount'        => $amount,
                         'status'        => 'PENDING',
                         'created_by'    => 'system_fallback',
@@ -147,44 +156,41 @@ class WithdrawRepository implements WithdrawRepositoryInterface
             }
             $withdraw->save();
 
-            // Find the associated pending ledger entry
-            $ledgerEntry = TrxClaimBalanceLedger::where('referenceable_type', TrxProgramWithdraw::class)
-                ->where('referenceable_id', $withdraw->id)
-                ->first();
-
             if ($status === 'APPROVED') {
-                if ($ledgerEntry) {
-                    // Update credit to the withdrawal amount and update status to APPROVED
-                    $ledgerEntry->update([
-                        'credit' => $withdraw->amount,
-                        'status' => 'APPROVED',
-                        'description' => "Penarikan Dana " . $withdraw->withdraw_no
-                    ]);
-                } else {
-                    // Fallback to record a new transaction if for some reason the ledger entry didn't exist
-                    $this->ledgerRepository->recordTransaction([
-                        'customer_code'      => $withdraw->customer_code,
-                        'ref_number'         => $withdraw->withdraw_no,
-                        'batch_id'           => $withdraw->batch_id,
-                        'transaction_date'   => now()->toDateString(),
-                        'type'               => 'WITHDRAW',
-                        'debit'              => 0.00,
-                        'credit'             => $withdraw->amount,
-                        'status'             => 'APPROVED',
-                        'description'        => "Penarikan Dana " . $withdraw->withdraw_no,
-                        'referenceable_id'   => $withdraw->id,
-                        'referenceable_type' => TrxProgramWithdraw::class,
-                    ]);
+                $exists = TrxClaimBalanceLedger::where('referenceable_type', TrxProgramWithdraw::class)
+                    ->where('referenceable_id', $withdraw->id)
+                    ->exists();
+
+                if (!$exists) {
+                    $lines = is_string($withdraw->lines) ? json_decode($withdraw->lines, true) : $withdraw->lines;
+                    if (empty($lines)) {
+                        $lines = [['batch_id' => $withdraw->batch_id, 'amount' => $withdraw->amount]];
+                    }
+
+                    foreach ($lines as $line) {
+                        $this->ledgerRepository->recordTransaction([
+                            'customer_code'      => $withdraw->customer_code,
+                            'ref_number'         => $withdraw->withdraw_no,
+                            'batch_id'           => (int)$line['batch_id'],
+                            'transaction_date'   => now()->toDateString(),
+                            'type'               => 'WITHDRAW',
+                            'debit'              => 0.00,
+                            'credit'             => (float)$line['amount'],
+                            'status'             => 'APPROVED',
+                            'description'        => "Penarikan Dana " . $withdraw->withdraw_no,
+                            'referenceable_id'   => $withdraw->id,
+                            'referenceable_type' => TrxProgramWithdraw::class,
+                        ]);
+                    }
                 }
             } elseif ($status === 'REJECTED') {
-                if ($ledgerEntry) {
-                    // Update ledger entry to REJECTED, credit remains 0.00
-                    $ledgerEntry->update([
+                // Set credit to 0 for all ledger entries referencing this rejected withdrawal
+                TrxClaimBalanceLedger::where('referenceable_type', TrxProgramWithdraw::class)
+                    ->where('referenceable_id', $withdraw->id)
+                    ->update([
                         'credit' => 0.00,
-                        'status' => 'REJECTED',
                         'description' => "Penarikan Dana Ditolak: " . $withdraw->withdraw_no
                     ]);
-                }
             }
 
             return $withdraw;

@@ -25,6 +25,7 @@ class TrxProgramWithdraw extends Model
         'withdraw_no',
         'customer_code',
         'batch_id',
+        'lines',
         'amount',
         'status',
         'created_by',
@@ -38,6 +39,7 @@ class TrxProgramWithdraw extends Model
      */
     protected $casts = [
         'batch_id' => 'integer',
+        'lines' => 'array',
         'amount' => 'decimal:2',
         'transfer_date' => 'date:Y-m-d',
         'created_at' => 'datetime',

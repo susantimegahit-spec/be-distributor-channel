@@ -4069,15 +4069,29 @@ paths:
               type: object
               required:
                 - amount
-                - batch_id
+                - lines
               properties:
                 amount:
                   type: number
-                  example: 250000.00
-                batch_id:
-                  type: integer
-                  example: 1
-                  description: ID batch upload program yang dipilih untuk dikurangi saldonya.
+                  example: 500000.00
+                  description: Total nominal withdraw yang diajukan.
+                lines:
+                  type: array
+                  description: Detail pemotongan nominal per batch.
+                  items:
+                    type: object
+                    required:
+                      - batch_id
+                      - amount
+                    properties:
+                      batch_id:
+                        type: integer
+                        example: 1
+                        description: ID batch upload program yang dipilih.
+                      amount:
+                        type: number
+                        example: 200000.00
+                        description: Nominal yang ditarik dari batch tersebut.
       responses:
         '201':
           description: Pengajuan withdraw berhasil dibuat
@@ -6066,6 +6080,18 @@ components:
           type: integer
           nullable: true
           example: 1
+        lines:
+          type: array
+          nullable: true
+          items:
+            type: object
+            properties:
+              batch_id:
+                type: integer
+                example: 1
+              amount:
+                type: number
+                example: 200000.00
         code_customer:
           type: string
           nullable: true
