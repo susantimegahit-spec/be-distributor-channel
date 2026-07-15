@@ -933,6 +933,7 @@ class SalesOrderService
                                 $ledgerRepository->recordTransaction([
                                     'customer_code' => $salesOrder->card_code,
                                     'ref_number' => $salesOrder->sap_doc_num ?: $salesOrder->order_no,
+                                    'batch_id' => $batchId,
                                     'transaction_date' => now()->toDateString(),
                                     'type' => 'WITHDRAW',
                                     'debit' => 0.00,

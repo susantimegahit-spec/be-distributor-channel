@@ -63,6 +63,7 @@ class WithdrawRepository implements WithdrawRepositoryInterface
             $this->ledgerRepository->recordTransaction([
                 'customer_code'      => $withdraw->customer_code,
                 'ref_number'         => $withdraw->withdraw_no,
+                'batch_id'           => $withdraw->batch_id,
                 'transaction_date'   => now()->toDateString(),
                 'type'               => 'WITHDRAW',
                 'debit'              => 0.00,
@@ -121,6 +122,7 @@ class WithdrawRepository implements WithdrawRepositoryInterface
                     $withdraw = TrxProgramWithdraw::create([
                         'withdraw_no'   => $ledger->ref_number ?: ('WD-' . date('Ymd') . '-' . str_pad($ledger->id, 3, '0', STR_PAD_LEFT)),
                         'customer_code' => $ledger->customer_code,
+                        'batch_id'      => $ledger->batch_id,
                         'amount'        => $amount,
                         'status'        => 'PENDING',
                         'created_by'    => 'system_fallback',
@@ -163,6 +165,7 @@ class WithdrawRepository implements WithdrawRepositoryInterface
                     $this->ledgerRepository->recordTransaction([
                         'customer_code'      => $withdraw->customer_code,
                         'ref_number'         => $withdraw->withdraw_no,
+                        'batch_id'           => $withdraw->batch_id,
                         'transaction_date'   => now()->toDateString(),
                         'type'               => 'WITHDRAW',
                         'debit'              => 0.00,

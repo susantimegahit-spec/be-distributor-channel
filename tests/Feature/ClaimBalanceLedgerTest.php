@@ -275,20 +275,59 @@ class ClaimBalanceLedgerTest extends TestCase
      */
     public function test_withdrawals_update_ledger(): void
     {
-        // Set initial balance with adjustment
-        $this->actingAs($this->adminUser, 'sanctum')
-            ->postJson('/api/distributor-channel/v1/claims/balance-ledger/adjustment', [
-                'customer_code' => 'C110003074',
-                'adjustment_type' => 'DEBIT',
-                'amount' => 1000000.00,
-                'description' => 'Initial Balance',
-                'type' => 'CORRECTION',
-            ]);
+        // Create program
+        $program = MstProgram::create([
+            'program_code' => 'PRG-01',
+            'program_name' => 'Program A',
+            'start_date' => '2026-06-01',
+            'end_date' => '2026-06-30',
+            'status' => 'ACTIVE',
+        ]);
+
+        // Create upload batch
+        $batch = TrxProgramUploadBatch::create([
+            'batch_no' => 'B-001',
+            'file_name' => 'upload.xlsx',
+            'uploaded_by' => 'admin',
+        ]);
+
+        // Create upload record
+        $upload = TrxProgramUpload::create([
+            'batch_id' => $batch->id,
+            'customer_code' => 'C110003074',
+            'item_code' => 'E65',
+            'qty_kg' => 10.00,
+            'customer_type' => 'GT',
+            'transaction_date' => '2026-06-15',
+        ]);
+
+        // Create verified result record
+        $result = TrxProgramResult::create([
+            'upload_id' => $upload->id,
+            'program_id' => $program->id,
+            'customer_code' => 'C110003074',
+            'total_diskon' => 1000000.00,
+            'status' => 'VALID_PROGRAM',
+            'is_verified' => true,
+        ]);
+
+        // Record verified claim in ledger
+        TrxClaimBalanceLedger::create([
+            'customer_code'    => 'C110003074',
+            'ref_number'       => 'B-001',
+            'batch_id'         => $batch->id,
+            'transaction_date' => now()->toDateString(),
+            'type'             => 'CLAIM',
+            'debit'            => 1000000.00,
+            'credit'           => 0.00,
+            'description'      => 'Klaim Program',
+        ]);
 
         // Request withdraw via auth user (distributor) — starts as PENDING
         $responseWd = $this->actingAs($this->distributorUser, 'sanctum')
             ->postJson('/api/distributor-channel/v1/claims/withdraws', [
                 'amount' => 400000.00,
+                'batch_id' => $batch->id,
             ]);
 
         $responseWd->assertStatus(201);
@@ -298,6 +337,7 @@ class ClaimBalanceLedgerTest extends TestCase
         $this->assertDatabaseHas('trx_claim_balance_ledger', [
             'customer_code'    => 'C110003074',
             'type'             => 'WITHDRAW',
+            'batch_id'         => $batch->id,
             'credit'           => 0.00,
             'referenceable_id' => $withdrawId,
         ]);
@@ -314,6 +354,7 @@ class ClaimBalanceLedgerTest extends TestCase
         $this->actingAs($this->distributorUser, 'sanctum')
             ->postJson('/api/distributor-channel/v1/claims/withdraws', [
                 'amount' => 700000.00,
+                'batch_id' => $batch->id,
             ])
             ->assertStatus(422);
 
@@ -328,6 +369,7 @@ class ClaimBalanceLedgerTest extends TestCase
         $this->assertDatabaseHas('trx_claim_balance_ledger', [
             'customer_code' => 'C110003074',
             'type'          => 'WITHDRAW',
+            'batch_id'      => $batch->id,
             'credit'        => 400000.00,
         ]);
 

@@ -56,12 +56,21 @@ class UploadRepository implements UploadRepositoryInterface
             ->where('r.status', 'VALID_PROGRAM')
             ->where('r.is_verified', true);
 
+        $totalDeductedQuery = DB::table('trx_claim_balance_ledger')
+            ->whereColumn('batch_id', 'b.id');
+
+        $pendingWithdrawsQuery = DB::table('trx_program_withdraw')
+            ->whereColumn('batch_id', 'b.id')
+            ->where('status', 'PENDING');
+
         if (!empty($customerCodes)) {
             $totalRowsQuery->whereIn('customer_code', $customerCodes);
             $validRowsQuery->whereIn('r.customer_code', $customerCodes);
             $invalidRowsQuery->whereIn('r.customer_code', $customerCodes);
             $totalDiskonQuery->whereIn('r.customer_code', $customerCodes);
             $verifiedDiskonQuery->whereIn('r.customer_code', $customerCodes);
+            $totalDeductedQuery->whereIn('customer_code', $customerCodes);
+            $pendingWithdrawsQuery->whereIn('customer_code', $customerCodes);
         }
 
         $query = DB::table('trx_program_upload_batch as b')
@@ -92,6 +101,8 @@ class UploadRepository implements UploadRepositoryInterface
             ->selectSub($invalidRowsQuery->selectRaw('COUNT(*)'), 'invalid_rows')
             ->selectSub($totalDiskonQuery->selectRaw('COALESCE(SUM(r.total_diskon), 0)'), 'total_diskon')
             ->selectSub($verifiedDiskonQuery->selectRaw('COALESCE(SUM(r.total_diskon), 0)'), 'total_diskon_verified')
+            ->selectSub($totalDeductedQuery->selectRaw('COALESCE(SUM(credit), 0)'), 'total_deducted')
+            ->selectSub($pendingWithdrawsQuery->selectRaw('COALESCE(SUM(amount), 0)'), 'total_pending')
             ->orderBy('b.uploaded_at', 'desc');
 
         if (!empty($customerCodes)) {
@@ -112,6 +123,11 @@ class UploadRepository implements UploadRepositoryInterface
             $item->invalid_rows = (int)$item->invalid_rows;
             $item->total_diskon = (float)$item->total_diskon;
             $item->total_diskon_verified = (float)$item->total_diskon_verified;
+            
+            $totalDeducted = (float)$item->total_deducted;
+            $totalPending = (float)$item->total_pending;
+            $item->available_balance = max(0.00, $item->total_diskon_verified - $totalDeducted - $totalPending);
+            
             return $item;
         });
 
@@ -154,6 +170,17 @@ class UploadRepository implements UploadRepositoryInterface
             ->where('trx_program_result.is_verified', true)
             ->sum('trx_program_result.total_diskon');
 
+        $totalDeducted = DB::table('trx_claim_balance_ledger')
+            ->where('batch_id', $id)
+            ->sum('credit');
+
+        $pendingWithdraws = DB::table('trx_program_withdraw')
+            ->where('batch_id', $id)
+            ->where('status', 'PENDING')
+            ->sum('amount');
+
+        $availableBalance = max(0.00, (float)$totalDiskonVerified - (float)$totalDeducted - (float)$pendingWithdraws);
+
         return [
             'batch_id' => $batch->id,
             'batch_no' => $batch->batch_no,
@@ -165,6 +192,7 @@ class UploadRepository implements UploadRepositoryInterface
             'invalid_rows' => $invalidRows,
             'total_diskon' => (float)$totalDiskon,
             'total_diskon_verified' => (float)$totalDiskonVerified,
+            'available_balance' => $availableBalance,
         ];
     }
 

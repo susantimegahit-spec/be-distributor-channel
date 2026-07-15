@@ -24,6 +24,7 @@ class TrxProgramWithdraw extends Model
     protected $fillable = [
         'withdraw_no',
         'customer_code',
+        'batch_id',
         'amount',
         'status',
         'created_by',
@@ -36,6 +37,7 @@ class TrxProgramWithdraw extends Model
      * @var array<string, string>
      */
     protected $casts = [
+        'batch_id' => 'integer',
         'amount' => 'decimal:2',
         'transfer_date' => 'date:Y-m-d',
         'created_at' => 'datetime',

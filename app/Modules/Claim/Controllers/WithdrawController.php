@@ -62,7 +62,8 @@ class WithdrawController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'amount' => 'required|numeric|min:0.01',
+            'amount'   => 'required|numeric|min:0.01',
+            'batch_id' => 'required|integer|exists:trx_program_upload_batch,id',
         ]);
 
         $user = $request->user();
@@ -72,25 +73,38 @@ class WithdrawController extends Controller
 
         $customerCode = $user->code_customer;
         $amount = (float)$request->get('amount');
+        $batchId = (int)$request->get('batch_id');
 
-        // Check available balance
-        $summary = $this->resultRepository->getRewardSummary($customerCode);
-        $balance = $summary['available_balance'];
+        // 1. Get the total verified discount for this batch and customer
+        $totalVerifiedDiskon = (float) DB::table('trx_program_result as r')
+            ->join('trx_program_upload as u', 'r.upload_id', '=', 'u.id')
+            ->where('u.batch_id', $batchId)
+            ->where('r.customer_code', $customerCode)
+            ->where('r.status', 'VALID_PROGRAM')
+            ->where('r.is_verified', true)
+            ->sum('r.total_diskon');
 
-        // Also deduct any other PENDING withdraws that are not yet approved (since they are not in the ledger yet)
+        // 2. Get total credit (deducted/withdrawn/usages) for this batch in ledger
+        $totalDeducted = (float) DB::table('trx_claim_balance_ledger')
+            ->where('customer_code', $customerCode)
+            ->where('batch_id', $batchId)
+            ->sum('credit');
+
+        // 3. Get total pending withdrawals for this batch
         $pendingWithdraws = (float) DB::table('trx_program_withdraw')
             ->where('customer_code', $customerCode)
+            ->where('batch_id', $batchId)
             ->where('status', 'PENDING')
             ->sum('amount');
 
-        $availableToWithdraw = $balance - $pendingWithdraws;
+        $availableToWithdraw = $totalVerifiedDiskon - $totalDeducted - $pendingWithdraws;
 
         if ($amount > $availableToWithdraw) {
-            return $this->errorResponse('Saldo reward tidak mencukupi untuk melakukan penarikan. Saldo yang dapat ditarik: Rp ' . number_format($availableToWithdraw, 0, ',', '.'), null, Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->errorResponse('Saldo reward tidak mencukupi untuk melakukan penarikan. Saldo yang dapat ditarik untuk batch ini: Rp ' . number_format($availableToWithdraw, 0, ',', '.'), null, Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         // Generate withdraw number: WD-YYYYMMDD-XXX
-        $withdraw = DB::transaction(function() use ($customerCode, $amount, $user) {
+        $withdraw = DB::transaction(function() use ($customerCode, $amount, $batchId, $user) {
             $dateStr = date('Ymd');
             $prefix = "WD-{$dateStr}-";
             
@@ -110,6 +124,7 @@ class WithdrawController extends Controller
             return $this->withdrawRepository->createWithdraw([
                 'withdraw_no' => $withdrawNo,
                 'customer_code' => $customerCode,
+                'batch_id' => $batchId,
                 'amount' => $amount,
                 'status' => 'PENDING',
                 'created_by' => $user->username ?? 'distributor',
