@@ -4069,10 +4069,15 @@ paths:
               type: object
               required:
                 - amount
+                - batch_id
               properties:
                 amount:
                   type: number
                   example: 250000.00
+                batch_id:
+                  type: integer
+                  example: 1
+                  description: ID batch upload program yang dipilih untuk dikurangi saldonya.
       responses:
         '201':
           description: Pengajuan withdraw berhasil dibuat
@@ -6057,6 +6062,10 @@ components:
         customer_code:
           type: string
           example: C110000411
+        batch_id:
+          type: integer
+          nullable: true
+          example: 1
         code_customer:
           type: string
           nullable: true
