@@ -50,11 +50,18 @@ class UploadRepository implements UploadRepositoryInterface
             ->join('trx_program_upload as u', 'r.upload_id', '=', 'u.id')
             ->whereColumn('u.batch_id', 'b.id');
 
+        $verifiedDiskonQuery = DB::table('trx_program_result as r')
+            ->join('trx_program_upload as u', 'r.upload_id', '=', 'u.id')
+            ->whereColumn('u.batch_id', 'b.id')
+            ->where('r.status', 'VALID_PROGRAM')
+            ->where('r.is_verified', true);
+
         if (!empty($customerCodes)) {
             $totalRowsQuery->whereIn('customer_code', $customerCodes);
             $validRowsQuery->whereIn('r.customer_code', $customerCodes);
             $invalidRowsQuery->whereIn('r.customer_code', $customerCodes);
             $totalDiskonQuery->whereIn('r.customer_code', $customerCodes);
+            $verifiedDiskonQuery->whereIn('r.customer_code', $customerCodes);
         }
 
         $query = DB::table('trx_program_upload_batch as b')
@@ -84,6 +91,7 @@ class UploadRepository implements UploadRepositoryInterface
             ->selectSub($validRowsQuery->selectRaw('COUNT(*)'), 'valid_rows')
             ->selectSub($invalidRowsQuery->selectRaw('COUNT(*)'), 'invalid_rows')
             ->selectSub($totalDiskonQuery->selectRaw('COALESCE(SUM(r.total_diskon), 0)'), 'total_diskon')
+            ->selectSub($verifiedDiskonQuery->selectRaw('COALESCE(SUM(r.total_diskon), 0)'), 'total_diskon_verified')
             ->orderBy('b.uploaded_at', 'desc');
 
         if (!empty($customerCodes)) {
@@ -103,6 +111,7 @@ class UploadRepository implements UploadRepositoryInterface
             $item->valid_rows = (int)$item->valid_rows;
             $item->invalid_rows = (int)$item->invalid_rows;
             $item->total_diskon = (float)$item->total_diskon;
+            $item->total_diskon_verified = (float)$item->total_diskon_verified;
             return $item;
         });
 
@@ -138,6 +147,13 @@ class UploadRepository implements UploadRepositoryInterface
             ->where('trx_program_upload.batch_id', $id)
             ->sum('trx_program_result.total_diskon');
 
+        $totalDiskonVerified = DB::table('trx_program_result')
+            ->join('trx_program_upload', 'trx_program_result.upload_id', '=', 'trx_program_upload.id')
+            ->where('trx_program_upload.batch_id', $id)
+            ->where('trx_program_result.status', 'VALID_PROGRAM')
+            ->where('trx_program_result.is_verified', true)
+            ->sum('trx_program_result.total_diskon');
+
         return [
             'batch_id' => $batch->id,
             'batch_no' => $batch->batch_no,
@@ -148,6 +164,7 @@ class UploadRepository implements UploadRepositoryInterface
             'valid_rows' => $validRows,
             'invalid_rows' => $invalidRows,
             'total_diskon' => (float)$totalDiskon,
+            'total_diskon_verified' => (float)$totalDiskonVerified,
         ];
     }
 
