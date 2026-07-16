@@ -45,7 +45,9 @@ class SalesOrderController extends Controller
 
         $status = $request->query('status');
         $cardCode = $request->query('card_code') ?? $request->query('customer_code');
-        $orders = $this->salesOrderService->getAllOrders($distributorId, $status, $cardCode);
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
+        $orders = $this->salesOrderService->getAllOrders($distributorId, $status, $cardCode, $startDate, $endDate);
 
         return $this->successResponse($orders, 'Daftar sales order berhasil diambil.');
     }

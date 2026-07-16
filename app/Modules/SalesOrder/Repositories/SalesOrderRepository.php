@@ -32,6 +32,14 @@ class SalesOrderRepository implements SalesOrderRepositoryInterface
             $query->where('card_code', $filters['card_code']);
         }
 
+        if (!empty($filters['start_date'])) {
+            $query->whereDate('doc_date', '>=', $filters['start_date']);
+        }
+
+        if (!empty($filters['end_date'])) {
+            $query->whereDate('doc_date', '<=', $filters['end_date']);
+        }
+
         return $query->orderBy('created_at', 'desc')->get();
     }
 

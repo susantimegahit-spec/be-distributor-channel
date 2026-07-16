@@ -858,4 +858,73 @@ class SalesOrderTest extends TestCase
         $this->assertCount(1, $data);
         $this->assertEquals('SO-LIST-0001', $data[0]['order_no']);
     }
+
+    /**
+     * Test getting the list of sales orders filtered by doc_date range.
+     */
+    public function test_get_sales_orders_list_filters_by_doc_date_range(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        // Clear existing orders
+        SalesOrder::query()->delete();
+
+        // 1. Order on 2026-07-10 (APPROVED)
+        SalesOrder::create([
+            'order_no' => 'SO-DATE-0001',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'PT XYZ',
+            'doc_date' => '2026-07-10',
+            'slp_code' => 0,
+            'doc_total' => 10000,
+            'status' => 'APPROVED',
+        ]);
+
+        // 2. Order on 2026-07-15 (APPROVED)
+        SalesOrder::create([
+            'order_no' => 'SO-DATE-0002',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'PT XYZ',
+            'doc_date' => '2026-07-15',
+            'slp_code' => 0,
+            'doc_total' => 20000,
+            'status' => 'APPROVED',
+        ]);
+
+        // 3. Order on 2026-07-20 (APPROVED)
+        SalesOrder::create([
+            'order_no' => 'SO-DATE-0003',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'PT XYZ',
+            'doc_date' => '2026-07-20',
+            'slp_code' => 0,
+            'doc_total' => 30000,
+            'status' => 'APPROVED',
+        ]);
+
+        // Query with start_date = 2026-07-12 and end_date = 2026-07-18 -> should only return order 2 (2026-07-15)
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/distributor-channel/v1/sales-orders?start_date=2026-07-12&end_date=2026-07-18');
+
+        $response->assertStatus(200);
+        $data = $response->json('data');
+        $this->assertCount(1, $data);
+        $this->assertEquals('SO-DATE-0002', $data[0]['order_no']);
+
+        // Query with start_date = 2026-07-15 -> should return order 2 and order 3
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/distributor-channel/v1/sales-orders?start_date=2026-07-15');
+
+        $response->assertStatus(200);
+        $data = $response->json('data');
+        $this->assertCount(2, $data);
+        $orderNos = collect($data)->pluck('order_no')->toArray();
+        $this->assertContains('SO-DATE-0002', $orderNos);
+        $this->assertContains('SO-DATE-0003', $orderNos);
+    }
 }

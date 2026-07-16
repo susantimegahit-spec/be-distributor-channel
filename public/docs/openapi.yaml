@@ -2673,6 +2673,20 @@ paths:
           schema:
             type: string
           description: Filter berdasarkan kode customer (CardCode)
+        - name: start_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Filter tanggal mulai pembuatan/doc_date (YYYY-MM-DD)
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Filter tanggal akhir pembuatan/doc_date (YYYY-MM-DD)
       responses:
         '200':
           description: Daftar sales order berhasil diambil

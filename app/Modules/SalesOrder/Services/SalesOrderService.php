@@ -37,8 +37,13 @@ class SalesOrderService
      * @param  string|null  $cardCode
      * @return Collection
      */
-    public function getAllOrders(?int $distributorId = null, ?string $status = null, ?string $cardCode = null): Collection
-    {
+    public function getAllOrders(
+        ?int $distributorId = null,
+        ?string $status = null,
+        ?string $cardCode = null,
+        ?string $startDate = null,
+        ?string $endDate = null
+    ): Collection {
         $filters = [];
         if ($distributorId) {
             $filters['distributor_id'] = $distributorId;
@@ -48,6 +53,12 @@ class SalesOrderService
         }
         if ($cardCode) {
             $filters['card_code'] = $cardCode;
+        }
+        if ($startDate) {
+            $filters['start_date'] = $startDate;
+        }
+        if ($endDate) {
+            $filters['end_date'] = $endDate;
         }
 
         return $this->salesOrderRepository->getAll($filters);
