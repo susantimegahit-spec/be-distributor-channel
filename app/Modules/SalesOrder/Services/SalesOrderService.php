@@ -929,11 +929,12 @@ class SalesOrderService
                                 $batchId = $tempRecord->batch_id;
                                 $batch = \App\Models\TrxProgramUploadBatch::find($batchId);
                                 $batchNo = $batch ? $batch->batch_no : "-";
+                                $actualBatchId = $batch ? $batchId : null;
 
                                 $ledgerRepository->recordTransaction([
                                     'customer_code' => $salesOrder->card_code,
                                     'ref_number' => $salesOrder->sap_doc_num ?: $salesOrder->order_no,
-                                    'batch_id' => $batchId,
+                                    'batch_id' => $actualBatchId,
                                     'transaction_date' => now()->toDateString(),
                                     'type' => 'WITHDRAW',
                                     'debit' => 0.00,
