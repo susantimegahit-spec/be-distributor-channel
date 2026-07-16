@@ -688,4 +688,30 @@ class SalesOrderController extends Controller
 
         return $this->successResponse($orders, 'Data sales order berdasarkan cek ETA berhasil diambil.');
     }
+
+    /**
+     * Get associated invoices from SAP for the specified sales order.
+     *
+     * @param  Request  $request
+     * @param  int  $id
+     * @return JsonResponse
+     */
+    public function getInvoices(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $distributorId = null;
+
+        // If the user has a code_customer, restrict them to their own distributor data
+        if ($user->code_customer) {
+            $distributor = Distributor::where('code_customer', $user->code_customer)->first();
+            $distributorId = $distributor?->id;
+        }
+
+        try {
+            $invoices = $this->salesOrderService->getInvoicesFromSap($id, $distributorId);
+            return $this->successResponse($invoices, 'List invoice berhasil diambil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), [], 500);
+        }
+    }
 }

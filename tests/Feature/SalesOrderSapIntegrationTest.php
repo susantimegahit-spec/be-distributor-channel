@@ -547,4 +547,95 @@ class SalesOrderSapIntegrationTest extends TestCase
             ->assertJsonPath('data.0.CardCode', 'C110003175')
             ->assertJsonPath('data.0.SisaCredit', '250000,000000');
     }
+
+    /**
+     * Test getting invoices from SAP successfully.
+     */
+    public function test_get_invoices_from_sap_success(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        $order = SalesOrder::create([
+            'order_no' => 'SO-20260716-9999',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'LESAFFRE SARI',
+            'doc_date' => '2026-07-16',
+            'status' => 'ARRIVED',
+            'sap_doc_num' => '260130002',
+        ]);
+
+        Http::fake([
+            '103.18.133.187:3100/api/ListInvoice' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => '',
+                'Result' => [
+                    [
+                        'DOCENTRY' => '1209',
+                        'INVOICENUM' => '260130002',
+                        'DOCDATE' => '20260102',
+                        'DOCSTATUS' => 'C'
+                    ]
+                ]
+            ], 200),
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson("/api/distributor-channel/v1/sales-orders/{$order->id}/invoices");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.0.INVOICENUM', '260130002')
+            ->assertJsonPath('data.0.DOCENTRY', '1209');
+    }
+
+    /**
+     * Test getting invoices for a non-existent sales order.
+     */
+    public function test_get_invoices_from_sap_not_found(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson("/api/distributor-channel/v1/sales-orders/999999/invoices");
+
+        $response->assertStatus(500)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'Sales order tidak ditemukan.');
+    }
+
+    /**
+     * Test getting invoices from SAP when API returns an error.
+     */
+    public function test_get_invoices_from_sap_api_failure(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        $order = SalesOrder::create([
+            'order_no' => 'SO-20260716-8888',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'LESAFFRE SARI',
+            'doc_date' => '2026-07-16',
+            'status' => 'ARRIVED',
+            'sap_doc_num' => '260130002',
+        ]);
+
+        Http::fake([
+            '103.18.133.187:3100/api/ListInvoice' => Http::response([
+                'ErrorCode' => 99,
+                'Message' => 'SAP connection failed',
+            ], 200),
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson("/api/distributor-channel/v1/sales-orders/{$order->id}/invoices");
+
+        $response->assertStatus(500)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'API SAP ListInvoice mengembalikan error: SAP connection failed');
+    }
 }

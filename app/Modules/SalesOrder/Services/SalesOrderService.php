@@ -1469,4 +1469,40 @@ class SalesOrderService
     {
         return $this->salesOrderRepository->getDashboardSummary($distributorId);
     }
+
+    /**
+     * Get invoices from SAP for a given sales order.
+     *
+     * @param  int  $id
+     * @param  int|null  $distributorId
+     * @return array
+     * @throws Exception
+     */
+    public function getInvoicesFromSap(int $id, ?int $distributorId = null): array
+    {
+        $salesOrder = $this->getOrderById($id, $distributorId);
+
+        if (!$salesOrder) {
+            throw new Exception('Sales order tidak ditemukan.');
+        }
+
+        // Use sap_doc_num if available, otherwise fallback to order_no
+        $queryValue = $salesOrder->sap_doc_num ?: $salesOrder->order_no;
+
+        $response = Http::timeout(15)->post('http://103.18.133.187:3100/api/ListInvoice', [
+            'CustomQuery' => $queryValue,
+        ]);
+
+        if (!$response->successful()) {
+            throw new Exception('Gagal menghubungi API SAP untuk mengambil daftar invoice.');
+        }
+
+        $body = $response->json();
+
+        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
+            throw new Exception('API SAP ListInvoice mengembalikan error: ' . ($body['Message'] ?? 'Unknown error'));
+        }
+
+        return $body['Result'] ?? [];
+    }
 }

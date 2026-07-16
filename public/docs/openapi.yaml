@@ -378,6 +378,59 @@ paths:
                 type: string
                 format: binary
 
+  /v1/sales-orders/{id}/invoices:
+    get:
+      summary: Get associated invoices from SAP
+      description: Mengambil daftar invoice yang berasosiasi dengan Sales Order ini dari SAP Business One.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order lokal.
+      responses:
+        '200':
+          description: List invoice berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: List invoice berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        DOCENTRY:
+                          type: string
+                          example: "1209"
+                        INVOICENUM:
+                          type: string
+                          example: "260130002"
+                        DOCDATE:
+                          type: string
+                          example: "20260102"
+                        DOCSTATUS:
+                          type: string
+                          example: "C"
+        '500':
+          description: Gagal mengambil daftar invoice.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /v1/auth/login:
     post:
       summary: User Login
