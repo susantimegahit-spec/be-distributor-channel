@@ -802,4 +802,60 @@ class SalesOrderTest extends TestCase
         $this->assertCount(1, $data);
         $this->assertEquals('SO-ETA-0001', $data[0]['order_no']);
     }
+
+    /**
+     * Test that getting the list of sales orders without a status filter excludes DRAFT orders by default,
+     * but includes them if status=DRAFT is explicitly requested.
+     */
+    public function test_get_sales_orders_list_excludes_drafts_by_default(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        // Clear existing orders
+        SalesOrder::query()->delete();
+
+        // 1. Create a DRAFT order
+        SalesOrder::create([
+            'order_no' => 'SO-LIST-0001',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'PT XYZ',
+            'doc_date' => '2026-07-16',
+            'slp_code' => 0,
+            'doc_total' => 10000,
+            'status' => 'DRAFT',
+        ]);
+
+        // 2. Create an APPROVED order
+        SalesOrder::create([
+            'order_no' => 'SO-LIST-0002',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'PT XYZ',
+            'doc_date' => '2026-07-16',
+            'slp_code' => 0,
+            'doc_total' => 20000,
+            'status' => 'APPROVED',
+        ]);
+
+        // 3. Query without status filter -> should only return the APPROVED order
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/distributor-channel/v1/sales-orders');
+
+        $response->assertStatus(200);
+        $data = $response->json('data');
+        $this->assertCount(1, $data);
+        $this->assertEquals('SO-LIST-0002', $data[0]['order_no']);
+
+        // 4. Query with status=DRAFT -> should return the DRAFT order
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/distributor-channel/v1/sales-orders?status=DRAFT');
+
+        $response->assertStatus(200);
+        $data = $response->json('data');
+        $this->assertCount(1, $data);
+        $this->assertEquals('SO-LIST-0001', $data[0]['order_no']);
+    }
 }

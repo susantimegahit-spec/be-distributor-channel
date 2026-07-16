@@ -24,6 +24,8 @@ class SalesOrderRepository implements SalesOrderRepositoryInterface
 
         if (!empty($filters['status'])) {
             $query->where('status', $filters['status']);
+        } else {
+            $query->where('status', '!=', 'DRAFT');
         }
 
         if (!empty($filters['card_code'])) {
