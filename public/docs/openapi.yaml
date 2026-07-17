@@ -220,8 +220,8 @@ paths:
                   example: Koreksi kelebihan klaim
                 type:
                   type: string
-                  enum: [CLAIM, TRANSACTION, WITHDRAW, CORRECTION]
-                  description: Tipe transaksi ledger (CLAIM = klaim reward, TRANSACTION = transaksi SO, WITHDRAW = penarikan reward, CORRECTION = koreksi manual).
+                  maxLength: 30
+                  description: Tipe transaksi ledger (contoh: CLAIM, TRANSACTION, WITHDRAW, RETURN, CORRECTION, BONUS). Nilai bersifat dinamis dan otomatis dikonversi ke UPPERCASE di backend.
                   example: CORRECTION
                 ref_number:
                   type: string
