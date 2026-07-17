@@ -19,7 +19,7 @@ return new class extends Migration
     {
         Schema::connection($this->connection)->create('production_boms', function (Blueprint $table) {
             $table->id();
-            $table->string('code', 50)->unique()->comment('Parent Item Code / Product No (OITT.Code)');
+            $table->string('code', 50)->comment('Parent Item Code / Product No (OITT.Code)');
             $table->decimal('qty', 18, 4)->default(1.0000)->comment('Base Quantity (OITT.Qty)');
             $table->string('to_whs', 20)->nullable()->comment('Receipt Warehouse (OITT.ToWhs)');
             $table->string('type', 20)->default('P')->comment('BOM Type: P = Production, S = Template, etc (OITT.Type)');
@@ -38,6 +38,8 @@ return new class extends Migration
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();
+
+            $table->unique(['code', 'alternate'], 'uq_production_boms_code_alternate');
 
             // Foreign Key constraints referencing tables in the public schema
             $table->foreign('code')->references('item_code')->on('public.items')->onDelete('cascade');
