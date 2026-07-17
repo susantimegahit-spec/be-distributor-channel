@@ -30,4 +30,22 @@ class CreateRoleRequest extends FormRequest
             'accessible_systems.*' => 'string',
         ];
     }
+
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('accessible_systems') && is_string($this->accessible_systems)) {
+            $this->merge([
+                'accessible_systems' => array_filter(array_map('trim', explode(',', $this->accessible_systems)))
+            ]);
+        }
+
+        if ($this->has('menu') && is_string($this->menu)) {
+            $this->merge([
+                'menu' => array_filter(array_map('trim', explode(',', $this->menu)))
+            ]);
+        }
+    }
 }
