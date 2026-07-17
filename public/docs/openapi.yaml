@@ -6408,7 +6408,7 @@ components:
           type: string
           format: date-time
           example: "2026-07-02T09:05:00.000000Z"
-         updated_at:
+        updated_at:
           type: string
           format: date-time
           example: "2026-07-02T09:05:00.000000Z"
