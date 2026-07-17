@@ -4692,6 +4692,140 @@ paths:
         '401':
           description: Tidak terautentikasi
 
+  /v1/production/resources:
+    get:
+      summary: Get list of production resources
+      description: Mendapatkan daftar semua resource produksi yang disinkronisasi dari SAP.
+      tags:
+        - Production
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Pencarian berdasarkan kode atau nama resource.
+      responses:
+        '200':
+          description: Daftar resource produksi berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar resource produksi berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductionResource'
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/production/resources/sync:
+    post:
+      summary: Sync production resources from SAP
+      description: Sinkronisasi data master resource produksi dari SAP.
+      tags:
+        - Production
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Data resource produksi berhasil disinkronisasi dari SAP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data resource produksi berhasil disinkronisasi dari SAP.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductionResource'
+        '401':
+          description: Tidak terautentikasi
+        '500':
+          description: Gagal sinkronisasi data dari SAP
+
+  /v1/production/items:
+    get:
+      summary: Get list of production items
+      description: Mendapatkan daftar semua item produksi yang disinkronisasi dari SAP.
+      tags:
+        - Production
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Pencarian berdasarkan kode atau nama item.
+      responses:
+        '200':
+          description: Daftar item produksi berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar item produksi berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductionItem'
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/production/items/sync:
+    post:
+      summary: Sync production items from SAP
+      description: Sinkronisasi data master item produksi dari SAP.
+      tags:
+        - Production
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Data item produksi berhasil disinkronisasi dari SAP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data item produksi berhasil disinkronisasi dari SAP.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductionItem'
+        '401':
+          description: Tidak terautentikasi
+        '500':
+          description: Gagal sinkronisasi data dari SAP
+
 components:
   securitySchemes:
     BearerAuth:
@@ -6274,8 +6408,68 @@ components:
           type: string
           format: date-time
           example: "2026-07-02T09:05:00.000000Z"
-        updated_at:
+         updated_at:
           type: string
           format: date-time
           example: "2026-07-02T09:05:00.000000Z"
+
+    ProductionResource:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        res_code:
+          type: string
+          example: DLC.KOP.BLR.001
+        res_name:
+          type: string
+          example: TKL GARAM KAPAL BLR/  KG
+        unit_of_msr:
+          type: string
+          nullable: true
+          example: KG
+        is_active:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-17T09:05:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-17T09:05:00.000000Z"
+
+    ProductionItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        item_code:
+          type: string
+          example: ILP000117
+        item_name:
+          type: string
+          example: TAMPAR JUMBO
+        i_uom_entry:
+          type: integer
+          nullable: true
+          example: -1
+        invntry_uom:
+          type: string
+          nullable: true
+          example: Roll
+        is_active:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-17T09:05:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-17T09:05:00.000000Z"
 
