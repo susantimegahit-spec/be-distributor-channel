@@ -112,5 +112,11 @@ class AppServiceProvider extends ServiceProvider
                 }
             }
         }
+
+        // Dynamically load migrations from custom folders
+        $this->loadMigrationsFrom([
+            database_path('migrations/ekspedisi'),
+            database_path('migrations/production'),
+        ]);
     }
 }

@@ -25,7 +25,7 @@ return new class extends Migration
     {
         Schema::table('trx_program_withdraw', function (Blueprint $table) {
             $table->dropForeign(['batch_id']);
-            $table->dropColumn('batch_id');
+            $table->dropColumn(['batch_id', 'lines']);
         });
     }
 
