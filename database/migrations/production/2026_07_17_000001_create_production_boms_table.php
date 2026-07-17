@@ -17,9 +17,6 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Ensure production schema exists in Postgres
-        DB::statement('CREATE SCHEMA IF NOT EXISTS production');
-
         Schema::connection($this->connection)->create('production_boms', function (Blueprint $table) {
             $table->id();
             $table->string('code', 50)->unique()->comment('Parent Item Code / Product No (OITT.Code)');
