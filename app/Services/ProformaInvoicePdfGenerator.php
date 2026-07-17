@@ -11,7 +11,9 @@ class ProformaInvoicePdfGenerator
     protected const PAGE_WIDTH = 595.28;
     protected const PAGE_HEIGHT = 841.89;
     protected const BLUE = '0.106 0.216 0.494';
+    protected const LIGHT_BLUE = '0.93 0.95 0.99';
     protected const BLACK = '0.08 0.08 0.08';
+    protected const MUTED = '0.35 0.35 0.35';
 
     protected array $commands = [];
 
@@ -101,10 +103,20 @@ class ProformaInvoicePdfGenerator
         if (!$value) return '';
         $time = strtotime($value);
         if (!$time) return '';
-        
+
         $months = [
-            1 => 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+            1 => 'Januari',
+            'Februari',
+            'Maret',
+            'April',
+            'Mei',
+            'Juni',
+            'Juli',
+            'Agustus',
+            'September',
+            'Oktober',
+            'November',
+            'Desember'
         ];
         $day = date('d', $time);
         $month = $months[(int)date('m', $time)];
@@ -180,20 +192,20 @@ class ProformaInvoicePdfGenerator
                     if ($image) {
                         $imgWidth = imagesx($image);
                         $imgHeight = imagesy($image);
-                        
+
                         // Create a white background to replace transparency
                         $bg = imagecreatetruecolor($imgWidth, $imgHeight);
                         $white = imagecolorallocate($bg, 255, 255, 255);
                         imagefill($bg, 0, 0, $white);
                         imagecopy($bg, $image, 0, 0, 0, 0, $imgWidth, $imgHeight);
-                        
+
                         ob_start();
                         imagejpeg($bg, null, 95);
                         $imgData = ob_get_clean();
-                        
+
                         imagedestroy($image);
                         imagedestroy($bg);
-                        
+
                         if ($imgData !== false && strlen($imgData) > 0) {
                             $hasSignature = true;
                         }
@@ -213,12 +225,12 @@ class ProformaInvoicePdfGenerator
             if ($image) {
                 $logoWidth = imagesx($image);
                 $logoHeight = imagesy($image);
-                
+
                 ob_start();
                 imagejpeg($image, null, 90);
                 $logoData = ob_get_clean();
                 imagedestroy($image);
-                
+
                 if ($logoData !== false && strlen($logoData) > 0) {
                     $hasLogo = true;
                 }
@@ -275,24 +287,39 @@ class ProformaInvoicePdfGenerator
         $this->text("Surabaya, {$docDate}", 370, 695, 9.5);
 
         // ── KEPADA ──────────────────────────────────────────────────
-        $this->text('Kepada Yth.',    $labelX, 643, 9.5, ['bold' => true]);
-        $this->text($customerName,    $labelX, 629, 10,  ['bold' => true]);
-        if ($customerAddress) $this->wrapText($customerAddress, $labelX, 615, 240, 9, 12);
-        if ($customerCity)    $this->text($customerCity, $labelX, 591, 9);
+        $recipientY = 643;
+        $this->text('Kepada Yth.', $labelX, $recipientY, 9.5, ['bold' => true]);
+        $this->text($customerName, $labelX, $recipientY - 14, 10, ['bold' => true]);
+
+        $recipientBottom = $recipientY - 28;
+        if ($customerAddress) {
+            $recipientBottom = $this->wrapText($customerAddress, $labelX, $recipientBottom, 330, 9, 12);
+        }
+        if ($customerCity) {
+            $this->text($customerCity, $labelX, $recipientBottom, 9);
+            $recipientBottom -= 12;
+        }
 
         // ── PEMBUKA ──────────────────────────────────────────────────
-        $this->text('Dengan hormat,', $labelX, 560, 9.5);
-        $this->wrapText(
+        $salutationY = $recipientBottom - 16;
+        $this->text('Dengan hormat,', $labelX, $salutationY, 9.5);
+        $openingY = $salutationY - 28;
+        $openingBottom = $this->wrapText(
             'Dengan ini kami mohon, untuk pesanan Garam Beryodium Cap Kapal untuk segera diselesaikan pembayarannya dengan rincian sebagai berikut:',
-            $labelX, 530, 430, 9.5, 13
+            $labelX,
+            $openingY,
+            430,
+            9.5,
+            13
         );
 
         // ── HEADER TABEL ─────────────────────────────────────────────
-        $tableY = 507;
+        $tableY = $openingBottom - 8;
+        $this->rect(28, $tableY - 20, 538, 20, ['color' => self::LIGHT_BLUE, 'fill' => true]);
         $this->line(28, $tableY, 566, $tableY, 0.6);
-        $this->text('Keterangan',          90,  $tableY - 12, 9.5, ['bold' => true]);
-        $this->text('Harga Satuan',        335, $tableY - 12, 9.5, ['bold' => true]);
-        $this->text('Jumlah',              455, $tableY - 12, 9.5, ['bold' => true]);
+        $this->text('Keterangan', 35, $tableY - 13, 9.5, ['bold' => true, 'color' => self::BLUE]);
+        $this->centerText('Harga Satuan', 385, $tableY - 13, 9.5, ['bold' => true, 'color' => self::BLUE]);
+        $this->centerText('Jumlah', 505, $tableY - 13, 9.5, ['bold' => true, 'color' => self::BLUE]);
         $this->line(28, $tableY - 20, 566, $tableY - 20, 0.6);
 
         $y = $tableY - 35;
@@ -305,14 +332,13 @@ class ProformaInvoicePdfGenerator
             if (isset($line->line_total) && $line->line_total > 0) {
                 $lineTotal = (float)$line->line_total;
             }
-            $description = "{$itemName} : " . $this->formatNumber($qtyVal) . " {$unit} @ " . $this->formatMoney($unitPrice) . "/{$unit}";
-
             // Baris 1: Nama item (bold) + harga satuan + jumlah
             $this->text($itemName, 35, $y, 9.5, ['bold' => true]);
             $this->rightText($this->formatMoney($unitPrice, false), 440, $y, 9.5);
             $this->rightText($this->formatNumber($lineTotal) . ',-', 540, $y, 9.5, ['bold' => true]);
             // Baris 2: qty dan satuan
-            $this->text($this->formatNumber($qtyVal) . ' ' . $unit, 35, $y - 12, 9, ['color' => '0.35 0.35 0.35']);
+            $this->text($this->formatNumber($qtyVal) . ' ' . $unit, 35, $y - 12, 9, ['color' => self::MUTED]);
+            $this->line(28, $y - 20, 566, $y - 20, 0.25, '0.82 0.82 0.82');
             $y -= 28; // 2 baris: 14pt * 2
         }
 
@@ -325,7 +351,7 @@ class ProformaInvoicePdfGenerator
             $y -= 16;
 
             $this->text('Diskon', 350, $y - 4, 9.5, ['color' => '0.8 0 0']);
-            $this->rightText('(Rp ' . $this->formatNumber($discountTotal) . ',-)' , 540, $y - 4, 9.5, ['color' => '0.8 0 0']);
+            $this->rightText('(Rp ' . $this->formatNumber($discountTotal) . ',-)', 540, $y - 4, 9.5, ['color' => '0.8 0 0']);
             $y -= 16;
         }
 
@@ -337,16 +363,23 @@ class ProformaInvoicePdfGenerator
 
         // ── INFORMASI PEMBAYARAN ─────────────────────────────────────
         $payY = $y - 38;
-        $this->wrapText(
+        $paymentBottom = $this->wrapText(
             'Pembayaran dapat ditransfer melalui Bank Central Asia (BCA) Cabang Semut Surabaya A/C No. 256.01.0308.8 atas nama PT. Susanti Megah.',
-            36, $payY, 490, 9.5, 13
+            36,
+            $payY,
+            490,
+            9.5,
+            13
         );
-        $this->text('Setelah pembayaran ditransfer harap dikonfirmasikan kembali kepada kami.', 36, $payY - 32, 9.5);
+        $paymentY = $paymentBottom - 8;
+        $this->text('Setelah pembayaran ditransfer harap dikonfirmasikan kembali kepada kami.', 36, $paymentY, 9.5);
+        $paymentY -= 16;
         if ($dueDate) {
-            $this->text('Tanggal Pengiriman:', 36, $payY - 48, 9.5, ['bold' => true]);
-            $this->text($dueDate, 155, $payY - 48, 9.5);
+            $this->text('Tanggal Pengiriman:', 36, $paymentY, 9.5, ['bold' => true]);
+            $this->text($dueDate, 155, $paymentY, 9.5);
+            $paymentY -= 16;
         }
-        $this->text('Demikianlah, atas perhatian serta kerjasama yang baik kami ucapkan terima kasih.', 36, $payY - 64, 9.5);
+        $this->text('Demikianlah, atas perhatian serta kerjasama yang baik kami ucapkan terima kasih.', 36, $paymentY, 9.5);
 
         // ── TANDA TANGAN ────────────────────────────────────────────
         $this->centerText('Hormat kami,', 418, 212, 9.5);

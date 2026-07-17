@@ -221,7 +221,7 @@ paths:
                 type:
                   type: string
                   maxLength: 30
-                  description: Tipe transaksi ledger (contoh: CLAIM, TRANSACTION, WITHDRAW, RETURN, CORRECTION, BONUS). Nilai bersifat dinamis dan otomatis dikonversi ke UPPERCASE di backend.
+                  description: "Tipe transaksi ledger (contoh: CLAIM, TRANSACTION, WITHDRAW, RETURN, CORRECTION, BONUS). Nilai bersifat dinamis dan otomatis dikonversi ke UPPERCASE di backend."
                   example: CORRECTION
                 ref_number:
                   type: string
@@ -310,6 +310,22 @@ paths:
             format: date
           description: Filter tanggal transaksi (YYYY-MM-DD).
           example: "2026-07-14"
+        - name: start_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Tanggal mulai transaksi (YYYY-MM-DD) untuk rentang filter.
+          example: "2026-07-01"
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Tanggal akhir transaksi (YYYY-MM-DD) untuk rentang filter.
+          example: "2026-07-31"
       responses:
         '200':
           description: Daftar klaim yang disetujui berhasil diambil.
