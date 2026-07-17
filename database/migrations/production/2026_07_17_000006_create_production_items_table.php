@@ -16,15 +16,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::connection($this->connection)->create('production_items', function (Blueprint $table) {
-            $table->id();
-            $table->string('item_code', 50)->unique()->comment('Item Code (ItemCode)');
-            $table->string('item_name', 255)->comment('Item Name (ItemName)');
-            $table->integer('i_uom_entry')->nullable()->comment('UoM Entry (IUoMEntry)');
-            $table->string('invntry_uom', 50)->nullable()->comment('Inventory UoM (InvntryUom)');
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
-        });
+        if (!Schema::connection($this->connection)->hasTable('production_items')) {
+            Schema::connection($this->connection)->create('production_items', function (Blueprint $table) {
+                $table->id();
+                $table->string('item_code', 50)->unique()->comment('Item Code (ItemCode)');
+                $table->string('item_name', 255)->comment('Item Name (ItemName)');
+                $table->integer('i_uom_entry')->nullable()->comment('UoM Entry (IUoMEntry)');
+                $table->string('invntry_uom', 50)->nullable()->comment('Inventory UoM (InvntryUom)');
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
+            });
+        }
     }
 
     /**

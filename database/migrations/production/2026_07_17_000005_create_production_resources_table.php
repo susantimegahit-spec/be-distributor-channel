@@ -16,14 +16,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::connection($this->connection)->create('production_resources', function (Blueprint $table) {
-            $table->id();
-            $table->string('res_code', 50)->unique()->comment('Resource Code (ResCode)');
-            $table->string('res_name', 255)->comment('Resource Name (ResName)');
-            $table->string('unit_of_msr', 50)->nullable()->comment('Unit of Measure (UnitOfMsr)');
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
-        });
+        if (!Schema::connection($this->connection)->hasTable('production_resources')) {
+            Schema::connection($this->connection)->create('production_resources', function (Blueprint $table) {
+                $table->id();
+                $table->string('res_code', 50)->unique()->comment('Resource Code (ResCode)');
+                $table->string('res_name', 255)->comment('Resource Name (ResName)');
+                $table->string('unit_of_msr', 50)->nullable()->comment('Unit of Measure (UnitOfMsr)');
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
+            });
+        }
     }
 
     /**
