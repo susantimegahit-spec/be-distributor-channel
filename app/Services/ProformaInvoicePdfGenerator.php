@@ -27,14 +27,19 @@ class ProformaInvoicePdfGenerator
 
     protected function rightText(string $value, float $rightX, float $y, float $size = 10, array $options = []): void
     {
-        $estimatedWidth = strlen($this->normalizeText($value)) * $size * 0.48;
+        $estimatedWidth = $this->estimateTextWidth($value, $size);
         $this->text($value, $rightX - $estimatedWidth, $y, $size, $options);
     }
 
     protected function centerText(string $value, float $centerX, float $y, float $size = 10, array $options = []): void
     {
-        $estimatedWidth = strlen($this->normalizeText($value)) * $size * 0.48;
+        $estimatedWidth = $this->estimateTextWidth($value, $size);
         $this->text($value, $centerX - ($estimatedWidth / 2), $y, $size, $options);
+    }
+
+    protected function estimateTextWidth(string $value, float $size): float
+    {
+        return strlen($this->normalizeText($value)) * $size * 0.48;
     }
 
     protected function line(float $x1, float $y1, float $x2, float $y2, float $width = 0.6, string $color = self::BLACK): void
@@ -268,9 +273,9 @@ class ProformaInvoicePdfGenerator
         $this->centerText('PROFORMA INVOICE', self::PAGE_WIDTH / 2, 718, 14, ['bold' => true, 'color' => self::BLUE]);
 
         // ── NOMOR & TANGGAL ─────────────────────────────────────────
-        $labelX  = 86;
-        $colonX  = 154;
-        $valueX  = 160;
+        $labelX  = 36;
+        $colonX  = 104;
+        $valueX  = 112;
 
         $this->text('Nomor',   $labelX, 695, 9.5);
         $this->text(':',       $colonX, 695, 9.5);
@@ -284,7 +289,7 @@ class ProformaInvoicePdfGenerator
         $this->text(':',       $colonX, 669, 9.5);
         $this->text('Proforma Invoice', $valueX, 669, 9.5);
 
-        $this->text("Surabaya, {$docDate}", 370, 695, 9.5);
+        $this->rightText("Surabaya, {$docDate}", 540, 695, 9.5);
 
         // ── KEPADA ──────────────────────────────────────────────────
         $recipientY = 643;
@@ -338,8 +343,8 @@ class ProformaInvoicePdfGenerator
             $this->rightText($this->formatNumber($lineTotal) . ',-', 540, $y, 9.5, ['bold' => true]);
             // Baris 2: qty dan satuan
             $this->text($this->formatNumber($qtyVal) . ' ' . $unit, 35, $y - 12, 9, ['color' => self::MUTED]);
-            $this->line(28, $y - 20, 566, $y - 20, 0.25, '0.82 0.82 0.82');
-            $y -= 28; // 2 baris: 14pt * 2
+            $this->line(28, $y - 24, 566, $y - 24, 0.25, '0.82 0.82 0.82');
+            $y -= 34;
         }
 
         // ── SUBTOTAL & DISCOUNT ──────────────────────────────────────
@@ -382,8 +387,12 @@ class ProformaInvoicePdfGenerator
         $this->text('Demikianlah, atas perhatian serta kerjasama yang baik kami ucapkan terima kasih.', 36, $paymentY, 9.5);
 
         // ── TANDA TANGAN ────────────────────────────────────────────
-        $this->centerText('Hormat kami,', 418, 212, 9.5);
-        $this->centerText('PT. SUSANTI MEGAH', 418, 196, 9.5, ['bold' => true, 'color' => self::BLUE]);
+        $signatureRightX = 540;
+        $signatureNameWidth = $this->estimateTextWidth($signerName, 9.5);
+        $signatureLineStartX = $signatureRightX - $signatureNameWidth;
+
+        $this->rightText('Hormat kami,', $signatureRightX, 212, 9.5);
+        $this->rightText('PT. SUSANTI MEGAH', $signatureRightX, 196, 9.5, ['bold' => true, 'color' => self::BLUE]);
 
         if ($hasSignature) {
             $boxWidth  = 100.0;
@@ -391,14 +400,14 @@ class ProformaInvoicePdfGenerator
             $scale      = min($boxWidth / $imgWidth, $boxHeight / $imgHeight);
             $drawWidth  = $imgWidth  * $scale;
             $drawHeight = $imgHeight * $scale;
-            $drawX      = 417.5 - ($drawWidth  / 2);
+            $drawX      = $signatureRightX - $drawWidth;
             $drawY      = 165    - ($drawHeight / 2);
             $this->commands[] = sprintf("q %.2f 0 0 %.2f %.2f %.2f cm /Img1 Do Q", $drawWidth, $drawHeight, $drawX, $drawY);
         }
 
-        $this->line(348, 144, 488, 144, 0.5);
-        $this->centerText($signerName, 418, 131, 9.5, ['bold' => true]);
-        $this->centerText('PT. Susanti Megah', 418, 119, 8.5);
+        $this->line($signatureLineStartX, 144, $signatureRightX, 144, 0.5);
+        $this->rightText($signerName, $signatureRightX, 131, 9.5, ['bold' => true]);
+        $this->rightText('PT. Susanti Megah', $signatureRightX, 119, 8.5);
 
         // ── FOOTER ──────────────────────────────────────────────────
         $this->line(28, 80, 566, 80, 1.2, self::BLUE);
