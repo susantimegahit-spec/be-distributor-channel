@@ -16,23 +16,25 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::connection($this->connection)->create('expedition_rates', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('expedition_id')->constrained('ekspedisi.expeditions')->onDelete('cascade');
-            $table->foreignId('origin_regency_id')->constrained('ekspedisi.regencies')->onDelete('cascade');
-            $table->foreignId('destination_district_id')->constrained('ekspedisi.districts')->onDelete('cascade');
-            $table->decimal('rate_per_kg', 12, 2)->default(0);
-            $table->decimal('fixed_rate', 12, 2)->default(0);
-            $table->integer('estimated_days')->nullable();
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
+        if (!Schema::connection($this->connection)->hasTable('expedition_rates')) {
+            Schema::connection($this->connection)->create('expedition_rates', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('expedition_id')->constrained('ekspedisi.expeditions')->onDelete('cascade');
+                $table->foreignId('origin_regency_id')->constrained('ekspedisi.regencies')->onDelete('cascade');
+                $table->foreignId('destination_district_id')->constrained('ekspedisi.districts')->onDelete('cascade');
+                $table->decimal('rate_per_kg', 12, 2)->default(0);
+                $table->decimal('fixed_rate', 12, 2)->default(0);
+                $table->integer('estimated_days')->nullable();
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
 
-            // Set unique constraint agar tidak ada duplikasi tarif pada rute yang sama untuk satu ekspedisi
-            $table->unique(
-                ['expedition_id', 'origin_regency_id', 'destination_district_id'],
-                'uq_expedition_route_rate'
-            );
-        });
+                // Set unique constraint agar tidak ada duplikasi tarif pada rute yang sama untuk satu ekspedisi
+                $table->unique(
+                    ['expedition_id', 'origin_regency_id', 'destination_district_id'],
+                    'uq_expedition_route_rate'
+                );
+            });
+        }
     }
 
     /**

@@ -16,13 +16,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::connection($this->connection)->create('expeditions', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('code')->unique(); // JNE, JNT, SICEPAT, dll
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
-        });
+        if (!Schema::connection($this->connection)->hasTable('expeditions')) {
+            Schema::connection($this->connection)->create('expeditions', function (Blueprint $table) {
+                $table->id();
+                $table->string('name');
+                $table->string('code')->unique(); // JNE, JNT, SICEPAT, dll
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
+            });
+        }
     }
 
     /**

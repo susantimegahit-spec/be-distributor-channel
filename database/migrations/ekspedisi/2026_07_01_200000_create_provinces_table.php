@@ -17,11 +17,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::connection($this->connection)->create('provinces', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->timestamps();
-        });
+        if (!Schema::connection($this->connection)->hasTable('provinces')) {
+            Schema::connection($this->connection)->create('provinces', function (Blueprint $table) {
+                $table->id();
+                $table->string('name');
+                $table->timestamps();
+            });
+        }
     }
 
     /**

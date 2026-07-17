@@ -16,12 +16,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::connection($this->connection)->create('regencies', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('province_id')->constrained('ekspedisi.provinces')->onDelete('cascade');
-            $table->string('name');
-            $table->timestamps();
-        });
+        if (!Schema::connection($this->connection)->hasTable('regencies')) {
+            Schema::connection($this->connection)->create('regencies', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('province_id')->constrained('ekspedisi.provinces')->onDelete('cascade');
+                $table->string('name');
+                $table->timestamps();
+            });
+        }
     }
 
     /**
