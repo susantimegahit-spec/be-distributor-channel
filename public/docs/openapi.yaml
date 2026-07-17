@@ -4705,6 +4705,24 @@ paths:
                             type: integer
                           message:
                             type: string
+                      production_resources:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                          count:
+                            type: integer
+                          message:
+                            type: string
+                      production_items:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                          count:
+                            type: integer
+                          message:
+                            type: string
         '401':
           description: Tidak terautentikasi
 

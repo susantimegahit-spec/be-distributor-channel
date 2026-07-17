@@ -9,6 +9,7 @@ use App\Modules\SalesEmployee\Services\SalesEmployeeService;
 use App\Modules\Vat\Services\VatService;
 use App\Modules\Warehouse\Services\WarehouseService;
 use App\Modules\Discount\Services\DiscountService;
+use App\Modules\Production\Services\ProductionService;
 use App\Traits\ApiResponseFormatter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,6 +25,7 @@ class SyncAllController extends Controller
     protected VatService $vatService;
     protected WarehouseService $warehouseService;
     protected DiscountService $discountService;
+    protected ProductionService $productionService;
 
     /**
      * SyncAllController constructor.
@@ -34,7 +36,8 @@ class SyncAllController extends Controller
         SalesEmployeeService $salesEmployeeService,
         VatService $vatService,
         WarehouseService $warehouseService,
-        DiscountService $discountService
+        DiscountService $discountService,
+        ProductionService $productionService
     ) {
         $this->distributorService = $distributorService;
         $this->itemService = $itemService;
@@ -42,6 +45,7 @@ class SyncAllController extends Controller
         $this->vatService = $vatService;
         $this->warehouseService = $warehouseService;
         $this->discountService = $discountService;
+        $this->productionService = $productionService;
     }
 
     /**
@@ -155,6 +159,36 @@ class SyncAllController extends Controller
             ];
         } catch (Throwable $e) {
             $results['discount_types'] = [
+                'success' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+
+        // 8. Sync Production Resources (SAP / api/GetResource)
+        try {
+            $data = $this->productionService->syncResourcesFromSap($userId);
+            $results['production_resources'] = [
+                'success' => true,
+                'count' => count($data),
+                'message' => 'Data resource produksi berhasil disinkronisasi.',
+            ];
+        } catch (Throwable $e) {
+            $results['production_resources'] = [
+                'success' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+
+        // 9. Sync Production Items (SAP / api/ListItemProd)
+        try {
+            $data = $this->productionService->syncItemsFromSap($userId);
+            $results['production_items'] = [
+                'success' => true,
+                'count' => count($data),
+                'message' => 'Data item produksi berhasil disinkronisasi.',
+            ];
+        } catch (Throwable $e) {
+            $results['production_items'] = [
                 'success' => false,
                 'error' => $e->getMessage(),
             ];
