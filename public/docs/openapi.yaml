@@ -5557,6 +5557,10 @@ components:
           type: string
           nullable: true
           example: "10.0000"
+        brand:
+          type: string
+          nullable: true
+          example: KAPAL
         status:
           type: integer
           example: 1
