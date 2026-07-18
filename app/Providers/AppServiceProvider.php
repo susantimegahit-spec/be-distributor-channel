@@ -96,6 +96,10 @@ class AppServiceProvider extends ServiceProvider
             \App\Modules\Production\Repositories\ProductionRepositoryInterface::class,
             \App\Modules\Production\Repositories\ProductionRepository::class
         );
+        $this->app->bind(
+            \App\Modules\SalesDashboard\Repositories\SalesDashboardRepositoryInterface::class,
+            \App\Modules\SalesDashboard\Repositories\SalesDashboardRepository::class
+        );
     }
 
     /**
