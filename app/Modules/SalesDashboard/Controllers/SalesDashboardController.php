@@ -173,4 +173,30 @@ class SalesDashboardController extends Controller
             return $this->errorResponse('Gagal mengambil data dashboard: ' . $e->getMessage(), [], 500);
         }
     }
+
+    /**
+     * Update a single dashboard record by ID.
+     *
+     * @param  Request  $request
+     * @param  int  $id
+     * @return JsonResponse
+     */
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $payload = $request->validate([
+            'target_amount' => 'sometimes|numeric|min:0',
+            'cmo_amount' => 'sometimes|numeric|min:0',
+            'so_amount' => 'sometimes|numeric|min:0',
+            'do_amount' => 'sometimes|numeric|min:0',
+            'customer_name' => 'sometimes|string|max:255',
+            'depo' => 'sometimes|nullable|string|max:100',
+            'item_name' => 'sometimes|string|max:255',
+        ]);
+
+        $updated = $this->service->updateRecord($id, $payload);
+        if ($updated) {
+            return $this->successResponse($updated, 'Data dashboard berhasil diperbarui.');
+        }
+        return $this->errorResponse('Record tidak ditemukan.', [], 404);
+    }
 }

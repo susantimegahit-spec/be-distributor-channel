@@ -441,4 +441,16 @@ class SalesDashboardService
             'records' => $items
         ];
     }
+
+    /**
+     * Update a record by ID.
+     *
+     * @param  int  $id
+     * @param  array  $data
+     * @return SalesDashboardData|null
+     */
+    public function updateRecord(int $id, array $data): ?SalesDashboardData
+    {
+        return $this->repository->update($id, $data);
+    }
 }

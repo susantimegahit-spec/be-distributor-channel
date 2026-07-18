@@ -164,4 +164,21 @@ class SalesDashboardRepository implements SalesDashboardRepositoryInterface
             ->orderBy('item_code', 'asc')
             ->get();
     }
+
+    /**
+     * Update a record by ID.
+     *
+     * @param  int  $id
+     * @param  array  $data
+     * @return SalesDashboardData|null
+     */
+    public function update(int $id, array $data): ?SalesDashboardData
+    {
+        $record = $this->findById($id);
+        if ($record) {
+            $record->update($data);
+            return $record->fresh();
+        }
+        return null;
+    }
 }

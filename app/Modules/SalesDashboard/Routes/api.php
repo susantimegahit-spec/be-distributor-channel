@@ -9,5 +9,6 @@ Route::prefix('v1/sales-dashboard')->middleware('auth:sanctum')->group(function 
     Route::delete('/bulk', [SalesDashboardController::class, 'bulkDelete']);
     Route::post('/sync-so-do', [SalesDashboardController::class, 'syncActuals']);
     Route::get('/comparison', [SalesDashboardController::class, 'comparison']);
+    Route::put('/{id}', [SalesDashboardController::class, 'update']);
     Route::delete('/{id}', [SalesDashboardController::class, 'destroy']);
 });

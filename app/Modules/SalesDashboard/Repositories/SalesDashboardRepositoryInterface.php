@@ -63,4 +63,13 @@ interface SalesDashboardRepositoryInterface
      * @return Collection
      */
     public function getComparisonData(int $month, int $year, array $filters = []): Collection;
+
+    /**
+     * Update a record by ID.
+     *
+     * @param  int  $id
+     * @param  array  $data
+     * @return SalesDashboardData|null
+     */
+    public function update(int $id, array $data): ?SalesDashboardData;
 }

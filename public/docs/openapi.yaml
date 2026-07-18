@@ -207,6 +207,50 @@ paths:
           description: Data perbandingan dashboard berhasil diambil.
 
   /v1/sales-dashboard/{id}:
+    put:
+      summary: Update a single sales dashboard record
+      description: Memperbarui nilai target_amount, cmo_amount, so_amount, do_amount, customer_name, depo, atau item_name secara manual berdasarkan ID.
+      tags:
+        - Sales Dashboard
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                target_amount:
+                  type: number
+                  example: 1250000.00
+                cmo_amount:
+                  type: number
+                  example: 1400000.00
+                so_amount:
+                  type: number
+                  example: 1000000.00
+                do_amount:
+                  type: number
+                  example: 950000.00
+                customer_name:
+                  type: string
+                  example: PT Distributor Utama Baru
+                depo:
+                  type: string
+                  example: Surabaya
+                item_name:
+                  type: string
+                  example: Garam Refina Bal Premium
+      responses:
+        '200':
+          description: Data dashboard berhasil diperbarui.
     delete:
       summary: Delete a single sales dashboard record
       description: Menghapus satu data record berdasarkan ID.
