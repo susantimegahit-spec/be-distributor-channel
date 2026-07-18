@@ -1548,6 +1548,8 @@ class SalesOrderService
         // Call SAP API
         $response = Http::timeout(20)->post('http://103.18.133.187:3100/api/CancelSO', [
             'DocNum' => (string) $salesOrder->sap_doc_num,
+            'UserId' => $userId ? (int) $userId : 1,
+            'AddonId' => 2,
         ]);
 
         if (!$response->successful()) {
