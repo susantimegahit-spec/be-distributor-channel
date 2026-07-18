@@ -9,6 +9,221 @@ servers:
   - url: http://localhost:8000/api/distributor-channel
     description: Local Server
 paths:
+  /v1/sales-dashboard/upload:
+    post:
+      summary: Upload Target or CMO Excel/CSV file
+      description: Mengunggah file spreadsheet (.xlsx, .xls, .csv) untuk target penjualan atau CMO. Dynamic month columns (e.g. Januari 2026, Februari 2026) akan diparse dan dinormalisasi menjadi baris-baris data per bulan/tahun di tabel lokal.
+      tags:
+        - Sales Dashboard
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - type
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File Excel atau CSV
+                type:
+                  type: string
+                  enum: [target, cmo]
+                  description: Tipe data yang diunggah
+      responses:
+        '200':
+          description: Berhasil memproses upload data.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Berhasil memproses upload data target.
+                  data:
+                    type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      processed_rows_count:
+                        type: integer
+                        example: 24
+
+  /v1/sales-dashboard/raw-data:
+    get:
+      summary: Get raw sales dashboard records list
+      description: Mengambil data target, CMO, PO/SO, dan DO mentah dengan pagination dan filter.
+      tags:
+        - Sales Dashboard
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: customer_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter kode customer/distributor
+        - name: item_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter kode produk
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter bulan (1-12)
+        - name: year
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter tahun
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Pencarian teks
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Data list dashboard berhasil diambil.
+
+  /v1/sales-dashboard/bulk:
+    delete:
+      summary: Reset target/CMO amounts to 0 (Bulk)
+      description: Mereset semua nilai target atau cmo menjadi 0 pada periode (bulan/tahun) tertentu.
+      tags:
+        - Sales Dashboard
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [target, cmo]
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: year
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: customer_code
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Berhasil mereset data.
+
+  /v1/sales-dashboard/sync-so-do:
+    post:
+      summary: Sync local PO/SO actual amounts and DO actual amounts (from SAP)
+      description: Memicu sinkronisasi data actual PO/SO (berdasarkan sales orders lokal) dan DO (berdasarkan pengiriman SAP) untuk bulan/tahun tertentu.
+      tags:
+        - Sales Dashboard
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - month
+                - year
+              properties:
+                month:
+                  type: integer
+                  example: 7
+                year:
+                  type: integer
+                  example: 2026
+                customer_code:
+                  type: string
+                  example: C110003074
+      responses:
+        '200':
+          description: Sinkronisasi data actual berhasil.
+
+  /v1/sales-dashboard/comparison:
+    get:
+      summary: Get comparison dashboard data (Target vs CMO vs PO/SO vs DO)
+      description: Mengambil data agregat untuk perbandingan dashboard target, CMO, PO/SO (SO local), dan DO (SAP) berdasarkan periode bulan dan tahun.
+      tags:
+        - Sales Dashboard
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: year
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: customer_code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: item_code
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Data perbandingan dashboard berhasil diambil.
+
+  /v1/sales-dashboard/{id}:
+    delete:
+      summary: Delete a single sales dashboard record
+      description: Menghapus satu data record berdasarkan ID.
+      tags:
+        - Sales Dashboard
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Record berhasil dihapus.
+
   /v1/pi-settings:
     get:
       summary: Get active Proforma Invoice signature configuration
