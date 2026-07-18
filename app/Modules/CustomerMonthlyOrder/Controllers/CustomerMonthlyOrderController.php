@@ -81,22 +81,42 @@ class CustomerMonthlyOrderController extends Controller
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();
-        $distributorId = null;
-
-        if ($user->code_customer) {
-            $distributor = Distributor::where('code_customer', $user->code_customer)->first();
-            if (!$distributor) {
-                return $this->errorResponse('Distributor tidak terdaftar.', [], 403);
+        
+        // Resolve distributor dynamically:
+        // 1. Try resolving from request payload (card_code / code_customer / customer_code)
+        $cardCode = $request->input('card_code') ?? $request->input('code_customer') ?? $request->input('customer_code');
+        
+        if ($cardCode) {
+            $distributor = Distributor::where('code_customer', $cardCode)->first();
+            if ($distributor) {
+                $distributorId = $distributor->id;
             }
-            $distributorId = $distributor->id;
-        } else {
-            $request->validate([
-                'distributor_id' => 'required|exists:distributors,id'
-            ]);
+        }
+
+        // 2. Fallback to authenticated user's code_customer
+        if (!$distributorId && $user->code_customer) {
+            $distributor = Distributor::where('code_customer', $user->code_customer)->first();
+            if ($distributor) {
+                $distributorId = $distributor->id;
+            }
+        }
+
+        // 3. Fallback to direct distributor_id input
+        if (!$distributorId && $request->has('distributor_id')) {
             $distributorId = (int)$request->input('distributor_id');
         }
 
+        // 4. If still not resolved, fail validation
+        if (!$distributorId) {
+            return $this->errorResponse('Gagal mengidentifikasi distributor. Silakan sertakan card_code atau code_customer yang valid.', [
+                'card_code' => ['The card_code or code_customer field is required.']
+            ], 422);
+        }
+
         $payload = $request->validate([
+            'card_code' => 'nullable|string|max:50',
+            'code_customer' => 'nullable|string|max:50',
+            'customer_code' => 'nullable|string|max:50',
             'po_number' => 'nullable|string|max:100',
             'doc_date' => 'required|date',
             'doc_due_date' => 'nullable|date',
