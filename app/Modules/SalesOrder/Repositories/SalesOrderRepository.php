@@ -3,6 +3,8 @@
 namespace App\Modules\SalesOrder\Repositories;
 
 use App\Models\SalesOrder;
+use App\Models\CustomerMonthlyOrder;
+use App\Models\CustomerMonthlyOrderDetail;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -85,6 +87,19 @@ class SalesOrderRepository implements SalesOrderRepositoryInterface
 
             foreach ($lines as $line) {
                 $salesOrder->details()->create($line);
+            }
+
+            // Duplicate to customer_monthly_orders if DRAFT as CMO
+            if (strtoupper($salesOrder->status) === 'DRAFT') {
+                $cmoData = $salesOrder->getAttributes();
+                unset($cmoData['id']);
+                
+                $cmo = CustomerMonthlyOrder::create($cmoData);
+                
+                foreach ($lines as $line) {
+                    $line['customer_monthly_order_id'] = $cmo->id;
+                    CustomerMonthlyOrderDetail::create($line);
+                }
             }
 
             return $salesOrder->load(['details.item', 'details.warehouse', 'details.vat', 'details.ocr', 'details.ocr2', 'details.ocr3', 'salesEmployee', 'sapDiscount.details', 'attachments']);
