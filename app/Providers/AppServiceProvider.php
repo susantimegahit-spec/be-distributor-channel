@@ -100,6 +100,10 @@ class AppServiceProvider extends ServiceProvider
             \App\Modules\SalesDashboard\Repositories\SalesDashboardRepositoryInterface::class,
             \App\Modules\SalesDashboard\Repositories\SalesDashboardRepository::class
         );
+        $this->app->bind(
+            \App\Modules\CustomerMonthlyOrder\Repositories\CustomerMonthlyOrderRepositoryInterface::class,
+            \App\Modules\CustomerMonthlyOrder\Repositories\CustomerMonthlyOrderRepository::class
+        );
     }
 
     /**

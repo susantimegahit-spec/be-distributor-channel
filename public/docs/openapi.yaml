@@ -2927,6 +2927,181 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/customer-monthly-orders:
+    get:
+      summary: List all customer monthly orders (CMO)
+      description: Mendapatkan daftar semua customer monthly order. Jika diakses oleh user distributor, hanya menampilkan order miliknya.
+      tags:
+        - Customer Monthly Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan status order
+        - name: card_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan kode customer (CardCode)
+        - name: start_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Filter tanggal mulai pembuatan/doc_date (YYYY-MM-DD)
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Filter tanggal akhir pembuatan/doc_date (YYYY-MM-DD)
+      responses:
+        '200':
+          description: Daftar customer monthly order berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderListResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Create a new Customer Monthly Order (CMO)
+      description: Membuat draft Customer Monthly Order baru.
+      tags:
+        - Customer Monthly Orders
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SalesOrderDraftUpdateRequest'
+      responses:
+        '201':
+          description: Customer monthly order draft berhasil dibuat.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderResponse'
+        '401':
+          description: Tidak terautentikasi
+        '403':
+          description: Hak akses ditolak
+
+  /v1/customer-monthly-orders/{id}:
+    get:
+      summary: Get details of a single customer monthly order (CMO)
+      description: Mengambil data detail customer monthly order berdasarkan ID.
+      tags:
+        - Customer Monthly Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail customer monthly order berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderResponse'
+        '401':
+          description: Tidak terautentikasi
+        '404':
+          description: Data tidak ditemukan
+    put:
+      summary: Update a Customer Monthly Order (CMO)
+      description: Memperbarui draft Customer Monthly Order (hanya jika statusnya masih DRAFT).
+      tags:
+        - Customer Monthly Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SalesOrderDraftUpdateRequest'
+      responses:
+        '200':
+          description: Customer monthly order berhasil diperbarui.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderResponse'
+        '400':
+          description: CMO tidak dapat diperbarui (sudah diposting)
+        '401':
+          description: Tidak terautentikasi
+    delete:
+      summary: Delete a Customer Monthly Order (CMO)
+      description: Menghapus data Customer Monthly Order (hanya jika statusnya masih DRAFT).
+      tags:
+        - Customer Monthly Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Customer monthly order berhasil dihapus.
+        '400':
+          description: CMO tidak dapat dihapus (sudah diposting)
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/customer-monthly-orders/{id}/post-to-so:
+    post:
+      summary: Post Customer Monthly Order to Sales Order
+      description: Menyalin/membuat Sales Order baru dari data CMO terpilih dengan status WAITING_OM. Status CMO yang diposting akan diperbarui menjadi POSTED.
+      tags:
+        - Customer Monthly Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '201':
+          description: Customer monthly order berhasil diposting ke Sales Order.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderResponse'
+        '400':
+          description: Gagal memposting CMO (sudah pernah diposting)
+        '401':
+          description: Tidak terautentikasi
+
   /v1/sales-orders:
     get:
       summary: List all sales orders
