@@ -123,7 +123,7 @@ class ItemService
             return 'KAPAL';
         }
         if (str_contains($itemNameLower, 'perahu layar') || str_starts_with($itemCodeLower, 'd05') || str_starts_with($itemCodeLower, 'd06')) {
-            return 'PERAHU LAYAR';
+            return 'LAYAR';
         }
         if (
             str_contains($itemNameLower, 'jempol') ||
