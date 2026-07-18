@@ -640,6 +640,31 @@ class SalesOrderController extends Controller
     }
 
     /**
+     * Cancel a Sales Order and cancel it in SAP B1.
+     *
+     * @param  Request  $request
+     * @param  int  $id
+     * @return JsonResponse
+     */
+    public function cancel(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $distributorId = null;
+
+        if ($user->code_customer) {
+            $distributor = Distributor::where('code_customer', $user->code_customer)->first();
+            $distributorId = $distributor?->id;
+        }
+
+        try {
+            $salesOrder = $this->salesOrderService->cancelSalesOrder($id, $distributorId, $user->id);
+            return $this->successResponse($salesOrder, 'Sales Order berhasil dibatalkan dan disinkronisasikan ke SAP.');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), [], 400);
+        }
+    }
+
+    /**
      * Get sales order dashboard summary metrics.
      *
      * @param  Request  $request

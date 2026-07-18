@@ -3461,6 +3461,50 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/sales-orders/{id}/cancel:
+    post:
+      summary: Cancel Sales Order (sync to SAP B1)
+      description: Membatalkan Sales Order yang sudah di-approve finance (memiliki sap_doc_num) dan belum berstatus DELIVERY/ARRIVED. Mengirim request CancelSO ke SAP dan mengubah status lokal menjadi CANCELLED.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order yang ingin dibatalkan
+      responses:
+        '200':
+          description: Sales Order berhasil dibatalkan dan disinkronisasikan ke SAP B1.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Sales Order berhasil dibatalkan dan disinkronisasikan ke SAP.
+                  data:
+                    $ref: '#/components/schemas/SalesOrder'
+        '400':
+          description: Pembatalan gagal karena melanggar aturan bisnis atau error dari API SAP.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /v1/sales-orders/sync-all:
     post:
       summary: Batch sync all pending Sales Orders status from SAP

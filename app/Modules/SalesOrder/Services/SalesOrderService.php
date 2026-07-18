@@ -1516,4 +1516,64 @@ class SalesOrderService
 
         return $body['Result'] ?? [];
     }
+
+    /**
+     * Cancel Sales Order and sync to SAP.
+     *
+     * @param  int  $id
+     * @param  int|null  $distributorId
+     * @param  int|null  $userId
+     * @return SalesOrder
+     * @throws Exception
+     */
+    public function cancelSalesOrder(int $id, ?int $distributorId = null, ?int $userId = null): SalesOrder
+    {
+        $salesOrder = $this->getOrderById($id, $distributorId);
+
+        if (!$salesOrder) {
+            throw new Exception('Sales order tidak ditemukan.');
+        }
+
+        // Rule check: Must have sap_doc_num (integrated/approved)
+        if (empty($salesOrder->sap_doc_num)) {
+            throw new Exception('Sales Order belum di-approve oleh finance atau belum di-integrasikan dengan SAP B1.');
+        }
+
+        // Rule check: Cannot cancel if already delivery, arrived or cancelled
+        $currentStatus = strtoupper($salesOrder->status);
+        if (in_array($currentStatus, ['DELIVERY', 'ARRIVED', 'CANCELLED', 'CANCEL'])) {
+            throw new Exception('Sales Order tidak dapat di-cancel karena status saat ini adalah ' . $salesOrder->status);
+        }
+
+        // Call SAP API
+        $response = Http::timeout(20)->post('http://103.18.133.187:3100/api/CancelSO', [
+            'DocNum' => (string) $salesOrder->sap_doc_num,
+        ]);
+
+        if (!$response->successful()) {
+            throw new Exception('Gagal menghubungi API SAP untuk pembatalan SO.');
+        }
+
+        $body = $response->json();
+
+        // Handle SAP error code
+        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
+            throw new Exception('API SAP CancelSO mengembalikan error: ' . ($body['Message'] ?? $body['ErrorDesc'] ?? 'Unknown error'));
+        }
+
+        // Update sales order status to CANCELLED locally
+        $salesOrder->update([
+            'status' => 'CANCELLED',
+        ]);
+
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'CANCEL_SALES_ORDER',
+                "Cancelled Sales Order {$salesOrder->order_no} (SAP DocNum: {$salesOrder->sap_doc_num})."
+            );
+        }
+
+        return $salesOrder;
+    }
 }
