@@ -113,6 +113,14 @@ class CustomerMonthlyOrderController extends Controller
             ], 422);
         }
 
+        // Decode lines if it is a JSON string
+        if (is_string($request->input('lines'))) {
+            $decoded = json_decode($request->input('lines'), true);
+            if (is_array($decoded)) {
+                $request->merge(['lines' => $decoded]);
+            }
+        }
+
         $payload = $request->validate([
             'card_code' => 'nullable|string|max:50',
             'code_customer' => 'nullable|string|max:50',
@@ -135,11 +143,14 @@ class CustomerMonthlyOrderController extends Controller
             'lines' => 'required|array|min:1',
             'lines.*.item_code' => 'required|string|exists:items,item_code',
             'lines.*.quantity' => 'required|numeric|min:0.0001',
+            'lines.*.unit_msr' => 'nullable|string|max:50',
+            'lines.*.uom_entry' => 'nullable|integer',
             'lines.*.unit_price' => 'required|numeric|min:0',
             'lines.*.disc_percent' => 'nullable|numeric|min:0|max:100',
             'lines.*.line_total' => 'required|numeric|min:0',
             'lines.*.whs_code' => 'nullable|string|exists:warehouses,whs_code',
             'lines.*.vat_group' => 'nullable|string|exists:vats,code',
+            'lines.*.free_text' => 'nullable|string',
             'lines.*.ocr_code' => 'nullable|string',
             'lines.*.ocr_code2' => 'nullable|string',
             'lines.*.ocr_code3' => 'nullable|string',
@@ -170,6 +181,14 @@ class CustomerMonthlyOrderController extends Controller
             $distributorId = $distributor?->id;
         }
 
+        // Decode lines if it is a JSON string
+        if (is_string($request->input('lines'))) {
+            $decoded = json_decode($request->input('lines'), true);
+            if (is_array($decoded)) {
+                $request->merge(['lines' => $decoded]);
+            }
+        }
+
         $payload = $request->validate([
             'po_number' => 'nullable|string|max:100',
             'doc_date' => 'sometimes|required|date',
@@ -189,11 +208,14 @@ class CustomerMonthlyOrderController extends Controller
             'lines' => 'sometimes|required|array|min:1',
             'lines.*.item_code' => 'required|string|exists:items,item_code',
             'lines.*.quantity' => 'required|numeric|min:0.0001',
+            'lines.*.unit_msr' => 'nullable|string|max:50',
+            'lines.*.uom_entry' => 'nullable|integer',
             'lines.*.unit_price' => 'required|numeric|min:0',
             'lines.*.disc_percent' => 'nullable|numeric|min:0|max:100',
             'lines.*.line_total' => 'required|numeric|min:0',
             'lines.*.whs_code' => 'nullable|string|exists:warehouses,whs_code',
             'lines.*.vat_group' => 'nullable|string|exists:vats,code',
+            'lines.*.free_text' => 'nullable|string',
             'lines.*.ocr_code' => 'nullable|string',
             'lines.*.ocr_code2' => 'nullable|string',
             'lines.*.ocr_code3' => 'nullable|string',
