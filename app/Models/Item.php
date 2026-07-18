@@ -15,6 +15,7 @@ class Item extends Model
         'suom_entry',
         'sal_unit_msr',
         'per_kg',
+        'brand',
         'status',
     ];
 
