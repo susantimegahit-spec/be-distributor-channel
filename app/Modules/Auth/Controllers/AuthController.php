@@ -51,6 +51,7 @@ class AuthController extends Controller
                 'email' => $user->email,
                 'role_id' => $user->role_id,
                 'role_name' => $user->role?->name,
+                'approval_id' => $user->role?->roleMenu?->approval_id,
                 'code_customer' => $user->code_customer,
                 'id_distributor' => $user->distributor?->id,
                 'name_distributor' => $user->distributor?->name,

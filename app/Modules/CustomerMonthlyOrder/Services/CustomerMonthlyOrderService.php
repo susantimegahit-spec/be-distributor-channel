@@ -104,6 +104,10 @@ class CustomerMonthlyOrderService
         }
         $data['doc_total'] = $docTotal;
 
+        // Remove non-db columns
+        unset($data['customer_code']);
+        unset($data['code_customer']);
+
         return $this->repository->create($data);
     }
 
@@ -138,6 +142,10 @@ class CustomerMonthlyOrderService
             }
             $data['doc_total'] = $docTotal;
         }
+
+        // Remove non-db columns
+        unset($data['customer_code']);
+        unset($data['code_customer']);
 
         return $this->repository->update($order, $data);
     }
