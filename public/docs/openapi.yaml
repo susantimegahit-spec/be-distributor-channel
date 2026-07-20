@@ -173,6 +173,70 @@ paths:
         '200':
           description: Sinkronisasi data actual berhasil.
 
+  /v1/sales-dashboard/sync:
+    post:
+      summary: Sync CMO, SO, and SAP DO data to sales_dashboard_data
+      description: Memicu sinkronisasi manual untuk data CMO, SO (yang sudah disetujui finance), dan DO (dari SAP) berdasarkan Tahun, CardCode, dan Brand. Hasilnya akan disimpan di tabel sales_dashboard_data (menggunakan customer code override sementara C110001252 jika diset).
+      tags:
+        - Sales Dashboard
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - Tahun
+                - CardCode
+                - Brand
+              properties:
+                Tahun:
+                  type: string
+                  description: Tahun data yang disinkronkan
+                  example: "2026"
+                CardCode:
+                  type: string
+                  description: Kode Customer/CardCode sumber
+                  example: "C110003419"
+                Brand:
+                  type: string
+                  description: Daftar brand yang dipisahkan koma
+                  example: "KAPAL,GARAMI,LAYAR"
+      responses:
+        '200':
+          description: Sinkronisasi data sales dashboard berhasil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data Sales Dashboard berhasil disinkronkan.
+                  data:
+                    type: object
+                    properties:
+                      year:
+                        type: integer
+                        example: 2026
+                      customer_code:
+                        type: string
+                        example: C110001252
+                      cmo_synced:
+                        type: integer
+                        example: 12
+                      so_synced:
+                        type: integer
+                        example: 8
+                      do_synced:
+                        type: integer
+                        example: 2
+
   /v1/sales-dashboard/comparison:
     get:
       summary: Get comparison dashboard data (Target vs CMO vs PO/SO vs DO)

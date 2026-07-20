@@ -139,6 +139,39 @@ class SalesDashboardController extends Controller
     }
 
     /**
+     * Sinkronisasi data CMO, SO, dan DO dari SAP ke tabel sales_dashboard_data.
+     *
+     * @param  Request  $request
+     * @return JsonResponse
+     */
+    public function sync(Request $request): JsonResponse
+    {
+        $tahun = $request->input('Tahun') ?? $request->input('year');
+        $cardCode = $request->input('CardCode') ?? $request->input('customer_code') ?? $request->input('code_customer');
+        $brandInput = $request->input('Brand') ?? $request->input('brand') ?? $request->input('brands');
+
+        if (!$tahun || !$cardCode || !$brandInput) {
+            return $this->errorResponse('Parameter Tahun, CardCode/customer_code, dan Brand wajib diisi.', [], 422);
+        }
+
+        $brands = is_array($brandInput) ? $brandInput : array_map('trim', explode(',', $brandInput));
+        $brands = array_map('strtoupper', $brands);
+
+        try {
+            // Sementara gunakan customer code C110001252 sebagai override sesuai request
+            $result = $this->service->syncDashboardData(
+                (int)$tahun,
+                (string)$cardCode,
+                $brands,
+                'C110001252'
+            );
+            return $this->successResponse($result, 'Data Sales Dashboard berhasil disinkronkan.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal sinkronisasi data dashboard: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
      * Get comparison dashboard data (Target vs CMO vs PO/SO vs DO).
      *
      * @param  Request  $request

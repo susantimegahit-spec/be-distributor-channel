@@ -453,4 +453,254 @@ class SalesDashboardService
     {
         return $this->repository->update($id, $data);
     }
+
+    /**
+     * Sync data CMO, SO, dan DO dari SAP ke tabel sales_dashboard_data.
+     *
+     * @param  int  $year
+     * @param  string  $customerCode
+     * @param  array  $brands
+     * @param  string|null  $targetCustomerOverride
+     * @return array
+     */
+    public function syncDashboardData(int $year, string $customerCode, array $brands, ?string $targetCustomerOverride = null): array
+    {
+        $targetCustomerCode = $targetCustomerOverride ?? $customerCode;
+
+        // Cari detail customer target di tabel distributors
+        $distributor = DB::table('distributors')->where('code_customer', $targetCustomerCode)->first();
+        $targetCustomerName = $distributor?->name ?? 'Distributor ' . $targetCustomerCode;
+        $targetDepo = $distributor?->depo;
+
+        // 1. Sync CMO
+        $cmoDetails = DB::table('customer_monthly_order_details as cmod')
+            ->join('customer_monthly_orders as cmo', 'cmo.id', '=', 'cmod.customer_monthly_order_id')
+            ->join('items as i', 'i.item_code', '=', 'cmod.item_code')
+            ->whereYear('cmo.doc_date', $year)
+            ->where('cmo.card_code', $customerCode)
+            ->whereIn('i.brand', $brands)
+            ->select(
+                DB::raw('MONTH(cmo.doc_date) as month'),
+                'cmod.item_code',
+                'i.item_name',
+                DB::raw('SUM(cmod.line_total) as total_cmo')
+            )
+            ->groupBy('month', 'cmod.item_code', 'i.item_name')
+            ->get();
+
+        $cmoSyncedCount = 0;
+        foreach ($cmoDetails as $cmo) {
+            DB::table('sales_dashboard_data')->updateOrInsert(
+                [
+                    'customer_code' => $targetCustomerCode,
+                    'item_code' => $cmo->item_code,
+                    'month' => (int)$cmo->month,
+                    'year' => $year
+                ],
+                [
+                    'customer_name' => $targetCustomerName,
+                    'depo' => $targetDepo,
+                    'item_name' => $cmo->item_name,
+                    'cmo_amount' => (float)$cmo->total_cmo,
+                    'updated_at' => now(),
+                ]
+            );
+            $cmoSyncedCount++;
+        }
+
+        // 2. Sync SO
+        $soDetails = DB::table('sales_order_details as sod')
+            ->join('sales_orders as so', 'so.id', '=', 'sod.sales_order_id')
+            ->join('items as i', 'i.item_code', '=', 'sod.item_code')
+            ->whereYear('so.doc_date', $year)
+            ->where('so.card_code', $customerCode)
+            ->whereIn('i.brand', $brands)
+            ->where(function($q) {
+                $q->where('so.approval_id', 6)
+                  ->orWhereIn('so.status', ['ORDER_APPROVED', 'DELIVERY', 'ARRIVED']);
+            })
+            ->select(
+                DB::raw('MONTH(so.doc_date) as month'),
+                'sod.item_code',
+                'i.item_name',
+                DB::raw('SUM(sod.line_total) as total_so')
+            )
+            ->groupBy('month', 'sod.item_code', 'i.item_name')
+            ->get();
+
+        $soSyncedCount = 0;
+        foreach ($soDetails as $so) {
+            DB::table('sales_dashboard_data')->updateOrInsert(
+                [
+                    'customer_code' => $targetCustomerCode,
+                    'item_code' => $so->item_code,
+                    'month' => (int)$so->month,
+                    'year' => $year
+                ],
+                [
+                    'customer_name' => $targetCustomerName,
+                    'depo' => $targetDepo,
+                    'item_name' => $so->item_name,
+                    'so_amount' => (float)$so->total_so,
+                    'updated_at' => now(),
+                ]
+            );
+            $soSyncedCount++;
+        }
+
+        // 3. Sync DO dari SAP
+        $doSyncedCount = 0;
+        try {
+            $response = Http::timeout(30)->post('http://103.18.133.187:3100/api/GetTotDO', [
+                'Tahun' => (string)$year,
+                'CardCode' => $customerCode,
+                'Brand' => implode(',', $brands),
+            ]);
+
+            if ($response->successful()) {
+                $body = $response->json();
+                if (isset($body['ErrorCode']) && $body['ErrorCode'] === 0) {
+                    $results = $body['Result'] ?? [];
+                    
+                    // Group results by Bulan (month) and Brand
+                    $doByBrandMonth = [];
+                    foreach ($results as $item) {
+                        $month = (int)$item['Bulan'];
+                        $brandName = trim(strtoupper($item['Brand']));
+                        $doAmount = (float)$item['Col4'];
+                        $doByBrandMonth[$month][$brandName] = $doAmount;
+                    }
+
+                    // Proses setiap bulan
+                    foreach ($doByBrandMonth as $month => $brandsData) {
+                        foreach ($brandsData as $brandName => $brandDoAmount) {
+                            // Ambil semua item_code yang memiliki brand ini
+                            $brandItems = DB::table('items')
+                                ->where('brand', $brandName)
+                                ->pluck('item_code')
+                                ->toArray();
+
+                            if (empty($brandItems)) {
+                                continue;
+                            }
+
+                            // Query record yang sudah ada di sales_dashboard_data untuk customer target ini
+                            $dashboardRecords = DB::table('sales_dashboard_data')
+                                ->where('customer_code', $targetCustomerCode)
+                                ->where('month', $month)
+                                ->where('year', $year)
+                                ->whereIn('item_code', $brandItems)
+                                ->get();
+
+                            if ($dashboardRecords->isEmpty()) {
+                                // Jika belum ada baris target sama sekali, bagikan sama rata ke item brand ini
+                                $brandDbItems = DB::table('items')
+                                    ->where('brand', $brandName)
+                                    ->where('status', 1)
+                                    ->get();
+
+                                if ($brandDbItems->isEmpty()) {
+                                    $brandDbItems = DB::table('items')
+                                        ->where('brand', $brandName)
+                                        ->get();
+                                }
+
+                                if (!$brandDbItems->isEmpty()) {
+                                    $count = $brandDbItems->count();
+                                    $equalDo = $brandDoAmount / $count;
+
+                                    foreach ($brandDbItems as $itemObj) {
+                                        DB::table('sales_dashboard_data')->updateOrInsert(
+                                            [
+                                                'customer_code' => $targetCustomerCode,
+                                                'item_code' => $itemObj->item_code,
+                                                'month' => $month,
+                                                'year' => $year
+                                            ],
+                                            [
+                                                'customer_name' => $targetCustomerName,
+                                                'depo' => $targetDepo,
+                                                'item_name' => $itemObj->item_name,
+                                                'do_amount' => $equalDo,
+                                                'updated_at' => now(),
+                                            ]
+                                        );
+                                        $doSyncedCount++;
+                                    }
+                                }
+                                continue;
+                            }
+
+                            // Cek perbandingan prioritas untuk distribusi proporsional
+                            $totalSo = $dashboardRecords->sum(function ($r) { return (float)$r->so_amount; });
+                            $totalCmo = $dashboardRecords->sum(function ($r) { return (float)$r->cmo_amount; });
+                            $totalTarget = $dashboardRecords->sum(function ($r) { return (float)$r->target_amount; });
+
+                            if ($totalSo > 0) {
+                                foreach ($dashboardRecords as $rec) {
+                                    $ratio = (float)$rec->so_amount / $totalSo;
+                                    DB::table('sales_dashboard_data')
+                                        ->where('id', $rec->id)
+                                        ->update([
+                                            'do_amount' => $brandDoAmount * $ratio,
+                                            'updated_at' => now(),
+                                        ]);
+                                    $doSyncedCount++;
+                                }
+                            } elseif ($totalCmo > 0) {
+                                foreach ($dashboardRecords as $rec) {
+                                    $ratio = (float)$rec->cmo_amount / $totalCmo;
+                                    DB::table('sales_dashboard_data')
+                                        ->where('id', $rec->id)
+                                        ->update([
+                                            'do_amount' => $brandDoAmount * $ratio,
+                                            'updated_at' => now(),
+                                        ]);
+                                    $doSyncedCount++;
+                                }
+                            } elseif ($totalTarget > 0) {
+                                foreach ($dashboardRecords as $rec) {
+                                    $ratio = (float)$rec->target_amount / $totalTarget;
+                                    DB::table('sales_dashboard_data')
+                                        ->where('id', $rec->id)
+                                        ->update([
+                                            'do_amount' => $brandDoAmount * $ratio,
+                                            'updated_at' => now(),
+                                        ]);
+                                    $doSyncedCount++;
+                                }
+                            } else {
+                                // Bagi rata ke semua record yang terdaftar
+                                $count = $dashboardRecords->count();
+                                $equalDo = $brandDoAmount / $count;
+                                foreach ($dashboardRecords as $rec) {
+                                    DB::table('sales_dashboard_data')
+                                        ->where('id', $rec->id)
+                                        ->update([
+                                            'do_amount' => $equalDo,
+                                            'updated_at' => now(),
+                                        ]);
+                                    $doSyncedCount++;
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    \Illuminate\Support\Facades\Log::warning("SalesDashboardService: GetTotDO SAP API returned error: " . ($body['Message'] ?? 'Unknown'));
+                }
+            } else {
+                \Illuminate\Support\Facades\Log::warning("SalesDashboardService: Failed to contact SAP GetTotDO API: " . $response->status());
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("SalesDashboardService: Exception in SAP GetTotDO sync: " . $e->getMessage());
+        }
+
+        return [
+            'year' => $year,
+            'customer_code' => $targetCustomerCode,
+            'cmo_synced' => $cmoSyncedCount,
+            'so_synced' => $soSyncedCount,
+            'do_synced' => $doSyncedCount,
+        ];
+    }
 }
