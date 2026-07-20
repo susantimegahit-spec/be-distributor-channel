@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\DB;
 class SyncSalesDashboard extends Command
 {
     /**
+     * 
+     * tes aja
      * The name and signature of the console command.
      *
      * @var string
@@ -70,7 +72,7 @@ class SyncSalesDashboard extends Command
             try {
                 // Jalankan sync tanpa override agar masuk ke kode customer aslinya
                 $result = $service->syncDashboardData($year, $customerCode, $brands);
-                
+
                 $this->line("  -> Hasil: CMO {$result['cmo_synced']} record, SO {$result['so_synced']} record, DO {$result['do_synced']} record berhasil diperbarui.");
             } catch (\Exception $e) {
                 $this->error("  -> Gagal menyinkronkan customer {$customerCode}: " . $e->getMessage());
