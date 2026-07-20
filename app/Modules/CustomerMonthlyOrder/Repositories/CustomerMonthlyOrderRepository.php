@@ -20,7 +20,11 @@ class CustomerMonthlyOrderRepository implements CustomerMonthlyOrderRepositoryIn
             ->with(['details.item', 'details.warehouse', 'details.vat', 'details.ocr', 'details.ocr2', 'details.ocr3', 'salesEmployee', 'sapDiscount.details', 'attachments', 'distributor']);
 
         if (!empty($filters['distributor_id'])) {
-            $query->where('distributor_id', $filters['distributor_id']);
+            if (is_array($filters['distributor_id'])) {
+                $query->whereIn('distributor_id', $filters['distributor_id']);
+            } else {
+                $query->where('distributor_id', $filters['distributor_id']);
+            }
         }
 
         if (!empty($filters['status'])) {
@@ -28,7 +32,12 @@ class CustomerMonthlyOrderRepository implements CustomerMonthlyOrderRepositoryIn
         }
 
         if (!empty($filters['card_code'])) {
-            $query->where('card_code', $filters['card_code']);
+            $cardCodes = array_map('trim', explode(',', $filters['card_code']));
+            if (count($cardCodes) > 1) {
+                $query->whereIn('card_code', $cardCodes);
+            } else {
+                $query->where('card_code', $cardCodes[0]);
+            }
         }
 
         if (!empty($filters['start_date'])) {

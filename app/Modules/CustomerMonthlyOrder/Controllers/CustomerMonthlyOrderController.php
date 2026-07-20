@@ -32,8 +32,9 @@ class CustomerMonthlyOrderController extends Controller
         $distributorId = null;
 
         if ($user->code_customer) {
-            $distributor = Distributor::where('code_customer', $user->code_customer)->first();
-            $distributorId = $distributor?->id;
+            $custCodes = array_map('trim', explode(',', $user->code_customer));
+            $distributorIds = Distributor::whereIn('code_customer', $custCodes)->pluck('id')->toArray();
+            $distributorId = count($distributorIds) > 0 ? $distributorIds : null;
         }
 
         $status = $request->query('status');
@@ -59,8 +60,9 @@ class CustomerMonthlyOrderController extends Controller
         $distributorId = null;
 
         if ($user->code_customer) {
-            $distributor = Distributor::where('code_customer', $user->code_customer)->first();
-            $distributorId = $distributor?->id;
+            $custCodes = array_map('trim', explode(',', $user->code_customer));
+            $distributorIds = Distributor::whereIn('code_customer', $custCodes)->pluck('id')->toArray();
+            $distributorId = count($distributorIds) > 0 ? $distributorIds : null;
         }
 
         $order = $this->service->getOrderById($id, $distributorId);

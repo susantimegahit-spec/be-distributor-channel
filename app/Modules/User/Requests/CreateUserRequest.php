@@ -27,7 +27,22 @@ class CreateUserRequest extends FormRequest
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:6',
             'role_id' => 'required|integer|exists:roles,id',
-            'code_customer' => 'nullable|string|exists:distributors,code_customer',
+            'code_customer' => [
+                'nullable',
+                'string',
+                function ($attribute, $value, $fail) {
+                    $codes = array_map('trim', explode(',', $value));
+                    foreach ($codes as $code) {
+                        if (empty($code)) continue;
+                        $exists = \Illuminate\Support\Facades\DB::table('distributors')
+                            ->where('code_customer', $code)
+                            ->exists();
+                        if (!$exists) {
+                            $fail("Kode customer '{$code}' tidak terdaftar di database.");
+                        }
+                    }
+                }
+            ],
             'is_active' => 'sometimes|boolean',
         ];
     }

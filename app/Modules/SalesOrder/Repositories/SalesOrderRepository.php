@@ -21,7 +21,11 @@ class SalesOrderRepository implements SalesOrderRepositoryInterface
         $query = SalesOrder::query()->with(['details', 'sapDiscount.details', 'attachments', 'approval', 'distributor']);
 
         if (!empty($filters['distributor_id'])) {
-            $query->where('distributor_id', $filters['distributor_id']);
+            if (is_array($filters['distributor_id'])) {
+                $query->whereIn('distributor_id', $filters['distributor_id']);
+            } else {
+                $query->where('distributor_id', $filters['distributor_id']);
+            }
         }
 
         if (!empty($filters['status'])) {
@@ -31,7 +35,12 @@ class SalesOrderRepository implements SalesOrderRepositoryInterface
         }
 
         if (!empty($filters['card_code'])) {
-            $query->where('card_code', $filters['card_code']);
+            $cardCodes = array_map('trim', explode(',', $filters['card_code']));
+            if (count($cardCodes) > 1) {
+                $query->whereIn('card_code', $cardCodes);
+            } else {
+                $query->where('card_code', $cardCodes[0]);
+            }
         }
 
         if (!empty($filters['start_date'])) {

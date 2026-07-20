@@ -71,12 +71,18 @@ class SalesOrderService
      * @param  int|null  $distributorId
      * @return SalesOrder|null
      */
-    public function getOrderById(int $id, ?int $distributorId = null): ?SalesOrder
+    public function getOrderById(int $id, $distributorId = null): ?SalesOrder
     {
         $salesOrder = $this->salesOrderRepository->getById($id);
 
-        if ($salesOrder && $distributorId && $salesOrder->distributor_id !== $distributorId) {
-            return null;
+        if ($salesOrder && $distributorId) {
+            if (is_array($distributorId)) {
+                if (!in_array($salesOrder->distributor_id, $distributorId)) {
+                    return null;
+                }
+            } elseif ($salesOrder->distributor_id !== $distributorId) {
+                return null;
+            }
         }
 
         return $salesOrder;

@@ -66,12 +66,18 @@ class CustomerMonthlyOrderService
      * @param  int|null  $distributorId
      * @return CustomerMonthlyOrder|null
      */
-    public function getOrderById(int $id, ?int $distributorId = null): ?CustomerMonthlyOrder
+    public function getOrderById(int $id, $distributorId = null): ?CustomerMonthlyOrder
     {
         $order = $this->repository->getById($id);
 
-        if ($order && $distributorId && $order->distributor_id !== $distributorId) {
-            return null;
+        if ($order && $distributorId) {
+            if (is_array($distributorId)) {
+                if (!in_array($order->distributor_id, $distributorId)) {
+                    return null;
+                }
+            } elseif ($order->distributor_id !== $distributorId) {
+                return null;
+            }
         }
 
         return $order;
