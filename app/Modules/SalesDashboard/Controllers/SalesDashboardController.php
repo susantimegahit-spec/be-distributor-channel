@@ -232,7 +232,7 @@ class SalesDashboardController extends Controller
             'do_amount' => 'sometimes|numeric|min:0',
             'customer_name' => 'sometimes|string|max:255',
             'depo' => 'sometimes|nullable|string|max:100',
-            'item_name' => 'sometimes|string|max:255',
+            'brand' => 'sometimes|string|max:50',
         ]);
 
         $updated = $this->service->updateRecord($id, $payload);

@@ -57,8 +57,7 @@ class SalesDashboardService
         $colCustomerCode = null;
         $colCustomerName = null;
         $colDepo = null;
-        $colItemCode = null;
-        $colItemName = null;
+        $colBrand = null;
         $monthColumns = []; // elements: ['col_index' => int, 'month' => int, 'year' => int]
 
         foreach ($rows as $index => $row) {
@@ -68,18 +67,18 @@ class SalesDashboardService
 
             // Look for signature columns
             $hasDistributor = false;
-            $hasProduct = false;
+            $hasBrand = false;
 
             foreach ($trimmedRow as $colName) {
                 if (in_array($colName, ['kode distributor', 'kode customer', 'customer_code', 'customer code'])) {
                     $hasDistributor = true;
                 }
-                if (in_array($colName, ['kode produk', 'kode barang', 'kode item', 'item_code', 'item code'])) {
-                    $hasProduct = true;
+                if (in_array($colName, ['brand', 'merek', 'brand name', 'nama brand'])) {
+                    $hasBrand = true;
                 }
             }
 
-            if ($hasDistributor && $hasProduct) {
+            if ($hasDistributor && $hasBrand) {
                 $headerRowIndex = $index;
                 
                 // Map static and monthly columns
@@ -90,10 +89,8 @@ class SalesDashboardService
                         $colCustomerName = $colIndex;
                     } elseif ($colName === 'depo') {
                         $colDepo = $colIndex;
-                    } elseif (in_array($colName, ['kode produk', 'kode barang', 'kode item', 'item_code', 'item code'])) {
-                        $colItemCode = $colIndex;
-                    } elseif (in_array($colName, ['nama produk', 'nama barang', 'nama item', 'item_name', 'item name'])) {
-                        $colItemName = $colIndex;
+                    } elseif (in_array($colName, ['brand', 'merek', 'brand name', 'nama brand'])) {
+                        $colBrand = $colIndex;
                     }
 
                     // Parse month columns (e.g. "Januari 2026", "December 2026")
@@ -113,9 +110,9 @@ class SalesDashboardService
             }
         }
 
-        if ($headerRowIndex === null || $colCustomerCode === null || $colItemCode === null || empty($monthColumns)) {
+        if ($headerRowIndex === null || $colCustomerCode === null || $colBrand === null || empty($monthColumns)) {
             throw ValidationException::withMessages([
-                'file' => ['Format header Excel tidak valid. Wajib memiliki kolom Kode Distributor, Kode Produk, dan minimal satu kolom bulan (contoh: Januari 2026).']
+                'file' => ['Format header Excel tidak valid. Wajib memiliki kolom Kode Distributor, Brand/Merek, dan minimal satu kolom bulan (contoh: Januari 2026).']
             ]);
         }
 
@@ -144,20 +141,16 @@ class SalesDashboardService
                 $customerCode = isset($row[$colCustomerCode]) ? trim((string)$row[$colCustomerCode]) : '';
                 $customerName = ($colCustomerName !== null && isset($row[$colCustomerName])) ? trim((string)$row[$colCustomerName]) : '';
                 $depo = ($colDepo !== null && isset($row[$colDepo])) ? trim((string)$row[$colDepo]) : null;
-                $itemCode = isset($row[$colItemCode]) ? trim((string)$row[$colItemCode]) : '';
-                $itemName = ($colItemName !== null && isset($row[$colItemName])) ? trim((string)$row[$colItemName]) : '';
+                $brand = isset($row[$colBrand]) ? trim(strtoupper((string)$row[$colBrand])) : '';
 
-                if (empty($customerCode) || empty($itemCode)) {
-                    $errors[] = "Baris {$rowNum}: Kode Distributor atau Kode Produk tidak boleh kosong.";
+                if (empty($customerCode) || empty($brand)) {
+                    $errors[] = "Baris {$rowNum}: Kode Distributor atau Brand/Merek tidak boleh kosong.";
                     continue;
                 }
 
                 // Default names if empty
                 if (empty($customerName)) {
                     $customerName = $customerCode;
-                }
-                if (empty($itemName)) {
-                    $itemName = $itemCode;
                 }
 
                 // Process each monthly value
@@ -168,7 +161,7 @@ class SalesDashboardService
                     // Match key fields
                     $attributes = [
                         'customer_code' => $customerCode,
-                        'item_code' => $itemCode,
+                        'brand' => $brand,
                         'month' => $mCol['month'],
                         'year' => $mCol['year'],
                     ];
@@ -176,7 +169,6 @@ class SalesDashboardService
                     $values = [
                         'customer_name' => $customerName,
                         'depo' => $depo,
-                        'item_name' => $itemName,
                     ];
 
                     if ($type === 'target') {
@@ -404,33 +396,32 @@ class SalesDashboardService
      */
     public function getComparison(int $year, array $filters = []): array
     {
-        $query = DB::table('sales_dashboard_data as sdd')
-            ->join('items as i', 'i.item_code', '=', 'sdd.item_code')
-            ->where('sdd.year', $year);
+        $query = DB::table('sales_dashboard_data')
+            ->where('year', $year);
 
         if (!empty($filters['customer_code'])) {
-            $query->where('sdd.customer_code', $filters['customer_code']);
+            $query->where('customer_code', $filters['customer_code']);
         }
 
         if (!empty($filters['month'])) {
-            $query->where('sdd.month', (int)$filters['month']);
+            $query->where('month', (int)$filters['month']);
         }
 
         if (!empty($filters['brands'])) {
-            $query->whereIn('i.brand', $filters['brands']);
+            $query->whereIn('brand', $filters['brands']);
         }
 
         $records = $query->select(
-            'sdd.month',
-            'i.brand',
-            DB::raw('SUM(sdd.target_amount) as target_amount'),
-            DB::raw('SUM(sdd.cmo_amount) as cmo_amount'),
-            DB::raw('SUM(sdd.so_amount) as so_amount'),
-            DB::raw('SUM(sdd.do_amount) as do_amount')
+            'month',
+            'brand',
+            DB::raw('SUM(target_amount) as target_amount'),
+            DB::raw('SUM(cmo_amount) as cmo_amount'),
+            DB::raw('SUM(so_amount) as so_amount'),
+            DB::raw('SUM(do_amount) as do_amount')
         )
-        ->groupBy('sdd.month', 'i.brand')
-        ->orderBy('i.brand', 'asc')
-        ->orderBy('sdd.month', 'asc')
+        ->groupBy('month', 'brand')
+        ->orderBy('brand', 'asc')
+        ->orderBy('month', 'asc')
         ->get();
 
         // Determine unique brands
@@ -548,11 +539,10 @@ class SalesDashboardService
             ->whereIn('i.brand', $brands)
             ->select(
                 DB::raw($cmoMonthSql . ' as month'),
-                'cmod.item_code',
-                'i.item_name',
+                'i.brand',
                 DB::raw('SUM(cmod.line_total) as total_cmo')
             )
-            ->groupBy(DB::raw($cmoMonthSql), 'cmod.item_code', 'i.item_name')
+            ->groupBy(DB::raw($cmoMonthSql), 'i.brand')
             ->get();
 
         $cmoSyncedCount = 0;
@@ -560,14 +550,13 @@ class SalesDashboardService
             DB::table('sales_dashboard_data')->updateOrInsert(
                 [
                     'customer_code' => $targetCustomerCode,
-                    'item_code' => $cmo->item_code,
+                    'brand' => $cmo->brand,
                     'month' => (int)$cmo->month,
                     'year' => $year
                 ],
                 [
                     'customer_name' => $targetCustomerName,
                     'depo' => $targetDepo,
-                    'item_name' => $cmo->item_name,
                     'cmo_amount' => (float)$cmo->total_cmo,
                     'updated_at' => now(),
                 ]
@@ -588,11 +577,10 @@ class SalesDashboardService
             })
             ->select(
                 DB::raw($soMonthSql . ' as month'),
-                'sod.item_code',
-                'i.item_name',
+                'i.brand',
                 DB::raw('SUM(sod.line_total) as total_so')
             )
-            ->groupBy(DB::raw($soMonthSql), 'sod.item_code', 'i.item_name')
+            ->groupBy(DB::raw($soMonthSql), 'i.brand')
             ->get();
 
         $soSyncedCount = 0;
@@ -600,14 +588,13 @@ class SalesDashboardService
             DB::table('sales_dashboard_data')->updateOrInsert(
                 [
                     'customer_code' => $targetCustomerCode,
-                    'item_code' => $so->item_code,
+                    'brand' => $so->brand,
                     'month' => (int)$so->month,
                     'year' => $year
                 ],
                 [
                     'customer_name' => $targetCustomerName,
                     'depo' => $targetDepo,
-                    'item_name' => $so->item_name,
                     'so_amount' => (float)$so->total_so,
                     'updated_at' => now(),
                 ]
@@ -629,128 +616,26 @@ class SalesDashboardService
                 if (isset($body['ErrorCode']) && $body['ErrorCode'] === 0) {
                     $results = $body['Result'] ?? [];
                     
-                    // Group results by Bulan (month) and Brand
-                    $doByBrandMonth = [];
                     foreach ($results as $item) {
                         $month = (int)$item['Bulan'];
                         $brandName = trim(strtoupper($item['Brand']));
                         $doAmount = (float)$item['Col4'];
-                        $doByBrandMonth[$month][$brandName] = $doAmount;
-                    }
 
-                    // Proses setiap bulan
-                    foreach ($doByBrandMonth as $month => $brandsData) {
-                        foreach ($brandsData as $brandName => $brandDoAmount) {
-                            // Ambil semua item_code yang memiliki brand ini
-                            $brandItems = DB::table('items')
-                                ->where('brand', $brandName)
-                                ->pluck('item_code')
-                                ->toArray();
-
-                            if (empty($brandItems)) {
-                                continue;
-                            }
-
-                            // Query record yang sudah ada di sales_dashboard_data untuk customer target ini
-                            $dashboardRecords = DB::table('sales_dashboard_data')
-                                ->where('customer_code', $targetCustomerCode)
-                                ->where('month', $month)
-                                ->where('year', $year)
-                                ->whereIn('item_code', $brandItems)
-                                ->get();
-
-                            if ($dashboardRecords->isEmpty()) {
-                                // Jika belum ada baris target sama sekali, bagikan sama rata ke item brand ini
-                                $brandDbItems = DB::table('items')
-                                    ->where('brand', $brandName)
-                                    ->where('status', 1)
-                                    ->get();
-
-                                if ($brandDbItems->isEmpty()) {
-                                    $brandDbItems = DB::table('items')
-                                        ->where('brand', $brandName)
-                                        ->get();
-                                }
-
-                                if (!$brandDbItems->isEmpty()) {
-                                    $count = $brandDbItems->count();
-                                    $equalDo = $brandDoAmount / $count;
-
-                                    foreach ($brandDbItems as $itemObj) {
-                                        DB::table('sales_dashboard_data')->updateOrInsert(
-                                            [
-                                                'customer_code' => $targetCustomerCode,
-                                                'item_code' => $itemObj->item_code,
-                                                'month' => $month,
-                                                'year' => $year
-                                            ],
-                                            [
-                                                'customer_name' => $targetCustomerName,
-                                                'depo' => $targetDepo,
-                                                'item_name' => $itemObj->item_name,
-                                                'do_amount' => $equalDo,
-                                                'updated_at' => now(),
-                                            ]
-                                        );
-                                        $doSyncedCount++;
-                                    }
-                                }
-                                continue;
-                            }
-
-                            // Cek perbandingan prioritas untuk distribusi proporsional
-                            $totalSo = $dashboardRecords->sum(function ($r) { return (float)$r->so_amount; });
-                            $totalCmo = $dashboardRecords->sum(function ($r) { return (float)$r->cmo_amount; });
-                            $totalTarget = $dashboardRecords->sum(function ($r) { return (float)$r->target_amount; });
-
-                            if ($totalSo > 0) {
-                                foreach ($dashboardRecords as $rec) {
-                                    $ratio = (float)$rec->so_amount / $totalSo;
-                                    DB::table('sales_dashboard_data')
-                                        ->where('id', $rec->id)
-                                        ->update([
-                                            'do_amount' => $brandDoAmount * $ratio,
-                                            'updated_at' => now(),
-                                        ]);
-                                    $doSyncedCount++;
-                                }
-                            } elseif ($totalCmo > 0) {
-                                foreach ($dashboardRecords as $rec) {
-                                    $ratio = (float)$rec->cmo_amount / $totalCmo;
-                                    DB::table('sales_dashboard_data')
-                                        ->where('id', $rec->id)
-                                        ->update([
-                                            'do_amount' => $brandDoAmount * $ratio,
-                                            'updated_at' => now(),
-                                        ]);
-                                    $doSyncedCount++;
-                                }
-                            } elseif ($totalTarget > 0) {
-                                foreach ($dashboardRecords as $rec) {
-                                    $ratio = (float)$rec->target_amount / $totalTarget;
-                                    DB::table('sales_dashboard_data')
-                                        ->where('id', $rec->id)
-                                        ->update([
-                                            'do_amount' => $brandDoAmount * $ratio,
-                                            'updated_at' => now(),
-                                        ]);
-                                    $doSyncedCount++;
-                                }
-                            } else {
-                                // Bagi rata ke semua record yang terdaftar
-                                $count = $dashboardRecords->count();
-                                $equalDo = $brandDoAmount / $count;
-                                foreach ($dashboardRecords as $rec) {
-                                    DB::table('sales_dashboard_data')
-                                        ->where('id', $rec->id)
-                                        ->update([
-                                            'do_amount' => $equalDo,
-                                            'updated_at' => now(),
-                                        ]);
-                                    $doSyncedCount++;
-                                }
-                            }
-                        }
+                        DB::table('sales_dashboard_data')->updateOrInsert(
+                            [
+                                'customer_code' => $targetCustomerCode,
+                                'brand' => $brandName,
+                                'month' => $month,
+                                'year' => $year
+                            ],
+                            [
+                                'customer_name' => $targetCustomerName,
+                                'depo' => $targetDepo,
+                                'do_amount' => $doAmount,
+                                'updated_at' => now(),
+                            ]
+                        );
+                        $doSyncedCount++;
                     }
                 } else {
                     \Illuminate\Support\Facades\Log::warning("SalesDashboardService: GetTotDO SAP API returned error: " . ($body['Message'] ?? 'Unknown'));

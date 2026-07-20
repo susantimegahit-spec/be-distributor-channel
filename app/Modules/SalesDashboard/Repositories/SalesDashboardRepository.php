@@ -36,8 +36,8 @@ class SalesDashboardRepository implements SalesDashboardRepositoryInterface
             $query->where('customer_code', $filters['customer_code']);
         }
 
-        if (!empty($filters['item_code'])) {
-            $query->where('item_code', $filters['item_code']);
+        if (!empty($filters['brand'])) {
+            $query->where('brand', $filters['brand']);
         }
 
         if (!empty($filters['month'])) {
@@ -53,8 +53,7 @@ class SalesDashboardRepository implements SalesDashboardRepositoryInterface
             $query->where(function ($q) use ($search) {
                 $q->where('customer_code', 'like', $search)
                   ->orWhere('customer_name', 'like', $search)
-                  ->orWhere('item_code', 'like', $search)
-                  ->orWhere('item_name', 'like', $search)
+                  ->orWhere('brand', 'like', $search)
                   ->orWhere('depo', 'like', $search);
             });
         }
@@ -62,7 +61,7 @@ class SalesDashboardRepository implements SalesDashboardRepositoryInterface
         return $query->orderBy('year', 'desc')
             ->orderBy('month', 'desc')
             ->orderBy('customer_code', 'asc')
-            ->orderBy('item_code', 'asc')
+            ->orderBy('brand', 'asc')
             ->paginate($perPage);
     }
 

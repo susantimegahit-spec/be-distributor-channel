@@ -74,12 +74,12 @@ paths:
           schema:
             type: string
           description: Filter kode customer/distributor
-        - name: item_code
+        - name: brand
           in: query
           required: false
           schema:
             type: string
-          description: Filter kode produk
+          description: Filter nama brand
         - name: month
           in: query
           required: false
@@ -325,7 +325,7 @@ paths:
   /v1/sales-dashboard/{id}:
     put:
       summary: Update a single sales dashboard record
-      description: Memperbarui nilai target_amount, cmo_amount, so_amount, do_amount, customer_name, depo, atau item_name secara manual berdasarkan ID.
+      description: Memperbarui nilai target_amount, cmo_amount, so_amount, do_amount, customer_name, depo, atau brand secara manual berdasarkan ID.
       tags:
         - Sales Dashboard
       security:
@@ -361,9 +361,9 @@ paths:
                 depo:
                   type: string
                   example: Surabaya
-                item_name:
+                brand:
                   type: string
-                  example: Garam Refina Bal Premium
+                  example: GARAMI
       responses:
         '200':
           description: Data dashboard berhasil diperbarui.

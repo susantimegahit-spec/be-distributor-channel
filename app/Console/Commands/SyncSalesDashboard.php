@@ -51,15 +51,14 @@ class SyncSalesDashboard extends Command
         $this->info("Ditemukan " . count($customerCodes) . " customer untuk disinkronkan.");
 
         foreach ($customerCodes as $customerCode) {
-            // Dapatkan seluruh brand unik dari item yang ada di target customer tersebut
-            $brands = DB::table('sales_dashboard_data as sdd')
-                ->join('items as i', 'i.item_code', '=', 'sdd.item_code')
-                ->where('sdd.customer_code', $customerCode)
-                ->where('sdd.year', $year)
-                ->whereNotNull('i.brand')
-                ->where('i.brand', '!=', '')
+            // Dapatkan seluruh brand unik dari target customer tersebut
+            $brands = DB::table('sales_dashboard_data')
+                ->where('customer_code', $customerCode)
+                ->where('year', $year)
+                ->whereNotNull('brand')
+                ->where('brand', '!=', '')
                 ->distinct()
-                ->pluck('i.brand')
+                ->pluck('brand')
                 ->toArray();
 
             if (empty($brands)) {

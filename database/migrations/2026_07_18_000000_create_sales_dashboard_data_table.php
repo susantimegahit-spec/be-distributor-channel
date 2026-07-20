@@ -16,8 +16,7 @@ return new class extends Migration
             $table->string('customer_code', 50);
             $table->string('customer_name', 255);
             $table->string('depo', 100)->nullable();
-            $table->string('item_code', 50);
-            $table->string('item_name', 255);
+            $table->string('brand', 50);
             $table->unsignedSmallInteger('month'); // 1-12
             $table->unsignedSmallInteger('year');  // e.g. 2026
             $table->decimal('target_amount', 20, 2)->default(0.00);
@@ -26,9 +25,9 @@ return new class extends Migration
             $table->decimal('do_amount', 20, 2)->default(0.00);
             $table->timestamps();
 
-            $table->unique(['customer_code', 'item_code', 'month', 'year'], 'uq_sales_dashboard_data');
+            $table->unique(['customer_code', 'brand', 'month', 'year'], 'uq_sales_dashboard_data');
             $table->index(['customer_code', 'month', 'year']);
-            $table->index(['item_code']);
+            $table->index(['brand']);
         });
     }
 
