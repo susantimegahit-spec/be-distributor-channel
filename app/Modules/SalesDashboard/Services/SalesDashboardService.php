@@ -395,17 +395,92 @@ class SalesDashboardService
     }
 
     /**
-     * Get comparison dashboard aggregated data.
+    /**
+     * Get comparison dashboard aggregated data by brand and month.
      *
-     * @param  int  $month
      * @param  int  $year
      * @param  array  $filters
      * @return array
      */
-    public function getComparison(int $month, int $year, array $filters = []): array
+    public function getComparison(int $year, array $filters = []): array
     {
-        $records = $this->repository->getComparisonData($month, $year, $filters);
+        $query = DB::table('sales_dashboard_data as sdd')
+            ->join('items as i', 'i.item_code', '=', 'sdd.item_code')
+            ->where('sdd.year', $year);
 
+        if (!empty($filters['customer_code'])) {
+            $query->where('sdd.customer_code', $filters['customer_code']);
+        }
+
+        if (!empty($filters['month'])) {
+            $query->where('sdd.month', (int)$filters['month']);
+        }
+
+        if (!empty($filters['brands'])) {
+            $query->whereIn('i.brand', $filters['brands']);
+        }
+
+        $records = $query->select(
+            'sdd.month',
+            'i.brand',
+            DB::raw('SUM(sdd.target_amount) as target_amount'),
+            DB::raw('SUM(sdd.cmo_amount) as cmo_amount'),
+            DB::raw('SUM(sdd.so_amount) as so_amount'),
+            DB::raw('SUM(sdd.do_amount) as do_amount')
+        )
+        ->groupBy('sdd.month', 'i.brand')
+        ->orderBy('i.brand', 'asc')
+        ->orderBy('sdd.month', 'asc')
+        ->get();
+
+        // Determine unique brands
+        if (!empty($filters['brands'])) {
+            $uniqueBrands = $filters['brands'];
+        } else {
+            $uniqueBrands = $records->pluck('brand')->unique()->filter()->toArray();
+            if (empty($uniqueBrands)) {
+                // Fallback to active brands in items table if no target records exist yet
+                $uniqueBrands = DB::table('items')
+                    ->whereNotNull('brand')
+                    ->where('brand', '!=', '')
+                    ->distinct()
+                    ->pluck('brand')
+                    ->toArray();
+            }
+        }
+
+        // Determine range of months
+        $monthsToGenerate = !empty($filters['month']) ? [(int)$filters['month']] : range(1, 12);
+
+        // Pre-populate grid
+        $grid = [];
+        foreach ($uniqueBrands as $brand) {
+            foreach ($monthsToGenerate as $m) {
+                $grid[$brand][$m] = [
+                    'month' => $m,
+                    'brand' => $brand,
+                    'target_amount' => 0.00,
+                    'cmo_amount' => 0.00,
+                    'so_amount' => 0.00,
+                    'do_amount' => 0.00,
+                ];
+            }
+        }
+
+        // Fill real records
+        foreach ($records as $rec) {
+            $brand = $rec->brand;
+            $month = (int)$rec->month;
+            if (isset($grid[$brand][$month])) {
+                $grid[$brand][$month]['target_amount'] = (float)$rec->target_amount;
+                $grid[$brand][$month]['cmo_amount'] = (float)$rec->cmo_amount;
+                $grid[$brand][$month]['so_amount'] = (float)$rec->so_amount;
+                $grid[$brand][$month]['do_amount'] = (float)$rec->do_amount;
+            }
+        }
+
+        // Flatten data
+        $formatted = [];
         $totals = [
             'target' => 0.00,
             'cmo' => 0.00,
@@ -413,32 +488,20 @@ class SalesDashboardService
             'do' => 0.00,
         ];
 
-        $items = [];
-        foreach ($records as $rec) {
-            $totals['target'] += (float)$rec->target_amount;
-            $totals['cmo'] += (float)$rec->cmo_amount;
-            $totals['so'] += (float)$rec->so_amount;
-            $totals['do'] += (float)$rec->do_amount;
-
-            $items[] = [
-                'id' => $rec->id,
-                'customer_code' => $rec->customer_code,
-                'customer_name' => $rec->customer_name,
-                'depo' => $rec->depo,
-                'item_code' => $rec->item_code,
-                'item_name' => $rec->item_name,
-                'target_amount' => (float)$rec->target_amount,
-                'cmo_amount' => (float)$rec->cmo_amount,
-                'so_amount' => (float)$rec->so_amount,
-                'do_amount' => (float)$rec->do_amount,
-            ];
+        foreach ($grid as $brand => $months) {
+            foreach ($months as $m => $data) {
+                $formatted[] = $data;
+                $totals['target'] += $data['target_amount'];
+                $totals['cmo'] += $data['cmo_amount'];
+                $totals['so'] += $data['so_amount'];
+                $totals['do'] += $data['do_amount'];
+            }
         }
 
         return [
-            'month' => $month,
             'year' => $year,
             'totals' => $totals,
-            'records' => $items
+            'lines' => $formatted
         ];
     }
 

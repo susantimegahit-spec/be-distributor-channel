@@ -180,19 +180,28 @@ class SalesDashboardController extends Controller
     public function comparison(Request $request): JsonResponse
     {
         $request->validate([
-            'month' => 'required|integer|min:1|max:12',
             'year' => 'required|integer|min:2020|max:2099',
+            'month' => 'nullable|integer|min:1|max:12',
             'customer_code' => 'nullable|string',
-            'item_code' => 'nullable|string',
+            'brand' => 'nullable|string',
+            'brands' => 'nullable|string',
         ]);
 
         $user = $request->user();
-        $month = (int)$request->query('month');
         $year = (int)$request->query('year');
+        $month = $request->query('month') ? (int)$request->query('month') : null;
         
+        $brandInput = $request->query('brands') ?? $request->query('brand');
+        $brands = null;
+        if ($brandInput) {
+            $brands = is_array($brandInput) ? $brandInput : array_map('trim', explode(',', $brandInput));
+            $brands = array_map('strtoupper', $brands);
+        }
+
         $filters = array_filter([
             'customer_code' => $request->query('customer_code'),
-            'item_code' => $request->query('item_code'),
+            'month' => $month,
+            'brands' => $brands,
         ]);
 
         if ($user->code_customer) {
@@ -200,7 +209,7 @@ class SalesDashboardController extends Controller
         }
 
         try {
-            $data = $this->service->getComparison($month, $year, $filters);
+            $data = $this->service->getComparison($year, $filters);
             return $this->successResponse($data, 'Data perbandingan dashboard berhasil diambil.');
         } catch (\Exception $e) {
             return $this->errorResponse('Gagal mengambil data dashboard: ' . $e->getMessage(), [], 500);

@@ -239,36 +239,88 @@ paths:
 
   /v1/sales-dashboard/comparison:
     get:
-      summary: Get comparison dashboard data (Target vs CMO vs PO/SO vs DO)
-      description: Mengambil data agregat untuk perbandingan dashboard target, CMO, PO/SO (SO local), dan DO (SAP) berdasarkan periode bulan dan tahun.
+      summary: Get comparison dashboard data (Target vs CMO vs PO/SO vs DO) by Brand and Month
+      description: Mengambil data perbandingan agregat target, CMO, PO/SO, dan DO dikelompokkan per brand dan per bulan untuk tahun tertentu.
       tags:
         - Sales Dashboard
       security:
         - BearerAuth: []
       parameters:
-        - name: month
-          in: query
-          required: true
-          schema:
-            type: integer
         - name: year
           in: query
           required: true
           schema:
             type: integer
+          description: Tahun data perbandingan
+          example: 2026
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter bulan tertentu (1-12)
         - name: customer_code
           in: query
           required: false
           schema:
             type: string
-        - name: item_code
+          description: Filter kode customer
+        - name: brand
           in: query
           required: false
           schema:
             type: string
+          description: Filter nama brand (misal KAPAL, atau dipisahkan koma)
       responses:
         '200':
           description: Data perbandingan dashboard berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data perbandingan dashboard berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      year:
+                        type: integer
+                        example: 2026
+                      totals:
+                        type: object
+                        properties:
+                          target:
+                            type: number
+                          cmo:
+                            type: number
+                          so:
+                            type: number
+                          do:
+                            type: number
+                       lines:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            month:
+                              type: integer
+                              example: 1
+                            brand:
+                              type: string
+                              example: "KAPAL"
+                            target_amount:
+                              type: number
+                            cmo_amount:
+                              type: number
+                            so_amount:
+                              type: number
+                            do_amount:
+                              type: number
 
   /v1/sales-dashboard/{id}:
     put:
