@@ -546,7 +546,7 @@ class SalesDashboardService
             ->select(
                 DB::raw($cmoMonthSql . ' as month'),
                 'i.brand',
-                DB::raw('SUM(cmod.line_total) as total_cmo')
+                DB::raw('SUM(cmod.quantity * COALESCE(i.per_kg, 0)) as total_cmo')
             )
             ->groupBy(DB::raw($cmoMonthSql), 'i.brand')
             ->get();
@@ -584,7 +584,7 @@ class SalesDashboardService
             ->select(
                 DB::raw($soMonthSql . ' as month'),
                 'i.brand',
-                DB::raw('SUM(sod.line_total) as total_so')
+                DB::raw('SUM(sod.quantity * COALESCE(i.per_kg, 0)) as total_so')
             )
             ->groupBy(DB::raw($soMonthSql), 'i.brand')
             ->get();
