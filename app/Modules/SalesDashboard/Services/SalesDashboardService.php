@@ -472,6 +472,10 @@ class SalesDashboardService
         $targetCustomerName = $distributor?->name ?? 'Distributor ' . $targetCustomerCode;
         $targetDepo = $distributor?->depo;
 
+        $driver = DB::connection()->getDriverName();
+        $cmoMonthSql = $driver === 'pgsql' ? 'EXTRACT(MONTH FROM cmo.doc_date)' : 'MONTH(cmo.doc_date)';
+        $soMonthSql = $driver === 'pgsql' ? 'EXTRACT(MONTH FROM so.doc_date)' : 'MONTH(so.doc_date)';
+
         // 1. Sync CMO
         $cmoDetails = DB::table('customer_monthly_order_details as cmod')
             ->join('customer_monthly_orders as cmo', 'cmo.id', '=', 'cmod.customer_monthly_order_id')
@@ -480,12 +484,12 @@ class SalesDashboardService
             ->where('cmo.card_code', $customerCode)
             ->whereIn('i.brand', $brands)
             ->select(
-                DB::raw('MONTH(cmo.doc_date) as month'),
+                DB::raw($cmoMonthSql . ' as month'),
                 'cmod.item_code',
                 'i.item_name',
                 DB::raw('SUM(cmod.line_total) as total_cmo')
             )
-            ->groupBy('month', 'cmod.item_code', 'i.item_name')
+            ->groupBy(DB::raw($cmoMonthSql), 'cmod.item_code', 'i.item_name')
             ->get();
 
         $cmoSyncedCount = 0;
@@ -520,12 +524,12 @@ class SalesDashboardService
                   ->orWhereIn('so.status', ['ORDER_APPROVED', 'DELIVERY', 'ARRIVED']);
             })
             ->select(
-                DB::raw('MONTH(so.doc_date) as month'),
+                DB::raw($soMonthSql . ' as month'),
                 'sod.item_code',
                 'i.item_name',
                 DB::raw('SUM(sod.line_total) as total_so')
             )
-            ->groupBy('month', 'sod.item_code', 'i.item_name')
+            ->groupBy(DB::raw($soMonthSql), 'sod.item_code', 'i.item_name')
             ->get();
 
         $soSyncedCount = 0;
