@@ -51,7 +51,18 @@ class UserCrudService
     public function createUser(array $data): User
     {
         $data['password'] = Hash::make($data['password']);
-        return $this->userRepository->create($data);
+        $accessibleSystems = $data['accessible_systems'] ?? null;
+        unset($data['accessible_systems']);
+
+        $user = $this->userRepository->create($data);
+
+        if ($accessibleSystems !== null && $user->role) {
+            $user->role->update([
+                'accessible_systems' => $accessibleSystems
+            ]);
+        }
+
+        return $user->load(['role', 'distributor']);
     }
 
     /**
@@ -69,7 +80,18 @@ class UserCrudService
             unset($data['password']);
         }
 
-        return $this->userRepository->update($id, $data);
+        $accessibleSystems = $data['accessible_systems'] ?? null;
+        unset($data['accessible_systems']);
+
+        $user = $this->userRepository->update($id, $data);
+
+        if ($user && $accessibleSystems !== null && $user->role) {
+            $user->role->update([
+                'accessible_systems' => $accessibleSystems
+            ]);
+        }
+
+        return $user ? $user->load(['role', 'distributor']) : null;
     }
 
     /**

@@ -44,6 +44,8 @@ class CreateUserRequest extends FormRequest
                 }
             ],
             'is_active' => 'sometimes|boolean',
+            'accessible_systems' => 'nullable|array',
+            'accessible_systems.*' => 'string',
         ];
     }
 }
