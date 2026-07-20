@@ -146,25 +146,32 @@ class SalesDashboardController extends Controller
     public function sync(Request $request): JsonResponse
     {
         $tahun = $request->input('Tahun') ?? $request->input('year');
-        $cardCode = $request->input('CardCode') ?? $request->input('customer_code') ?? $request->input('code_customer');
+        $cardCodeInput = $request->input('CardCode') ?? $request->input('customer_code') ?? $request->input('code_customer');
         $brandInput = $request->input('Brand') ?? $request->input('brand') ?? $request->input('brands');
 
-        if (!$tahun || !$cardCode || !$brandInput) {
+        if (!$tahun || !$cardCodeInput || !$brandInput) {
             return $this->errorResponse('Parameter Tahun, CardCode/customer_code, dan Brand wajib diisi.', [], 422);
         }
 
         $brands = is_array($brandInput) ? $brandInput : array_map('trim', explode(',', $brandInput));
         $brands = array_map('strtoupper', $brands);
 
+        // Support multiple customer codes separated by comma
+        $cardCodes = is_array($cardCodeInput) ? $cardCodeInput : array_map('trim', explode(',', $cardCodeInput));
+
+        $results = [];
         try {
-            // Sementara gunakan customer code C110001252 sebagai override sesuai request
-            $result = $this->service->syncDashboardData(
-                (int)$tahun,
-                (string)$cardCode,
-                $brands,
-                'C110001252'
-            );
-            return $this->successResponse($result, 'Data Sales Dashboard berhasil disinkronkan.');
+            foreach ($cardCodes as $cardCode) {
+                if (empty($cardCode)) {
+                    continue;
+                }
+                $results[$cardCode] = $this->service->syncDashboardData(
+                    (int)$tahun,
+                    (string)$cardCode,
+                    $brands
+                );
+            }
+            return $this->successResponse($results, 'Data Sales Dashboard berhasil disinkronkan.');
         } catch (\Exception $e) {
             return $this->errorResponse('Gagal sinkronisasi data dashboard: ' . $e->getMessage(), [], 500);
         }
