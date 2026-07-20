@@ -207,9 +207,15 @@ class SalesDashboardService
      * @param  int  $perPage
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getPaginatedData(array $filters = [], int $perPage = 15)
+    /**
+     * Get raw sales dashboard records list.
+     *
+     * @param  array  $filters
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function getRawData(array $filters = [])
     {
-        return $this->repository->getPaginated($filters, $perPage);
+        return $this->repository->getRawData($filters);
     }
 
     /**

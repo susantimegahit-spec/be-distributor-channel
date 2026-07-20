@@ -51,15 +51,14 @@ class SalesDashboardController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $filters = $request->only(['customer_code', 'item_code', 'month', 'year', 'search']);
-        $perPage = (int)$request->query('per_page', 15);
+        $filters = $request->only(['customer_code', 'brand', 'month', 'year', 'search']);
 
         // Security restriction: if distributor, force customer_code to their code_customer
         if ($user->code_customer) {
             $filters['customer_code'] = $user->code_customer;
         }
 
-        $data = $this->service->getPaginatedData($filters, $perPage);
+        $data = $this->service->getRawData($filters);
         return $this->successResponse($data, 'Data list dashboard berhasil diambil.');
     }
 

@@ -18,13 +18,12 @@ interface SalesDashboardRepositoryInterface
     public function updateOrCreateRecord(array $attributes, array $values): SalesDashboardData;
 
     /**
-     * Get paginated raw records with optional filters.
+     * Get raw records with optional filters.
      *
      * @param  array  $filters
-     * @param  int  $perPage
-     * @return LengthAwarePaginator
+     * @return Collection
      */
-    public function getPaginated(array $filters = [], int $perPage = 15): LengthAwarePaginator;
+    public function getRawData(array $filters = []): Collection;
 
     /**
      * Find a record by ID.

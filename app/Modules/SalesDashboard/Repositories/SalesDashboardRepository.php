@@ -28,7 +28,13 @@ class SalesDashboardRepository implements SalesDashboardRepositoryInterface
      * @param  int  $perPage
      * @return LengthAwarePaginator
      */
-    public function getPaginated(array $filters = [], int $perPage = 15): LengthAwarePaginator
+    /**
+     * Get raw records with optional filters.
+     *
+     * @param  array  $filters
+     * @return Collection
+     */
+    public function getRawData(array $filters = []): Collection
     {
         $query = SalesDashboardData::query();
 
@@ -62,7 +68,7 @@ class SalesDashboardRepository implements SalesDashboardRepositoryInterface
             ->orderBy('month', 'desc')
             ->orderBy('customer_code', 'asc')
             ->orderBy('brand', 'asc')
-            ->paginate($perPage);
+            ->get();
     }
 
     /**
