@@ -5642,6 +5642,193 @@ paths:
         '500':
           description: Gagal sinkronisasi data dari SAP
 
+  /v1/production/boms:
+    get:
+      summary: Get all production BOMs
+      description: Mendapatkan daftar Bill of Material (BOM) produksi.
+      tags:
+        - Production BOM
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Cari berdasarkan kode produk atau komentar
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan kode produk spesifik
+      responses:
+        '200':
+          description: Daftar Bill of Material berhasil diambil.
+
+    post:
+      summary: Create a new production BOM
+      description: Membuat rancangan Bill of Material (BOM) baru beserta detail komponennya.
+      tags:
+        - Production BOM
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+                - qty
+                - to_whs
+                - details
+              properties:
+                code:
+                  type: string
+                  example: "ILP000117"
+                  description: Parent Product Code
+                qty:
+                  type: number
+                  example: 1.0
+                  description: Base Quantity
+                to_whs:
+                  type: string
+                  example: "WHS01"
+                  description: Receipt Warehouse Code
+                alternate:
+                  type: integer
+                  example: 1
+                  description: BOM Alternate Version
+                comments:
+                  type: string
+                  example: "BOM Garam JUMBO"
+                details:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - type
+                      - code
+                      - quantity
+                    properties:
+                      type:
+                        type: string
+                        enum: [Item, Resource, "4", "290"]
+                        example: "Item"
+                      code:
+                        type: string
+                        example: "RAW001"
+                      quantity:
+                        type: number
+                        example: 0.5
+                      warehouse:
+                        type: string
+                        example: "WHS01"
+                      issue_mthd:
+                        type: string
+                        enum: [B, M]
+                        example: "B"
+                      comments:
+                        type: string
+                        example: "Bahan penolong"
+      responses:
+        '201':
+          description: Bill of Material berhasil dibuat.
+
+  /v1/production/boms/{id}:
+    get:
+      summary: Get details of a production BOM
+      description: Mendapatkan detail lengkap Bill of Material beserta list komponennya.
+      tags:
+        - Production BOM
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail Bill of Material berhasil diambil.
+
+    put:
+      summary: Update a production BOM
+      description: Memperbarui kuantitas target, gudang, atau memperbarui daftar komponen BOM.
+      tags:
+        - Production BOM
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                qty:
+                  type: number
+                  example: 2.0
+                to_whs:
+                  type: string
+                  example: "WHS02"
+                comments:
+                  type: string
+                  example: "Komentar revisi"
+                details:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - type
+                      - code
+                      - quantity
+                    properties:
+                      type:
+                        type: string
+                        enum: [Item, Resource, "4", "290"]
+                        example: "Resource"
+                      code:
+                        type: string
+                        example: "RES-001"
+                      quantity:
+                        type: number
+                        example: 1.2
+                      issue_mthd:
+                        type: string
+                        enum: [B, M]
+                        example: "M"
+      responses:
+        '200':
+          description: Bill of Material berhasil diperbarui.
+
+    delete:
+      summary: Delete a production BOM
+      description: Menghapus data Bill of Material beserta detail komponennya.
+      tags:
+        - Production BOM
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Bill of Material berhasil dihapus.
+
 components:
   securitySchemes:
     BearerAuth:
