@@ -384,6 +384,194 @@ paths:
         '200':
           description: Record berhasil dihapus.
 
+  /v1/sales-returns:
+    get:
+      summary: Get all sales return requests
+      description: Mendapatkan daftar permohonan retur barang, terfilter berdasarkan hak akses distributor user.
+      tags:
+        - Sales Return
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [SUBMITTED, APPROVED, REJECTED]
+          description: Filter status retur
+        - name: start_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Tanggal mulai pengajuan (YYYY-MM-DD)
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Tanggal akhir pengajuan (YYYY-MM-DD)
+      responses:
+        '200':
+          description: Daftar pengajuan retur berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar pengajuan retur berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SalesReturn'
+
+    post:
+      summary: Submit a new sales return request
+      description: Mengajukan permohonan retur barang baru (langsung SUBMITTED) dengan melampirkan bukti foto (maksimal 5 foto).
+      tags:
+        - Sales Return
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                sales_order_id:
+                  type: integer
+                  example: 142
+                reason:
+                  type: string
+                  example: "Barang rusak saat pengiriman fisik"
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      sales_order_detail_id:
+                        type: integer
+                        example: 1043
+                      quantity:
+                        type: number
+                        example: 5.0
+                      reason:
+                        type: string
+                        example: "Pecah di dalam kardus"
+                attachments:
+                  type: array
+                  maxItems: 5
+                  items:
+                    type: string
+                    format: binary
+              required:
+                - sales_order_id
+                - items
+      responses:
+        '201':
+          description: Pengajuan retur berhasil dikirim.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Pengajuan retur berhasil dikirim.
+                  data:
+                    $ref: '#/components/schemas/SalesReturn'
+
+  /v1/sales-returns/{id}:
+    get:
+      summary: Get details of a sales return request
+      description: Mendapatkan detail lengkap dari satu permohonan retur barang berdasarkan ID.
+      tags:
+        - Sales Return
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail pengajuan retur berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Detail pengajuan retur berhasil diambil.
+                  data:
+                    $ref: '#/components/schemas/SalesReturn'
+
+  /v1/sales-returns/{id}/approve:
+    post:
+      summary: Approve a sales return request (Admin Sales)
+      description: Menyetujui permohonan retur barang. Hanya dapat dilakukan oleh Admin Sales.
+      tags:
+        - Sales Return
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Pengajuan retur berhasil disetujui.
+
+  /v1/sales-returns/{id}/reject:
+    post:
+      summary: Reject a sales return request (Admin Sales)
+      description: Menolak permohonan retur barang. Hanya dapat dilakukan oleh Admin Sales.
+      tags:
+        - Sales Return
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  example: "Kuantitas tidak sesuai fisik"
+              required:
+                - reason
+      responses:
+        '200':
+          description: Pengajuan retur berhasil ditolak.
+
   /v1/pi-settings:
     get:
       summary: Get active Proforma Invoice signature configuration
@@ -7104,4 +7292,176 @@ components:
           type: string
           format: date-time
           example: "2026-07-17T09:05:00.000000Z"
+
+    SalesReturn:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        return_no:
+          type: string
+          example: RET/202607/0001
+        sales_order_id:
+          type: integer
+          example: 142
+        distributor_id:
+          type: integer
+          example: 12
+        card_code:
+          type: string
+          example: C110001240
+        customer_name:
+          type: string
+          example: PT Distributor Utama Baru
+        reason:
+          type: string
+          nullable: true
+          example: Barang rusak saat pengiriman fisik
+        doc_total:
+          type: number
+          example: 2500000.00
+        status:
+          type: string
+          example: SUBMITTED
+        sap_doc_num:
+          type: string
+          nullable: true
+          example: null
+        sap_doc_entry:
+          type: integer
+          nullable: true
+          example: null
+        sap_error:
+          type: string
+          nullable: true
+          example: null
+        submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-07-21T10:30:00.000000Z"
+        approved_by:
+          type: integer
+          nullable: true
+          example: null
+        approved_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        rejected_by:
+          type: integer
+          nullable: true
+          example: null
+        rejected_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        reject_reason:
+          type: string
+          nullable: true
+          example: null
+        created_by:
+          type: integer
+          example: 5
+        updated_by:
+          type: integer
+          example: 5
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-21T10:30:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-21T10:30:00.000000Z"
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalesReturnDetail'
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalesReturnAttachment'
+
+    SalesReturnDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        sales_return_id:
+          type: integer
+          example: 1
+        sales_order_detail_id:
+          type: integer
+          example: 1043
+        item_code:
+          type: string
+          example: ITEM001
+        quantity:
+          type: number
+          example: 5.0
+        unit_msr:
+          type: string
+          nullable: true
+          example: Box
+        uom_entry:
+          type: integer
+          nullable: true
+          example: 5
+        unit_price:
+          type: number
+          example: 500000.00
+        line_total:
+          type: number
+          example: 2500000.00
+        reason:
+          type: string
+          nullable: true
+          example: Pecah di dalam kardus
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-21T10:30:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-21T10:30:00.000000Z"
+
+    SalesReturnAttachment:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        sales_return_id:
+          type: integer
+          example: 1
+        file_name:
+          type: string
+          example: damage_evidence.jpg
+        file_path:
+          type: string
+          example: returns/1782398239_damage.jpg
+        file_type:
+          type: string
+          example: image/jpeg
+        file_size:
+          type: integer
+          example: 190000
+        uploaded_by:
+          type: integer
+          nullable: true
+          example: 5
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-21T10:30:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-21T10:30:00.000000Z"
 
