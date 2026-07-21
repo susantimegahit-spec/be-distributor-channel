@@ -80,4 +80,90 @@ class ProductionRepository implements ProductionRepositoryInterface
             $data
         );
     }
+
+    /**
+     * Get all production BOMs.
+     */
+    public function getAllBoms(array $filters = []): Collection
+    {
+        $query = \App\Models\ProductionBom::query()->with(['details']);
+
+        if (!empty($filters['search'])) {
+            $search = $filters['search'];
+            $likeOperator = DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
+            $query->where(function ($q) use ($search, $likeOperator) {
+                $q->where('code', $likeOperator, "%{$search}%")
+                  ->orWhere('comments', $likeOperator, "%{$search}%");
+            });
+        }
+
+        if (!empty($filters['code'])) {
+            $query->where('code', $filters['code']);
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * Get production BOM by ID.
+     */
+    public function getBomById(int $id): ?\App\Models\ProductionBom
+    {
+        return \App\Models\ProductionBom::with(['details'])->find($id);
+    }
+
+    /**
+     * Create a new production BOM.
+     */
+    public function createBom(array $data): \App\Models\ProductionBom
+    {
+        return DB::connection('pgsql_production')->transaction(function () use ($data) {
+            $details = $data['details'] ?? [];
+            unset($data['details']);
+
+            $bom = \App\Models\ProductionBom::create($data);
+
+            foreach ($details as $index => $detail) {
+                $detail['father'] = $bom->code;
+                $detail['child_num'] = $index;
+                $bom->details()->create($detail);
+            }
+
+            return $bom->fresh(['details']);
+        });
+    }
+
+    /**
+     * Update an existing production BOM.
+     */
+    public function updateBom(\App\Models\ProductionBom $bom, array $data): \App\Models\ProductionBom
+    {
+        return DB::connection('pgsql_production')->transaction(function () use ($bom, $data) {
+            $details = $data['details'] ?? null;
+            unset($data['details']);
+
+            $bom->update($data);
+
+            if ($details !== null) {
+                $bom->details()->delete();
+                foreach ($details as $index => $detail) {
+                    $detail['father'] = $bom->code;
+                    $detail['child_num'] = $index;
+                    $bom->details()->create($detail);
+                }
+            }
+
+            return $bom->fresh(['details']);
+        });
+    }
+
+    /**
+     * Delete a production BOM.
+     */
+    public function deleteBom(\App\Models\ProductionBom $bom): bool
+    {
+        return DB::connection('pgsql_production')->transaction(function () use ($bom) {
+            return $bom->delete();
+        });
+    }
 }

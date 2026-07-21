@@ -134,4 +134,85 @@ class ProductionService
 
         return $synced;
     }
+
+    /**
+     * Get all production BOMs.
+     */
+    public function getAllBoms(array $filters = []): Collection
+    {
+        return $this->productionRepository->getAllBoms($filters);
+    }
+
+    /**
+     * Get production BOM by ID.
+     */
+    public function getBomById(int $id): ?\App\Models\ProductionBom
+    {
+        return $this->productionRepository->getBomById($id);
+    }
+
+    /**
+     * Create a new production BOM.
+     */
+    public function createBom(array $data, ?int $userId = null): \App\Models\ProductionBom
+    {
+        $bom = $this->productionRepository->createBom($data);
+
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'CREATE_PRODUCTION_BOM',
+                "Created production BOM with code {$bom->code}."
+            );
+        }
+
+        return $bom;
+    }
+
+    /**
+     * Update an existing production BOM.
+     */
+    public function updateBom(int $id, array $data, ?int $userId = null): \App\Models\ProductionBom
+    {
+        $bom = $this->productionRepository->getBomById($id);
+        if (!$bom) {
+            throw new \Exception('Bill of Material tidak ditemukan.');
+        }
+
+        $updatedBom = $this->productionRepository->updateBom($bom, $data);
+
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'UPDATE_PRODUCTION_BOM',
+                "Updated production BOM with code {$updatedBom->code}."
+            );
+        }
+
+        return $updatedBom;
+    }
+
+    /**
+     * Delete a production BOM.
+     */
+    public function deleteBom(int $id, ?int $userId = null): bool
+    {
+        $bom = $this->productionRepository->getBomById($id);
+        if (!$bom) {
+            throw new \Exception('Bill of Material tidak ditemukan.');
+        }
+
+        $code = $bom->code;
+        $deleted = $this->productionRepository->deleteBom($bom);
+
+        if ($deleted && $userId) {
+            $this->auditLogService->log(
+                $userId,
+                'DELETE_PRODUCTION_BOM',
+                "Deleted production BOM with code {$code}."
+            );
+        }
+
+        return $deleted;
+    }
 }

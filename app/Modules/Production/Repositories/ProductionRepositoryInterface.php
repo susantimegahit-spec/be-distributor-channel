@@ -39,4 +39,45 @@ interface ProductionRepositoryInterface
      * @return ProductionItem
      */
     public function upsertItem(array $data): ProductionItem;
+
+    /**
+     * Get all production BOMs.
+     *
+     * @param  array  $filters
+     * @return Collection<\App\Models\ProductionBom>
+     */
+    public function getAllBoms(array $filters = []): Collection;
+
+    /**
+     * Get production BOM by ID.
+     *
+     * @param  int  $id
+     * @return \App\Models\ProductionBom|null
+     */
+    public function getBomById(int $id): ?\App\Models\ProductionBom;
+
+    /**
+     * Create a new production BOM.
+     *
+     * @param  array  $data
+     * @return \App\Models\ProductionBom
+     */
+    public function createBom(array $data): \App\Models\ProductionBom;
+
+    /**
+     * Update an existing production BOM.
+     *
+     * @param  \App\Models\ProductionBom  $bom
+     * @param  array  $data
+     * @return \App\Models\ProductionBom
+     */
+    public function updateBom(\App\Models\ProductionBom $bom, array $data): \App\Models\ProductionBom;
+
+    /**
+     * Delete a production BOM.
+     *
+     * @param  \App\Models\ProductionBom  $bom
+     * @return bool
+     */
+    public function deleteBom(\App\Models\ProductionBom $bom): bool;
 }
