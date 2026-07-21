@@ -38,7 +38,7 @@ class SalesOrderService
      * @return Collection
      */
     public function getAllOrders(
-        ?int $distributorId = null,
+        int|array|null $distributorId = null,
         ?string $status = null,
         ?string $cardCode = null,
         ?string $startDate = null,
