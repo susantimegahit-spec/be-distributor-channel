@@ -47,8 +47,8 @@ class SalesReturnService
             throw ValidationException::withMessages(['sales_order_id' => 'Sales Order tidak ditemukan.']);
         }
 
-        if (strtoupper($salesOrder->status) !== 'ARRIVED') {
-            throw ValidationException::withMessages(['sales_order_id' => 'Retur hanya dapat diajukan jika status Sales Order adalah ARRIVED.']);
+        if (!in_array(strtoupper($salesOrder->status), ['DELIVERY', 'ARRIVED'])) {
+            throw ValidationException::withMessages(['sales_order_id' => 'Retur hanya dapat diajukan jika status Sales Order adalah DELIVERY atau ARRIVED.']);
         }
 
         // 2. Validate attachments count
