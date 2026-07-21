@@ -163,7 +163,12 @@ class SalesDashboardRepository implements SalesDashboardRepositoryInterface
             ->where('year', $year);
 
         if (!empty($filters['customer_code'])) {
-            $query->where('customer_code', $filters['customer_code']);
+            $custCodes = array_map('trim', explode(',', $filters['customer_code']));
+            if (count($custCodes) > 1) {
+                $query->whereIn('customer_code', $custCodes);
+            } else {
+                $query->where('customer_code', $custCodes[0]);
+            }
         }
 
         if (!empty($filters['item_code'])) {

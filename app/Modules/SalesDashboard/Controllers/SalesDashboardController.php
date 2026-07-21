@@ -6,13 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Modules\SalesDashboard\Requests\UploadSalesDashboardRequest;
 use App\Modules\SalesDashboard\Services\SalesDashboardService;
 use App\Traits\ApiResponseFormatter;
+use App\Traits\HasCustomerCodeResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 class SalesDashboardController extends Controller
 {
-    use ApiResponseFormatter;
+    use ApiResponseFormatter, HasCustomerCodeResolver;
 
     protected SalesDashboardService $service;
 
@@ -42,20 +43,13 @@ class SalesDashboardController extends Controller
         }
     }
 
-    /**
-     * Get paginated raw sales dashboard data list.
-     *
-     * @param  Request  $request
-     * @return JsonResponse
-     */
     public function index(Request $request): JsonResponse
     {
-        $user = $request->user();
-        $filters = $request->only(['customer_code', 'brand', 'month', 'year', 'search']);
+        $filters = $request->only(['brand', 'month', 'year', 'search']);
 
-        // Security restriction: if distributor, force customer_code to their code_customer
-        if ($user->code_customer) {
-            $filters['customer_code'] = $user->code_customer;
+        $customerCodes = $this->resolveCustomerCodes($request);
+        if (!empty($customerCodes)) {
+            $filters['customer_code'] = implode(',', $customerCodes);
         }
 
         $data = $this->service->getRawData($filters);
@@ -77,12 +71,6 @@ class SalesDashboardController extends Controller
         return $this->errorResponse('Record tidak ditemukan.', [], 404);
     }
 
-    /**
-     * Bulk delete / reset amounts to 0 for a specific type and month/year.
-     *
-     * @param  Request  $request
-     * @return JsonResponse
-     */
     public function bulkDelete(Request $request): JsonResponse
     {
         $request->validate([
@@ -92,15 +80,12 @@ class SalesDashboardController extends Controller
             'customer_code' => 'nullable|string',
         ]);
 
-        $user = $request->user();
         $type = $request->input('type');
         $month = (int)$request->input('month');
         $year = (int)$request->input('year');
-        $customerCode = $request->input('customer_code');
 
-        if ($user->code_customer) {
-            $customerCode = $user->code_customer;
-        }
+        $customerCodes = $this->resolveCustomerCodes($request);
+        $customerCode = !empty($customerCodes) ? implode(',', $customerCodes) : null;
 
         $count = $this->service->bulkReset($type, $month, $year, $customerCode);
         return $this->successResponse(['count' => $count], "Berhasil mereset data {$type} untuk periode {$month}/{$year}.");
@@ -120,14 +105,11 @@ class SalesDashboardController extends Controller
             'customer_code' => 'nullable|string',
         ]);
 
-        $user = $request->user();
         $month = (int)$request->input('month');
         $year = (int)$request->input('year');
-        $customerCode = $request->input('customer_code');
 
-        if ($user->code_customer) {
-            $customerCode = $user->code_customer;
-        }
+        $customerCodes = $this->resolveCustomerCodes($request);
+        $customerCode = !empty($customerCodes) ? implode(',', $customerCodes) : null;
 
         try {
             $result = $this->service->syncActuals($month, $year, $customerCode);
@@ -193,10 +175,9 @@ class SalesDashboardController extends Controller
             'brands' => 'nullable|string',
         ]);
 
-        $user = $request->user();
         $year = (int)$request->query('year');
         $month = $request->query('month') ? (int)$request->query('month') : null;
-        
+
         $brandInput = $request->query('brands') ?? $request->query('brand');
         $brands = null;
         if ($brandInput) {
@@ -204,14 +185,15 @@ class SalesDashboardController extends Controller
             $brands = array_map('strtoupper', $brands);
         }
 
+        $customerCodes = $this->resolveCustomerCodes($request);
+
         $filters = array_filter([
-            'customer_code' => $request->query('customer_code'),
             'month' => $month,
             'brands' => $brands,
         ]);
 
-        if ($user->code_customer) {
-            $filters['customer_code'] = $user->code_customer;
+        if (!empty($customerCodes)) {
+            $filters['customer_code'] = implode(',', $customerCodes);
         }
 
         try {
