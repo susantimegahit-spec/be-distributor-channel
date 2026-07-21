@@ -302,7 +302,7 @@ paths:
                             type: number
                           do:
                             type: number
-                       lines:
+                      lines:
                         type: array
                         items:
                           type: object
