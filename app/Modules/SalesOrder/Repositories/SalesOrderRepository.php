@@ -161,7 +161,7 @@ class SalesOrderRepository implements SalesOrderRepositoryInterface
      * @param  int|null  $distributorId
      * @return array
      */
-    public function getDashboardSummary(?int $distributorId = null): array
+    public function getDashboardSummary(int|array|null $distributorId = null): array
     {
         $startOfMonth = now()->startOfMonth()->toDateString();
         $endOfMonth = now()->endOfMonth()->toDateString();
@@ -169,7 +169,11 @@ class SalesOrderRepository implements SalesOrderRepositoryInterface
         // 1. Base Query
         $baseQuery = DB::table('sales_orders');
         if ($distributorId !== null) {
-            $baseQuery->where('distributor_id', $distributorId);
+            if (is_array($distributorId)) {
+                $baseQuery->whereIn('distributor_id', $distributorId);
+            } else {
+                $baseQuery->where('distributor_id', $distributorId);
+            }
         }
 
         // 2. Status Counts (overall count)

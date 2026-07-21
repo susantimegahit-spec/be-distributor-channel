@@ -80,12 +80,14 @@ class DashboardController extends Controller
             return $this->errorResponse('Akses ditolak. Anda bukan user Distributor.', null, 403);
         }
 
-        $distributor = Distributor::where('code_customer', $user->code_customer)->first();
-        if (!$distributor) {
+        $custCodes = array_filter(array_map('trim', explode(',', $user->code_customer)));
+        $distributors = Distributor::whereIn('code_customer', $custCodes)->get();
+        if ($distributors->isEmpty()) {
             return $this->errorResponse('Data distributor Anda tidak ditemukan.', null, 404);
         }
 
-        $summary = $this->dashboardService->getDistributorSummary($distributor->id, $user->code_customer);
+        $distributorIds = $distributors->pluck('id')->toArray();
+        $summary = $this->dashboardService->getDistributorSummary($distributorIds, $custCodes);
 
         return $this->successResponse($summary, 'Statistik ringkasan distributor berhasil diambil.');
     }
@@ -105,12 +107,14 @@ class DashboardController extends Controller
             return $this->errorResponse('Akses ditolak. Anda bukan user Distributor.', null, 403);
         }
 
-        $distributor = Distributor::where('code_customer', $user->code_customer)->first();
-        if (!$distributor) {
+        $custCodes = array_filter(array_map('trim', explode(',', $user->code_customer)));
+        $distributors = Distributor::whereIn('code_customer', $custCodes)->get();
+        if ($distributors->isEmpty()) {
             return $this->errorResponse('Data distributor Anda tidak ditemukan.', null, 404);
         }
 
-        $charts = $this->dashboardService->getDistributorCharts($distributor->id);
+        $distributorIds = $distributors->pluck('id')->toArray();
+        $charts = $this->dashboardService->getDistributorCharts($distributorIds);
 
         return $this->successResponse($charts, 'Statistik grafik distributor berhasil diambil.');
     }

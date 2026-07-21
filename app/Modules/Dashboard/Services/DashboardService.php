@@ -69,7 +69,7 @@ class DashboardService
      * @param  string  $customerCode
      * @return array
      */
-    public function getDistributorSummary(int $distributorId, string $customerCode): array
+    public function getDistributorSummary(int|array $distributorId, string|array $customerCode): array
     {
         $salesData = $this->salesOrderRepository->getDashboardSummary($distributorId);
         $claimData = $this->resultRepository->getRewardSummary($customerCode);
@@ -89,10 +89,10 @@ class DashboardService
     /**
      * Get chart metrics for a specific Distributor.
      *
-     * @param  int  $distributorId
+     * @param  int|array  $distributorId
      * @return array
      */
-    public function getDistributorCharts(int $distributorId): array
+    public function getDistributorCharts(int|array $distributorId): array
     {
         $salesData = $this->salesOrderRepository->getDashboardSummary($distributorId);
 

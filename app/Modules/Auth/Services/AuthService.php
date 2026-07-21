@@ -54,11 +54,27 @@ class AuthService
         }
 
         if ($user->code_customer) {
-            $user->load('distributor');
-            if (!$user->distributor || $user->distributor->status !== 1) {
-                throw ValidationException::withMessages([
-                    'username' => ['Your associated customer/distributor account is inactive.'],
-                ]);
+            $codes = array_filter(array_map('trim', explode(',', $user->code_customer)));
+            if (!empty($codes)) {
+                $distributors = \App\Models\Distributor::whereIn('code_customer', $codes)->get();
+                $hasInactive = false;
+
+                if ($distributors->count() < count($codes)) {
+                    $hasInactive = true;
+                } else {
+                    foreach ($distributors as $distributor) {
+                        if ($distributor->status !== 1) {
+                            $hasInactive = true;
+                            break;
+                        }
+                    }
+                }
+
+                if ($hasInactive) {
+                    throw ValidationException::withMessages([
+                        'username' => ['Your associated customer/distributor account is inactive.'],
+                    ]);
+                }
             }
         }
 

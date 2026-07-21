@@ -97,9 +97,12 @@ class CustomerMonthlyOrderController extends Controller
 
         // 2. Fallback to authenticated user's code_customer
         if (!$distributorId && $user->code_customer) {
-            $distributor = Distributor::where('code_customer', $user->code_customer)->first();
-            if ($distributor) {
-                $distributorId = $distributor->id;
+            $custCodes = array_filter(array_map('trim', explode(',', $user->code_customer)));
+            if (!empty($custCodes)) {
+                $distributor = Distributor::where('code_customer', $custCodes[0])->first();
+                if ($distributor) {
+                    $distributorId = $distributor->id;
+                }
             }
         }
 
@@ -179,8 +182,14 @@ class CustomerMonthlyOrderController extends Controller
         $distributorId = null;
 
         if ($user->code_customer) {
-            $distributor = Distributor::where('code_customer', $user->code_customer)->first();
-            $distributorId = $distributor?->id;
+            $custCodes = array_filter(array_map('trim', explode(',', $user->code_customer)));
+            $distributorIds = Distributor::whereIn('code_customer', $custCodes)->pluck('id')->toArray();
+
+            $order = \App\Models\CustomerMonthlyOrder::find($id);
+            if (!$order || !in_array($order->distributor_id, $distributorIds)) {
+                return $this->errorResponse('Customer monthly order tidak ditemukan.', [], 404);
+            }
+            $distributorId = $order->distributor_id;
         }
 
         // Decode lines if it is a JSON string
@@ -244,8 +253,14 @@ class CustomerMonthlyOrderController extends Controller
         $distributorId = null;
 
         if ($user->code_customer) {
-            $distributor = Distributor::where('code_customer', $user->code_customer)->first();
-            $distributorId = $distributor?->id;
+            $custCodes = array_filter(array_map('trim', explode(',', $user->code_customer)));
+            $distributorIds = Distributor::whereIn('code_customer', $custCodes)->pluck('id')->toArray();
+
+            $order = \App\Models\CustomerMonthlyOrder::find($id);
+            if (!$order || !in_array($order->distributor_id, $distributorIds)) {
+                return $this->errorResponse('Customer monthly order tidak ditemukan.', [], 404);
+            }
+            $distributorId = $order->distributor_id;
         }
 
         try {
@@ -269,8 +284,14 @@ class CustomerMonthlyOrderController extends Controller
         $distributorId = null;
 
         if ($user->code_customer) {
-            $distributor = Distributor::where('code_customer', $user->code_customer)->first();
-            $distributorId = $distributor?->id;
+            $custCodes = array_filter(array_map('trim', explode(',', $user->code_customer)));
+            $distributorIds = Distributor::whereIn('code_customer', $custCodes)->pluck('id')->toArray();
+
+            $order = \App\Models\CustomerMonthlyOrder::find($id);
+            if (!$order || !in_array($order->distributor_id, $distributorIds)) {
+                return $this->errorResponse('Customer monthly order tidak ditemukan.', [], 404);
+            }
+            $distributorId = $order->distributor_id;
         }
 
         try {

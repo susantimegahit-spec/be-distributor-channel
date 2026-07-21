@@ -54,5 +54,5 @@ interface SalesOrderRepositoryInterface
      * @param  int|null  $distributorId
      * @return array
      */
-    public function getDashboardSummary(?int $distributorId = null): array;
+    public function getDashboardSummary(int|array|null $distributorId = null): array;
 }

@@ -110,7 +110,14 @@ class SalesOrderController extends Controller
             abort(403, 'Hanya user distributor yang dapat membuat sales order.');
         }
 
-        $distributor = Distributor::where('code_customer', $user->code_customer)->first();
+        $custCodes = array_filter(array_map('trim', explode(',', $user->code_customer)));
+        $requestedCardCode = $request->input('card_code');
+
+        if (!in_array($requestedCardCode, $custCodes)) {
+            abort(403, 'Anda tidak memiliki akses ke kode customer/distributor ini.');
+        }
+
+        $distributor = Distributor::where('code_customer', $requestedCardCode)->first();
         if (!$distributor) {
             abort(400, 'Data distributor tidak terdaftar.');
         }
@@ -176,16 +183,19 @@ class SalesOrderController extends Controller
             abort(403, 'Hanya user distributor yang dapat mengubah sales order.');
         }
 
-        $distributor = Distributor::where('code_customer', $user->code_customer)->first();
-        if (!$distributor) {
-            abort(400, 'Data distributor tidak terdaftar.');
+        $custCodes = array_filter(array_map('trim', explode(',', $user->code_customer)));
+        $distributorIds = Distributor::whereIn('code_customer', $custCodes)->pluck('id')->toArray();
+
+        $salesOrder = \App\Models\SalesOrder::find($id);
+        if (!$salesOrder || !in_array($salesOrder->distributor_id, $distributorIds)) {
+            abort(403, 'Anda tidak memiliki akses ke sales order ini.');
         }
 
         $salesOrder = $this->salesOrderService->updateDraft(
             $id,
             $request->validated(),
             $user->id,
-            $distributor->id
+            $salesOrder->distributor_id
         );
 
         return $this->successResponse($salesOrder, 'Sales order draft berhasil diperbarui.');
@@ -206,12 +216,15 @@ class SalesOrderController extends Controller
             abort(403, 'Hanya user distributor yang dapat menghapus sales order.');
         }
 
-        $distributor = Distributor::where('code_customer', $user->code_customer)->first();
-        if (!$distributor) {
-            abort(400, 'Data distributor tidak terdaftar.');
+        $custCodes = array_filter(array_map('trim', explode(',', $user->code_customer)));
+        $distributorIds = Distributor::whereIn('code_customer', $custCodes)->pluck('id')->toArray();
+
+        $salesOrder = \App\Models\SalesOrder::find($id);
+        if (!$salesOrder || !in_array($salesOrder->distributor_id, $distributorIds)) {
+            abort(403, 'Anda tidak memiliki akses ke sales order ini.');
         }
 
-        $this->salesOrderService->deleteDraft($id, $user->id, $distributor->id);
+        $this->salesOrderService->deleteDraft($id, $user->id, $salesOrder->distributor_id);
 
         return $this->successResponse(null, 'Sales order draft berhasil dihapus.');
     }
@@ -574,8 +587,14 @@ class SalesOrderController extends Controller
 
         // Restriction: if user is a distributor, restrict to their own ID
         if ($user->code_customer) {
-            $distributor = Distributor::where('code_customer', $user->code_customer)->first();
-            $distributorId = $distributor?->id;
+            $custCodes = array_filter(array_map('trim', explode(',', $user->code_customer)));
+            $distributorIds = Distributor::whereIn('code_customer', $custCodes)->pluck('id')->toArray();
+
+            $salesOrder = \App\Models\SalesOrder::find($id);
+            if (!$salesOrder || !in_array($salesOrder->distributor_id, $distributorIds)) {
+                return $this->errorResponse('Sales order tidak ditemukan.', [], 404);
+            }
+            $distributorId = $salesOrder->distributor_id;
         }
 
         try {
@@ -628,8 +647,14 @@ class SalesOrderController extends Controller
 
         // Restriction: if user is a distributor, restrict to their own ID
         if ($user->code_customer) {
-            $distributor = Distributor::where('code_customer', $user->code_customer)->first();
-            $distributorId = $distributor?->id;
+            $custCodes = array_filter(array_map('trim', explode(',', $user->code_customer)));
+            $distributorIds = Distributor::whereIn('code_customer', $custCodes)->pluck('id')->toArray();
+
+            $salesOrder = \App\Models\SalesOrder::find($id);
+            if (!$salesOrder || !in_array($salesOrder->distributor_id, $distributorIds)) {
+                return $this->errorResponse('Sales order tidak ditemukan.', [], 404);
+            }
+            $distributorId = $salesOrder->distributor_id;
         }
 
         try {
@@ -654,8 +679,14 @@ class SalesOrderController extends Controller
         $distributorId = null;
 
         if ($user->code_customer) {
-            $distributor = Distributor::where('code_customer', $user->code_customer)->first();
-            $distributorId = $distributor?->id;
+            $custCodes = array_filter(array_map('trim', explode(',', $user->code_customer)));
+            $distributorIds = Distributor::whereIn('code_customer', $custCodes)->pluck('id')->toArray();
+
+            $salesOrder = \App\Models\SalesOrder::find($id);
+            if (!$salesOrder || !in_array($salesOrder->distributor_id, $distributorIds)) {
+                return $this->errorResponse('Sales order tidak ditemukan.', [], 404);
+            }
+            $distributorId = $salesOrder->distributor_id;
         }
 
         try {
@@ -679,8 +710,9 @@ class SalesOrderController extends Controller
 
         // If the user has a code_customer, restrict them to their own distributor data
         if ($user->code_customer) {
-            $distributor = Distributor::where('code_customer', $user->code_customer)->first();
-            $distributorId = $distributor?->id;
+            $custCodes = array_filter(array_map('trim', explode(',', $user->code_customer)));
+            $distributorIds = Distributor::whereIn('code_customer', $custCodes)->pluck('id')->toArray();
+            $distributorId = count($distributorIds) > 0 ? $distributorIds : null;
         }
 
         $summary = $this->salesOrderService->getDashboardSummary($distributorId);
@@ -732,8 +764,14 @@ class SalesOrderController extends Controller
 
         // If the user has a code_customer, restrict them to their own distributor data
         if ($user->code_customer) {
-            $distributor = Distributor::where('code_customer', $user->code_customer)->first();
-            $distributorId = $distributor?->id;
+            $custCodes = array_filter(array_map('trim', explode(',', $user->code_customer)));
+            $distributorIds = Distributor::whereIn('code_customer', $custCodes)->pluck('id')->toArray();
+
+            $salesOrder = \App\Models\SalesOrder::find($id);
+            if (!$salesOrder || !in_array($salesOrder->distributor_id, $distributorIds)) {
+                return $this->errorResponse('Sales order tidak ditemukan.', [], 404);
+            }
+            $distributorId = $salesOrder->distributor_id;
         }
 
         try {
