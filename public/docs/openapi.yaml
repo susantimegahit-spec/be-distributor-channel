@@ -5165,6 +5165,620 @@ paths:
         '401':
           description: Tidak terautentikasi
 
+  /v1/ekspedisi/expeditions:
+    get:
+      summary: Get paginated list of expeditions
+      description: Mendapatkan daftar master ekspedisi dengan pagination dan filter pencarian.
+      tags:
+        - Master Ekspedisi
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter pencarian berdasarkan kode, nama, kota, atau PIC
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE]
+          description: Filter status ekspedisi
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 15
+          description: Jumlah data per halaman
+      responses:
+        '200':
+          description: Daftar master ekspedisi berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar master ekspedisi berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Expedition'
+        '401':
+          description: Tidak terautentikasi
+
+    post:
+      summary: Create new expedition master
+      description: Menambahkan data master ekspedisi baru.
+      tags:
+        - Master Ekspedisi
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - expedition_code
+                - expedition_name
+              properties:
+                expedition_code:
+                  type: string
+                  example: JNE
+                expedition_name:
+                  type: string
+                  example: PT Jalur Nugraha Ekakurir
+                address:
+                  type: string
+                  example: Jl. Raya Bandara Juanda No. 12
+                city:
+                  type: string
+                  example: Sidoarjo
+                province:
+                  type: string
+                  example: Jawa Timur
+                postal_code:
+                  type: string
+                  example: 61253
+                pic_name:
+                  type: string
+                  example: Budi Santoso
+                pic_phone:
+                  type: string
+                  example: 081234567890
+                email:
+                  type: string
+                  example: budi@jne.co.id
+                npwp:
+                  type: string
+                  example: 01.234.567.8-012.000
+                vehicle_type:
+                  type: string
+                  example: Box Medium
+                transport_mode:
+                  type: string
+                  example: Darat
+                status:
+                  type: string
+                  enum: [ACTIVE, INACTIVE]
+                  example: ACTIVE
+      responses:
+        '201':
+          description: Master ekspedisi berhasil ditambahkan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Master ekspedisi berhasil ditambahkan.
+                  data:
+                    $ref: '#/components/schemas/Expedition'
+        '422':
+          description: Error validasi input
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/ekspedisi/expeditions/{id}:
+    get:
+      summary: Get detailed expedition master
+      description: Mendapatkan detail data master ekspedisi berdasarkan ID.
+      tags:
+        - Master Ekspedisi
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID Ekspedisi
+      responses:
+        '200':
+          description: Detail master ekspedisi berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Detail master ekspedisi berhasil diambil.
+                  data:
+                    $ref: '#/components/schemas/Expedition'
+        '404':
+          description: Data ekspedisi tidak ditemukan
+        '401':
+          description: Tidak terautentikasi
+
+    put:
+      summary: Update expedition master
+      description: Memperbarui data master ekspedisi berdasarkan ID.
+      tags:
+        - Master Ekspedisi
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID Ekspedisi
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expedition_code:
+                  type: string
+                  example: JNE
+                expedition_name:
+                  type: string
+                  example: PT Jalur Nugraha Ekakurir
+                address:
+                  type: string
+                  example: Jl. Raya Bandara Juanda No. 12
+                city:
+                  type: string
+                  example: Sidoarjo
+                province:
+                  type: string
+                  example: Jawa Timur
+                postal_code:
+                  type: string
+                  example: 61253
+                pic_name:
+                  type: string
+                  example: Budi Santoso
+                pic_phone:
+                  type: string
+                  example: 081234567890
+                email:
+                  type: string
+                  example: budi@jne.co.id
+                npwp:
+                  type: string
+                  example: 01.234.567.8-012.000
+                vehicle_type:
+                  type: string
+                  example: Box Medium
+                transport_mode:
+                  type: string
+                  example: Darat
+                status:
+                  type: string
+                  enum: [ACTIVE, INACTIVE]
+                  example: ACTIVE
+      responses:
+        '200':
+          description: Master ekspedisi berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Master ekspedisi berhasil diperbarui.
+                  data:
+                    $ref: '#/components/schemas/Expedition'
+        '404':
+          description: Data ekspedisi tidak ditemukan
+        '422':
+          description: Error validasi input
+        '401':
+          description: Tidak terautentikasi
+
+    delete:
+      summary: Delete expedition master
+      description: Menghapus data master ekspedisi berdasarkan ID.
+      tags:
+        - Master Ekspedisi
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID Ekspedisi
+      responses:
+        '200':
+          description: Master ekspedisi berhasil dihapus
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Master ekspedisi berhasil dihapus.
+        '404':
+          description: Data ekspedisi tidak ditemukan
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/ekspedisi/rates:
+    get:
+      summary: Get paginated list of expedition rates
+      description: Mendapatkan daftar tarif ekspedisi dengan pagination dan filter rute/moda.
+      tags:
+        - Master Tarif Ekspedisi
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: expedition_id
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter ID ekspedisi
+        - name: warehouse_id
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter ID gudang asal
+        - name: destination_id
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter ID tujuan
+        - name: transport_mode
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter moda transportasi
+        - name: service_type
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter jenis layanan
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE]
+          description: Filter status
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 15
+          description: Jumlah data per halaman
+      responses:
+        '200':
+          description: Daftar tarif ekspedisi berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar tarif ekspedisi berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ExpeditionRate'
+        '401':
+          description: Tidak terautentikasi
+
+    post:
+      summary: Create new expedition rate
+      description: Menambahkan data tarif ekspedisi baru.
+      tags:
+        - Master Tarif Ekspedisi
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - expedition_id
+                - price
+              properties:
+                expedition_id:
+                  type: integer
+                  example: 1
+                warehouse_id:
+                  type: integer
+                  example: 1
+                destination_id:
+                  type: integer
+                  example: 3578080
+                transport_mode:
+                  type: string
+                  example: Darat
+                service_type:
+                  type: string
+                  example: REGULER
+                min_tonnage:
+                  type: number
+                  example: 1.00
+                max_tonnage:
+                  type: number
+                  example: 10.00
+                price:
+                  type: number
+                  example: 1500000.00
+                eta_days:
+                  type: integer
+                  example: 3
+                min_shipment_qty:
+                  type: number
+                  example: 100.00
+                max_shipment_qty:
+                  type: number
+                  example: 5000.00
+                valid_from:
+                  type: string
+                  format: date
+                  example: "2026-01-01"
+                valid_until:
+                  type: string
+                  format: date
+                  example: "2026-12-31"
+                status:
+                  type: string
+                  enum: [ACTIVE, INACTIVE]
+                  example: ACTIVE
+                remarks:
+                  type: string
+                  example: Tarif khusus area Jawa Timur
+                upload_batch_id:
+                  type: string
+                  example: BATCH-20260723-01
+      responses:
+        '201':
+          description: Tarif ekspedisi berhasil ditambahkan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Tarif ekspedisi berhasil ditambahkan.
+                  data:
+                    $ref: '#/components/schemas/ExpeditionRate'
+        '422':
+          description: Error validasi input
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/ekspedisi/rates/{id}:
+    get:
+      summary: Get detailed expedition rate
+      description: Mendapatkan detail data tarif ekspedisi berdasarkan ID.
+      tags:
+        - Master Tarif Ekspedisi
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID Tarif Ekspedisi
+      responses:
+        '200':
+          description: Detail tarif ekspedisi berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Detail tarif ekspedisi berhasil diambil.
+                  data:
+                    $ref: '#/components/schemas/ExpeditionRate'
+        '404':
+          description: Data tarif ekspedisi tidak ditemukan
+        '401':
+          description: Tidak terautentikasi
+
+    put:
+      summary: Update expedition rate
+      description: Memperbarui data tarif ekspedisi berdasarkan ID.
+      tags:
+        - Master Tarif Ekspedisi
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID Tarif Ekspedisi
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expedition_id:
+                  type: integer
+                  example: 1
+                warehouse_id:
+                  type: integer
+                  example: 1
+                destination_id:
+                  type: integer
+                  example: 3578080
+                transport_mode:
+                  type: string
+                  example: Darat
+                service_type:
+                  type: string
+                  example: REGULER
+                min_tonnage:
+                  type: number
+                  example: 1.00
+                max_tonnage:
+                  type: number
+                  example: 10.00
+                price:
+                  type: number
+                  example: 1500000.00
+                eta_days:
+                  type: integer
+                  example: 3
+                min_shipment_qty:
+                  type: number
+                  example: 100.00
+                max_shipment_qty:
+                  type: number
+                  example: 5000.00
+                valid_from:
+                  type: string
+                  format: date
+                  example: "2026-01-01"
+                valid_until:
+                  type: string
+                  format: date
+                  example: "2026-12-31"
+                status:
+                  type: string
+                  enum: [ACTIVE, INACTIVE]
+                  example: ACTIVE
+                remarks:
+                  type: string
+                  example: Tarif khusus area Jawa Timur
+                upload_batch_id:
+                  type: string
+                  example: BATCH-20260723-01
+      responses:
+        '200':
+          description: Tarif ekspedisi berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Tarif ekspedisi berhasil diperbarui.
+                  data:
+                    $ref: '#/components/schemas/ExpeditionRate'
+        '404':
+          description: Data tarif ekspedisi tidak ditemukan
+        '422':
+          description: Error validasi input
+        '401':
+          description: Tidak terautentikasi
+
+    delete:
+      summary: Delete expedition rate
+      description: Menghapus data tarif ekspedisi berdasarkan ID.
+      tags:
+        - Master Tarif Ekspedisi
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID Tarif Ekspedisi
+      responses:
+        '200':
+          description: Tarif ekspedisi berhasil dihapus
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Tarif ekspedisi berhasil dihapus.
+        '404':
+          description: Data tarif ekspedisi tidak ditemukan
+        '401':
+          description: Tidak terautentikasi
+
   /v1/sales-distributors:
     get:
       summary: List all sales-distributor mappings
@@ -7419,6 +8033,162 @@ components:
           type: string
           format: date-time
           example: "2026-07-02T09:05:00.000000Z"
+
+    Expedition:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        expedition_code:
+          type: string
+          example: JNE
+        expedition_name:
+          type: string
+          example: PT Jalur Nugraha Ekakurir
+        address:
+          type: string
+          nullable: true
+          example: Jl. Raya Bandara Juanda No. 12
+        city:
+          type: string
+          nullable: true
+          example: Sidoarjo
+        province:
+          type: string
+          nullable: true
+          example: Jawa Timur
+        postal_code:
+          type: string
+          nullable: true
+          example: 61253
+        pic_name:
+          type: string
+          nullable: true
+          example: Budi Santoso
+        pic_phone:
+          type: string
+          nullable: true
+          example: 081234567890
+        email:
+          type: string
+          nullable: true
+          example: budi@jne.co.id
+        npwp:
+          type: string
+          nullable: true
+          example: 01.234.567.8-012.000
+        vehicle_type:
+          type: string
+          nullable: true
+          example: Box Medium
+        transport_mode:
+          type: string
+          nullable: true
+          example: Darat
+        status:
+          type: string
+          example: ACTIVE
+        created_by:
+          type: integer
+          nullable: true
+          example: 1
+        updated_by:
+          type: integer
+          nullable: true
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-23T08:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-23T08:00:00.000000Z"
+
+    ExpeditionRate:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        expedition_id:
+          type: integer
+          example: 1
+        warehouse_id:
+          type: integer
+          nullable: true
+          example: 1
+        destination_id:
+          type: integer
+          nullable: true
+          example: 3578080
+        transport_mode:
+          type: string
+          nullable: true
+          example: Darat
+        service_type:
+          type: string
+          nullable: true
+          example: REGULER
+        min_tonnage:
+          type: number
+          example: 1.00
+        max_tonnage:
+          type: number
+          example: 10.00
+        price:
+          type: number
+          example: 1500000.00
+        eta_days:
+          type: integer
+          nullable: true
+          example: 3
+        min_shipment_qty:
+          type: number
+          example: 100.00
+        max_shipment_qty:
+          type: number
+          example: 5000.00
+        valid_from:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-01-01"
+        valid_until:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-12-31"
+        status:
+          type: string
+          example: ACTIVE
+        remarks:
+          type: string
+          nullable: true
+          example: Tarif khusus area Jawa Timur
+        upload_batch_id:
+          type: string
+          nullable: true
+          example: BATCH-20260723-01
+        created_by:
+          type: integer
+          nullable: true
+          example: 1
+        updated_by:
+          type: integer
+          nullable: true
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-23T08:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-23T08:00:00.000000Z"
+        expedition:
+          $ref: '#/components/schemas/Expedition'
 
     ProductionResource:
       type: object
