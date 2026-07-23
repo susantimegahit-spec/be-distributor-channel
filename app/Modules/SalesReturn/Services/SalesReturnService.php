@@ -140,22 +140,178 @@ class SalesReturnService
     }
 
     /**
-     * Approve return request (admin sales).
+     * Approve return request (admin sales) and integrate to SAP.
      */
     public function approve(SalesReturn $salesReturn, int $userId): SalesReturn
     {
-        if ($salesReturn->status !== 'SUBMITTED') {
+        if ($salesReturn->status !== 'SUBMITTED' && $salesReturn->status !== 'APPROVED') {
             throw ValidationException::withMessages(['status' => 'Hanya retur berstatus SUBMITTED yang dapat disetujui.']);
         }
 
-        $data = [
-            'status' => 'APPROVED',
-            'approved_by' => $userId,
-            'approved_at' => now(),
-            'updated_by' => $userId,
+        // 1. Fetch associated Sales Order
+        $salesOrder = $salesReturn->salesOrder;
+        if (!$salesOrder) {
+            throw new \Exception('Sales Order terkait tidak ditemukan.');
+        }
+
+        // 2. Fetch DO by SO lines from SAP
+        $soNum = $salesOrder->sap_doc_num ?: $salesOrder->order_no;
+        try {
+            $sapDoResponse = \Illuminate\Support\Facades\Http::timeout(15)->post('http://103.18.133.187:3100/api/GetDObySO', [
+                'CustomQuery' => $soNum,
+            ]);
+
+            if (!$sapDoResponse->successful()) {
+                throw new \Exception('Gagal menghubungi API SAP GetDObySO.');
+            }
+
+            $sapDoBody = $sapDoResponse->json();
+            if (isset($sapDoBody['ErrorCode']) && $sapDoBody['ErrorCode'] !== 0) {
+                throw new \Exception('API SAP GetDObySO error: ' . ($sapDoBody['Message'] ?? 'Unknown error'));
+            }
+
+            $doLines = $sapDoBody['Result'] ?? [];
+        } catch (\Exception $e) {
+            $salesReturn->update(['sap_error' => 'Gagal mengambil data DO dari SAP: ' . $e->getMessage()]);
+            throw new \Exception('Gagal memproses approval: ' . $e->getMessage());
+        }
+
+        // 3. Map return details to DO lines by ItemCode
+        $mappedLines = [];
+        $doNum = null;
+
+        // Ensure details relationship is loaded
+        $salesReturn->load('details.salesOrderDetail');
+
+        foreach ($salesReturn->details as $detail) {
+            $matchedDoLine = null;
+            foreach ($doLines as $line) {
+                if (strtoupper(trim($line['ItemCode'])) === strtoupper(trim($detail->item_code))) {
+                    $matchedDoLine = $line;
+                    break;
+                }
+            }
+
+            if (!$matchedDoLine) {
+                throw new \Exception("Item {$detail->item_code} tidak ditemukan pada data Delivery Order (DO) di SAP.");
+            }
+
+            $doNum = $matchedDoLine['DocNum']; // Get DO Number
+            $whsCode = $detail->salesOrderDetail->whs_code ?? '01';
+
+            $mappedLines[] = [
+                'BaseLine' => (int)$matchedDoLine['BaseLine'],
+                'Quantity' => (float)$detail->quantity,
+                'WhsCode' => $whsCode,
+                'BinActivto' => 'N',
+                'Lines_BinTO' => [],
+            ];
+        }
+
+        if (!$doNum) {
+            throw new \Exception('Nomor DO tidak ditemukan untuk mencocokkan item retur.');
+        }
+
+        // 4. Construct addretur payload
+        $approver = \App\Models\User::find($userId);
+        $payload = [
+            'NoDO' => (int)$doNum,
+            'DocDate' => now()->format('Y-m-d\TH:i:s'),
+            'DocDueDate' => now()->format('Y-m-d\TH:i:s'),
+            'Comments' => $salesReturn->reason ?: ('Retur untuk Return No: ' . $salesReturn->return_no),
+            'AddonId' => 'ADDON-WMS-V1',
+            'UserId' => $approver->username ?? 'USER_API_01',
+            'Lines' => $mappedLines,
         ];
 
-        return $this->repository->update($salesReturn, $data);
+        // 5. Post to addretur API
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(15)->post('http://103.18.133.187:3100/api/addretur', $payload);
+            
+            if (!$response->successful()) {
+                throw new \Exception('Gagal menghubungi API SAP addretur.');
+            }
+
+            $body = $response->json();
+            if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
+                throw new \Exception('API SAP addretur error: ' . ($body['Message'] ?? 'Unknown error'));
+            }
+
+            // Extract DocEntry and DocNum from SAP response
+            $sapResult = $body['Result'][0] ?? $body['result'][0] ?? null;
+            $sapDocEntry = null;
+            $sapDocNum = null;
+
+            if ($sapResult) {
+                $sapDocEntry = $sapResult['DocEntry'] ?? $sapResult['docEntry'] ?? $sapResult['doc_entry'] ?? null;
+                $sapDocNum = $sapResult['DocNum'] ?? $sapResult['docNum'] ?? $sapResult['doc_num'] ?? null;
+            }
+
+            // If empty, extract from message
+            $message = $body['Message'] ?? $body['message'] ?? '';
+            if (empty($sapDocNum) && !empty($message)) {
+                if (preg_match('/DocNum:\s*([A-Za-z0-9_-]+)/i', $message, $matches)) {
+                    $sapDocNum = $matches[1];
+                }
+            }
+            if (empty($sapDocEntry) && !empty($message)) {
+                if (preg_match('/DocEntry:\s*(\d+)/i', $message, $matches)) {
+                    $sapDocEntry = (int)$matches[1];
+                }
+            }
+
+            // 6. Update local records on success
+            $salesReturn->update([
+                'status' => 'SAP_INTEGRATED',
+                'approved_by' => $userId,
+                'approved_at' => now(),
+                'updated_by' => $userId,
+                'sap_doc_entry' => $sapDocEntry,
+                'sap_doc_num' => $sapDocNum,
+                'sap_error' => null,
+            ]);
+
+            return $salesReturn;
+
+        } catch (\Exception $e) {
+            $salesReturn->update([
+                'sap_error' => $e->getMessage(),
+            ]);
+            throw new \Exception('Gagal integrasi SAP addretur: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get Delivery Order (DO) lines by Sales Order (SO) DocNum from SAP.
+     *
+     * @param string $soNum
+     * @return array
+     */
+    public function getDoBySo(string $soNum): array
+    {
+        // If numeric local ID is provided, resolve to SAP DocNum
+        if (is_numeric($soNum)) {
+            $salesOrder = SalesOrder::find((int)$soNum);
+            if ($salesOrder) {
+                $soNum = $salesOrder->sap_doc_num ?: $salesOrder->order_no;
+            }
+        }
+
+        $response = \Illuminate\Support\Facades\Http::timeout(15)->post('http://103.18.133.187:3100/api/GetDObySO', [
+            'CustomQuery' => $soNum,
+        ]);
+
+        if (!$response->successful()) {
+            throw new \Exception('Gagal menghubungi API SAP untuk mendapatkan DO by SO.');
+        }
+
+        $body = $response->json();
+
+        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
+            throw new \Exception('API SAP GetDObySO mengembalikan error: ' . ($body['Message'] ?? 'Unknown error'));
+        }
+
+        return $body['Result'] ?? [];
     }
 
     /**

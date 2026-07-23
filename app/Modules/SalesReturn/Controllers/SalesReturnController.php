@@ -106,6 +106,23 @@ class SalesReturnController extends Controller
     }
 
     /**
+     * Get Delivery Order (DO) lines by Sales Order (SO) DocNum from SAP.
+     */
+    public function getDoBySo(Request $request): JsonResponse
+    {
+        $request->validate([
+            'so_num' => 'required|string',
+        ]);
+
+        try {
+            $data = $this->service->getDoBySo($request->input('so_num'));
+            return $this->successResponse($data, 'Data DO by SO berhasil diambil dari SAP.');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), [], 500);
+        }
+    }
+
+    /**
      * Approve return request (admin sales only).
      */
     public function approve(Request $request, int $id): JsonResponse

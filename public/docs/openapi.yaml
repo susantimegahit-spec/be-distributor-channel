@@ -384,6 +384,67 @@ paths:
         '200':
           description: Record berhasil dihapus.
 
+  /v1/sales-returns/do-by-so:
+    get:
+      summary: Get Delivery Order (DO) lines by Sales Order from SAP
+      description: Mendapatkan daftar detail baris Delivery Order (DO) dari SAP berdasarkan kode/nomor Sales Order (SO).
+      tags:
+        - Sales Return
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: so_num
+          in: query
+          required: true
+          schema:
+            type: string
+          description: SAP DocNum atau ID lokal Sales Order
+          example: "260710018"
+      responses:
+        '200':
+          description: Data DO by SO berhasil diambil dari SAP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data DO by SO berhasil diambil dari SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Status:
+                          type: string
+                          example: O
+                        DocNum:
+                          type: string
+                          example: "260710002"
+                        DocDate:
+                          type: string
+                          example: "20260721"
+                        BaseLine:
+                          type: string
+                          example: "0"
+                        ItemCode:
+                          type: string
+                          example: "B26"
+                        ItemDescription:
+                          type: string
+                          example: "KOP 250 M @ 10 KG / BAL"
+                        Delivered_Qty:
+                          type: string
+                          example: "1550.000000"
+        '401':
+          description: Tidak terautentikasi
+        '500':
+          description: Error internal server atau API SAP
+
   /v1/sales-returns:
     get:
       summary: Get all sales return requests
