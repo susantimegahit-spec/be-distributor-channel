@@ -18,11 +18,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        try {
-            DB::statement('CREATE SCHEMA IF NOT EXISTS ekspedisi');
-        } catch (\Throwable $e) {
-            // Ignore privilege error and proceed if schema was created manually
-            Log::warning("Failed to auto-create schema 'ekspedisi': " . $e->getMessage());
+        // Check if schema exists first to avoid running CREATE SCHEMA (which aborts transaction on privilege error)
+        $schemaExists = DB::select("SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'ekspedisi'");
+        
+        if (empty($schemaExists)) {
+            try {
+                DB::statement('CREATE SCHEMA ekspedisi');
+            } catch (\Throwable $e) {
+                // Ignore privilege error and proceed if schema was created manually
+                Log::warning("Failed to auto-create schema 'ekspedisi': " . $e->getMessage());
+            }
         }
 
         if (!Schema::connection($this->connection)->hasTable('expeditions')) {
