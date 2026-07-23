@@ -147,4 +147,25 @@ class ExpeditionController extends Controller
 
         return $this->successResponse(null, 'Master ekspedisi berhasil dihapus.');
     }
+
+    /**
+     * Upload master expeditions Excel/CSV file.
+     */
+    public function upload(Request $request, \App\Modules\Ekspedisi\Services\ExpeditionUploadService $uploadService): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'file' => 'required|file|mimes:xlsx,xls,csv|max:10240',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse($validator->errors()->first(), [], 422);
+        }
+
+        try {
+            $result = $uploadService->uploadExpeditions($request->file('file'));
+            return $this->successResponse($result, 'File master ekspedisi berhasil diupload dan diproses.');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), [], 500);
+        }
+    }
 }

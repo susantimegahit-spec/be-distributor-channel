@@ -5165,6 +5165,118 @@ paths:
         '401':
           description: Tidak terautentikasi
 
+  /v1/ekspedisi/expeditions/upload:
+    post:
+      summary: Upload master expeditions file (Excel/CSV)
+      description: Mengunggah file spreadsheet (.xlsx, .xls, .csv) untuk mengimpor atau memperbarui data master ekspedisi secara massal (bulk).
+      tags:
+        - Master Ekspedisi
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File Excel (.xlsx, .xls) atau CSV
+      responses:
+        '200':
+          description: File master ekspedisi berhasil diupload dan diproses.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: File master ekspedisi berhasil diupload dan diproses.
+                  data:
+                    type: object
+                    properties:
+                      processed_count:
+                        type: integer
+                        example: 10
+                      created_count:
+                        type: integer
+                        example: 8
+                      updated_count:
+                        type: integer
+                        example: 2
+                      errors:
+                        type: array
+                        items:
+                          type: string
+        '422':
+          description: Format file atau validasi tidak sesuai
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/ekspedisi/rates/upload:
+    post:
+      summary: Upload master expedition rates file (Excel/CSV)
+      description: Mengunggah file spreadsheet (.xlsx, .xls, .csv) untuk mengimpor data tarif ekspedisi secara massal (bulk) dan membuat Batch ID secara otomatis.
+      tags:
+        - Master Tarif Ekspedisi
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File Excel (.xlsx, .xls) atau CSV
+      responses:
+        '200':
+          description: File tarif ekspedisi berhasil diupload dan diproses.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: File tarif ekspedisi berhasil diupload dan diproses.
+                  data:
+                    type: object
+                    properties:
+                      upload_batch_id:
+                        type: string
+                        example: BATCH-RATE-20260723-001
+                      processed_count:
+                        type: integer
+                        example: 50
+                      created_count:
+                        type: integer
+                        example: 50
+                      errors:
+                        type: array
+                        items:
+                          type: string
+        '422':
+          description: Format file atau validasi tidak sesuai
+        '401':
+          description: Tidak terautentikasi
+
   /v1/ekspedisi/expeditions:
     get:
       summary: Get paginated list of expeditions

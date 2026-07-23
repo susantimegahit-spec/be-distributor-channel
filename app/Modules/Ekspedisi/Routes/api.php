@@ -14,6 +14,10 @@ Route::prefix('v1/ekspedisi')->middleware('auth:sanctum')->group(function () {
         Route::get('/villages', [WilayahController::class, 'getVillages']);
     });
 
+    // Upload Master Ekspedisi & Rates (harus dideklarasikan sebelum apiResource agar tidak bentrok dengan {id})
+    Route::post('expeditions/upload', [ExpeditionController::class, 'upload']);
+    Route::post('rates/upload', [ExpeditionRateController::class, 'upload']);
+
     // Master Ekspedisi (Expedition Vendors)
     Route::apiResource('expeditions', ExpeditionController::class);
 
