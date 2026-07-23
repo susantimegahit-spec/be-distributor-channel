@@ -528,6 +528,12 @@ paths:
                       reason:
                         type: string
                         example: "Pecah di dalam kardus"
+                      do_num:
+                        type: string
+                        example: "260710002"
+                      baseline:
+                        type: integer
+                        example: 0
                 attachments:
                   type: array
                   maxItems: 5

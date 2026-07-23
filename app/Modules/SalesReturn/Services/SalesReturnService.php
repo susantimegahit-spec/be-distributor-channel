@@ -104,6 +104,8 @@ class SalesReturnService
                 'unit_price' => $soDetail->unit_price,
                 'line_total' => $lineTotal,
                 'reason' => $item['reason'] ?? null,
+                'do_num' => $item['do_num'] ?? null,
+                'baseline' => isset($item['baseline']) ? (int)$item['baseline'] : null,
             ];
         }
 
@@ -154,58 +156,82 @@ class SalesReturnService
             throw new \Exception('Sales Order terkait tidak ditemukan.');
         }
 
-        // 2. Fetch DO by SO lines from SAP
-        $soNum = $salesOrder->sap_doc_num ?: $salesOrder->order_no;
-        try {
-            $sapDoResponse = \Illuminate\Support\Facades\Http::timeout(15)->post('http://103.18.133.187:3100/api/GetDObySO', [
-                'CustomQuery' => $soNum,
-            ]);
-
-            if (!$sapDoResponse->successful()) {
-                throw new \Exception('Gagal menghubungi API SAP GetDObySO.');
-            }
-
-            $sapDoBody = $sapDoResponse->json();
-            if (isset($sapDoBody['ErrorCode']) && $sapDoBody['ErrorCode'] !== 0) {
-                throw new \Exception('API SAP GetDObySO error: ' . ($sapDoBody['Message'] ?? 'Unknown error'));
-            }
-
-            $doLines = $sapDoBody['Result'] ?? [];
-        } catch (\Exception $e) {
-            $salesReturn->update(['sap_error' => 'Gagal mengambil data DO dari SAP: ' . $e->getMessage()]);
-            throw new \Exception('Gagal memproses approval: ' . $e->getMessage());
-        }
-
-        // 3. Map return details to DO lines by ItemCode
-        $mappedLines = [];
-        $doNum = null;
-
         // Ensure details relationship is loaded
         $salesReturn->load('details.salesOrderDetail');
 
+        // Check if details already have do_num and baseline saved
+        $hasSavedDO = true;
         foreach ($salesReturn->details as $detail) {
-            $matchedDoLine = null;
-            foreach ($doLines as $line) {
-                if (strtoupper(trim($line['ItemCode'])) === strtoupper(trim($detail->item_code))) {
-                    $matchedDoLine = $line;
-                    break;
+            if (empty($detail->do_num) || $detail->baseline === null) {
+                $hasSavedDO = false;
+                break;
+            }
+        }
+
+        $mappedLines = [];
+        $doNum = null;
+
+        if ($hasSavedDO) {
+            // Use saved do_num and baseline directly!
+            foreach ($salesReturn->details as $detail) {
+                $doNum = $detail->do_num;
+                $whsCode = $detail->salesOrderDetail->whs_code ?? '01';
+
+                $mappedLines[] = [
+                    'BaseLine' => (int)$detail->baseline,
+                    'Quantity' => (float)$detail->quantity,
+                    'WhsCode' => $whsCode,
+                    'BinActivto' => 'N',
+                    'Lines_BinTO' => [],
+                ];
+            }
+        } else {
+            // Fallback: Fetch DO by SO lines from SAP and match dynamically by ItemCode
+            $soNum = $salesOrder->sap_doc_num ?: $salesOrder->order_no;
+            try {
+                $sapDoResponse = \Illuminate\Support\Facades\Http::timeout(15)->post('http://103.18.133.187:3100/api/GetDObySO', [
+                    'CustomQuery' => $soNum,
+                ]);
+
+                if (!$sapDoResponse->successful()) {
+                    throw new \Exception('Gagal menghubungi API SAP GetDObySO.');
                 }
+
+                $sapDoBody = $sapDoResponse->json();
+                if (isset($sapDoBody['ErrorCode']) && $sapDoBody['ErrorCode'] !== 0) {
+                    throw new \Exception('API SAP GetDObySO error: ' . ($sapDoBody['Message'] ?? 'Unknown error'));
+                }
+
+                $doLines = $sapDoBody['Result'] ?? [];
+            } catch (\Exception $e) {
+                $salesReturn->update(['sap_error' => 'Gagal mengambil data DO dari SAP: ' . $e->getMessage()]);
+                throw new \Exception('Gagal memproses approval: ' . $e->getMessage());
             }
 
-            if (!$matchedDoLine) {
-                throw new \Exception("Item {$detail->item_code} tidak ditemukan pada data Delivery Order (DO) di SAP.");
+            foreach ($salesReturn->details as $detail) {
+                $matchedDoLine = null;
+                foreach ($doLines as $line) {
+                    if (strtoupper(trim($line['ItemCode'])) === strtoupper(trim($detail->item_code))) {
+                        $matchedDoLine = $line;
+                        break;
+                    }
+                }
+
+                if (!$matchedDoLine) {
+                    throw new \Exception("Item {$detail->item_code} tidak ditemukan pada data Delivery Order (DO) di SAP.");
+                }
+
+                $doNum = $matchedDoLine['DocNum']; // Get DO Number
+                $whsCode = $detail->salesOrderDetail->whs_code ?? '01';
+
+                $mappedLines[] = [
+                    'BaseLine' => (int)$matchedDoLine['BaseLine'],
+                    'Quantity' => (float)$detail->quantity,
+                    'WhsCode' => $whsCode,
+                    'BinActivto' => 'N',
+                    'Lines_BinTO' => [],
+                ];
             }
-
-            $doNum = $matchedDoLine['DocNum']; // Get DO Number
-            $whsCode = $detail->salesOrderDetail->whs_code ?? '01';
-
-            $mappedLines[] = [
-                'BaseLine' => (int)$matchedDoLine['BaseLine'],
-                'Quantity' => (float)$detail->quantity,
-                'WhsCode' => $whsCode,
-                'BinActivto' => 'N',
-                'Lines_BinTO' => [],
-            ];
         }
 
         if (!$doNum) {

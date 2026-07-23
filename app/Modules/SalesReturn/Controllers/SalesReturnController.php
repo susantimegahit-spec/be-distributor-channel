@@ -75,6 +75,8 @@ class SalesReturnController extends Controller
             'items.*.sales_order_detail_id' => 'required|integer',
             'items.*.quantity' => 'required|numeric|min:0.0001',
             'items.*.reason' => 'nullable|string|max:500',
+            'items.*.do_num' => 'nullable|string|max:50',
+            'items.*.baseline' => 'nullable|integer',
             'attachments' => 'nullable|array',
             'attachments.*' => 'required|image|mimes:jpeg,jpg,png,gif,webp|max:10240', // max 10MB per image
         ]);

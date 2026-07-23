@@ -22,6 +22,8 @@ class SalesReturnDetail extends Model
         'unit_price',
         'line_total',
         'reason',
+        'do_num',
+        'baseline',
     ];
 
     protected $casts = [
