@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -17,7 +18,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        DB::statement('CREATE SCHEMA IF NOT EXISTS ekspedisi');
+        try {
+            DB::statement('CREATE SCHEMA IF NOT EXISTS ekspedisi');
+        } catch (\Throwable $e) {
+            // Ignore privilege error and proceed if schema was created manually
+            Log::warning("Failed to auto-create schema 'ekspedisi': " . $e->getMessage());
+        }
 
         if (!Schema::connection($this->connection)->hasTable('expeditions')) {
             Schema::connection($this->connection)->create('expeditions', function (Blueprint $table) {
