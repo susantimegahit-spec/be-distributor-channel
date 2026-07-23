@@ -5232,12 +5232,13 @@ paths:
             schema:
               type: object
               required:
-                - expedition_code
                 - expedition_name
               properties:
                 expedition_code:
                   type: string
-                  example: JNE
+                  nullable: true
+                  description: Kode ekspedisi. Jika kosong, akan otomatis di-generate oleh backend (contoh EXP0001, EXP0002)
+                  example: EXP0001
                 expedition_name:
                   type: string
                   example: PT Jalur Nugraha Ekakurir

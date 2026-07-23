@@ -65,6 +65,28 @@ class Expedition extends Model
     }
 
     /**
+     * Generate automatic expedition code (e.g., EXP0001, EXP0002).
+     *
+     * @return string
+     */
+    public static function generateCode(): string
+    {
+        $lastExpedition = static::query()
+            ->where('expedition_code', 'LIKE', 'EXP%')
+            ->orderBy('id', 'desc')
+            ->first();
+
+        if (!$lastExpedition || !$lastExpedition->expedition_code) {
+            return 'EXP0001';
+        }
+
+        $lastNum = (int) preg_replace('/[^0-9]/', '', $lastExpedition->expedition_code);
+        $nextNum = $lastNum + 1;
+
+        return 'EXP' . str_pad((string) $nextNum, 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
      * Get user who updated record.
      */
     public function updater(): BelongsTo

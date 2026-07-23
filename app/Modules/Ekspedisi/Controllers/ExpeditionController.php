@@ -46,7 +46,7 @@ class ExpeditionController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'expedition_code' => 'required|string|max:50|unique:pgsql_ekspedisi.ekspedisi.expeditions,expedition_code',
+            'expedition_code' => 'nullable|string|max:50|unique:pgsql_ekspedisi.ekspedisi.expeditions,expedition_code',
             'expedition_name' => 'required|string|max:150',
             'address' => 'nullable|string',
             'city' => 'nullable|string|max:100',
@@ -66,6 +66,11 @@ class ExpeditionController extends Controller
         }
 
         $data = $validator->validated();
+
+        if (empty($data['expedition_code'])) {
+            $data['expedition_code'] = Expedition::generateCode();
+        }
+
         $data['created_by'] = auth()->id();
         $data['status'] = $data['status'] ?? 'ACTIVE';
 
