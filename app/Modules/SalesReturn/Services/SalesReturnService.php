@@ -330,14 +330,16 @@ class SalesReturnService
         }
 
         // 4. Construct addretur payload
-        $approver = \App\Models\User::find($userId);
+        $itemReasons = $salesReturn->details->map(fn($d) => $d->reason)->filter()->unique()->implode(', ');
+        $comments = $salesReturn->reason ?: ($itemReasons ?: 'Retur barang');
+
         $payload = [
             'NoDO' => (int)$doNum,
             'DocDate' => now()->format('Y-m-d'),
             'DocDueDate' => now()->format('Y-m-d'),
-            'Comments' => $salesReturn->reason,
+            'Comments' => $comments,
             'AddonId' => 2,
-            'UserId' => $approver->username ?? 'USER_API_01',
+            'UserId' => (int)$userId,
             'Lines' => $mappedLines,
         ];
 
