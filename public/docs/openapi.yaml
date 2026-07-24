@@ -531,6 +531,9 @@ paths:
                       do_num:
                         type: string
                         example: "260710002"
+                      do_date:
+                        type: string
+                        example: "20260721"
                       baseline:
                         type: integer
                         example: 0
@@ -8568,6 +8571,22 @@ components:
           type: string
           nullable: true
           example: Pecah di dalam kardus
+        do_num:
+          type: string
+          nullable: true
+          example: "260710002"
+        do_date:
+          type: string
+          nullable: true
+          format: date
+          example: "2026-07-21"
+        baseline:
+          type: integer
+          nullable: true
+          example: 0
+        status:
+          type: string
+          example: "SUBMITTED"
         created_at:
           type: string
           format: date-time

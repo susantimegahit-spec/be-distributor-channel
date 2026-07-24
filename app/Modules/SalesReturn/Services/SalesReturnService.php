@@ -151,6 +151,19 @@ class SalesReturnService
                 }
             }
 
+            $doDate = null;
+            if (!empty($item['do_date'])) {
+                try {
+                    if (preg_match('/^\d{8}$/', $item['do_date'])) {
+                        $doDate = \Carbon\Carbon::createFromFormat('Ymd', $item['do_date'])->format('Y-m-d');
+                    } else {
+                        $doDate = \Carbon\Carbon::parse($item['do_date'])->format('Y-m-d');
+                    }
+                } catch (\Exception $e) {
+                    $doDate = null;
+                }
+            }
+
             $lineTotal = $qtyToReturn * (float)$soDetail->unit_price;
             $docTotal += $lineTotal;
 
@@ -165,6 +178,7 @@ class SalesReturnService
                 'line_total' => $lineTotal,
                 'reason' => $item['reason'] ?? null,
                 'do_num' => $item['do_num'] ?? null,
+                'do_date' => $doDate,
                 'baseline' => isset($item['baseline']) ? (int)$item['baseline'] : null,
                 'status' => 'SUBMITTED',
             ];
@@ -310,6 +324,9 @@ class SalesReturnService
             'UserId' => $approver->username ?? 'USER_API_01',
             'Lines' => $mappedLines,
         ];
+
+        // DD payload to inspect it before sending to SAP
+        dd($payload);
 
         // 5. Post to addretur API
         try {

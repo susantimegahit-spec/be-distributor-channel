@@ -79,6 +79,7 @@ class SalesReturnController extends Controller
             'items.*.baseline' => 'nullable|integer',
             'items.*.do_qty' => 'nullable|numeric|min:0',
             'items.*.do_quantity' => 'nullable|numeric|min:0',
+            'items.*.do_date' => 'nullable|string|max:50',
             'attachments' => 'nullable|array',
             'attachments.*' => 'required|image|mimes:jpeg,jpg,png,gif,webp|max:10240', // max 10MB per image
         ]);

@@ -24,6 +24,7 @@ class SalesReturnDetail extends Model
         'line_total',
         'reason',
         'do_num',
+        'do_date',
         'baseline',
         'status',
     ];
@@ -33,6 +34,7 @@ class SalesReturnDetail extends Model
         'do_quantity' => 'decimal:4',
         'unit_price' => 'decimal:2',
         'line_total' => 'decimal:2',
+        'do_date' => 'date',
     ];
 
     public function salesReturn(): BelongsTo
