@@ -103,43 +103,52 @@ class SalesReturnService
                 ]);
             }
 
-            // Match DO line to get DO quantity
-            $matchedDoLine = null;
-            if (!empty($doLines)) {
-                foreach ($doLines as $line) {
-                    $matchDo = true;
-                    if (isset($item['do_num']) && isset($line['DocNum'])) {
-                        $matchDo = (string)$line['DocNum'] === (string)$item['do_num'];
-                    }
-                    $matchBaseline = true;
-                    if (isset($item['baseline']) && isset($line['BaseLine'])) {
-                        $matchBaseline = (int)$line['BaseLine'] === (int)$item['baseline'];
-                    }
-                    
-                    $matchItem = strtoupper(trim($line['ItemCode'] ?? '')) === strtoupper(trim($soDetail->item_code));
+            // Read DO quantity directly from FE request (either do_qty or do_quantity)
+            $doQty = null;
+            if (isset($item['do_quantity'])) {
+                $doQty = (float)$item['do_quantity'];
+            } elseif (isset($item['do_qty'])) {
+                $doQty = (float)$item['do_qty'];
+            }
 
-                    if ($matchDo && $matchBaseline && $matchItem) {
-                        $matchedDoLine = $line;
-                        break;
-                    }
-                }
-
-                // Fallback to match by item code only if do_num/baseline matching fails or was not precise
-                if (!$matchedDoLine) {
+            // Fallback: match from SAP DO lines if not provided by FE
+            if ($doQty === null) {
+                $matchedDoLine = null;
+                if (!empty($doLines)) {
                     foreach ($doLines as $line) {
-                        if (strtoupper(trim($line['ItemCode'] ?? '')) === strtoupper(trim($soDetail->item_code))) {
+                        $matchDo = true;
+                        if (isset($item['do_num']) && isset($line['DocNum'])) {
+                            $matchDo = (string)$line['DocNum'] === (string)$item['do_num'];
+                        }
+                        $matchBaseline = true;
+                        if (isset($item['baseline']) && isset($line['BaseLine'])) {
+                            $matchBaseline = (int)$line['BaseLine'] === (int)$item['baseline'];
+                        }
+                        
+                        $matchItem = strtoupper(trim($line['ItemCode'] ?? '')) === strtoupper(trim($soDetail->item_code));
+
+                        if ($matchDo && $matchBaseline && $matchItem) {
                             $matchedDoLine = $line;
                             break;
                         }
                     }
-                }
-            }
 
-            $doQty = 0.0;
-            if ($matchedDoLine) {
-                $doQty = (float)($matchedDoLine['Delivered_Qty'] ?? $matchedDoLine['Quantity'] ?? $matchedDoLine['Qty'] ?? 0.0);
-            } else {
-                $doQty = (float)$soDetail->quantity; // Fallback to SO quantity
+                    // Fallback to match by item code only if do_num/baseline matching fails or was not precise
+                    if (!$matchedDoLine) {
+                        foreach ($doLines as $line) {
+                            if (strtoupper(trim($line['ItemCode'] ?? '')) === strtoupper(trim($soDetail->item_code))) {
+                                $matchedDoLine = $line;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if ($matchedDoLine) {
+                    $doQty = (float)($matchedDoLine['Delivered_Qty'] ?? $matchedDoLine['Quantity'] ?? $matchedDoLine['Qty'] ?? 0.0);
+                } else {
+                    $doQty = (float)$soDetail->quantity; // Fallback to SO quantity
+                }
             }
 
             $lineTotal = $qtyToReturn * (float)$soDetail->unit_price;
