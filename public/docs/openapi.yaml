@@ -492,7 +492,7 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: '#/components/schemas/SalesReturn'
+                      $ref: '#/components/schemas/SalesReturnDetail'
 
     post:
       summary: Submit a new sales return request
@@ -8541,6 +8541,9 @@ components:
         quantity:
           type: number
           example: 5.0
+        do_quantity:
+          type: number
+          example: 10.0
         unit_msr:
           type: string
           nullable: true

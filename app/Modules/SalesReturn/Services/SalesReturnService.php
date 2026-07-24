@@ -59,6 +59,17 @@ class SalesReturnService
         $details = [];
         $docTotal = 0;
 
+        // Fetch DO lines from SAP to find the original DO quantity
+        $doLines = [];
+        $soNum = $salesOrder->sap_doc_num ?: $salesOrder->order_no;
+        if ($soNum) {
+            try {
+                $doLines = $this->getDoBySo($soNum);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning("Gagal mengambil data DO by SO untuk retur: " . $e->getMessage());
+            }
+        }
+
         // 3. Process return items and check quantities
         foreach ($payload['items'] as $item) {
             $soDetailId = $item['sales_order_detail_id'];
@@ -92,6 +103,45 @@ class SalesReturnService
                 ]);
             }
 
+            // Match DO line to get DO quantity
+            $matchedDoLine = null;
+            if (!empty($doLines)) {
+                foreach ($doLines as $line) {
+                    $matchDo = true;
+                    if (isset($item['do_num']) && isset($line['DocNum'])) {
+                        $matchDo = (string)$line['DocNum'] === (string)$item['do_num'];
+                    }
+                    $matchBaseline = true;
+                    if (isset($item['baseline']) && isset($line['BaseLine'])) {
+                        $matchBaseline = (int)$line['BaseLine'] === (int)$item['baseline'];
+                    }
+                    
+                    $matchItem = strtoupper(trim($line['ItemCode'] ?? '')) === strtoupper(trim($soDetail->item_code));
+
+                    if ($matchDo && $matchBaseline && $matchItem) {
+                        $matchedDoLine = $line;
+                        break;
+                    }
+                }
+
+                // Fallback to match by item code only if do_num/baseline matching fails or was not precise
+                if (!$matchedDoLine) {
+                    foreach ($doLines as $line) {
+                        if (strtoupper(trim($line['ItemCode'] ?? '')) === strtoupper(trim($soDetail->item_code))) {
+                            $matchedDoLine = $line;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            $doQty = 0.0;
+            if ($matchedDoLine) {
+                $doQty = (float)($matchedDoLine['Delivered_Qty'] ?? $matchedDoLine['Quantity'] ?? $matchedDoLine['Qty'] ?? 0.0);
+            } else {
+                $doQty = (float)$soDetail->quantity; // Fallback to SO quantity
+            }
+
             $lineTotal = $qtyToReturn * (float)$soDetail->unit_price;
             $docTotal += $lineTotal;
 
@@ -99,6 +149,7 @@ class SalesReturnService
                 'sales_order_detail_id' => $soDetailId,
                 'item_code' => $soDetail->item_code,
                 'quantity' => $qtyToReturn,
+                'do_quantity' => $doQty,
                 'unit_msr' => $soDetail->unit_msr,
                 'uom_entry' => $soDetail->uom_entry,
                 'unit_price' => $soDetail->unit_price,

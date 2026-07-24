@@ -17,6 +17,7 @@ class SalesReturnDetail extends Model
         'sales_order_detail_id',
         'item_code',
         'quantity',
+        'do_quantity',
         'unit_msr',
         'uom_entry',
         'unit_price',
@@ -28,6 +29,7 @@ class SalesReturnDetail extends Model
 
     protected $casts = [
         'quantity' => 'decimal:4',
+        'do_quantity' => 'decimal:4',
         'unit_price' => 'decimal:2',
         'line_total' => 'decimal:2',
     ];

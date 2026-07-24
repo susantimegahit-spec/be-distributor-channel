@@ -18,35 +18,45 @@ class SalesReturnRepository implements SalesReturnRepositoryInterface
      */
     public function getAll(array $filters = []): Collection
     {
-        $query = SalesReturn::query()->with(['details', 'attachments', 'salesOrder', 'distributor']);
+        $query = SalesReturnDetail::query()->with([
+            'salesReturn.attachments',
+            'salesReturn.salesOrder',
+            'salesReturn.distributor',
+            'salesReturn.details.salesOrderDetail',
+            'salesOrderDetail'
+        ]);
 
-        if (!empty($filters['distributor_id'])) {
-            if (is_array($filters['distributor_id'])) {
-                $query->whereIn('distributor_id', $filters['distributor_id']);
-            } else {
-                $query->where('distributor_id', $filters['distributor_id']);
-            }
-        }
+        if (!empty($filters['distributor_id']) || !empty($filters['status']) || !empty($filters['card_code']) || !empty($filters['start_date']) || !empty($filters['end_date'])) {
+            $query->whereHas('salesReturn', function ($q) use ($filters) {
+                if (!empty($filters['distributor_id'])) {
+                    if (is_array($filters['distributor_id'])) {
+                        $q->whereIn('distributor_id', $filters['distributor_id']);
+                    } else {
+                        $q->where('distributor_id', $filters['distributor_id']);
+                    }
+                }
 
-        if (!empty($filters['status'])) {
-            $query->where('status', $filters['status']);
-        }
+                if (!empty($filters['status'])) {
+                    $q->where('status', $filters['status']);
+                }
 
-        if (!empty($filters['card_code'])) {
-            $cardCodes = array_map('trim', explode(',', $filters['card_code']));
-            if (count($cardCodes) > 1) {
-                $query->whereIn('card_code', $cardCodes);
-            } else {
-                $query->where('card_code', $cardCodes[0]);
-            }
-        }
+                if (!empty($filters['card_code'])) {
+                    $cardCodes = array_map('trim', explode(',', $filters['card_code']));
+                    if (count($cardCodes) > 1) {
+                        $q->whereIn('card_code', $cardCodes);
+                    } else {
+                        $q->where('card_code', $cardCodes[0]);
+                    }
+                }
 
-        if (!empty($filters['start_date'])) {
-            $query->whereDate('created_at', '>=', $filters['start_date']);
-        }
+                if (!empty($filters['start_date'])) {
+                    $q->whereDate('created_at', '>=', $filters['start_date']);
+                }
 
-        if (!empty($filters['end_date'])) {
-            $query->whereDate('created_at', '<=', $filters['end_date']);
+                if (!empty($filters['end_date'])) {
+                    $q->whereDate('created_at', '<=', $filters['end_date']);
+                }
+            });
         }
 
         return $query->orderBy('created_at', 'desc')->get();
