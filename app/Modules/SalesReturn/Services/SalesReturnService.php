@@ -317,16 +317,13 @@ class SalesReturnService
         $approver = \App\Models\User::find($userId);
         $payload = [
             'NoDO' => (int)$doNum,
-            'DocDate' => now()->format('Y-m-d\TH:i:s'),
-            'DocDueDate' => now()->format('Y-m-d\TH:i:s'),
-            'Comments' => $salesReturn->reason ?: ('Retur untuk Return No: ' . $salesReturn->return_no),
-            'AddonId' => 'ADDON-WMS-V1',
+            'DocDate' => now()->format('Y-m-d'),
+            'DocDueDate' => now()->format('Y-m-d'),
+            'Comments' => $salesReturn->reason,
+            'AddonId' => 2,
             'UserId' => $approver->username ?? 'USER_API_01',
             'Lines' => $mappedLines,
         ];
-
-        // DD payload to inspect it before sending to SAP
-        dd($payload);
 
         // 5. Post to addretur API
         try {
