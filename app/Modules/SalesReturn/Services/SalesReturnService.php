@@ -91,7 +91,7 @@ class SalesReturnService
             // Calculate total quantity already returned for this SO line item
             $previouslyReturned = SalesReturnDetail::where('sales_order_detail_id', $soDetailId)
                 ->whereHas('salesReturn', function ($query) {
-                    $query->whereIn('status', ['SUBMITTED', 'APPROVED', 'SAP_INTEGRATED']);
+                    $query->whereIn('status', ['waiting_admin_sales', 'waiting_finance', 'approved']);
                 })
                 ->sum('quantity');
 
@@ -180,7 +180,7 @@ class SalesReturnService
                 'do_num' => $item['do_num'] ?? null,
                 'do_date' => $doDate,
                 'baseline' => isset($item['baseline']) ? (int)$item['baseline'] : null,
-                'status' => 'SUBMITTED',
+                'status' => 'waiting_admin_sales',
             ];
         }
 
@@ -205,7 +205,7 @@ class SalesReturnService
             'customer_name' => $salesOrder->customer_name,
             'reason' => $payload['reason'] ?? null,
             'doc_total' => $docTotal,
-            'status' => 'SUBMITTED',
+            'status' => 'waiting_admin_sales',
             'submitted_at' => now(),
             'created_by' => $userId,
             'updated_by' => $userId,
@@ -221,8 +221,24 @@ class SalesReturnService
      */
     public function approve(SalesReturn $salesReturn, int $userId): SalesReturn
     {
-        if ($salesReturn->status !== 'SUBMITTED' && $salesReturn->status !== 'APPROVED') {
-            throw ValidationException::withMessages(['status' => 'Hanya retur berstatus SUBMITTED yang dapat disetujui.']);
+        if ($salesReturn->status !== 'waiting_admin_sales' && $salesReturn->status !== 'waiting_finance') {
+            throw ValidationException::withMessages(['status' => 'Hanya retur berstatus waiting_admin_sales atau waiting_finance yang dapat disetujui.']);
+        }
+
+        if ($salesReturn->status === 'waiting_admin_sales') {
+            // Stage 1: Approve by Admin Sales
+            $salesReturn->update([
+                'status' => 'waiting_finance',
+                'approved_admin_by' => $userId,
+                'approved_admin_at' => now(),
+                'approved_by' => $userId,
+                'approved_at' => now(),
+                'updated_by' => $userId,
+            ]);
+
+            $salesReturn->details()->update(['status' => 'waiting_finance']);
+
+            return $salesReturn;
         }
 
         // 1. Fetch associated Sales Order
@@ -363,7 +379,9 @@ class SalesReturnService
 
             // 6. Update local records on success
             $salesReturn->update([
-                'status' => 'SAP_INTEGRATED',
+                'status' => 'approved',
+                'approved_finance_by' => $userId,
+                'approved_finance_at' => now(),
                 'approved_by' => $userId,
                 'approved_at' => now(),
                 'updated_by' => $userId,
@@ -371,7 +389,7 @@ class SalesReturnService
                 'sap_doc_num' => $sapDocNum,
                 'sap_error' => null,
             ]);
-            $salesReturn->details()->update(['status' => 'SAP_INTEGRATED']);
+            $salesReturn->details()->update(['status' => 'approved']);
 
             return $salesReturn;
 
@@ -421,12 +439,12 @@ class SalesReturnService
      */
     public function reject(SalesReturn $salesReturn, string $reason, int $userId): SalesReturn
     {
-        if ($salesReturn->status !== 'SUBMITTED') {
-            throw ValidationException::withMessages(['status' => 'Hanya retur berstatus SUBMITTED yang dapat ditolak.']);
+        if ($salesReturn->status !== 'waiting_admin_sales' && $salesReturn->status !== 'waiting_finance') {
+            throw ValidationException::withMessages(['status' => 'Hanya retur berstatus waiting_admin_sales atau waiting_finance yang dapat ditolak.']);
         }
 
         $data = [
-            'status' => 'REJECTED',
+            'status' => 'rejected',
             'rejected_by' => $userId,
             'rejected_at' => now(),
             'reject_reason' => $reason,
@@ -434,7 +452,7 @@ class SalesReturnService
         ];
 
         $result = $this->repository->update($salesReturn, $data);
-        $salesReturn->details()->update(['status' => 'REJECTED']);
+        $salesReturn->details()->update(['status' => 'rejected']);
 
         return $result;
     }

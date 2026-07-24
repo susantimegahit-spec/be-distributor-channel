@@ -28,6 +28,10 @@ class SalesReturn extends Model
         'submitted_at',
         'approved_by',
         'approved_at',
+        'approved_admin_by',
+        'approved_admin_at',
+        'approved_finance_by',
+        'approved_finance_at',
         'rejected_by',
         'rejected_at',
         'reject_reason',
@@ -39,6 +43,8 @@ class SalesReturn extends Model
         'doc_total' => 'decimal:2',
         'submitted_at' => 'datetime',
         'approved_at' => 'datetime',
+        'approved_admin_at' => 'datetime',
+        'approved_finance_at' => 'datetime',
         'rejected_at' => 'datetime',
     ];
 
@@ -70,6 +76,16 @@ class SalesReturn extends Model
     public function approvedByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function approvedAdminByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_admin_by');
+    }
+
+    public function approvedFinanceByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_finance_by');
     }
 
     public function rejectedByUser(): BelongsTo

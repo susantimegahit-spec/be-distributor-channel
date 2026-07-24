@@ -8586,7 +8586,7 @@ components:
           example: 0
         status:
           type: string
-          example: "SUBMITTED"
+          example: "waiting_admin_sales"
         created_at:
           type: string
           format: date-time
