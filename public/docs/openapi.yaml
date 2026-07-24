@@ -8532,6 +8532,12 @@ components:
         sales_return_id:
           type: integer
           example: 1
+        sales_order_id:
+          type: integer
+          example: 142
+        sales_order_no:
+          type: string
+          example: "260710018"
         sales_order_detail_id:
           type: integer
           example: 1043

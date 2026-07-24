@@ -44,4 +44,19 @@ class SalesReturnDetail extends Model
     {
         return $this->belongsTo(SalesOrderDetail::class, 'sales_order_detail_id');
     }
+
+    protected $appends = [
+        'sales_order_id',
+        'sales_order_no',
+    ];
+
+    public function getSalesOrderIdAttribute(): ?int
+    {
+        return $this->salesReturn?->sales_order_id;
+    }
+
+    public function getSalesOrderNoAttribute(): ?string
+    {
+        return $this->salesReturn?->salesOrder?->sap_doc_num ?: $this->salesReturn?->salesOrder?->order_no;
+    }
 }
