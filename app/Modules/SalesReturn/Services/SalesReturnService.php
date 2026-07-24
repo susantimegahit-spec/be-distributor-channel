@@ -157,6 +157,7 @@ class SalesReturnService
                 'reason' => $item['reason'] ?? null,
                 'do_num' => $item['do_num'] ?? null,
                 'baseline' => isset($item['baseline']) ? (int)$item['baseline'] : null,
+                'status' => 'SUBMITTED',
             ];
         }
 
@@ -347,6 +348,7 @@ class SalesReturnService
                 'sap_doc_num' => $sapDocNum,
                 'sap_error' => null,
             ]);
+            $salesReturn->details()->update(['status' => 'SAP_INTEGRATED']);
 
             return $salesReturn;
 
@@ -408,7 +410,10 @@ class SalesReturnService
             'updated_by' => $userId,
         ];
 
-        return $this->repository->update($salesReturn, $data);
+        $result = $this->repository->update($salesReturn, $data);
+        $salesReturn->details()->update(['status' => 'REJECTED']);
+
+        return $result;
     }
 
     /**

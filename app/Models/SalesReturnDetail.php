@@ -25,6 +25,7 @@ class SalesReturnDetail extends Model
         'reason',
         'do_num',
         'baseline',
+        'status',
     ];
 
     protected $casts = [
