@@ -343,9 +343,6 @@ class SalesReturnService
             'Lines' => $mappedLines,
         ];
 
-        // DD payload to inspect it before sending to SAP
-        dd($payload);
-
         // 5. Post to addretur API
         try {
             $response = \Illuminate\Support\Facades\Http::timeout(15)->post('http://103.18.133.187:3100/api/addretur', $payload);
