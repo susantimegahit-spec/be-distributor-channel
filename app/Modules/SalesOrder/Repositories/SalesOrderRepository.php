@@ -102,6 +102,9 @@ class SalesOrderRepository implements SalesOrderRepositoryInterface
             if (strtoupper($salesOrder->status) === 'DRAFT') {
                 $cmoData = $salesOrder->getAttributes();
                 unset($cmoData['id']);
+                unset($cmoData['use_balance']);
+                unset($cmoData['approval_id']);
+                unset($cmoData['sales_pic_id']);
 
                 $cmo = CustomerMonthlyOrder::create($cmoData);
 

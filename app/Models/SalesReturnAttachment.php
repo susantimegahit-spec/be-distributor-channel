@@ -21,6 +21,18 @@ class SalesReturnAttachment extends Model
         'uploaded_by',
     ];
 
+    protected $appends = [
+        'file_url',
+    ];
+
+    /**
+     * Get the public asset URL for the attachment.
+     */
+    public function getFileUrlAttribute(): string
+    {
+        return asset('storage/' . $this->file_path);
+    }
+
     public function salesReturn(): BelongsTo
     {
         return $this->belongsTo(SalesReturn::class, 'sales_return_id');

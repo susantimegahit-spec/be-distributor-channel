@@ -8611,6 +8611,9 @@ components:
         file_path:
           type: string
           example: returns/1782398239_damage.jpg
+        file_url:
+          type: string
+          example: http://localhost/storage/returns/1782398239_damage.jpg
         file_type:
           type: string
           example: image/jpeg
