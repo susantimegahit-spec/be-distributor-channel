@@ -265,7 +265,31 @@ class SalesReturnService
             $seriesPrefix = substr($salesOrder->series_name, 0, 3);
             $lowerPrefix = strtolower($seriesPrefix);
 
-            $returnWarehouse = \App\Models\Warehouse::whereRaw('LOWER(whs_name) LIKE ?', ["%{$lowerPrefix}%"])
+            $prefixMap = [
+                'sby' => 'surabaya',
+                'jkt' => 'jakarta',
+                'bdg' => 'bandung',
+                'smg' => 'semarang',
+                'mlg' => 'malang',
+                'slo' => 'solo',
+                'ygy' => 'yogyakarta',
+                'yog' => 'yogyakarta',
+                'blr' => 'balaraja',
+                'bla' => 'balaraja',
+                'bal' => 'balaraja',
+                'gsk' => 'gresik',
+                'grs' => 'gresik',
+                'gre' => 'gresik',
+                'psr' => 'pasuruan',
+                'pas' => 'pasuruan',
+                'jmb' => 'jombang',
+                'jbg' => 'jombang',
+                'jom' => 'jombang',
+            ];
+
+            $searchKeyword = $prefixMap[$lowerPrefix] ?? $lowerPrefix;
+
+            $returnWarehouse = \App\Models\Warehouse::whereRaw('LOWER(whs_name) LIKE ?', ["%{$searchKeyword}%"])
                 ->whereRaw('LOWER(whs_name) LIKE ?', ['%retur%'])
                 ->first();
 

@@ -166,7 +166,7 @@ class SalesReturnTest extends TestCase
         // Create return warehouse in default database
         Warehouse::create([
             'whs_code' => 'RT01',
-            'whs_name' => 'Gudang Retur SBY',
+            'whs_name' => 'Gudang Retur Surabaya',
             'status' => 1,
         ]);
 
