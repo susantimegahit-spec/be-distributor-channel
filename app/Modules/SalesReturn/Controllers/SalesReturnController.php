@@ -133,7 +133,7 @@ class SalesReturnController extends Controller
     public function approve(Request $request, int $id): JsonResponse
     {
         $user = $request->user();
-        $isDistributor = ($user->role_id === 2) || (isset($user->role) && strtoupper($user->role->name) === 'DISTRIBUTOR');
+        $isDistributor = ($user->role && strtoupper($user->role->name) === 'DISTRIBUTOR');
         if ($isDistributor) {
             return $this->errorResponse('Akses ditolak. Distributor tidak diizinkan untuk menyetujui retur.', [], 403);
         }
@@ -159,7 +159,7 @@ class SalesReturnController extends Controller
     public function reject(Request $request, int $id): JsonResponse
     {
         $user = $request->user();
-        $isDistributor = ($user->role_id === 2) || (isset($user->role) && strtoupper($user->role->name) === 'DISTRIBUTOR');
+        $isDistributor = ($user->role && strtoupper($user->role->name) === 'DISTRIBUTOR');
         if ($isDistributor) {
             return $this->errorResponse('Akses ditolak. Distributor tidak diizinkan untuk menolak retur.', [], 403);
         }
