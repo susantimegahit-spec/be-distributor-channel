@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\Role;
+use App\Models\Warehouse;
 use App\Models\Distributor;
 use App\Models\SalesOrder;
 use App\Models\SalesOrderDetail;
@@ -74,7 +75,7 @@ class SalesReturnTest extends TestCase
             'customer_name' => 'PT XYZ',
             'doc_date' => '2026-02-25',
             'slp_code' => 0,
-            'doc_total' => 50000,
+            'doc_total' => 5000,
             'status' => 'ARRIVED',
             'use_balance' => false,
         ]);
@@ -83,8 +84,8 @@ class SalesReturnTest extends TestCase
         $this->salesOrderDetail = $this->salesOrder->details()->create([
             'item_code' => 'E65',
             'quantity' => 10,
-            'unit_price' => 5000,
-            'line_total' => 50000,
+            'unit_price' => 500,
+            'line_total' => 5000,
         ]);
     }
 
@@ -161,6 +162,13 @@ class SalesReturnTest extends TestCase
 
         // Set series_name on sales order
         $this->salesOrder->update(['series_name' => 'SBY26-07']);
+
+        // Create return warehouse in default database
+        Warehouse::create([
+            'whs_code' => 'RT01',
+            'whs_name' => 'Gudang Retur SBY',
+            'status' => 1,
+        ]);
 
         // Create Sales Return at waiting_finance stage
         $salesReturn = SalesReturn::create([
@@ -240,7 +248,8 @@ class SalesReturnTest extends TestCase
                    $request['NoDO'] === 260710004 &&
                    $request['Series'] === 4095 &&
                    $request['Lines'][0]['BaseLine'] === 0 &&
-                   $request['Lines'][0]['Quantity'] === 1.0;
+                   $request['Lines'][0]['Quantity'] === 1.0 &&
+                   $request['Lines'][0]['WhsCode'] === 'RT01';
         });
     }
 }

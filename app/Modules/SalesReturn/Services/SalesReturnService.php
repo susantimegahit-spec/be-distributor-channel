@@ -259,6 +259,21 @@ class SalesReturnService
             }
         }
 
+        // Resolve return warehouse code based on series_name prefix and "RETUR" name
+        $returnWhsCode = null;
+        if (!empty($salesOrder->series_name)) {
+            $seriesPrefix = substr($salesOrder->series_name, 0, 3);
+            $lowerPrefix = strtolower($seriesPrefix);
+
+            $returnWarehouse = \App\Models\Warehouse::whereRaw('LOWER(whs_name) LIKE ?', ["%{$lowerPrefix}%"])
+                ->whereRaw('LOWER(whs_name) LIKE ?', ['%retur%'])
+                ->first();
+
+            if ($returnWarehouse) {
+                $returnWhsCode = $returnWarehouse->whs_code;
+            }
+        }
+
         $mappedLines = [];
         $doNum = null;
 
@@ -266,7 +281,7 @@ class SalesReturnService
             // Use saved do_num and baseline directly!
             foreach ($salesReturn->details as $detail) {
                 $doNum = $detail->do_num;
-                $whsCode = $detail->salesOrderDetail->whs_code ?? '01';
+                $whsCode = $returnWhsCode ?: ($detail->salesOrderDetail->whs_code ?? '01');
 
                 $mappedLines[] = [
                     'BaseLine' => (int)$detail->baseline,
@@ -313,7 +328,7 @@ class SalesReturnService
                 }
 
                 $doNum = $matchedDoLine['DocNum']; // Get DO Number
-                $whsCode = $detail->salesOrderDetail->whs_code ?? '01';
+                $whsCode = $returnWhsCode ?: ($detail->salesOrderDetail->whs_code ?? '01');
 
                 $mappedLines[] = [
                     'BaseLine' => (int)$matchedDoLine['BaseLine'],
