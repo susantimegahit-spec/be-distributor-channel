@@ -6626,6 +6626,276 @@ paths:
         '200':
           description: Bill of Material berhasil dihapus.
 
+  /v1/ekspedisi/origins:
+    get:
+      summary: Get paginated or filtered list of warehouse origins
+      description: Mengambil daftar master data origin atau gudang asal yang terintegrasi dengan data master warehouse di skema public.
+      tags:
+        - Ekspedisi
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Cari berdasarkan nama origin, kode gudang, nama gudang, atau alamat
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter status (e.g. ACTIVE, INACTIVE)
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 15
+          description: Jumlah item per halaman
+      responses:
+        '200':
+          description: Daftar master origin/gudang berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar master origin/gudang berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                        example: 1
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/WarehouseOrigin'
+    post:
+      summary: Store a new warehouse origin
+      description: Menambahkan master data origin / gudang asal baru. Field whs_name akan diisi otomatis dari master warehouses berdasarkan whs_code.
+      tags:
+        - Ekspedisi
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - whs_name_origin
+                - whs_code
+              properties:
+                whs_name_origin:
+                  type: string
+                  description: Nama kustom untuk gudang asal / origin
+                  example: Gudang Asal Jakarta
+                whs_code:
+                  type: string
+                  description: Kode warehouse yang valid dari master warehouses di skema public
+                  example: WHS01
+                street:
+                  type: string
+                  description: Alamat fisik gudang asal
+                  example: Jl. Sudirman No. 100
+                status:
+                  type: string
+                  description: Status keaktifan
+                  example: ACTIVE
+      responses:
+        '201':
+          description: Master origin/gudang berhasil ditambahkan.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Master origin/gudang berhasil ditambahkan.
+                  data:
+                    $ref: '#/components/schemas/WarehouseOrigin'
+
+  /v1/ekspedisi/origins/{id}:
+    get:
+      summary: Show detailed warehouse origin
+      description: Melihat detail data master origin atau gudang asal berdasarkan ID.
+      tags:
+        - Ekspedisi
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari warehouse origin
+      responses:
+        '200':
+          description: Detail master origin/gudang berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Detail master origin/gudang berhasil diambil.
+                  data:
+                    $ref: '#/components/schemas/WarehouseOrigin'
+        '404':
+          description: Data origin/gudang tidak ditemukan.
+    put:
+      summary: Update a warehouse origin
+      description: Memperbarui data master origin atau gudang asal. Jika whs_code diubah, whs_name akan di-update otomatis dari master warehouses.
+      tags:
+        - Ekspedisi
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari warehouse origin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                whs_name_origin:
+                  type: string
+                  example: Origin Updated
+                whs_code:
+                  type: string
+                  example: WHS02
+                street:
+                  type: string
+                  example: Jl. Cabang No. 5
+                status:
+                  type: string
+                  example: ACTIVE
+      responses:
+        '200':
+          description: Master origin/gudang berhasil diperbarui.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Master origin/gudang berhasil diperbarui.
+                  data:
+                    $ref: '#/components/schemas/WarehouseOrigin'
+        '404':
+          description: Data origin/gudang tidak ditemukan.
+    delete:
+      summary: Delete a warehouse origin
+      description: Menghapus data master origin atau gudang asal berdasarkan ID.
+      tags:
+        - Ekspedisi
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari warehouse origin
+      responses:
+        '200':
+          description: Master origin/gudang berhasil dihapus.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Master origin/gudang berhasil dihapus.
+        '404':
+          description: Data origin/gudang tidak ditemukan.
+
+  /v1/ekspedisi/origins/upload:
+    post:
+      summary: Upload master warehouse origins Excel/CSV file
+      description: Mengunggah file spreadsheet (.xlsx, .xls, .csv) untuk mengimpor banyak data master origin/gudang sekaligus.
+      tags:
+        - Ekspedisi
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File Excel (.xlsx, .xls) atau CSV
+      responses:
+        '200':
+          description: File master origin/gudang berhasil diupload dan diproses.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: File master origin/gudang berhasil diupload dan diproses.
+                  data:
+                    type: object
+                    properties:
+                      processed_count:
+                        type: integer
+                        example: 10
+                      created_count:
+                        type: integer
+                        example: 8
+                      updated_count:
+                        type: integer
+                        example: 2
+                      errors:
+                        type: array
+                        items:
+                          type: string
+                        example: []
+
 components:
   securitySchemes:
     BearerAuth:
@@ -8632,4 +8902,43 @@ components:
           type: string
           format: date-time
           example: "2026-07-21T10:30:00.000000Z"
+
+    WarehouseOrigin:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        whs_name_origin:
+          type: string
+          example: "Gudang Asal Jakarta"
+        whs_code:
+          type: string
+          example: "WHS01"
+        whs_name:
+          type: string
+          example: "Gudang Utama Surabaya"
+        street:
+          type: string
+          nullable: true
+          example: "Jl. Sudirman No. 100"
+        status:
+          type: string
+          example: "ACTIVE"
+        created_by:
+          type: integer
+          nullable: true
+          example: 5
+        updated_by:
+          type: integer
+          nullable: true
+          example: 5
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-25T10:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-25T10:00:00.000000Z"
 

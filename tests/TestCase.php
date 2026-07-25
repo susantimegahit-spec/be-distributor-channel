@@ -9,6 +9,8 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
+    protected static bool $databasesInitialized = false;
+
     protected function setUp(): void
     {
         if (! $this->app) {
@@ -16,9 +18,28 @@ abstract class TestCase extends BaseTestCase
         }
 
         if (config('database.default') === 'sqlite') {
+            $defaultDb = database_path('testing_default.sqlite');
+
+            if (! static::$databasesInitialized) {
+                @unlink($defaultDb);
+                @touch($defaultDb);
+                static::$databasesInitialized = true;
+            }
+
             config([
-                'database.connections.pgsql_ekspedisi' => config('database.connections.sqlite'),
-                'database.connections.pgsql_production' => config('database.connections.sqlite'),
+                'database.connections.sqlite.database' => $defaultDb,
+                'database.connections.pgsql_ekspedisi' => [
+                    'driver' => 'sqlite',
+                    'database' => $defaultDb,
+                    'prefix' => '',
+                    'foreign_key_constraints' => false,
+                ],
+                'database.connections.pgsql_production' => [
+                    'driver' => 'sqlite',
+                    'database' => $defaultDb,
+                    'prefix' => '',
+                    'foreign_key_constraints' => false,
+                ],
             ]);
 
             // Bind custom Blueprint globally so that all connections strip schema dot notation from foreign keys
