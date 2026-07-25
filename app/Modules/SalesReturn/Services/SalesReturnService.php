@@ -329,12 +329,45 @@ class SalesReturnService
             throw new \Exception('Nomor DO tidak ditemukan untuk mencocokkan item retur.');
         }
 
+        // 3.5. Fetch Series from SAP
+        if (empty($salesOrder->series_name)) {
+            throw new \Exception('Nama series (series_name) pada Sales Order kosong.');
+        }
+
+        $seriesPrefix = substr($salesOrder->series_name, 0, 3);
+        $series = null;
+
+        try {
+            $seriesResponse = \Illuminate\Support\Facades\Http::timeout(15)->post('http://103.18.133.187:3100/api/getSeriesret', [
+                'CustomQuery' => $seriesPrefix,
+            ]);
+
+            if (!$seriesResponse->successful()) {
+                throw new \Exception('Gagal menghubungi API SAP getSeriesret.');
+            }
+
+            $seriesBody = $seriesResponse->json();
+            if (isset($seriesBody['ErrorCode']) && $seriesBody['ErrorCode'] !== 0) {
+                throw new \Exception('API SAP getSeriesret error: ' . ($seriesBody['Message'] ?? 'Unknown error'));
+            }
+
+            $seriesResult = $seriesBody['Result'][0] ?? $seriesBody['result'][0] ?? null;
+            if (!$seriesResult || !isset($seriesResult['Series'])) {
+                throw new \Exception('Data series tidak ditemukan dalam respon SAP.');
+            }
+
+            $series = (int)$seriesResult['Series'];
+        } catch (\Exception $e) {
+            throw new \Exception('Gagal mendapatkan nomor series dari SAP: ' . $e->getMessage());
+        }
+
         // 4. Construct addretur payload
         $itemReasons = $salesReturn->details->map(fn($d) => $d->reason)->filter()->unique()->implode(', ');
         $comments = $salesReturn->reason ?: ($itemReasons ?: 'Retur barang');
 
         $payload = [
             'NoDO' => (int)$doNum,
+            'Series' => $series,
             'DocDate' => now()->format('Y-m-d'),
             'DocDueDate' => now()->format('Y-m-d'),
             'Comments' => $comments,

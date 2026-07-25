@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\Role;
 use App\Models\Distributor;
 use App\Models\SalesOrder;
 use App\Models\SalesOrderDetail;
@@ -27,6 +28,21 @@ class SalesReturnTest extends TestCase
     {
         parent::setUp();
 
+        // Create roles
+        Role::create([
+            'id' => 1,
+            'name' => 'administrator',
+            'is_active' => true,
+            'accessible_systems' => ['distributor'],
+        ]);
+
+        Role::create([
+            'id' => 2,
+            'name' => 'distributor',
+            'is_active' => true,
+            'accessible_systems' => ['distributor'],
+        ]);
+
         // Create distributor
         $this->distributor = Distributor::create([
             'code_customer' => 'C110003074',
@@ -44,6 +60,7 @@ class SalesReturnTest extends TestCase
             'email' => 'dist@example.com',
             'password' => Hash::make($this->password),
             'code_customer' => 'C110003074',
+            'role_id' => 2,
             'is_active' => true,
         ]);
 
@@ -133,5 +150,97 @@ class SalesReturnTest extends TestCase
 
         $this->assertEquals('evidence.jpg', $showData['attachments'][0]['file_name']);
         $this->assertEquals(asset('storage/returns/evidence.jpg'), $showData['attachments'][0]['file_url']);
+    }
+
+    public function test_approve_waiting_finance_integrates_sap_with_series(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        // Ensure user is admin (not distributor) to pass role check
+        $this->user->update(['role_id' => 1]); // Admin / internal role
+
+        // Set series_name on sales order
+        $this->salesOrder->update(['series_name' => 'SBY26-07']);
+
+        // Create Sales Return at waiting_finance stage
+        $salesReturn = SalesReturn::create([
+            'return_no' => 'RET/202607/0002',
+            'sales_order_id' => $this->salesOrder->id,
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'PT XYZ',
+            'reason' => 'Damaged goods',
+            'doc_total' => 5000,
+            'status' => 'waiting_finance',
+            'submitted_at' => now(),
+            'created_by' => $this->user->id,
+            'updated_by' => $this->user->id,
+        ]);
+
+        // Create Sales Return Detail with do_num and baseline saved
+        $salesReturnDetail = SalesReturnDetail::create([
+            'sales_return_id' => $salesReturn->id,
+            'sales_order_detail_id' => $this->salesOrderDetail->id,
+            'item_code' => 'E65',
+            'quantity' => 1,
+            'unit_price' => 5000,
+            'line_total' => 5000,
+            'do_num' => '260710004',
+            'baseline' => 0,
+        ]);
+
+        // Mock SAP HTTP APIs
+        \Illuminate\Support\Facades\Http::fake([
+            'http://103.18.133.187:3100/api/getSeriesret' => \Illuminate\Support\Facades\Http::response([
+                'ErrorCode' => 0,
+                'Message' => '',
+                'Result' => [
+                    ['Series' => '4095']
+                ]
+            ], 200),
+            'http://103.18.133.187:3100/api/addretur' => \Illuminate\Support\Facades\Http::response([
+                'ErrorCode' => 0,
+                'Message' => 'Success',
+                'Result' => [
+                    [
+                        'DocEntry' => 12345,
+                        'DocNum' => '260750001'
+                    ]
+                ]
+            ], 200)
+        ]);
+
+        // Act
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson("/api/distributor-channel/v1/sales-returns/{$salesReturn->id}/approve");
+
+        // Assert
+        $response->assertStatus(200);
+        $response->assertJsonPath('data.status', 'approved');
+        $response->assertJsonPath('data.sap_doc_entry', 12345);
+        $response->assertJsonPath('data.sap_doc_num', '260750001');
+
+        // Check database state
+        $this->assertDatabaseHas('sales_returns', [
+            'id' => $salesReturn->id,
+            'status' => 'approved',
+            'sap_doc_entry' => 12345,
+            'sap_doc_num' => '260750001',
+        ]);
+
+        // Assert HTTP requests
+        \Illuminate\Support\Facades\Http::assertSent(function (\Illuminate\Http\Client\Request $request) {
+            return $request->url() === 'http://103.18.133.187:3100/api/getSeriesret' &&
+                   $request['CustomQuery'] === 'SBY';
+        });
+
+        \Illuminate\Support\Facades\Http::assertSent(function (\Illuminate\Http\Client\Request $request) {
+            return $request->url() === 'http://103.18.133.187:3100/api/addretur' &&
+                   $request['NoDO'] === 260710004 &&
+                   $request['Series'] === 4095 &&
+                   $request['Lines'][0]['BaseLine'] === 0 &&
+                   $request['Lines'][0]['Quantity'] === 1.0;
+        });
     }
 }
