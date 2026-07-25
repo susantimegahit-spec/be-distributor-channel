@@ -59,7 +59,11 @@ class WarehouseOrigin extends Model
      */
     public function warehouse(): BelongsTo
     {
-        return $this->belongsTo(Warehouse::class, 'whs_code', 'whs_code');
+        $instance = new Warehouse();
+        $instance->setConnection(config('database.default'));
+        return $this->newBelongsTo(
+            $instance->newQuery(), $this, 'whs_code', 'whs_code', 'warehouse'
+        );
     }
 
     /**
@@ -67,7 +71,11 @@ class WarehouseOrigin extends Model
      */
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'created_by');
+        $instance = new User();
+        $instance->setConnection(config('database.default'));
+        return $this->newBelongsTo(
+            $instance->newQuery(), $this, 'created_by', 'id', 'creator'
+        );
     }
 
     /**
@@ -75,6 +83,10 @@ class WarehouseOrigin extends Model
      */
     public function updater(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'updated_by');
+        $instance = new User();
+        $instance->setConnection(config('database.default'));
+        return $this->newBelongsTo(
+            $instance->newQuery(), $this, 'updated_by', 'id', 'updater'
+        );
     }
 }

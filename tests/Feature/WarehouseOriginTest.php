@@ -86,7 +86,7 @@ class WarehouseOriginTest extends TestCase
             'whs_name_origin' => 'Gudang Asal Jakarta',
             'whs_code' => 'WHS01',
             'whs_name' => 'Gudang Utama Surabaya',
-        ]);
+        ], 'pgsql_ekspedisi');
     }
 
     public function test_show_warehouse_origin(): void
@@ -150,7 +150,7 @@ class WarehouseOriginTest extends TestCase
             'whs_name_origin' => 'Origin Updated',
             'whs_code' => 'WHS02',
             'whs_name' => 'Gudang Cabang Gresik',
-        ]);
+        ], 'pgsql_ekspedisi');
     }
 
     public function test_delete_warehouse_origin(): void
@@ -171,7 +171,7 @@ class WarehouseOriginTest extends TestCase
         ])->deleteJson('/api/distributor-channel/v1/ekspedisi/origins/' . $origin->id);
 
         $response->assertStatus(200);
-        $this->assertDatabaseMissing('warehouse_origins', ['id' => $origin->id]);
+        $this->assertDatabaseMissing('warehouse_origins', ['id' => $origin->id], 'pgsql_ekspedisi');
     }
 
     public function test_upload_warehouse_origins(): void

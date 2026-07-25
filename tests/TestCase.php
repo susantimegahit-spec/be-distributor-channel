@@ -19,10 +19,16 @@ abstract class TestCase extends BaseTestCase
 
         if (config('database.default') === 'sqlite') {
             $defaultDb = database_path('testing_default.sqlite');
+            $ekspedisiDb = database_path('testing_ekspedisi.sqlite');
+            $productionDb = database_path('testing_production.sqlite');
 
             if (! static::$databasesInitialized) {
                 @unlink($defaultDb);
+                @unlink($ekspedisiDb);
+                @unlink($productionDb);
                 @touch($defaultDb);
+                @touch($ekspedisiDb);
+                @touch($productionDb);
                 static::$databasesInitialized = true;
             }
 
@@ -30,13 +36,13 @@ abstract class TestCase extends BaseTestCase
                 'database.connections.sqlite.database' => $defaultDb,
                 'database.connections.pgsql_ekspedisi' => [
                     'driver' => 'sqlite',
-                    'database' => $defaultDb,
+                    'database' => $ekspedisiDb,
                     'prefix' => '',
                     'foreign_key_constraints' => false,
                 ],
                 'database.connections.pgsql_production' => [
                     'driver' => 'sqlite',
-                    'database' => $defaultDb,
+                    'database' => $productionDb,
                     'prefix' => '',
                     'foreign_key_constraints' => false,
                 ],
