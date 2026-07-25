@@ -23,12 +23,12 @@ class CustomerShiptoRepository implements CustomerShiptoRepositoryInterface
         }
 
         if (!empty($filters['search'])) {
-            $search = $filters['search'];
+            $search = strtolower($filters['search']);
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('address', 'like', "%{$search}%")
-                  ->orWhere('city', 'like', "%{$search}%")
-                  ->orWhere('street', 'like', "%{$search}%");
+                $q->whereRaw('LOWER(name) LIKE ?', ["%{$search}%"])
+                  ->orWhereRaw('LOWER(address) LIKE ?', ["%{$search}%"])
+                  ->orWhereRaw('LOWER(city) LIKE ?', ["%{$search}%"])
+                  ->orWhereRaw('LOWER(street) LIKE ?', ["%{$search}%"]);
             });
         }
 
