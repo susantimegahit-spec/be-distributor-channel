@@ -5763,6 +5763,12 @@ paths:
           schema:
             type: number
           description: Berat barang dalam KG atau satuan tarif (contoh 500)
+        - name: service_type
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Jenis layanan/tarif (misalnya TONASE, RIT, dll)
       responses:
         '200':
           description: Perankingan tarif ekspedisi berhasil diambil
