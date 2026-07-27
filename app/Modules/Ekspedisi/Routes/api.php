@@ -24,6 +24,7 @@ Route::prefix('v1/ekspedisi')->middleware('auth:sanctum')->group(function () {
     Route::apiResource('expeditions', ExpeditionController::class);
 
     // Master Tarif Ekspedisi (Expedition Rates)
+    Route::get('rates/rank', [ExpeditionRateController::class, 'rank']);
     Route::apiResource('rates', ExpeditionRateController::class);
 
     // Master Origin/Gudang Asal (Warehouse Origins)

@@ -5736,6 +5736,60 @@ paths:
         '401':
           description: Tidak terautentikasi
 
+  /v1/ekspedisi/rates/rank:
+    get:
+      summary: Get ranked expedition rates list
+      description: Mendapatkan daftar perankingan tarif ekspedisi teraktif terurut dari harga termurah berdasarkan asal, tujuan, dan berat barang.
+      tags:
+        - Master Tarif Ekspedisi
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: origin
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Kode gudang asal (whs_code, contoh FG04)
+        - name: destination
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Kode customer tujuan (card_code, contoh C210000285) atau ID
+        - name: weight
+          in: query
+          required: true
+          schema:
+            type: number
+          description: Berat barang dalam KG atau satuan tarif (contoh 500)
+      responses:
+        '200':
+          description: Perankingan tarif ekspedisi berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Perankingan tarif ekspedisi berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ExpeditionRate'
+        '422':
+          description: Validasi gagal (parameter wajib belum dikirim)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+
   /v1/ekspedisi/rates:
     get:
       summary: Get paginated list of expedition rates

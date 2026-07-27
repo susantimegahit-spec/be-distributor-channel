@@ -166,6 +166,67 @@ class ExpeditionRateController extends Controller
     }
 
     /**
+     * Get ranked list of expedition rates based on origin, destination, and weight.
+     */
+    public function rank(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'origin' => 'required|string',
+            'destination' => 'required|string',
+            'weight' => 'required|numeric|min:0',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse($validator->errors()->first(), [], 422);
+        }
+
+        $origin = $request->get('origin');
+        $destination = $request->get('destination');
+        $weight = floatval($request->get('weight'));
+
+        // Resolve origin to warehouse ID
+        $warehouse = \Illuminate\Support\Facades\DB::table('warehouses')
+            ->where('whs_code', $origin)
+            ->first();
+
+        if (!$warehouse) {
+            return $this->successResponse([], 'Gudang asal tidak ditemukan.');
+        }
+
+        // Resolve destination to customer shipto IDs
+        $shiptoIds = \Illuminate\Support\Facades\DB::table('customer_shiptos')
+            ->where('card_code', $destination)
+            ->pluck('id')
+            ->toArray();
+
+        if (is_numeric($destination)) {
+            // Also allow numeric ID directly
+            $exists = \Illuminate\Support\Facades\DB::table('customer_shiptos')
+                ->where('id', (int) $destination)
+                ->exists();
+            if ($exists) {
+                $shiptoIds[] = (int) $destination;
+            }
+        }
+
+        if (empty($shiptoIds)) {
+            return $this->successResponse([], 'Tujuan/Customer tidak ditemukan.');
+        }
+
+        // Query active rates matching route and weight limits, sorted by price ASC
+        $rates = ExpeditionRate::with(['expedition', 'warehouse', 'destination'])
+            ->where('warehouse_id', $warehouse->id)
+            ->whereIn('destination_id', $shiptoIds)
+            ->where('status', 'ACTIVE')
+            ->where('min_tonnage', '<=', $weight)
+            ->where('max_tonnage', '>=', $weight)
+            ->orderBy('price', 'asc')
+            ->get();
+
+        return $this->successResponse($rates, 'Perankingan tarif ekspedisi berhasil diambil.');
+    }
+
+    /**
      * Upload master expedition rates Excel/CSV file.
      */
     public function upload(Request $request, \App\Modules\Ekspedisi\Services\ExpeditionUploadService $uploadService): JsonResponse
