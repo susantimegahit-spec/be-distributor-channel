@@ -6627,6 +6627,21 @@ paths:
       responses:
         '200':
           description: Daftar Bill of Material berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar Bill of Material berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductionBom'
 
     post:
       summary: Create a new production BOM
@@ -6716,6 +6731,19 @@ paths:
       responses:
         '200':
           description: Detail Bill of Material berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Detail Bill of Material berhasil diambil.
+                  data:
+                    $ref: '#/components/schemas/ProductionBom'
 
     put:
       summary: Update a production BOM
@@ -8856,6 +8884,164 @@ components:
           $ref: '#/components/schemas/Expedition'
         destination:
           $ref: '#/components/schemas/CustomerShipto'
+
+    ProductionBom:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        code:
+          type: string
+          example: ILP000117
+        product_name:
+          type: string
+          nullable: true
+          example: TAMPAR JUMBO
+        qty:
+          type: string
+          example: "1.0000"
+        to_whs:
+          type: string
+          nullable: true
+          example: WHS01
+        type:
+          type: string
+          example: P
+        alternate:
+          type: integer
+          example: 1
+        ocr_code:
+          type: string
+          nullable: true
+          example: CAB01
+        ocr_code2:
+          type: string
+          nullable: true
+          example: BU01
+        ocr_code3:
+          type: string
+          nullable: true
+          example: DEPT01
+        u_shift:
+          type: string
+          nullable: true
+          example: Shift 1
+        u_unit:
+          type: string
+          nullable: true
+          example: Unit A
+        comments:
+          type: string
+          nullable: true
+          example: BOM Garam JUMBO
+        is_active:
+          type: boolean
+          example: true
+        sap_doc_entry:
+          type: integer
+          nullable: true
+          example: 123
+        sap_doc_num:
+          type: string
+          nullable: true
+          example: "456"
+        created_by:
+          type: integer
+          nullable: true
+          example: 2
+        updated_by:
+          type: integer
+          nullable: true
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-17T09:05:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-17T09:05:00.000000Z"
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductionBomItem'
+
+    ProductionBomItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        production_bom_id:
+          type: integer
+          example: 1
+        father:
+          type: string
+          example: ILP000117
+        child_num:
+          type: integer
+          example: 0
+        type:
+          type: string
+          example: Item
+        code:
+          type: string
+          example: RAW001
+        product_name:
+          type: string
+          nullable: true
+          example: GARAM KASAR
+        quantity:
+          type: string
+          example: "0.5000"
+        warehouse:
+          type: string
+          nullable: true
+          example: WHS01
+        issue_mthd:
+          type: string
+          example: B
+        ocr_code:
+          type: string
+          nullable: true
+          example: CAB01
+        ocr_code2:
+          type: string
+          nullable: true
+          example: BU01
+        ocr_code3:
+          type: string
+          nullable: true
+          example: DEPT01
+        ocr_name:
+          type: string
+          nullable: true
+          example: Cabang Utama
+        ocr_name2:
+          type: string
+          nullable: true
+          example: Business Unit Salt
+        ocr_name3:
+          type: string
+          nullable: true
+          example: Dept Pack
+        uom:
+          type: string
+          nullable: true
+          example: Roll
+        comments:
+          type: string
+          nullable: true
+          example: Bahan penolong
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-17T09:05:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-17T09:05:00.000000Z"
 
     ProductionResource:
       type: object
