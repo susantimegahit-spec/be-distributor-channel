@@ -67,6 +67,14 @@ class ExpeditionRate extends Model
     }
 
     /**
+     * Get destination associated with this rate.
+     */
+    public function destination(): BelongsTo
+    {
+        return $this->belongsTo(CustomerShipto::class, 'destination_id');
+    }
+
+    /**
      * Get user who created record.
      */
     public function creator(): BelongsTo

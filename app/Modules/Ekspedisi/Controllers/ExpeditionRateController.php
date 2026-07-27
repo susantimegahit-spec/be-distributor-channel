@@ -18,7 +18,7 @@ class ExpeditionRateController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = ExpeditionRate::with(['expedition', 'warehouse']);
+        $query = ExpeditionRate::with(['expedition', 'warehouse', 'destination']);
 
         if ($request->has('expedition_id')) {
             $query->where('expedition_id', $request->get('expedition_id'));
@@ -84,7 +84,7 @@ class ExpeditionRateController extends Controller
 
         $rate = ExpeditionRate::create($data);
 
-        return $this->successResponse($rate->load(['expedition', 'warehouse']), 'Tarif ekspedisi berhasil ditambahkan.', 201);
+        return $this->successResponse($rate->load(['expedition', 'warehouse', 'destination']), 'Tarif ekspedisi berhasil ditambahkan.', 201);
     }
 
     /**
@@ -92,7 +92,7 @@ class ExpeditionRateController extends Controller
      */
     public function show(int $id): JsonResponse
     {
-        $rate = ExpeditionRate::with(['expedition', 'warehouse', 'creator', 'updater'])->find($id);
+        $rate = ExpeditionRate::with(['expedition', 'warehouse', 'destination', 'creator', 'updater'])->find($id);
 
         if (!$rate) {
             return $this->errorResponse('Data tarif ekspedisi tidak ditemukan.', [], 404);
@@ -140,7 +140,7 @@ class ExpeditionRateController extends Controller
 
         $rate->update($data);
 
-        return $this->successResponse($rate->load(['expedition', 'warehouse']), 'Tarif ekspedisi berhasil diperbarui.');
+        return $this->successResponse($rate->load(['expedition', 'warehouse', 'destination']), 'Tarif ekspedisi berhasil diperbarui.');
     }
 
     /**

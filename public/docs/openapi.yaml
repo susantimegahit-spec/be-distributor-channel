@@ -8794,6 +8794,8 @@ components:
           example: "2026-07-23T08:00:00.000000Z"
         expedition:
           $ref: '#/components/schemas/Expedition'
+        destination:
+          $ref: '#/components/schemas/CustomerShipto'
 
     ProductionResource:
       type: object
