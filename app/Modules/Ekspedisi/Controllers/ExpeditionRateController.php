@@ -20,15 +20,17 @@ class ExpeditionRateController extends Controller
     {
         $query = ExpeditionRate::with(['expedition', 'warehouse', 'destination']);
 
-        if ($request->has('expedition_code')) {
-            $query->whereHas('expedition', function ($q) use ($request) {
-                $q->where('expedition_code', $request->get('expedition_code'));
+        $expeditionCode = $request->get('expedition_code') ?? $request->get('expedisi_code') ?? $request->get('kode_ekspedisi');
+        if (!empty($expeditionCode)) {
+            $query->whereHas('expedition', function ($q) use ($expeditionCode) {
+                $q->where('expedition_code', $expeditionCode);
             });
         }
 
-        if ($request->has('warehouse_code')) {
-            $query->whereHas('warehouse', function ($q) use ($request) {
-                $q->where('whs_code', $request->get('warehouse_code'));
+        $warehouseCode = $request->get('warehouse_code') ?? $request->get('kode_gudang') ?? $request->get('origin_code');
+        if (!empty($warehouseCode)) {
+            $query->whereHas('warehouse', function ($q) use ($warehouseCode) {
+                $q->where('whs_code', $warehouseCode);
             });
         }
 
