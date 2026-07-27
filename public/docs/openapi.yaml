@@ -7122,6 +7122,18 @@ components:
                   type: string
                   nullable: true
                   example: PT XYZ
+                expedition_code:
+                  type: string
+                  nullable: true
+                  example: EXP0001
+                id_expedition:
+                  type: integer
+                  nullable: true
+                  example: 1
+                name_expedition:
+                  type: string
+                  nullable: true
+                  example: PT Jalur Nugraha Ekakurir
                 is_active:
                   type: boolean
                   example: true
