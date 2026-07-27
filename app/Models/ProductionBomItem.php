@@ -56,7 +56,7 @@ class ProductionBomItem extends Model
      */
     public function item(): BelongsTo
     {
-        return $this->belongsTo(Item::class, 'code', 'item_code');
+        return $this->belongsTo(ProductionItem::class, 'code', 'item_code');
     }
 
     /**
@@ -96,7 +96,7 @@ class ProductionBomItem extends Model
      */
     public function getProductNameAttribute(): ?string
     {
-        if ($this->type === 'Resource') {
+        if ($this->type === 'Resource' || $this->type === '290') {
             return $this->resource?->res_name;
         }
         return $this->item?->item_name;
@@ -107,10 +107,10 @@ class ProductionBomItem extends Model
      */
     public function getUomAttribute(): ?string
     {
-        if ($this->type === 'Resource') {
+        if ($this->type === 'Resource' || $this->type === '290') {
             return $this->resource?->unit_of_msr;
         }
-        return $this->item?->sal_unit_msr;
+        return $this->item?->invntry_uom;
     }
 
     /**
