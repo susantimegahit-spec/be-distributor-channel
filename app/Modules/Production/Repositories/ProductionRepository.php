@@ -135,6 +135,12 @@ class ProductionRepository implements ProductionRepositoryInterface
             $details = $data['details'] ?? [];
             unset($data['details']);
 
+            // Auto-calculate next alternate version if not provided or if it already exists
+            if (empty($data['alternate']) || \App\Models\ProductionBom::where('code', $data['code'])->where('alternate', $data['alternate'])->exists()) {
+                $maxAlternate = \App\Models\ProductionBom::where('code', $data['code'])->max('alternate');
+                $data['alternate'] = $maxAlternate ? $maxAlternate + 1 : 1;
+            }
+
             $bom = \App\Models\ProductionBom::create($data);
 
             foreach ($details as $index => $detail) {
