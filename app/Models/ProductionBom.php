@@ -40,6 +40,18 @@ class ProductionBom extends Model
         'sap_doc_entry' => 'integer',
     ];
 
+    protected $appends = [
+        'product_name',
+    ];
+
+    /**
+     * Accessor for product name.
+     */
+    public function getProductNameAttribute(): ?string
+    {
+        return $this->parentItem?->item_name;
+    }
+
     public function details(): HasMany
     {
         return $this->hasMany(ProductionBomItem::class, 'production_bom_id');

@@ -86,7 +86,14 @@ class ProductionRepository implements ProductionRepositoryInterface
      */
     public function getAllBoms(array $filters = []): Collection
     {
-        $query = \App\Models\ProductionBom::query()->with(['details']);
+        $query = \App\Models\ProductionBom::query()->with([
+            'parentItem',
+            'details.item',
+            'details.resource',
+            'details.ocr',
+            'details.ocr2',
+            'details.ocr3',
+        ]);
 
         if (!empty($filters['search'])) {
             $search = $filters['search'];
@@ -109,7 +116,14 @@ class ProductionRepository implements ProductionRepositoryInterface
      */
     public function getBomById(int $id): ?\App\Models\ProductionBom
     {
-        return \App\Models\ProductionBom::with(['details'])->find($id);
+        return \App\Models\ProductionBom::with([
+            'parentItem',
+            'details.item',
+            'details.resource',
+            'details.ocr',
+            'details.ocr2',
+            'details.ocr3',
+        ])->find($id);
     }
 
     /**
