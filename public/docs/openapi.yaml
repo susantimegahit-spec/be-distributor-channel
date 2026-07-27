@@ -1651,6 +1651,10 @@ paths:
                   type: string
                   nullable: true
                   example: C110000411
+                expedition_code:
+                  type: string
+                  nullable: true
+                  example: EXP0001
                 is_active:
                   type: boolean
                   example: true
@@ -1751,6 +1755,10 @@ paths:
                   type: string
                   nullable: true
                   example: C110000411
+                expedition_code:
+                  type: string
+                  nullable: true
+                  example: EXP0001
                 is_active:
                   type: boolean
                   example: false
@@ -7295,6 +7303,10 @@ components:
           type: string
           nullable: true
           example: C110000411
+        expedition_code:
+          type: string
+          nullable: true
+          example: EXP0001
         is_active:
           type: boolean
           example: true
@@ -7315,6 +7327,8 @@ components:
           $ref: '#/components/schemas/Role'
         distributor:
           $ref: '#/components/schemas/Distributor'
+        expedition:
+          $ref: '#/components/schemas/Expedition'
 
     UserListResponse:
       type: object
