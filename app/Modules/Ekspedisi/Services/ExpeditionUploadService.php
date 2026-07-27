@@ -140,14 +140,14 @@ class ExpeditionUploadService
         // Parse header (row 0)
         $rawHeaders = array_shift($rows);
         $headerMap = $this->mapHeaders($rawHeaders, [
-            'expedition_code'  => ['expedition_code', 'kode_ekspedisi', 'expedition_id'],
-            'warehouse_code'   => ['warehouse_code', 'whs_code', 'kode_gudang', 'warehouse_id'],
-            'destination_id'   => ['destination_id', 'tujuan_id', 'tujuan'],
+            'expedition_code'  => ['expedition_code', 'kode_ekspedisi', 'expedition_id', 'expedition'],
+            'warehouse_code'   => ['warehouse_code', 'whs_code', 'kode_gudang', 'warehouse_id', 'origin'],
+            'destination_id'   => ['destination_id', 'tujuan_id', 'tujuan', 'destination'],
             'transport_mode'   => ['transport_mode', 'moda', 'moda_pengiriman'],
             'service_type'     => ['service_type', 'jenis_layanan', 'layanan'],
-            'min_tonnage'      => ['min_tonnage', 'tonase_min', 'tonase_minimal'],
-            'max_tonnage'      => ['max_tonnage', 'tonase_max', 'tonase_maksimal'],
-            'price'            => ['price', 'harga', 'tarif'],
+            'min_tonnage'      => ['min_tonnage', 'tonase_min', 'tonase_minimal', 'min_kg'],
+            'max_tonnage'      => ['max_tonnage', 'tonase_max', 'tonase_maksimal', 'max_kg'],
+            'price'            => ['price', 'harga', 'tarif', 'rate'],
             'eta_days'         => ['eta_days', 'eta_hari', 'eta'],
             'min_shipment_qty' => ['min_shipment_qty', 'minimal_pengiriman'],
             'max_shipment_qty' => ['max_shipment_qty', 'maksimal_pengiriman'],
@@ -184,6 +184,9 @@ class ExpeditionUploadService
                 }
 
                 $expCode = trim((string) ($this->getValueByMap($row, $headerMap, 'expedition_code') ?? ''));
+                if (str_contains($expCode, '-')) {
+                    $expCode = trim(explode('-', $expCode)[0]);
+                }
 
                 // Find expedition ID either by code or numeric ID
                 $expeditionId = null;
@@ -206,6 +209,10 @@ class ExpeditionUploadService
 
                 // Match warehouse ID
                 $whsCode = trim((string) ($this->getValueByMap($row, $headerMap, 'warehouse_code') ?? ''));
+                if (str_contains($whsCode, '-')) {
+                    $whsCode = trim(explode('-', $whsCode)[0]);
+                }
+                
                 $warehouseId = null;
                 if (isset($warehouseMap[$whsCode])) {
                     $warehouseId = $warehouseMap[$whsCode];
@@ -214,11 +221,35 @@ class ExpeditionUploadService
                 }
 
                 $destId = $this->getValueByMap($row, $headerMap, 'destination_id');
+                $destinationId = null;
+                if ($destId !== null) {
+                    $destStr = trim((string) $destId);
+                    if (str_contains($destStr, '-')) {
+                        $destStr = trim(explode('-', $destStr)[0]);
+                    }
+
+                    if (is_numeric($destStr)) {
+                        $existsAsId = DB::table('customer_shiptos')->where('id', (int) $destStr)->exists();
+                        if ($existsAsId) {
+                            $destinationId = (int) $destStr;
+                        } else {
+                            $shipto = DB::table('customer_shiptos')->where('card_code', $destStr)->first();
+                            if ($shipto) {
+                                $destinationId = $shipto->id;
+                            }
+                        }
+                    } else {
+                        $shipto = DB::table('customer_shiptos')->where('card_code', $destStr)->first();
+                        if ($shipto) {
+                            $destinationId = $shipto->id;
+                        }
+                    }
+                }
 
                 ExpeditionRate::create([
                     'expedition_id'    => $expeditionId,
                     'warehouse_id'     => $warehouseId,
-                    'destination_id'   => is_numeric($destId) ? (int) $destId : null,
+                    'destination_id'   => $destinationId,
                     'transport_mode'   => $this->getValueByMap($row, $headerMap, 'transport_mode'),
                     'service_type'     => $this->getValueByMap($row, $headerMap, 'service_type'),
                     'min_tonnage'      => floatval($this->getValueByMap($row, $headerMap, 'min_tonnage') ?? 0),
