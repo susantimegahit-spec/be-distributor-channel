@@ -5745,18 +5745,18 @@ paths:
       security:
         - BearerAuth: []
       parameters:
-        - name: expedition_id
+        - name: expedition_code
           in: query
           required: false
           schema:
-            type: integer
-          description: Filter ID ekspedisi
-        - name: warehouse_id
+            type: string
+          description: Filter Kode ekspedisi
+        - name: warehouse_code
           in: query
           required: false
           schema:
-            type: integer
-          description: Filter ID gudang asal
+            type: string
+          description: Filter Kode gudang asal
         - name: destination_id
           in: query
           required: false
