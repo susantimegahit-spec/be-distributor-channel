@@ -186,4 +186,145 @@ class ProductionRepository implements ProductionRepositoryInterface
             return $bom->delete();
         });
     }
+
+    /**
+     * Get all production orders.
+     */
+    public function getAllOrders(array $filters = []): Collection
+    {
+        $query = \App\Models\ProductionOrder::query()->with([
+            'parentItem',
+            'details.item',
+            'details.resource',
+            'details.warehouseModel',
+            'details.ocr',
+            'details.ocr2',
+            'details.ocr3',
+            'ocr',
+            'ocr2',
+            'ocr3',
+            'warehouseModel'
+        ]);
+
+        if (!empty($filters['search'])) {
+            $search = $filters['search'];
+            $likeOperator = DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
+            $query->where(function ($q) use ($search, $likeOperator) {
+                $q->where('prod_order_no', $likeOperator, "%{$search}%")
+                  ->orWhere('item_code', $likeOperator, "%{$search}%")
+                  ->orWhere('comments', $likeOperator, "%{$search}%");
+            });
+        }
+
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        if (!empty($filters['item_code'])) {
+            $query->where('item_code', $filters['item_code']);
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * Get production order by ID.
+     */
+    public function getOrderById(int $id): ?\App\Models\ProductionOrder
+    {
+        return \App\Models\ProductionOrder::with([
+            'parentItem',
+            'details.item',
+            'details.resource',
+            'details.warehouseModel',
+            'details.ocr',
+            'details.ocr2',
+            'details.ocr3',
+            'ocr',
+            'ocr2',
+            'ocr3',
+            'warehouseModel'
+        ])->find($id);
+    }
+
+    /**
+     * Create a new production order.
+     */
+    public function createOrder(array $data): \App\Models\ProductionOrder
+    {
+        return DB::connection('pgsql_production')->transaction(function () use ($data) {
+            $details = $data['details'] ?? [];
+            unset($data['details']);
+
+            if (empty($data['prod_order_no'])) {
+                $data['prod_order_no'] = 'PO-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(4)));
+            }
+
+            $order = \App\Models\ProductionOrder::create($data);
+
+            foreach ($details as $index => $detail) {
+                $detail['line_num'] = $index;
+                $order->details()->create($detail);
+            }
+
+            return $order->fresh([
+                'parentItem',
+                'details.item',
+                'details.resource',
+                'details.warehouseModel',
+                'details.ocr',
+                'details.ocr2',
+                'details.ocr3',
+                'ocr',
+                'ocr2',
+                'ocr3',
+                'warehouseModel'
+            ]);
+        });
+    }
+
+    /**
+     * Update an existing production order.
+     */
+    public function updateOrder(\App\Models\ProductionOrder $order, array $data): \App\Models\ProductionOrder
+    {
+        return DB::connection('pgsql_production')->transaction(function () use ($order, $data) {
+            $details = $data['details'] ?? null;
+            unset($data['details']);
+
+            $order->update($data);
+
+            if ($details !== null) {
+                $order->details()->delete();
+                foreach ($details as $index => $detail) {
+                    $detail['line_num'] = $index;
+                    $order->details()->create($detail);
+                }
+            }
+
+            return $order->fresh([
+                'parentItem',
+                'details.item',
+                'details.resource',
+                'details.warehouseModel',
+                'details.ocr',
+                'details.ocr2',
+                'details.ocr3',
+                'ocr',
+                'ocr2',
+                'ocr3',
+                'warehouseModel'
+            ]);
+        });
+    }
+
+    /**
+     * Delete a production order.
+     */
+    public function deleteOrder(\App\Models\ProductionOrder $order): bool
+    {
+        return DB::connection('pgsql_production')->transaction(function () use ($order) {
+            return $order->delete();
+        });
+    }
 }

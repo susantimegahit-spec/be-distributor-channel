@@ -80,4 +80,45 @@ interface ProductionRepositoryInterface
      * @return bool
      */
     public function deleteBom(\App\Models\ProductionBom $bom): bool;
+
+    /**
+     * Get all production orders.
+     *
+     * @param  array  $filters
+     * @return Collection<int, \App\Models\ProductionOrder>
+     */
+    public function getAllOrders(array $filters = []): Collection;
+
+    /**
+     * Get production order by ID.
+     *
+     * @param  int  $id
+     * @return \App\Models\ProductionOrder|null
+     */
+    public function getOrderById(int $id): ?\App\Models\ProductionOrder;
+
+    /**
+     * Create a new production order.
+     *
+     * @param  array  $data
+     * @return \App\Models\ProductionOrder
+     */
+    public function createOrder(array $data): \App\Models\ProductionOrder;
+
+    /**
+     * Update an existing production order.
+     *
+     * @param  \App\Models\ProductionOrder  $order
+     * @param  array  $data
+     * @return \App\Models\ProductionOrder
+     */
+    public function updateOrder(\App\Models\ProductionOrder $order, array $data): \App\Models\ProductionOrder;
+
+    /**
+     * Delete a production order.
+     *
+     * @param  \App\Models\ProductionOrder  $order
+     * @return bool
+     */
+    public function deleteOrder(\App\Models\ProductionOrder $order): bool;
 }

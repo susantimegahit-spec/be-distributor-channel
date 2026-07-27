@@ -6818,6 +6818,237 @@ paths:
         '200':
           description: Bill of Material berhasil dihapus.
 
+  /v1/production/orders:
+    get:
+      summary: Get all production orders
+      description: Mendapatkan daftar Production Order.
+      tags:
+        - Production Order
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Cari berdasarkan no production order, kode produk, atau komentar
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan status (PLANNED, RELEASED, CLOSED, CANCELLED)
+        - name: item_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan kode produk utama
+      responses:
+        '200':
+          description: Daftar Production Order berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar Production Order berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductionOrder'
+
+    post:
+      summary: Create a new production order
+      description: Membuat Production Order baru beserta komponennya.
+      tags:
+        - Production Order
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - item_code
+                - planned_qty
+                - warehouse
+                - post_date
+                - details
+              properties:
+                prod_order_no:
+                  type: string
+                  example: "260210422"
+                item_code:
+                  type: string
+                  example: "B26"
+                planned_qty:
+                  type: number
+                  example: 3.0
+                warehouse:
+                  type: string
+                  example: "PRD01-05"
+                post_date:
+                  type: string
+                  format: date
+                  example: "2026-02-19"
+                due_date:
+                  type: string
+                  format: date
+                  example: "2026-02-19"
+                start_date:
+                  type: string
+                  format: date
+                  example: "2026-02-19"
+                status:
+                  type: string
+                  example: "PLANNED"
+                type:
+                  type: string
+                  example: "Special"
+                series:
+                  type: string
+                  example: "SBY26-02"
+                priority:
+                  type: integer
+                  example: 100
+                origin_type:
+                  type: string
+                  example: "Sales Order"
+                u_shift:
+                  type: string
+                  example: "All"
+                u_unit:
+                  type: string
+                  example: "SBY-UNIT5"
+                comments:
+                  type: string
+                  example: "Catatan order produksi"
+                details:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - item_code
+                      - planned_qty
+                    properties:
+                      type:
+                        type: string
+                        example: "Item"
+                      item_code:
+                        type: string
+                        example: "RM-001"
+                      base_qty:
+                        type: number
+                        example: 1.0
+                      planned_qty:
+                        type: number
+                        example: 10.0
+                      warehouse:
+                        type: string
+                        example: "PRD01-05"
+                      issue_mthd:
+                        type: string
+                        example: "B"
+                      ocr_code:
+                        type: string
+                        example: "SBY"
+                      ocr_code2:
+                        type: string
+                        example: "GRM"
+                      ocr_code3:
+                        type: string
+                        example: "PRO"
+      responses:
+        '201':
+          description: Production Order berhasil dibuat.
+
+  /v1/production/orders/{id}:
+    get:
+      summary: Get details of a production order
+      description: Mendapatkan detail lengkap Production Order beserta daftar komponennya.
+      tags:
+        - Production Order
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail Production Order berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Detail Production Order berhasil diambil.
+                  data:
+                    $ref: '#/components/schemas/ProductionOrder'
+
+    put:
+      summary: Update a production order
+      description: Memperbarui Production Order dan komponennya.
+      tags:
+        - Production Order
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: "Closed"
+                comments:
+                  type: string
+                  example: "Catatan diperbarui"
+      responses:
+        '200':
+          description: Production Order berhasil diperbarui.
+
+    delete:
+      summary: Delete a production order
+      description: Menghapus data Production Order.
+      tags:
+        - Production Order
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Production Order berhasil dihapus.
+
   /v1/ekspedisi/origins:
     get:
       summary: Get paginated or filtered list of warehouse origins
@@ -9034,14 +9265,281 @@ components:
           type: string
           nullable: true
           example: Bahan penolong
-        created_at:
-          type: string
-          format: date-time
-          example: "2026-07-17T09:05:00.000000Z"
         updated_at:
           type: string
           format: date-time
           example: "2026-07-17T09:05:00.000000Z"
+
+    ProductionOrder:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        doc_entry:
+          type: integer
+          nullable: true
+          example: 12345
+        doc_num:
+          type: string
+          nullable: true
+          example: "260210422"
+        series:
+          type: string
+          nullable: true
+          example: "SBY26-02"
+        prod_order_no:
+          type: string
+          example: "260210422"
+        status:
+          type: string
+          example: "Closed"
+        type:
+          type: string
+          example: "Special"
+        item_code:
+          type: string
+          example: "B26"
+        product_name:
+          type: string
+          nullable: true
+          example: "KOP 250 M @ 10 KG / BAL"
+        planned_qty:
+          type: string
+          example: "7500.0000"
+        cmplt_qty:
+          type: string
+          example: "6318.0000"
+        rjct_qty:
+          type: string
+          example: "0.0000"
+        warehouse:
+          type: string
+          example: "PRD01-05"
+        warehouse_name:
+          type: string
+          nullable: true
+          example: "GUDANG PRODUKSI SURABAYA"
+        priority:
+          type: integer
+          example: 100
+        project:
+          type: string
+          nullable: true
+          example: null
+        post_date:
+          type: string
+          format: date
+          example: "2026-02-19"
+        start_date:
+          type: string
+          format: date
+          example: "2026-02-19"
+        due_date:
+          type: string
+          format: date
+          example: "2026-02-19"
+        origin_type:
+          type: string
+          nullable: true
+          example: "Sales Order"
+        origin_num:
+          type: string
+          nullable: true
+          example: null
+        card_code:
+          type: string
+          nullable: true
+          example: null
+        ocr_code:
+          type: string
+          nullable: true
+          example: "SBY"
+        ocr_code2:
+          type: string
+          nullable: true
+          example: "GRM"
+        ocr_code3:
+          type: string
+          nullable: true
+          example: "PRO"
+        ocr_name:
+          type: string
+          nullable: true
+          example: "Surabaya & Madura"
+        ocr_name2:
+          type: string
+          nullable: true
+          example: "Garam"
+        ocr_name3:
+          type: string
+          nullable: true
+          example: "Produksi"
+        u_shift:
+          type: string
+          nullable: true
+          example: "All"
+        u_unit:
+          type: string
+          nullable: true
+          example: "SBY-UNIT5"
+        comments:
+          type: string
+          nullable: true
+          example: null
+        act_item_cost:
+          type: string
+          example: "230103979.0300"
+        act_res_cost:
+          type: string
+          example: "34875360.0000"
+        act_add_cost:
+          type: string
+          example: "0.0000"
+        act_prod_cost:
+          type: string
+          example: "269446206.7800"
+        act_by_prod_cost:
+          type: string
+          example: "0.0000"
+        total_variance:
+          type: string
+          example: "-4466867.7500"
+        jrnl_memo:
+          type: string
+          nullable: true
+          example: "Production Order - D22"
+        ref_doc:
+          type: string
+          nullable: true
+          example: null
+        act_close_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-02-19"
+        overdue:
+          type: integer
+          nullable: true
+          example: null
+        created_by:
+          type: integer
+          nullable: true
+          example: 1
+        updated_by:
+          type: integer
+          nullable: true
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-27T13:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-27T13:00:00.000000Z"
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductionOrderItem'
+
+    ProductionOrderItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        production_order_id:
+          type: integer
+          example: 1
+        line_num:
+          type: integer
+          example: 0
+        item_code:
+          type: string
+          example: "RM-001"
+        product_name:
+          type: string
+          nullable: true
+          example: "GARAM KASAR"
+        type:
+          type: string
+          example: "Item"
+        base_qty:
+          type: string
+          example: "1.0000"
+        planned_qty:
+          type: string
+          example: "10.0000"
+        issued_qty:
+          type: string
+          example: "0.0000"
+        available_qty:
+          type: string
+          example: "0.0000"
+        warehouse:
+          type: string
+          nullable: true
+          example: "PRD01-05"
+        warehouse_name:
+          type: string
+          nullable: true
+          example: "GUDANG PRODUKSI SURABAYA"
+        issue_mthd:
+          type: string
+          example: "B"
+        ocr_code:
+          type: string
+          nullable: true
+          example: "SBY"
+        ocr_code2:
+          type: string
+          nullable: true
+          example: "GRM"
+        ocr_code3:
+          type: string
+          nullable: true
+          example: "PRO"
+        ocr_name:
+          type: string
+          nullable: true
+          example: "Surabaya & Madura"
+        ocr_name2:
+          type: string
+          nullable: true
+          example: "Garam"
+        ocr_name3:
+          type: string
+          nullable: true
+          example: "Produksi"
+        uom:
+          type: string
+          nullable: true
+          example: "KG"
+        comments:
+          type: string
+          nullable: true
+          example: null
+        base_entry:
+          type: integer
+          nullable: true
+          example: null
+        base_type:
+          type: integer
+          nullable: true
+          example: null
+        base_line:
+          type: integer
+          nullable: true
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-27T13:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-27T13:00:00.000000Z"
 
     ProductionResource:
       type: object

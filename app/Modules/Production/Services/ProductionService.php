@@ -215,4 +215,85 @@ class ProductionService
 
         return $deleted;
     }
+
+    /**
+     * Get all production orders.
+     */
+    public function getAllOrders(array $filters = []): Collection
+    {
+        return $this->productionRepository->getAllOrders($filters);
+    }
+
+    /**
+     * Get production order by ID.
+     */
+    public function getOrderById(int $id): ?\App\Models\ProductionOrder
+    {
+        return $this->productionRepository->getOrderById($id);
+    }
+
+    /**
+     * Create a new production order.
+     */
+    public function createOrder(array $data, ?int $userId = null): \App\Models\ProductionOrder
+    {
+        $order = $this->productionRepository->createOrder($data);
+
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'CREATE_PRODUCTION_ORDER',
+                "Created production order with number {$order->prod_order_no}."
+            );
+        }
+
+        return $order;
+    }
+
+    /**
+     * Update an existing production order.
+     */
+    public function updateOrder(int $id, array $data, ?int $userId = null): \App\Models\ProductionOrder
+    {
+        $order = $this->productionRepository->getOrderById($id);
+        if (!$order) {
+            throw new \Exception('Production Order tidak ditemukan.');
+        }
+
+        $updatedOrder = $this->productionRepository->updateOrder($order, $data);
+
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'UPDATE_PRODUCTION_ORDER',
+                "Updated production order with number {$updatedOrder->prod_order_no}."
+            );
+        }
+
+        return $updatedOrder;
+    }
+
+    /**
+     * Delete a production order.
+     */
+    public function deleteOrder(int $id, ?int $userId = null): bool
+    {
+        $order = $this->productionRepository->getOrderById($id);
+        if (!$order) {
+            throw new \Exception('Production Order tidak ditemukan.');
+        }
+
+        $orderNo = $order->prod_order_no;
+        $deleted = $this->productionRepository->deleteOrder($order);
+
+        if ($deleted && $userId) {
+            $this->auditLogService->log(
+                $userId,
+                'DELETE_PRODUCTION_ORDER',
+                "Deleted production order with number {$orderNo}."
+            );
+        }
+
+        return $deleted;
+    }
 }
