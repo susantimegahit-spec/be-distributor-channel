@@ -26,6 +26,7 @@ class User extends Authenticatable
         'email',
         'password',
         'code_customer',
+        'expedition_code',
         'is_active',
     ];
 
@@ -76,6 +77,30 @@ class User extends Authenticatable
     public function distributor(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Distributor::class, 'code_customer', 'code_customer');
+    }
+
+    /**
+     * Get the expedition associated with the user.
+     */
+    public function expedition(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Expedition::class, 'expedition_code', 'expedition_code');
+    }
+
+    /**
+     * Check if the user is an expedition user.
+     */
+    public function isEkspedisi(): bool
+    {
+        return !empty($this->expedition_code);
+    }
+
+    /**
+     * Check if the user is a customer portal user.
+     */
+    public function isCustomerPortal(): bool
+    {
+        return !empty($this->code_customer);
     }
 
     /**

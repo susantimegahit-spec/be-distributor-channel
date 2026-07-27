@@ -45,6 +45,23 @@ class UpdateUserRequest extends FormRequest
                     }
                 }
             ],
+            'expedition_code' => [
+                'nullable',
+                'string',
+                function ($attribute, $value, $fail) {
+                    $codes = array_map('trim', explode(',', $value));
+                    foreach ($codes as $code) {
+                        if (empty($code)) continue;
+                        $exists = \Illuminate\Support\Facades\DB::connection('pgsql_ekspedisi')
+                            ->table('ekspedisi.expeditions')
+                            ->where('expedition_code', $code)
+                            ->exists();
+                        if (!$exists) {
+                            $fail("Kode ekspedisi '{$code}' tidak terdaftar di database.");
+                        }
+                    }
+                }
+            ],
             'is_active' => 'sometimes|boolean',
             'accessible_systems' => 'nullable|array',
             'accessible_systems.*' => 'string',
