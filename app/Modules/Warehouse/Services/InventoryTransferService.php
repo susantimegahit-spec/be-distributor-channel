@@ -46,6 +46,28 @@ class InventoryTransferService
     }
 
     /**
+     * Resolve Bin Code string to its numeric AbsEntry ID by querying SAP.
+     *
+     * @param string $binCode
+     * @return int|null
+     */
+    private function resolveBinAbsEntry(string $binCode): ?int
+    {
+        try {
+            $result = $this->searchBin(['CustomQuery' => $binCode]);
+            $bins = $result['Result'] ?? $result['result'] ?? [];
+            foreach ($bins as $bin) {
+                if (strcasecmp(trim($bin['BinCode'] ?? ''), trim($binCode)) === 0) {
+                    return (int)$bin['AbsEntry'];
+                }
+            }
+        } catch (\Exception $e) {
+            // Ignore search error and return null
+        }
+        return null;
+    }
+
+    /**
      * Perform Inventory Transfer in SAP.
      *
      * @param array $payload
@@ -62,6 +84,17 @@ class InventoryTransferService
                 }
 
                 // Preprocess Lines_BinFROM
+                if (isset($line['Lines_BinFROM']) && is_array($line['Lines_BinFROM'])) {
+                    foreach ($line['Lines_BinFROM'] as &$b) {
+                        if (isset($b['AbsEntry']) && !is_numeric($b['AbsEntry']) && $b['AbsEntry'] !== 'NO BIN') {
+                            $resolved = $this->resolveBinAbsEntry((string)$b['AbsEntry']);
+                            if ($resolved !== null) {
+                                $b['AbsEntry'] = $resolved;
+                            }
+                        }
+                    }
+                }
+
                 $binFrom = isset($line['Lines_BinFROM']) ? array_filter((array)$line['Lines_BinFROM'], function ($b) {
                     return !empty($b['AbsEntry']) && is_numeric($b['AbsEntry']);
                 }) : [];
@@ -75,6 +108,17 @@ class InventoryTransferService
                 }
 
                 // Preprocess Lines_BinTO
+                if (isset($line['Lines_BinTO']) && is_array($line['Lines_BinTO'])) {
+                    foreach ($line['Lines_BinTO'] as &$b) {
+                        if (isset($b['AbsEntry']) && !is_numeric($b['AbsEntry']) && $b['AbsEntry'] !== 'NO BIN') {
+                            $resolved = $this->resolveBinAbsEntry((string)$b['AbsEntry']);
+                            if ($resolved !== null) {
+                                $b['AbsEntry'] = $resolved;
+                            }
+                        }
+                    }
+                }
+
                 $binTo = isset($line['Lines_BinTO']) ? array_filter((array)$line['Lines_BinTO'], function ($b) {
                     return !empty($b['AbsEntry']) && is_numeric($b['AbsEntry']);
                 }) : [];
