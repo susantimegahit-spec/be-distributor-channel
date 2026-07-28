@@ -60,11 +60,11 @@ class CreateUserRequest extends FormRequest
                     }
                 }
             ],
-            'production_code' => 'nullable|string|max:100',
-            'whs_code' => 'nullable|string|max:100',
-            'ocr_code' => 'nullable|string|max:100',
-            'ocr_code2' => 'nullable|string|max:100',
-            'ocr_code3' => 'nullable|string|max:100',
+            'production_code' => 'sometimes|nullable|string|max:100',
+            'whs_code' => 'sometimes|nullable|string|max:100',
+            'ocr_code' => 'sometimes|nullable|string|max:100',
+            'ocr_code2' => 'sometimes|nullable|string|max:100',
+            'ocr_code3' => 'sometimes|nullable|string|max:100',
             'is_active' => 'sometimes|boolean',
             'accessible_systems' => 'nullable|array',
             'accessible_systems.*' => 'string',
