@@ -7319,6 +7319,207 @@ paths:
                           type: string
                         example: []
 
+  /v1/warehouses/search-bin:
+    post:
+      summary: Search qty bin location from SAP
+      description: Mencari bin location (sub gudang) dan kuantitasnya berdasarkan kode gudang dan query kustom dari SAP.
+      tags:
+        - Warehouse
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - WhsCode
+              properties:
+                CustomQuery:
+                  type: string
+                  example: B26
+                  description: Query pencarian kode bin
+                WhsCode:
+                  type: string
+                  example: RMI01
+                  description: Kode Gudang SAP
+      responses:
+        '200':
+          description: Pencarian data bin berhasil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Pencarian data bin berhasil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        AbsEntry:
+                          type: string
+                          example: "10"
+                        BinCode:
+                          type: string
+                          example: RMI01-GN
+                        Descr:
+                          type: string
+                          example: GUDANG BAHAN BAKU GARAM IMPORT N
+        '400':
+          description: Gagal mencari data bin (Error dari SAP)
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/warehouses/inventory-transfer:
+    post:
+      summary: Perform Inventory Transfer (IT) to SAP
+      description: Membuat transaksi pemindahan stok antar gudang (Inventory Transfer) di SAP.
+      tags:
+        - Warehouse
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocDate
+                - DocDueDate
+                - Filler
+                - ToWhsCode
+                - Lines
+              properties:
+                DocDate:
+                  type: string
+                  format: date
+                  example: "2026-03-30"
+                DocDueDate:
+                  type: string
+                  format: date
+                  example: "2026-03-30"
+                Comments:
+                  type: string
+                  example: test
+                Filler:
+                  type: string
+                  example: FG01
+                  description: Gudang Asal
+                ToWhsCode:
+                  type: string
+                  example: FG04
+                  description: Gudang Tujuan
+                BeratBruto:
+                  type: string
+                  example: "10640"
+                BeratTara:
+                  type: string
+                  example: "3740"
+                Nopol:
+                  type: string
+                  example: M9573UN
+                NamaSupir:
+                  type: string
+                  example: Subianto
+                Lines:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - ItemCode
+                      - Quantity
+                      - Filler
+                      - ToWhsCode
+                    properties:
+                      ItemCode:
+                        type: string
+                        example: RM-001
+                      Quantity:
+                        type: number
+                        format: float
+                        example: 10000.0
+                      UomEntry:
+                        type: integer
+                        example: 0
+                      Filler:
+                        type: string
+                        example: FG01
+                      ToWhsCode:
+                        type: string
+                        example: FG04
+                      UseBaseUn:
+                        type: string
+                        example: y
+                      OcrCode:
+                        type: string
+                        example: SBY
+                      OcrCode2:
+                        type: string
+                        example: GRM
+                      OcrCode3:
+                        type: string
+                        example: PCG
+                      BinActivfrom:
+                        type: string
+                        example: Y
+                      BinActivto:
+                        type: string
+                        example: Y
+                      Lines_BinFROM:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            AbsEntry:
+                              type: integer
+                              example: 9
+                            Quantity:
+                              type: number
+                              format: float
+                              example: 10000.0
+                      Lines_BinTO:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            AbsEntry:
+                              type: integer
+                              example: 5
+                            Quantity:
+                              type: number
+                              format: float
+                              example: 100.0
+      responses:
+        '200':
+          description: Proses Inventory Transfer berhasil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Proses Inventory Transfer berhasil.
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+        '400':
+          description: Gagal memproses Inventory Transfer
+        '401':
+          description: Tidak terautentikasi
+
 components:
   securitySchemes:
     BearerAuth:
