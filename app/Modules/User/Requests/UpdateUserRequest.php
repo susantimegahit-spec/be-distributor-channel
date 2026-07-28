@@ -15,6 +15,34 @@ class UpdateUserRequest extends FormRequest
     }
 
     /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        $fields = ['production_code', 'whs_code', 'ocr_code', 'ocr_code2', 'ocr_code3'];
+        
+        $updates = [];
+        foreach ($fields as $field) {
+            if ($this->has($field)) {
+                $value = $this->input($field);
+                if (is_array($value)) {
+                    if (empty($value)) {
+                        $updates[$field] = null;
+                    } else {
+                        $updates[$field] = implode(',', array_filter(array_map('trim', $value)));
+                    }
+                } elseif (is_string($value) && trim($value) === '') {
+                    $updates[$field] = null;
+                }
+            }
+        }
+        
+        if (!empty($updates)) {
+            $this->merge($updates);
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
