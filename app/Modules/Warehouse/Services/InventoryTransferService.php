@@ -56,9 +56,14 @@ class InventoryTransferService
         // Preprocess/sanitize Lines for BinActivfrom and BinActivto
         if (isset($payload['Lines']) && is_array($payload['Lines'])) {
             foreach ($payload['Lines'] as &$line) {
+                // Ensure UseBaseUn is uppercase
+                if (isset($line['UseBaseUn'])) {
+                    $line['UseBaseUn'] = strtoupper($line['UseBaseUn']);
+                }
+
                 // Preprocess Lines_BinFROM
                 $binFrom = isset($line['Lines_BinFROM']) ? array_filter((array)$line['Lines_BinFROM'], function ($b) {
-                    return !empty($b['AbsEntry']);
+                    return !empty($b['AbsEntry']) && is_numeric($b['AbsEntry']);
                 }) : [];
 
                 if (empty($binFrom)) {
@@ -71,7 +76,7 @@ class InventoryTransferService
 
                 // Preprocess Lines_BinTO
                 $binTo = isset($line['Lines_BinTO']) ? array_filter((array)$line['Lines_BinTO'], function ($b) {
-                    return !empty($b['AbsEntry']);
+                    return !empty($b['AbsEntry']) && is_numeric($b['AbsEntry']);
                 }) : [];
 
                 if (empty($binTo)) {

@@ -2818,6 +2818,13 @@ paths:
             type: string
           description: Parameter query tanggal dalam format YYYYMMDD (default tanggal hari ini)
           example: "20260101"
+        - name: CardCode
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Parameter CardCode pelanggan
+          example: "17"
       responses:
         '200':
           description: Sukses mendapatkan daftar series

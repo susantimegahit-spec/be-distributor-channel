@@ -470,15 +470,17 @@ class SalesOrderController extends Controller
     public function getSeries(Request $request): JsonResponse
     {
         $customQuery = $request->query('CustomQuery') ?? $request->input('CustomQuery') ?? date('Ymd');
+        $cardCode = $request->query('CardCode') ?? $request->input('CardCode') ?? $request->query('card_code') ?? $request->input('card_code');
 
         try {
             $response = \Illuminate\Support\Facades\Http::timeout(15)
-                ->post('http://103.18.133.187:3100/api/getSeries', [
-                    'CustomQuery' => $customQuery
+                ->post('http://103.18.133.187:3100/api/getSeriesby', [
+                    'CustomQuery' => $customQuery,
+                    'CardCode' => $cardCode
                 ]);
 
             if (!$response->successful()) {
-                return $this->errorResponse('Gagal menghubungi API SAP getSeries.', [], 502);
+                return $this->errorResponse('Gagal menghubungi API SAP getSeriesby.', [], 502);
             }
 
             $sapData = $response->json();
