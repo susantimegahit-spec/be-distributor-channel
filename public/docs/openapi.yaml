@@ -7424,15 +7424,21 @@ paths:
                     items:
                       type: object
                       properties:
+                        ItemCode:
+                          type: string
+                          example: B26
+                        ItemName:
+                          type: string
+                          example: KOP 250 M @ 10 KG / BAL
+                        WhsCode:
+                          type: string
+                          example: FG01
                         AbsEntry:
                           type: string
-                          example: "10"
-                        BinCode:
+                          example: "5"
+                        SisaQty:
                           type: string
-                          example: RMI01-GN
-                        Descr:
-                          type: string
-                          example: GUDANG BAHAN BAKU GARAM IMPORT N
+                          example: "5300.000000"
         '400':
           description: Gagal mencari data bin qty (Error dari SAP)
         '401':
