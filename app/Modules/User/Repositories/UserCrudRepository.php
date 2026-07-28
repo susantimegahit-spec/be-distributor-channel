@@ -14,7 +14,7 @@ class UserCrudRepository implements UserCrudRepositoryInterface
      */
     public function all(): Collection
     {
-        return User::with(['role', 'distributor', 'expedition', 'productionResource'])->get();
+        return User::with(['role', 'distributor', 'expedition'])->get();
     }
 
     /**
@@ -25,7 +25,7 @@ class UserCrudRepository implements UserCrudRepositoryInterface
      */
     public function findById(int $id): ?User
     {
-        return User::with(['role', 'distributor', 'expedition', 'productionResource'])->find($id);
+        return User::with(['role', 'distributor', 'expedition'])->find($id);
     }
 
     /**
@@ -37,7 +37,7 @@ class UserCrudRepository implements UserCrudRepositoryInterface
     public function create(array $data): User
     {
         $user = User::create($data);
-        return $user->load(['role', 'distributor', 'expedition', 'productionResource']);
+        return $user->load(['role', 'distributor', 'expedition']);
     }
 
     /**
@@ -52,7 +52,7 @@ class UserCrudRepository implements UserCrudRepositoryInterface
         $user = User::find($id);
         if ($user) {
             $user->update($data);
-            return $user->load(['role', 'distributor', 'expedition', 'productionResource']);
+            return $user->load(['role', 'distributor', 'expedition']);
         }
         return null;
     }

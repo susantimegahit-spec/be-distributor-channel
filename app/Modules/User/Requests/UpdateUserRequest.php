@@ -62,23 +62,11 @@ class UpdateUserRequest extends FormRequest
                     }
                 }
             ],
-            'production_code' => [
-                'nullable',
-                'string',
-                function ($attribute, $value, $fail) {
-                    $codes = array_map('trim', explode(',', $value));
-                    foreach ($codes as $code) {
-                        if (empty($code)) continue;
-                        $exists = \Illuminate\Support\Facades\DB::connection('pgsql_production')
-                            ->table('production.production_resources')
-                            ->where('res_code', $code)
-                            ->exists();
-                        if (!$exists) {
-                            $fail("Kode produksi '{$code}' tidak terdaftar di database.");
-                        }
-                    }
-                }
-            ],
+            'production_code' => 'nullable|string|max:100',
+            'whs_code' => 'nullable|string|max:100',
+            'ocr_code' => 'nullable|string|max:100',
+            'ocr_code2' => 'nullable|string|max:100',
+            'ocr_code3' => 'nullable|string|max:100',
             'is_active' => 'sometimes|boolean',
             'accessible_systems' => 'nullable|array',
             'accessible_systems.*' => 'string',

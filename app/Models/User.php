@@ -28,6 +28,10 @@ class User extends Authenticatable
         'code_customer',
         'expedition_code',
         'production_code',
+        'whs_code',
+        'ocr_code',
+        'ocr_code2',
+        'ocr_code3',
         'is_active',
     ];
 
@@ -89,14 +93,6 @@ class User extends Authenticatable
     }
 
     /**
-     * Get the production resource associated with the user.
-     */
-    public function productionResource(): \Illuminate\Database\Eloquent\Relations\BelongsTo
-    {
-        return $this->belongsTo(ProductionResource::class, 'production_code', 'res_code');
-    }
-
-    /**
      * Check if the user is an expedition user.
      */
     public function isEkspedisi(): bool
@@ -109,7 +105,26 @@ class User extends Authenticatable
      */
     public function isProduction(): bool
     {
-        return !empty($this->production_code);
+        return !empty($this->production_code) || !empty($this->whs_code);
+    }
+
+    /**
+     * Generate the next production code.
+     */
+    public static function generateProductionCode(): string
+    {
+        $lastUser = self::where('production_code', 'LIKE', 'PRD%')
+            ->orderBy('id', 'desc')
+            ->first();
+
+        if (!$lastUser || !$lastUser->production_code) {
+            return 'PRD0001';
+        }
+
+        $lastNum = (int) preg_replace('/[^0-9]/', '', $lastUser->production_code);
+        $nextNum = $lastNum + 1;
+
+        return 'PRD' . str_pad((string)$nextNum, 4, '0', STR_PAD_LEFT);
     }
 
     /**

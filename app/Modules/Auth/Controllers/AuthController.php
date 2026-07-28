@@ -41,7 +41,7 @@ class AuthController extends Controller
         );
 
         $user = $result['user'];
-        $user->load(['role.roleMenu', 'distributor', 'expedition', 'productionResource']);
+        $user->load(['role.roleMenu', 'distributor', 'expedition']);
 
         return $this->successResponse([
             'user' => [
@@ -59,8 +59,10 @@ class AuthController extends Controller
                 'id_expedition' => $user->expedition?->id,
                 'name_expedition' => $user->expedition?->expedition_name,
                 'production_code' => $user->production_code,
-                'id_production_resource' => $user->productionResource?->id,
-                'name_production_resource' => $user->productionResource?->res_name,
+                'whs_code' => $user->whs_code,
+                'ocr_code' => $user->ocr_code,
+                'ocr_code2' => $user->ocr_code2,
+                'ocr_code3' => $user->ocr_code3,
                 'is_active' => $user->is_active,
                 'accessible_systems' => $user->accessible_systems,
             ],

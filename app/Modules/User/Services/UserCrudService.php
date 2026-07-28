@@ -54,6 +54,15 @@ class UserCrudService
         $accessibleSystems = $data['accessible_systems'] ?? null;
         unset($data['accessible_systems']);
 
+        $isProductionUser = !empty($data['whs_code']) || 
+                            !empty($data['ocr_code']) || 
+                            !empty($data['ocr_code2']) || 
+                            !empty($data['ocr_code3']);
+
+        if ($isProductionUser && empty($data['production_code'])) {
+            $data['production_code'] = User::generateProductionCode();
+        }
+
         $user = $this->userRepository->create($data);
 
         if ($accessibleSystems !== null && $user->role) {
@@ -62,7 +71,7 @@ class UserCrudService
             ]);
         }
 
-        return $user->load(['role', 'distributor', 'expedition', 'productionResource']);
+        return $user->load(['role', 'distributor', 'expedition']);
     }
 
     /**
@@ -83,6 +92,18 @@ class UserCrudService
         $accessibleSystems = $data['accessible_systems'] ?? null;
         unset($data['accessible_systems']);
 
+        $isProductionUser = !empty($data['whs_code']) || 
+                            !empty($data['ocr_code']) || 
+                            !empty($data['ocr_code2']) || 
+                            !empty($data['ocr_code3']);
+
+        if ($isProductionUser && empty($data['production_code'])) {
+            $user = User::find($id);
+            if ($user && empty($user->production_code)) {
+                $data['production_code'] = User::generateProductionCode();
+            }
+        }
+
         $user = $this->userRepository->update($id, $data);
 
         if ($user && $accessibleSystems !== null && $user->role) {
@@ -91,7 +112,7 @@ class UserCrudService
             ]);
         }
 
-        return $user ? $user->load(['role', 'distributor', 'expedition', 'productionResource']) : null;
+        return $user ? $user->load(['role', 'distributor', 'expedition']) : null;
     }
 
     /**
