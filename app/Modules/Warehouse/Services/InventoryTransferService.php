@@ -71,9 +71,10 @@ class InventoryTransferService
      * Perform Inventory Transfer in SAP.
      *
      * @param array $payload
+     * @param int|null $userId
      * @return array
      */
-    public function addInventoryTransfer(array $payload): array
+    public function addInventoryTransfer(array $payload, ?int $userId): array
     {
         // Preprocess/sanitize Lines for BinActivfrom and BinActivto
         if (isset($payload['Lines']) && is_array($payload['Lines'])) {
@@ -132,6 +133,10 @@ class InventoryTransferService
                 }
             }
         }
+
+        // Add AddonId and UserId
+        $payload['AddonId'] = 2;
+        $payload['UserId'] = (int)$userId;
 
         $response = Http::timeout(30)->post('http://103.18.133.187:3100/api/addIT', $payload);
 

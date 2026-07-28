@@ -91,7 +91,8 @@ class InventoryTransferController extends Controller
         ]);
 
         try {
-            $result = $this->inventoryTransferService->addInventoryTransfer($request->all());
+            $userId = $request->user()?->id;
+            $result = $this->inventoryTransferService->addInventoryTransfer($request->all(), $userId);
 
             if (isset($result['ErrorCode']) && $result['ErrorCode'] !== 0) {
                 return $this->errorResponse($result['Message'] ?? 'Gagal memproses Inventory Transfer', $result, 400);
