@@ -27,6 +27,7 @@ class User extends Authenticatable
         'password',
         'code_customer',
         'expedition_code',
+        'production_code',
         'is_active',
     ];
 
@@ -88,11 +89,27 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the production resource associated with the user.
+     */
+    public function productionResource(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(ProductionResource::class, 'production_code', 'res_code');
+    }
+
+    /**
      * Check if the user is an expedition user.
      */
     public function isEkspedisi(): bool
     {
         return !empty($this->expedition_code);
+    }
+
+    /**
+     * Check if the user is a production user.
+     */
+    public function isProduction(): bool
+    {
+        return !empty($this->production_code);
     }
 
     /**

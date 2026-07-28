@@ -62,7 +62,7 @@ class UserCrudService
             ]);
         }
 
-        return $user->load(['role', 'distributor', 'expedition']);
+        return $user->load(['role', 'distributor', 'expedition', 'productionResource']);
     }
 
     /**
@@ -91,7 +91,7 @@ class UserCrudService
             ]);
         }
 
-        return $user ? $user->load(['role', 'distributor', 'expedition']) : null;
+        return $user ? $user->load(['role', 'distributor', 'expedition', 'productionResource']) : null;
     }
 
     /**
