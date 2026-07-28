@@ -9,4 +9,5 @@ Route::prefix('v1/warehouses')->middleware('auth:sanctum')->group(function () {
     Route::post('/sync', [WarehouseController::class, 'sync']);
     Route::post('/inventory-transfer', [InventoryTransferController::class, 'store']);
     Route::post('/search-bin', [InventoryTransferController::class, 'searchBin']);
+    Route::post('/search-qty-bin', [InventoryTransferController::class, 'searchQtyBin']);
 });

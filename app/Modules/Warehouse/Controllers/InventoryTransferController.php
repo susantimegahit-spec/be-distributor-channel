@@ -20,12 +20,12 @@ class InventoryTransferController extends Controller
     }
 
     /**
-     * Search for Bin Locations from SAP.
+     * Search for Qty Bin Locations from SAP.
      *
      * @param Request $request
      * @return JsonResponse
      */
-    public function searchBin(Request $request): JsonResponse
+    public function searchQtyBin(Request $request): JsonResponse
     {
         $request->validate([
             'CustomQuery' => 'nullable|string',
@@ -36,10 +36,35 @@ class InventoryTransferController extends Controller
             $result = $this->inventoryTransferService->searchQtyBin($request->all());
             
             if (isset($result['ErrorCode']) && $result['ErrorCode'] !== 0) {
-                return $this->errorResponse($result['Message'] ?? 'Gagal mencari data bin', $result, 400);
+                return $this->errorResponse($result['Message'] ?? 'Gagal mencari data bin qty', $result, 400);
             }
 
-            return $this->successResponse($result['Result'] ?? [], $result['Message'] ?? 'Pencarian data bin berhasil.');
+            return $this->successResponse($result['Result'] ?? [], $result['Message'] ?? 'Pencarian data bin qty berhasil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), null, 500);
+        }
+    }
+
+    /**
+     * Search for Master Bin Locations from SAP.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function searchBin(Request $request): JsonResponse
+    {
+        $request->validate([
+            'CustomQuery' => 'required|string',
+        ]);
+
+        try {
+            $result = $this->inventoryTransferService->searchBin($request->all());
+            
+            if (isset($result['ErrorCode']) && $result['ErrorCode'] !== 0) {
+                return $this->errorResponse($result['Message'] ?? 'Gagal mencari data master bin', $result, 400);
+            }
+
+            return $this->successResponse($result['Result'] ?? [], $result['Message'] ?? 'Pencarian data master bin berhasil.');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), null, 500);
         }

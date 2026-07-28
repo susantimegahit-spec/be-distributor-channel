@@ -27,6 +27,25 @@ class InventoryTransferService
     }
 
     /**
+     * Search master bins from SAP.
+     *
+     * @param array $payload
+     * @return array
+     */
+    public function searchBin(array $payload): array
+    {
+        $response = Http::timeout(30)->post('http://103.18.133.187:3100/api/searchBin', [
+            'CustomQuery' => $payload['CustomQuery'] ?? '',
+        ]);
+
+        if (!$response->successful()) {
+            throw new \Exception('Gagal menghubungi API SAP untuk mencari data Master Bin.');
+        }
+
+        return $response->json();
+    }
+
+    /**
      * Perform Inventory Transfer in SAP.
      *
      * @param array $payload

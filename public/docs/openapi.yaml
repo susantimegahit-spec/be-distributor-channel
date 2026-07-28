@@ -7321,6 +7321,60 @@ paths:
 
   /v1/warehouses/search-bin:
     post:
+      summary: Search master bin location from SAP
+      description: Mencari master bin location (sub gudang) berdasarkan query kustom dari SAP.
+      tags:
+        - Warehouse
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - CustomQuery
+              properties:
+                CustomQuery:
+                  type: string
+                  example: RMI01
+                  description: Query pencarian kode bin / gudang
+      responses:
+        '200':
+          description: Pencarian data master bin berhasil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Pencarian data master bin berhasil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        AbsEntry:
+                          type: string
+                          example: "10"
+                        BinCode:
+                          type: string
+                          example: RMI01-GN
+                        Descr:
+                          type: string
+                          example: GUDANG BAHAN BAKU GARAM IMPORT N
+        '400':
+          description: Gagal mencari data master bin (Error dari SAP)
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/warehouses/search-qty-bin:
+    post:
       summary: Search qty bin location from SAP
       description: Mencari bin location (sub gudang) dan kuantitasnya berdasarkan kode gudang dan query kustom dari SAP.
       tags:
@@ -7346,7 +7400,7 @@ paths:
                   description: Kode Gudang SAP
       responses:
         '200':
-          description: Pencarian data bin berhasil.
+          description: Pencarian data bin qty berhasil.
           content:
             application/json:
               schema:
@@ -7357,7 +7411,7 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: Pencarian data bin berhasil.
+                    example: Pencarian data bin qty berhasil.
                   data:
                     type: array
                     items:
@@ -7373,7 +7427,7 @@ paths:
                           type: string
                           example: GUDANG BAHAN BAKU GARAM IMPORT N
         '400':
-          description: Gagal mencari data bin (Error dari SAP)
+          description: Gagal mencari data bin qty (Error dari SAP)
         '401':
           description: Tidak terautentikasi
 
