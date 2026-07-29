@@ -563,8 +563,8 @@ class SalesOrderService
                     'TotalSO' => 0,
                     'Lines' => $discountLines
                 ];
-
-                $discountResponse = Http::timeout(15)->post('http://103.18.133.187:3100/api/addudodiskon', $discountPayload);
+                $sapUrl = config('services.sap.url');
+                $discountResponse = Http::timeout(15)->post("{$sapUrl}/api/addudodiskon", $discountPayload);
 
                 if (!$discountResponse->successful()) {
                     throw new Exception('Gagal menghubungi API SAP addudodiskon untuk sinkronisasi diskon.');
@@ -575,8 +575,8 @@ class SalesOrderService
                     throw new Exception('API SAP addudodiskon mengembalikan error: ' . ($discountBody['Message'] ?? 'Unknown error'));
                 }
             }
-
-            $response = Http::timeout(15)->post('http://103.18.133.187:3100/api/addso', $payload);
+            $sapUrl = config('services.sap.url');
+            $response = Http::timeout(15)->post("{$sapUrl}/api/addso", $payload);
             $responseJson = $response->body();
 
             if (!$response->successful()) {
@@ -1271,7 +1271,8 @@ class SalesOrderService
         }
 
         try {
-            $response = Http::timeout(15)->post('http://103.18.133.187:3100/api/Status', [
+            $sapUrl = config('services.sap.url');
+            $response = Http::timeout(15)->post("{$sapUrl}/api/Status", [
                 'CustomQuery' => $salesOrder->sap_doc_num
             ]);
 
@@ -1368,7 +1369,8 @@ class SalesOrderService
         $commaSeparatedDocNums = implode(',', $docNums);
 
         try {
-            $response = Http::timeout(30)->post('http://103.18.133.187:3100/api/Status', [
+            $sapUrl = config('services.sap.url');
+            $response = Http::timeout(30)->post("{$sapUrl}/api/Status", [
                 'CustomQuery' => $commaSeparatedDocNums
             ]);
 
@@ -1506,7 +1508,8 @@ class SalesOrderService
         // Use sap_doc_num if available, otherwise fallback to order_no
         $queryValue = $salesOrder->sap_doc_num ?: $salesOrder->order_no;
 
-        $response = Http::timeout(15)->post('http://103.18.133.187:3100/api/ListInvoice', [
+        $sapUrl = config('services.sap.url');
+        $response = Http::timeout(15)->post("{$sapUrl}/api/ListInvoice", [
             'CustomQuery' => $queryValue,
         ]);
 
@@ -1552,7 +1555,8 @@ class SalesOrderService
         }
 
         // Call SAP API
-        $response = Http::timeout(20)->post('http://103.18.133.187:3100/api/CancelSO', [
+        $sapUrl = config('services.sap.url');
+        $response = Http::timeout(20)->post("{$sapUrl}/api/CancelSO", [
             'DocNum' => (string) $salesOrder->sap_doc_num,
             'UserId' => $userId ? (int) $userId : 1,
             'AddonId' => 2,

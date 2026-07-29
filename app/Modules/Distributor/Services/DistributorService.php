@@ -63,7 +63,8 @@ class DistributorService
      */
     public function syncFromSap(?int $userId = null): array
     {
-        $response = Http::timeout(15)->post('http://103.18.133.187:3100/api/ListCust');
+        $sapUrl = config('services.sap.url');
+        $response = Http::timeout(15)->post("{$sapUrl}/api/ListCust");
 
         if (!$response->successful()) {
             throw new \Exception('Gagal menghubungi API SAP.');
@@ -122,7 +123,8 @@ class DistributorService
      */
     public function getAddressesFromSap(string $customQuery): array
     {
-        $response = Http::timeout(15)->post('http://103.18.133.187:3100/api/GetAddress', [
+        $sapUrl = config('services.sap.url');
+        $response = Http::timeout(15)->post("{$sapUrl}/api/GetAddress", [
             'CustomQuery' => $customQuery,
         ]);
 
@@ -167,7 +169,8 @@ class DistributorService
         $synced = [];
 
         foreach ($targets as $queryParam => $targetName) {
-            $response = Http::timeout(15)->post('http://103.18.133.187:3100/api/ListOcrCode', [
+            $sapUrl = config('services.sap.url');
+            $response = Http::timeout(15)->post("{$sapUrl}/api/ListOcrCode", [
                 'CustomQuery' => $queryParam,
             ]);
 

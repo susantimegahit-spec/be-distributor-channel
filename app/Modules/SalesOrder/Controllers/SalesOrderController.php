@@ -473,8 +473,9 @@ class SalesOrderController extends Controller
         $cardCode = $request->query('CardCode') ?? $request->input('CardCode') ?? $request->query('card_code') ?? $request->input('card_code');
 
         try {
+            $sapUrl = config('services.sap.url');
             $response = \Illuminate\Support\Facades\Http::timeout(15)
-                ->post('http://103.18.133.187:3100/api/getSeriesby', [
+                ->post("{$sapUrl}/api/getSeriesby", [
                     'CustomQuery' => $customQuery,
                     'CardCode' => $cardCode
                 ]);
@@ -510,8 +511,9 @@ class SalesOrderController extends Controller
         }
 
         try {
+            $sapUrl = config('services.sap.url');
             $response = \Illuminate\Support\Facades\Http::timeout(15)
-                ->post('http://103.18.133.187:3100/api/getCreditlimit', [
+                ->post("{$sapUrl}/api/getCreditlimit", [
                     'CustomQuery' => $customQuery
                 ]);
 

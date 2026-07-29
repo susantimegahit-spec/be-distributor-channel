@@ -120,7 +120,8 @@ class DiscountService
      */
     public function syncDiscountTypesFromSap(?int $userId = null): array
     {
-        $response = Http::timeout(15)->post('http://103.18.133.187:3100/api/ListType');
+        $sapUrl = config('services.sap.url');
+        $response = Http::timeout(15)->post("{$sapUrl}/api/ListType");
 
         if (!$response->successful()) {
             throw new Exception('Gagal menghubungi API SAP untuk menyinkronkan tipe diskon.');

@@ -316,10 +316,10 @@ class SalesReturnService
                 ];
             }
         } else {
-            // Fallback: Fetch DO by SO lines from SAP and match dynamically by ItemCode
             $soNum = $salesOrder->sap_doc_num ?: $salesOrder->order_no;
+            $sapUrl = config('services.sap.url');
             try {
-                $sapDoResponse = \Illuminate\Support\Facades\Http::timeout(15)->post('http://103.18.133.187:3100/api/GetDObySO', [
+                $sapDoResponse = \Illuminate\Support\Facades\Http::timeout(15)->post("{$sapUrl}/api/GetDObySO", [
                     'CustomQuery' => $soNum,
                 ]);
 
@@ -377,7 +377,8 @@ class SalesReturnService
         $series = null;
 
         try {
-            $seriesResponse = \Illuminate\Support\Facades\Http::timeout(15)->post('http://103.18.133.187:3100/api/getSeriesret', [
+            $sapUrl = config('services.sap.url');
+            $seriesResponse = \Illuminate\Support\Facades\Http::timeout(15)->post("{$sapUrl}/api/getSeriesret", [
                 'CustomQuery' => $seriesPrefix,
             ]);
 
@@ -417,7 +418,8 @@ class SalesReturnService
 
         // 5. Post to addretur API
         try {
-            $response = \Illuminate\Support\Facades\Http::timeout(15)->post('http://103.18.133.187:3100/api/addretur', $payload);
+            $sapUrl = config('services.sap.url');
+            $response = \Illuminate\Support\Facades\Http::timeout(15)->post("{$sapUrl}/api/addretur", $payload);
             
             if (!$response->successful()) {
                 throw new \Exception('Gagal menghubungi API SAP addretur.');
@@ -491,7 +493,8 @@ class SalesReturnService
             }
         }
 
-        $response = \Illuminate\Support\Facades\Http::timeout(15)->post('http://103.18.133.187:3100/api/GetDObySO', [
+        $sapUrl = config('services.sap.url');
+        $response = \Illuminate\Support\Facades\Http::timeout(15)->post("{$sapUrl}/api/GetDObySO", [
             'CustomQuery' => $soNum,
         ]);
 

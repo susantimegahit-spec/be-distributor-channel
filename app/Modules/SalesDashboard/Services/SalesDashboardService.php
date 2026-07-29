@@ -314,9 +314,9 @@ class SalesDashboardService
 
         if (!empty($docNums)) {
             try {
-                // Call SAP Status API in batch (imploded by comma)
                 $commaSeparated = implode(',', $docNums);
-                $response = Http::timeout(15)->post('http://103.18.133.187:3100/api/Status', [
+                $sapUrl = config('services.sap.url');
+                $response = Http::timeout(15)->post("{$sapUrl}/api/Status", [
                     'CustomQuery' => $commaSeparated
                 ]);
 
@@ -616,7 +616,8 @@ class SalesDashboardService
         // 3. Sync DO dari SAP
         $doSyncedCount = 0;
         try {
-            $response = Http::timeout(30)->post('http://103.18.133.187:3100/api/GetTotDO', [
+            $sapUrl = config('services.sap.url');
+            $response = Http::timeout(30)->post("{$sapUrl}/api/GetTotDO", [
                 'Tahun' => (string)$year,
                 'CardCode' => $customerCode,
                 'Brand' => implode(',', $brands),

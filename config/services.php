@@ -40,4 +40,8 @@ return [
         'enabled' => env('TURNSTILE_ENABLED', true),
     ],
 
+    'sap' => [
+        'url' => env('SAP_API_URL', 'http://103.18.133.187:3100'),
+    ],
+
 ];

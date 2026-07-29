@@ -14,7 +14,8 @@ class InventoryTransferService
      */
     public function searchQtyBin(array $payload): array
     {
-        $response = Http::timeout(30)->post('http://103.18.133.187:3100/api/searchQtyBin', [
+        $sapUrl = config('services.sap.url');
+        $response = Http::timeout(30)->post("{$sapUrl}/api/searchQtyBin", [
             'CustomQuery' => $payload['CustomQuery'] ?? '',
             'WhsCode' => $payload['WhsCode'] ?? '',
         ]);
@@ -34,7 +35,8 @@ class InventoryTransferService
      */
     public function searchBin(array $payload): array
     {
-        $response = Http::timeout(30)->post('http://103.18.133.187:3100/api/searchBin', [
+        $sapUrl = config('services.sap.url');
+        $response = Http::timeout(30)->post("{$sapUrl}/api/searchBin", [
             'CustomQuery' => $payload['CustomQuery'] ?? '',
         ]);
 
@@ -137,8 +139,8 @@ class InventoryTransferService
         // Add AddonId and UserId
         $payload['AddonId'] = 2;
         $payload['UserId'] = (int)$userId;
-
-        $response = Http::timeout(30)->post('http://103.18.133.187:3100/api/addIT', $payload);
+        $sapUrl = config('services.sap.url');
+        $response = Http::timeout(30)->post("{$sapUrl}/api/addIT", $payload);
 
         if (!$response->successful()) {
             throw new \Exception('Gagal menghubungi API SAP untuk proses Inventory Transfer.');
@@ -155,7 +157,8 @@ class InventoryTransferService
      */
     public function listIT(array $filters = []): array
     {
-        $response = Http::timeout(30)->post('http://103.18.133.187:3100/api/getListIT', $filters);
+        $sapUrl = config('services.sap.url');
+        $response = Http::timeout(30)->post("{$sapUrl}/api/getListIT", $filters);
 
         if (!$response->successful()) {
             throw new \Exception('Gagal menghubungi API SAP untuk mendapatkan daftar Inventory Transfer.');
@@ -172,7 +175,8 @@ class InventoryTransferService
      */
     public function getITbyId(string $docEntry): array
     {
-        $response = Http::timeout(30)->post('http://103.18.133.187:3100/api/getITbyId', [
+        $sapUrl = config('services.sap.url');
+        $response = Http::timeout(30)->post("{$sapUrl}/api/getITbyId", [
             'CustomQuery' => $docEntry,
         ]);
 

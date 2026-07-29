@@ -56,7 +56,8 @@ class ProductionService
      */
     public function syncResourcesFromSap(?int $userId = null): array
     {
-        $response = Http::timeout(15)->post('http://103.18.133.187:3100/api/GetResource');
+        $sapUrl = config('services.sap.url');
+        $response = Http::timeout(15)->post("{$sapUrl}/api/GetResource");
 
         if (!$response->successful()) {
             throw new \Exception('Gagal menghubungi API SAP untuk sinkronisasi resource.');
@@ -99,7 +100,8 @@ class ProductionService
      */
     public function syncItemsFromSap(?int $userId = null): array
     {
-        $response = Http::timeout(15)->post('http://103.18.133.187:3100/api/ListItemProd');
+        $sapUrl = config('services.sap.url');
+        $response = Http::timeout(15)->post("{$sapUrl}/api/ListItemProd");
 
         if (!$response->successful()) {
             throw new \Exception('Gagal menghubungi API SAP untuk sinkronisasi production item.');

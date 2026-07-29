@@ -45,7 +45,8 @@ class VatService
      */
     public function syncFromSap(?int $userId = null): array
     {
-        $response = Http::timeout(15)->post('http://103.18.133.187:3100/api/ListVat');
+        $sapUrl = config('services.sap.url');
+        $response = Http::timeout(15)->post("{$sapUrl}/api/ListVat");
 
         if (!$response->successful()) {
             throw new \Exception('Gagal menghubungi API SAP untuk sinkronisasi master pajak.');
