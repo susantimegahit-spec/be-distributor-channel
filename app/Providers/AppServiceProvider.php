@@ -142,8 +142,20 @@ class AppServiceProvider extends ServiceProvider
         ]);
 
         // Define gate for Laravel Pulse dashboard access
-        Gate::define('viewPulse', function (User $user) {
-            return $user->role && $user->role->name === 'administrator';
+        Gate::define('viewPulse', function (?User $user = null) {
+            // 1. Allow in local environment
+            if (app()->environment('local')) {
+                return true;
+            }
+
+            // 2. Allow if a secret token is passed in query parameter (useful for stateless API)
+            $secretToken = env('PULSE_TOKEN', 'susantimegahpulse123');
+            if ($secretToken && request()->query('token') === $secretToken) {
+                return true;
+            }
+
+            // 3. Fallback to checking logged-in administrator
+            return $user && $user->role && $user->role->name === 'administrator';
         });
     }
 }
