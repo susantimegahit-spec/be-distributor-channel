@@ -7723,6 +7723,38 @@ paths:
                       Comments:
                         type: string
                         example: "MUTASI BM KE KR"
+                      lines:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            DocEntry:
+                              type: string
+                              example: "20"
+                            LineNum:
+                              type: string
+                              example: "0"
+                            ItemCode:
+                              type: string
+                              example: "B26"
+                            ItemName:
+                              type: string
+                              example: "KOP 250 M @ 10 KG / BAL"
+                            Quantity:
+                              type: string
+                              example: "10.000000"
+                            FromWhsCode:
+                              type: string
+                              example: "FG03-BM"
+                            ToWhsCode:
+                              type: string
+                              example: "FG03-KR"
+                            Uom:
+                              type: string
+                              example: "Bal"
+                            UseBaseUn:
+                              type: string
+                              example: "Y"
         '400':
           description: Gagal mengambil detail Inventory Transfer (Error dari SAP B1)
         '401':
