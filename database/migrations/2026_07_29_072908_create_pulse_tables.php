@@ -73,9 +73,9 @@ return new class extends PulseMigration
 
         if ($this->driver() === 'pgsql') {
             Schema::getConnection()->statement('CREATE OR REPLACE FUNCTION populate_pulse_key_hash() RETURNS TRIGGER AS $$ BEGIN NEW.key_hash := md5(NEW.key)::uuid; RETURN NEW; END; $$ LANGUAGE plpgsql;');
-            Schema::getConnection()->statement('CREATE TRIGGER trigger_pulse_values_key_hash BEFORE INSERT OR UPDATE ON pulse_values FOR EACH ROW EXECUTE FUNCTION populate_pulse_key_hash();');
-            Schema::getConnection()->statement('CREATE TRIGGER trigger_pulse_entries_key_hash BEFORE INSERT OR UPDATE ON pulse_entries FOR EACH ROW EXECUTE FUNCTION populate_pulse_key_hash();');
-            Schema::getConnection()->statement('CREATE TRIGGER trigger_pulse_aggregates_key_hash BEFORE INSERT OR UPDATE ON pulse_aggregates FOR EACH ROW EXECUTE FUNCTION populate_pulse_key_hash();');
+            Schema::getConnection()->statement('CREATE TRIGGER trigger_pulse_values_key_hash BEFORE INSERT OR UPDATE ON pulse_values FOR EACH ROW EXECUTE PROCEDURE populate_pulse_key_hash();');
+            Schema::getConnection()->statement('CREATE TRIGGER trigger_pulse_entries_key_hash BEFORE INSERT OR UPDATE ON pulse_entries FOR EACH ROW EXECUTE PROCEDURE populate_pulse_key_hash();');
+            Schema::getConnection()->statement('CREATE TRIGGER trigger_pulse_aggregates_key_hash BEFORE INSERT OR UPDATE ON pulse_aggregates FOR EACH ROW EXECUTE PROCEDURE populate_pulse_key_hash();');
         }
     }
 
