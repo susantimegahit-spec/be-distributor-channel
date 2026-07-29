@@ -146,4 +146,39 @@ class InventoryTransferService
 
         return $response->json();
     }
+
+    /**
+     * Get list of Inventory Transfers (IT) from SAP.
+     *
+     * @return array
+     */
+    public function listIT(): array
+    {
+        $response = Http::timeout(30)->post('http://103.18.133.187:3100/api/getListIT');
+
+        if (!$response->successful()) {
+            throw new \Exception('Gagal menghubungi API SAP untuk mendapatkan daftar Inventory Transfer.');
+        }
+
+        return $response->json();
+    }
+
+    /**
+     * Get Inventory Transfer (IT) by ID/DocEntry from SAP.
+     *
+     * @param string $docEntry
+     * @return array
+     */
+    public function getITbyId(string $docEntry): array
+    {
+        $response = Http::timeout(30)->post('http://103.18.133.187:3100/api/getITbyId', [
+            'CustomQuery' => $docEntry,
+        ]);
+
+        if (!$response->successful()) {
+            throw new \Exception('Gagal menghubungi API SAP untuk mendapatkan data Inventory Transfer.');
+        }
+
+        return $response->json();
+    }
 }

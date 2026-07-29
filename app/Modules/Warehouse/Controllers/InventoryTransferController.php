@@ -103,4 +103,49 @@ class InventoryTransferController extends Controller
             return $this->errorResponse($e->getMessage(), null, 500);
         }
     }
+
+    /**
+     * Get list of Inventory Transfers from SAP.
+     *
+     * @return JsonResponse
+     */
+    public function listIT(): JsonResponse
+    {
+        try {
+            $result = $this->inventoryTransferService->listIT();
+
+            if (isset($result['ErrorCode']) && $result['ErrorCode'] !== 0) {
+                return $this->errorResponse($result['Message'] ?? 'Gagal mengambil daftar Inventory Transfer', $result, 400);
+            }
+
+            return $this->successResponse($result['Result'] ?? [], $result['Message'] ?? 'Mengambil daftar Inventory Transfer berhasil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), null, 500);
+        }
+    }
+
+    /**
+     * Get Inventory Transfer by DocEntry from SAP.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function getITbyId(Request $request): JsonResponse
+    {
+        $request->validate([
+            'CustomQuery' => 'required|string',
+        ]);
+
+        try {
+            $result = $this->inventoryTransferService->getITbyId($request->input('CustomQuery'));
+
+            if (isset($result['ErrorCode']) && $result['ErrorCode'] !== 0) {
+                return $this->errorResponse($result['Message'] ?? 'Gagal mengambil detail Inventory Transfer', $result, 400);
+            }
+
+            return $this->successResponse($result['Result'] ?? null, $result['Message'] ?? 'Mengambil detail Inventory Transfer berhasil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), null, 500);
+        }
+    }
 }
