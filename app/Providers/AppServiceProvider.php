@@ -6,6 +6,8 @@ use Illuminate\Support\ServiceProvider;
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Gate;
+use App\Models\User;
 use App\Modules\Auth\Repositories\UserRepositoryInterface;
 use App\Modules\Auth\Repositories\UserRepository;
 use App\Modules\Role\Repositories\RoleRepositoryInterface;
@@ -138,5 +140,10 @@ class AppServiceProvider extends ServiceProvider
             database_path('migrations/ekspedisi'),
             database_path('migrations/production'),
         ]);
+
+        // Define gate for Laravel Pulse dashboard access
+        Gate::define('viewPulse', function (User $user) {
+            return $user->role && $user->role->name === 'administrator';
+        });
     }
 }
