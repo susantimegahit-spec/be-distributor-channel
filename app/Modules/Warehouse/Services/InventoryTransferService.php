@@ -150,11 +150,12 @@ class InventoryTransferService
     /**
      * Get list of Inventory Transfers (IT) from SAP.
      *
+     * @param array $filters
      * @return array
      */
-    public function listIT(): array
+    public function listIT(array $filters = []): array
     {
-        $response = Http::timeout(30)->post('http://103.18.133.187:3100/api/getListIT');
+        $response = Http::timeout(30)->post('http://103.18.133.187:3100/api/getListIT', $filters);
 
         if (!$response->successful()) {
             throw new \Exception('Gagal menghubungi API SAP untuk mendapatkan daftar Inventory Transfer.');

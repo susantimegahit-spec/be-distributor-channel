@@ -107,12 +107,25 @@ class InventoryTransferController extends Controller
     /**
      * Get list of Inventory Transfers from SAP.
      *
+     * @param Request $request
      * @return JsonResponse
      */
-    public function listIT(): JsonResponse
+    public function listIT(Request $request): JsonResponse
     {
+        $request->validate([
+            'From' => 'nullable|string',
+            'To' => 'nullable|string',
+            'WhsCode' => 'nullable|string',
+            'ToWhsCode' => 'nullable|string',
+        ]);
+
         try {
-            $result = $this->inventoryTransferService->listIT();
+            $filters = array_filter(
+                $request->only(['From', 'To', 'WhsCode', 'ToWhsCode']),
+                fn($v) => !is_null($v) && $v !== ''
+            );
+
+            $result = $this->inventoryTransferService->listIT($filters);
 
             if (isset($result['ErrorCode']) && $result['ErrorCode'] !== 0) {
                 return $this->errorResponse($result['Message'] ?? 'Gagal mengambil daftar Inventory Transfer', $result, 400);

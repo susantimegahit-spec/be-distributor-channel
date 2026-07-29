@@ -74,6 +74,52 @@ class InventoryTransferApiTest extends TestCase
     }
 
     /**
+     * Test retrieval of IT list with filters.
+     */
+    public function test_get_list_it_with_filters(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        Http::fake([
+            'http://103.18.133.187:3100/api/getListIT' => function ($request) {
+                $body = json_decode($request->body(), true);
+                if (
+                    isset($body['From']) && $body['From'] === '2026-1-1' &&
+                    isset($body['To']) && $body['To'] === '2026-12-31' &&
+                    isset($body['WhsCode']) && $body['WhsCode'] === 'VRTR01' &&
+                    isset($body['ToWhsCode']) && $body['ToWhsCode'] === 'FG01'
+                ) {
+                    return Http::response([
+                        'ErrorCode' => 0,
+                        'Message' => '',
+                        'Result' => [
+                            [
+                                'DocEntry' => '20',
+                                'DocNum' => '260130001',
+                                'DocDate' => '20260102',
+                                'FromWhsCode' => 'VRTR01',
+                                'ToWhsCode' => 'FG01',
+                                'Comments' => 'MUTASI BM KE KR'
+                            ]
+                        ]
+                    ], 200);
+                }
+                return Http::response(['ErrorCode' => 1, 'Message' => 'Invalid Filters'], 200);
+            }
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/distributor-channel/v1/warehouses/inventory-transfer?From=2026-1-1&To=2026-12-31&WhsCode=VRTR01&ToWhsCode=FG01');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('data.0.DocEntry', '20')
+            ->assertJsonPath('data.0.FromWhsCode', 'VRTR01')
+            ->assertJsonPath('data.0.ToWhsCode', 'FG01');
+    }
+
+    /**
      * Test failed retrieval of IT list when SAP returns ErrorCode.
      */
     public function test_get_list_it_sap_error(): void
