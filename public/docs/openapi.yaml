@@ -7445,6 +7445,86 @@ paths:
           description: Tidak terautentikasi
 
   /v1/warehouses/inventory-transfer:
+    get:
+      summary: Get list of Inventory Transfers (IT) from SAP
+      description: Mengambil daftar transaksi pemindahan stok antar gudang (Inventory Transfer) dari SAP.
+      tags:
+        - Warehouse
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: From
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Tanggal mulai filter (YYYY-MM-DD atau YYYY-M-D)
+          example: "2026-1-1"
+        - name: To
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Tanggal akhir filter (YYYY-MM-DD atau YYYY-M-D)
+          example: "2026-12-31"
+        - name: WhsCode
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kode gudang asal
+          example: "VRTR01"
+        - name: ToWhsCode
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kode gudang tujuan
+          example: "FG01"
+      responses:
+        '200':
+          description: Mengambil daftar Inventory Transfer berhasil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Mengambil daftar Inventory Transfer berhasil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        DocEntry:
+                          type: string
+                          example: "20"
+                        DocNum:
+                          type: string
+                          example: "260130001"
+                        DocDate:
+                          type: string
+                          example: "20260102"
+                        FromWhsCode:
+                          type: string
+                          example: "FG03-BM"
+                        ToWhsCode:
+                          type: string
+                          example: "FG03-KR"
+                        Comments:
+                          type: string
+                          example: "MUTASI BM KE KR"
+        '400':
+          description: Gagal mengambil daftar Inventory Transfer (Error dari SAP B1)
+        '401':
+          description: Tidak terautentikasi
+
     post:
       summary: Perform Inventory Transfer (IT) to SAP
       description: Membuat transaksi pemindahan stok antar gudang (Inventory Transfer) di SAP.
@@ -7586,6 +7666,69 @@ paths:
           description: Gagal memproses Inventory Transfer
         '401':
           description: Tidak terautentikasi
+
+  /v1/warehouses/inventory-transfer/get-by-id:
+    post:
+      summary: Get Inventory Transfer (IT) detail by ID/DocEntry from SAP
+      description: Mengambil detail data Inventory Transfer berdasarkan DocEntry.
+      tags:
+        - Warehouse
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - CustomQuery
+              properties:
+                CustomQuery:
+                  type: string
+                  description: Nilai DocEntry yang ingin dicari
+                  example: "20"
+      responses:
+        '200':
+          description: Mengambil detail Inventory Transfer berhasil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Mengambil detail Inventory Transfer berhasil.
+                  data:
+                    type: object
+                    properties:
+                      DocEntry:
+                        type: string
+                        example: "20"
+                      DocNum:
+                        type: string
+                        example: "260130001"
+                      DocDate:
+                        type: string
+                        example: "20260102"
+                      FromWhsCode:
+                        type: string
+                        example: "FG03-BM"
+                      ToWhsCode:
+                        type: string
+                        example: "FG03-KR"
+                      Comments:
+                        type: string
+                        example: "MUTASI BM KE KR"
+        '400':
+          description: Gagal mengambil detail Inventory Transfer (Error dari SAP B1)
+        '401':
+          description: Tidak terautentikasi
+        '422':
+          description: Validasi input gagal (CustomQuery kosong)
 
 components:
   securitySchemes:
