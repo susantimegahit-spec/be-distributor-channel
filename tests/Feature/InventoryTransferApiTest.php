@@ -155,12 +155,29 @@ class InventoryTransferApiTest extends TestCase
                 'ErrorCode' => 0,
                 'Message' => '',
                 'Result' => [
-                    'DocEntry' => '20',
-                    'DocNum' => '260130001',
-                    'DocDate' => '20260102',
-                    'FromWhsCode' => 'FG03-BM',
-                    'ToWhsCode' => 'FG03-KR',
-                    'Comments' => 'MUTASI BM KE KR'
+                    'Table1' => [
+                        [
+                            'DocEntry' => '20',
+                            'DocNum' => '260130001',
+                            'DocDate' => '20260102',
+                            'FromWhsCode' => 'FG03-BM',
+                            'ToWhsCode' => 'FG03-KR',
+                            'Comments' => 'MUTASI BM KE KR'
+                        ]
+                    ],
+                    'Table2' => [
+                        [
+                            'DocEntry' => '20',
+                            'LineNum' => '0',
+                            'ItemCode' => 'B26',
+                            'ItemName' => 'KOP 250 M @ 10 KG / BAL',
+                            'Quantity' => '10.000000',
+                            'FromWhsCod' => 'FG03-BM',
+                            'ToWhsCode' => 'FG03-KR',
+                            'Uom' => 'Bal',
+                            'UseBaseUn' => 'Y'
+                        ]
+                    ]
                 ]
             ], 200)
         ]);
@@ -173,7 +190,9 @@ class InventoryTransferApiTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonPath('status', 'success')
-            ->assertJsonPath('data.DocEntry', '20');
+            ->assertJsonPath('data.DocEntry', '20')
+            ->assertJsonPath('data.lines.0.ItemCode', 'B26')
+            ->assertJsonPath('data.lines.0.Quantity', '10.000000');
     }
 
     /**

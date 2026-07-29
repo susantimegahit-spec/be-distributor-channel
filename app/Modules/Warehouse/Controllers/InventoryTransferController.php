@@ -156,7 +156,18 @@ class InventoryTransferController extends Controller
                 return $this->errorResponse($result['Message'] ?? 'Gagal mengambil detail Inventory Transfer', $result, 400);
             }
 
-            return $this->successResponse($result['Result'] ?? null, $result['Message'] ?? 'Mengambil detail Inventory Transfer berhasil.');
+            // Format the SAP response so Table1 becomes the header data and Table2 becomes 'lines'
+            $sapResult = $result['Result'] ?? [];
+            $table1 = $sapResult['Table1'] ?? [];
+            $table2 = $sapResult['Table2'] ?? [];
+
+            $formatted = null;
+            if (!empty($table1) && is_array($table1)) {
+                $formatted = $table1[0];
+                $formatted['lines'] = $table2;
+            }
+
+            return $this->successResponse($formatted, $result['Message'] ?? 'Mengambil detail Inventory Transfer berhasil.');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), null, 500);
         }
