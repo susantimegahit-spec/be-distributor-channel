@@ -3,6 +3,8 @@
         Options -MultiViews -Indexes
     </IfModule>
 
+    SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+
     RewriteEngine On
 
     # Handle Authorization Header
