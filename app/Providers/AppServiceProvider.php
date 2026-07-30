@@ -141,14 +141,14 @@ class AppServiceProvider extends ServiceProvider
             database_path('migrations/production'),
         ]);
 
-        // Define gate for Laravel Pulse dashboard access
+        // Define gate for Laravel Pulse / Monitoring SM dashboard access
         Gate::define('viewPulse', function (?User $user = null) {
-            // 1. Allow in local environment
-            if (app()->environment('local')) {
+            // 1. Allow if session is authenticated via /monitoringsm/login
+            if (session('pulse_authenticated') === true) {
                 return true;
             }
 
-            // 2. Allow if a secret token is passed in query parameter (useful for stateless API)
+            // 2. Allow if secret token is passed in query parameter
             $secretToken = env('PULSE_TOKEN', 'susantimegahpulse123');
             if ($secretToken && request()->query('token') === $secretToken) {
                 return true;

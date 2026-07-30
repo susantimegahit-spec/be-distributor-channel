@@ -44,6 +44,40 @@ Route::get('/docs/logout', function (Request $request) {
     return redirect('/docs/login');
 });
 
+// ----------------------------------------------------
+// MONITORING SM (PULSE) AUTHENTICATION ROUTES
+// ----------------------------------------------------
+
+// 1. Halaman Login Monitoring SM
+Route::get('/monitoringsm/login', function () {
+    if (session('pulse_authenticated')) {
+        return redirect('/monitoringsm');
+    }
+    return view('pulse-login');
+});
+
+// 2. Proses Login Monitoring SM
+Route::post('/monitoringsm/login', function (Request $request) {
+    $username = $request->input('username');
+    $password = $request->input('password');
+
+    if ($username === 'adminsm' && $password === 'adminsm!') {
+        session([
+            'pulse_authenticated' => true,
+            'pulse_last_activity' => time(),
+        ]);
+        return redirect('/monitoringsm');
+    }
+
+    return redirect('/monitoringsm/login')->with('error', 'Username atau password admin yang Anda masukkan salah!');
+});
+
+// 3. Proses Logout Monitoring SM
+Route::get('/monitoringsm/logout', function (Request $request) {
+    $request->session()->forget(['pulse_authenticated', 'pulse_last_activity']);
+    return redirect('/monitoringsm/login');
+});
+
 // 4. Route Dokumentasi API yang Dilindungi Session & Timeout 10 Menit
 Route::middleware([DocsAuthSession::class])->group(function () {
     Route::get('/docs', function () {

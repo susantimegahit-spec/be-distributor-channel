@@ -30,7 +30,7 @@ return [
     |
     */
 
-    'path' => env('PULSE_PATH', 'pulse'),
+    'path' => env('PULSE_PATH', 'monitoringsm'),
 
     /*
     |--------------------------------------------------------------------------
@@ -122,6 +122,7 @@ return [
 
     'middleware' => [
         'web',
+        \App\Http\Middleware\PulseAuthSession::class,
         Authorize::class,
     ],
 

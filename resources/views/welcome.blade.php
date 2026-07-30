@@ -905,6 +905,17 @@
 
                 <div class="endpoint-row">
                     <div class="endpoint-info">
+                        <span class="method-badge method-get">GET</span>
+                        <span class="endpoint-path">/monitoringsm</span>
+                        <span class="endpoint-desc">Dashboard System Monitoring SM (Pulse & Kill User Control)</span>
+                    </div>
+                    <a href="{{ url('/monitoringsm') }}" class="endpoint-link">
+                        Dashboard Monitoring &rarr;
+                    </a>
+                </div>
+
+                <div class="endpoint-row">
+                    <div class="endpoint-info">
                         <span class="method-badge method-post">POST</span>
                         <span class="endpoint-path">/api/v1/auth/login</span>
                         <span class="endpoint-desc">Endpoint Authenticate User & Generate Sanctum Token</span>
