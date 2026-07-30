@@ -78,6 +78,13 @@ Route::get('/monitoringsm/logout', function (Request $request) {
     return redirect('/monitoringsm/login');
 });
 
+// 4. Custom Route Dashboard Monitoring SM (Pulse + Custom Kill User Card)
+Route::middleware(['web', \App\Http\Middleware\PulseAuthSession::class, \Laravel\Pulse\Http\Middleware\Authorize::class])->group(function () {
+    Route::get('/monitoringsm', function () {
+        return view('vendor.pulse.dashboard');
+    });
+});
+
 // 4. Route Dokumentasi API yang Dilindungi Session & Timeout 10 Menit
 Route::middleware([DocsAuthSession::class])->group(function () {
     Route::get('/docs', function () {
