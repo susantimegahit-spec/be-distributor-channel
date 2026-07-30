@@ -6,9 +6,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Pulse\Livewire\Card;
-use Livewire\Attributes\Lazy;
 
-#[Lazy]
 class UserControlCard extends Card
 {
     public string $search = '';
