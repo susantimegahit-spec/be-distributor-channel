@@ -27,7 +27,7 @@
             position: relative;
         }
 
-        /* Subtle Ambient Glow (Soft Deep Aqua) */
+        /* Ambient Ocean Glow & Rays */
         .ocean-glow {
             position: absolute;
             top: -25%;
@@ -41,7 +41,6 @@
             animation: pulseSubtle 8s ease-in-out infinite alternate;
         }
 
-        /* Soft Subtle Rays */
         .light-ray {
             position: absolute;
             top: -100px;
@@ -57,7 +56,7 @@
         .ray-2 { left: 50%; width: 100px; animation-delay: 4s; }
         .ray-3 { left: 75%; width: 80px; animation-delay: 2s; }
 
-        /* SVG Waves Section (Deep Midnight Navy Tones) */
+        /* SVG Waves Section */
         .waves-wrapper {
             position: absolute;
             bottom: 0;
@@ -101,64 +100,94 @@
             fill: #020617;
         }
 
-        /* Swimming & Jumping Fish Container */
-        .fish-container {
+        /* Sea Creatures Container */
+        .creatures-container {
             position: absolute;
-            bottom: 0;
+            top: 0;
             left: 0;
             width: 100%;
-            height: 38vh;
+            height: 100%;
             pointer-events: none;
             z-index: 3;
             overflow: hidden;
         }
 
+        /* 1. Swimming Fish */
         .swimming-fish {
             position: absolute;
             opacity: 0.85;
             filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
         }
 
-        /* Fish 1 - Soft Ocean Blue */
         .fish-1 {
             bottom: 130px;
             animation: swimRight 18s linear infinite;
         }
 
-        /* Fish 2 - Deep Sky Blue */
         .fish-2 {
             bottom: 65px;
             animation: swimLeft 24s linear infinite;
         }
 
-        /* Fish 3 - Subtle Amber Warm Fish */
         .fish-3 {
             bottom: 180px;
             animation: swimRightSlow 30s linear infinite;
         }
 
-        /* Fish 4 - Small Light Cyan Fish */
         .fish-4 {
             bottom: 100px;
             animation: swimLeftFast 15s linear infinite;
         }
 
-        /* Jumping Fish */
-        .jumping-fish-1 {
+        /* 2. Jellyfish (Ubur-ubur) */
+        .jellyfish {
             position: absolute;
-            bottom: 120px;
-            left: 16%;
-            animation: fishJumpLeft 7s ease-in-out infinite;
+            opacity: 0.7;
+            filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.4));
         }
 
-        .jumping-fish-2 {
-            position: absolute;
-            bottom: 140px;
-            right: 20%;
-            animation: fishJumpRight 8.5s ease-in-out infinite 4s;
+        .jelly-1 {
+            top: 25%;
+            left: 8%;
+            animation: floatJelly 6s ease-in-out infinite alternate;
         }
 
-        /* Subtle Bubbles */
+        .jelly-2 {
+            top: 40%;
+            right: 10%;
+            animation: floatJelly 8s ease-in-out infinite alternate-reverse;
+        }
+
+        /* 3. Sea Turtle (Penyu) */
+        .sea-turtle {
+            position: absolute;
+            top: 35%;
+            opacity: 0.8;
+            filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.5));
+            animation: swimTurtle 38s linear infinite;
+        }
+
+        /* 4. Manta Ray (Ikan Pari) */
+        .manta-ray {
+            position: absolute;
+            bottom: 25%;
+            opacity: 0.65;
+            filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.5));
+            animation: swimManta 32s linear infinite;
+        }
+
+        /* 5. Crab on Ocean Floor (Kepiting) */
+        .crab-floor {
+            position: absolute;
+            bottom: 12px;
+            left: 15%;
+            z-index: 4;
+            opacity: 0.9;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+            animation: walkCrab 14s ease-in-out infinite alternate;
+        }
+
+        /* Bubbles */
         .bubbles {
             position: absolute;
             top: 0;
@@ -187,7 +216,7 @@
         .bubble:nth-child(6) { left: 88%; width: 8px; height: 8px; animation-duration: 8s; animation-delay: 5s; }
         .bubble:nth-child(7) { left: 52%; width: 14px; height: 14px; animation-duration: 11s; animation-delay: 6s; }
 
-        /* Glassmorphism Card Container (Dark Professional Tone) */
+        /* Login Card Container */
         .login-card {
             background: #ffffff;
             width: 100%;
@@ -407,38 +436,30 @@
             100% { transform: translateX(calc(100vw + 120px)) translateY(0) scaleX(1); }
         }
 
-        @keyframes fishJumpLeft {
-            0%, 65%, 100% {
-                transform: translate(0, 0) rotate(0deg);
-                opacity: 0;
-            }
-            15% { opacity: 0.9; }
-            30% {
-                transform: translate(65px, -80px) rotate(30deg);
-                opacity: 0.9;
-            }
-            45% {
-                transform: translate(130px, 15px) rotate(-30deg);
-                opacity: 0.7;
-            }
-            52% { opacity: 0; }
+        @keyframes floatJelly {
+            0% { transform: translateY(0px) rotate(-3deg); }
+            50% { transform: translateY(-18px) rotate(3deg); }
+            100% { transform: translateY(4px) rotate(-2deg); }
         }
 
-        @keyframes fishJumpRight {
-            0%, 65%, 100% {
-                transform: translate(0, 0) rotate(0deg);
-                opacity: 0;
-            }
-            15% { opacity: 0.9; }
-            30% {
-                transform: translate(-65px, -85px) rotate(-30deg);
-                opacity: 0.9;
-            }
-            45% {
-                transform: translate(-130px, 15px) rotate(30deg);
-                opacity: 0.7;
-            }
-            52% { opacity: 0; }
+        @keyframes swimTurtle {
+            0% { transform: translateX(-140px) translateY(0) rotate(2deg); }
+            50% { transform: translateX(calc(100vw + 140px)) translateY(-25px) rotate(-2deg); }
+            50.01% { transform: translateX(calc(100vw + 140px)) translateY(-25px) scaleX(-1) rotate(2deg); }
+            100% { transform: translateX(-140px) translateY(0) scaleX(-1) rotate(-2deg); }
+        }
+
+        @keyframes swimManta {
+            0% { transform: translateX(calc(100vw + 180px)) translateY(0) scaleX(-1); }
+            50% { transform: translateX(-180px) translateY(-20px) scaleX(-1); }
+            50.01% { transform: translateX(-180px) translateY(-20px) scaleX(1); }
+            100% { transform: translateX(calc(100vw + 180px)) translateY(0) scaleX(1); }
+        }
+
+        @keyframes walkCrab {
+            0% { transform: translateX(0px); }
+            50% { transform: translateX(180px); }
+            100% { transform: translateX(0px); }
         }
 
         @keyframes riseBubble {
@@ -499,6 +520,7 @@
         @media (max-width: 480px) {
             .waves-wrapper { height: 26vh; }
             .login-card { border-radius: 18px; }
+            .jellyfish { scale: 0.7; }
         }
     </style>
 </head>
@@ -521,20 +543,20 @@
         <div class="bubble"></div>
     </div>
 
-    <!-- Swimming & Jumping Fish (Deep Dark Ocean Theme) -->
-    <div class="fish-container">
-        <!-- Fish 1 - Soft Ocean Blue -->
+    <!-- Sea Creatures (Fish, Jellyfish, Sea Turtle, Manta Ray, Crab) -->
+    <div class="creatures-container">
+        
+        <!-- 1. Swimming Fish -->
         <div class="swimming-fish fish-1">
             <svg viewBox="0 0 50 30" width="44" height="26">
                 <path d="M 10 15 C 20 5, 35 5, 45 15 C 35 25, 20 25, 10 15 Z" fill="#38bdf8"/>
-                <path d="M 10 15 L 0 5 L 4 15 L 0 25 Z" fill="#0284c7"/> <!-- Tail -->
-                <path d="M 22 8 Q 28 3 32 8" fill="#7dd3fc"/> <!-- Fin -->
+                <path d="M 10 15 L 0 5 L 4 15 L 0 25 Z" fill="#0284c7"/>
+                <path d="M 22 8 Q 28 3 32 8" fill="#7dd3fc"/>
                 <circle cx="38" cy="12" r="2.2" fill="#ffffff"/>
                 <circle cx="39" cy="12" r="1.1" fill="#020617"/>
             </svg>
         </div>
 
-        <!-- Fish 2 - Deep Sky Blue -->
         <div class="swimming-fish fish-2">
             <svg viewBox="0 0 50 30" width="36" height="22">
                 <path d="M 10 15 C 20 5, 35 5, 45 15 C 35 25, 20 25, 10 15 Z" fill="#0284c7"/>
@@ -544,7 +566,6 @@
             </svg>
         </div>
 
-        <!-- Fish 3 - Subtle Amber Warm Fish -->
         <div class="swimming-fish fish-3">
             <svg viewBox="0 0 50 30" width="38" height="23">
                 <path d="M 10 15 C 20 5, 35 5, 45 15 C 35 25, 20 25, 10 15 Z" fill="#f59e0b"/>
@@ -554,7 +575,6 @@
             </svg>
         </div>
 
-        <!-- Fish 4 - Small Light Cyan Fish -->
         <div class="swimming-fish fish-4">
             <svg viewBox="0 0 50 30" width="30" height="18">
                 <path d="M 10 15 C 20 5, 35 5, 45 15 C 35 25, 20 25, 10 15 Z" fill="#7dd3fc"/>
@@ -564,25 +584,75 @@
             </svg>
         </div>
 
-        <!-- Jumping Fish 1 -->
-        <div class="jumping-fish-1">
-            <svg viewBox="0 0 50 30" width="44" height="26">
-                <path d="M 10 15 C 20 5, 35 5, 45 15 C 35 25, 20 25, 10 15 Z" fill="#38bdf8"/>
-                <path d="M 10 15 L 0 5 L 4 15 L 0 25 Z" fill="#0284c7"/>
-                <circle cx="38" cy="12" r="2.2" fill="#ffffff"/>
-                <circle cx="39" cy="12" r="1.1" fill="#000000"/>
+        <!-- 2. Jellyfish (Ubur-ubur Transparan Glowing) -->
+        <div class="jellyfish jelly-1">
+            <svg viewBox="0 0 60 80" width="42" height="56">
+                <!-- Bell Cap -->
+                <path d="M 10 35 C 10 10, 50 10, 50 35 C 40 38, 30 32, 20 38 C 15 35, 10 37, 10 35 Z" fill="rgba(56, 189, 248, 0.45)" stroke="rgba(125, 211, 252, 0.8)" stroke-width="1.5"/>
+                <!-- Tentacles -->
+                <path d="M 18 36 Q 14 55 18 75" stroke="rgba(125, 211, 252, 0.7)" stroke-width="2" fill="none"/>
+                <path d="M 26 36 Q 30 55 25 75" stroke="rgba(56, 189, 248, 0.8)" stroke-width="1.8" fill="none"/>
+                <path d="M 34 36 Q 32 55 36 75" stroke="rgba(125, 211, 252, 0.7)" stroke-width="1.8" fill="none"/>
+                <path d="M 42 36 Q 46 55 42 75" stroke="rgba(56, 189, 248, 0.8)" stroke-width="2" fill="none"/>
             </svg>
         </div>
 
-        <!-- Jumping Fish 2 -->
-        <div class="jumping-fish-2">
-            <svg viewBox="0 0 50 30" width="42" height="25">
-                <path d="M 10 15 C 20 5, 35 5, 45 15 C 35 25, 20 25, 10 15 Z" fill="#7dd3fc"/>
-                <path d="M 10 15 L 0 5 L 4 15 L 0 25 Z" fill="#0369a1"/>
-                <circle cx="38" cy="12" r="2" fill="#ffffff"/>
-                <circle cx="39" cy="12" r="1" fill="#000000"/>
+        <div class="jellyfish jelly-2">
+            <svg viewBox="0 0 60 80" width="36" height="48">
+                <path d="M 10 35 C 10 10, 50 10, 50 35 C 40 38, 30 32, 20 38 C 15 35, 10 37, 10 35 Z" fill="rgba(14, 165, 233, 0.4)" stroke="rgba(56, 189, 248, 0.7)" stroke-width="1.5"/>
+                <path d="M 20 36 Q 16 55 20 70" stroke="rgba(56, 189, 248, 0.7)" stroke-width="1.8" fill="none"/>
+                <path d="M 30 36 Q 34 55 29 70" stroke="rgba(125, 211, 252, 0.8)" stroke-width="1.5" fill="none"/>
+                <path d="M 40 36 Q 44 55 40 70" stroke="rgba(56, 189, 248, 0.7)" stroke-width="1.8" fill="none"/>
             </svg>
         </div>
+
+        <!-- 3. Sea Turtle (Penyu Laut Berenang) -->
+        <div class="sea-turtle">
+            <svg viewBox="0 0 80 50" width="54" height="34">
+                <!-- Shell -->
+                <ellipse cx="40" cy="25" rx="22" ry="16" fill="#0369a1" stroke="#38bdf8" stroke-width="1.5"/>
+                <!-- Head -->
+                <ellipse cx="66" cy="25" rx="7" ry="5" fill="#0284c7"/>
+                <circle cx="68" cy="23" r="1" fill="#ffffff"/>
+                <!-- Flippers -->
+                <path d="M 46 12 Q 58 0 68 8 Q 54 18 42 16 Z" fill="#0284c7"/> <!-- Front Top Flipper -->
+                <path d="M 46 38 Q 58 50 68 42 Q 54 32 42 34 Z" fill="#0284c7"/> <!-- Front Bottom Flipper -->
+                <path d="M 24 14 Q 14 6 20 12 Z" fill="#075985"/> <!-- Back Top Flipper -->
+                <path d="M 24 36 Q 14 44 20 38 Z" fill="#075985"/> <!-- Back Bottom Flipper -->
+            </svg>
+        </div>
+
+        <!-- 4. Manta Ray (Ikan Pari Laut Dalam) -->
+        <div class="manta-ray">
+            <svg viewBox="0 0 100 60" width="70" height="42">
+                <!-- Body Wings -->
+                <path d="M 50 10 Q 80 25 95 30 Q 75 42 50 48 Q 25 42 5 30 Q 20 25 50 10 Z" fill="#0f172a" stroke="#0284c7" stroke-width="1.5"/>
+                <!-- Tail -->
+                <path d="M 50 48 Q 48 65 52 80" stroke="#38bdf8" stroke-width="1.5" fill="none"/>
+                <!-- Head horns -->
+                <path d="M 44 12 Q 42 6 46 8" stroke="#38bdf8" stroke-width="1.5" fill="none"/>
+                <path d="M 56 12 Q 58 6 54 8" stroke="#38bdf8" stroke-width="1.5" fill="none"/>
+            </svg>
+        </div>
+
+        <!-- 5. Crab on Ocean Floor (Kepiting) -->
+        <div class="crab-floor">
+            <svg viewBox="0 0 60 40" width="32" height="21">
+                <!-- Body -->
+                <ellipse cx="30" cy="22" rx="14" ry="10" fill="#ea580c"/>
+                <!-- Eyes -->
+                <circle cx="24" cy="10" r="2.5" fill="#ea580c"/>
+                <circle cx="24" cy="10" r="1" fill="#ffffff"/>
+                <circle cx="36" cy="10" r="2.5" fill="#ea580c"/>
+                <circle cx="36" cy="10" r="1" fill="#ffffff"/>
+                <!-- Claws -->
+                <path d="M 16 20 Q 8 12 4 18 Q 12 24 18 22 Z" fill="#f97316"/>
+                <path d="M 44 20 Q 52 12 56 18 Q 48 24 42 22 Z" fill="#f97316"/>
+                <!-- Legs -->
+                <path d="M 20 28 L 12 34 M 24 30 L 18 37 M 36 30 L 42 37 M 40 28 L 48 34" stroke="#c2410c" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+        </div>
+
     </div>
 
     <!-- Waves SVG at bottom -->
