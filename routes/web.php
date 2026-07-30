@@ -6,10 +6,46 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-use App\Http\Middleware\BasicAuthDocs;
+use App\Http\Middleware\DocsAuthSession;
+use Illuminate\Http\Request;
 
-// Route untuk memproteksi dokumentasi API dengan HTTP Basic Auth
-Route::middleware([BasicAuthDocs::class])->group(function () {
+// 1. Halaman Login Dokumentasi API
+Route::get('/docs/login', function () {
+    if (session('docs_authenticated')) {
+        return redirect('/docs');
+    }
+    return view('docs-login');
+});
+
+// 2. Proses Login Dokumentasi API
+Route::post('/docs/login', function (Request $request) {
+    $username = $request->input('username');
+    $password = $request->input('password');
+
+    if ($username === 'adminsm' && $password === 'adminsm!') {
+        session([
+            'docs_authenticated' => true,
+            'docs_last_activity' => time(),
+        ]);
+        return redirect('/docs');
+    }
+
+    return redirect('/docs/login')->with('error', 'Username atau password yang Anda masukkan salah!');
+});
+
+// 3. Proses Logout Dokumentasi API
+Route::get('/docs/logout', function (Request $request) {
+    $expired = $request->query('expired');
+    $request->session()->forget(['docs_authenticated', 'docs_last_activity']);
+    
+    if ($expired) {
+        return redirect('/docs/login?expired=1');
+    }
+    return redirect('/docs/login');
+});
+
+// 4. Route Dokumentasi API yang Dilindungi Session & Timeout 10 Menit
+Route::middleware([DocsAuthSession::class])->group(function () {
     Route::get('/docs', function () {
         $path = resource_path('docs/index.html');
         if (!file_exists($path)) {

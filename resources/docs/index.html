@@ -113,6 +113,10 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M10 14l-7 7"/></svg>
         Collapse All
       </button>
+      <a href="/docs/logout" class="control-btn" style="text-decoration:none; color:#dc2626; border-color:#fca5a5; background-color:#fef2f2;" title="Logout dari Dokumentasi">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        Logout
+      </a>
     </div>
   </div>
 
@@ -186,6 +190,25 @@
         clearInterval(attachSearchListener);
       }, 15000);
     });
+
+    // Auto logout jika tidak ada aktivitas pengguna selama 10 menit (600,000 md)
+    (function setupInactivityTimer() {
+      let timeoutTimer;
+      const TEN_MINUTES = 10 * 60 * 1000;
+
+      function resetTimer() {
+        clearTimeout(timeoutTimer);
+        timeoutTimer = setTimeout(function() {
+          window.location.href = '/docs/logout?expired=1';
+        }, TEN_MINUTES);
+      }
+
+      ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(function(evt) {
+        window.addEventListener(evt, resetTimer, { passive: true });
+      });
+
+      resetTimer();
+    })();
   </script>
 
 </body>
