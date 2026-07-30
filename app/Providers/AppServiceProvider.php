@@ -144,6 +144,7 @@ class AppServiceProvider extends ServiceProvider
         // Register Custom Pulse Component (Kill User Control Card)
         if (class_exists(\Livewire\Livewire::class)) {
             \Livewire\Livewire::component('pulse.user-control-card', \App\Livewire\Pulse\UserControlCard::class);
+            \Livewire\Livewire::component('user-control-card', \App\Livewire\Pulse\UserControlCard::class);
         }
 
         // Define gate for Laravel Pulse / Monitoring SM dashboard access

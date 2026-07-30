@@ -17,25 +17,29 @@ class UserControlCard extends Card
      */
     public function killUser(int $userId): void
     {
-        $user = User::with('role')->find($userId);
+        try {
+            $user = User::find($userId);
 
-        if (!$user) {
-            $this->message = "User ID {$userId} tidak ditemukan.";
-            return;
+            if (!$user) {
+                $this->message = "User ID {$userId} tidak ditemukan.";
+                return;
+            }
+
+            // 1. Revoke / delete all Sanctum personal access tokens
+            if (method_exists($user, 'tokens')) {
+                $user->tokens()->delete();
+            }
+
+            // 2. Clear sessions table if session table exists
+            if (Schema::hasTable('sessions')) {
+                DB::table('sessions')->where('user_id', $userId)->delete();
+            }
+
+            $username = $user->username ?? $user->name ?? "ID #{$userId}";
+            $this->message = "🚫 User {$username} (ID: {$userId}) telah berhasil di-KILL & di-logout dari seluruh device!";
+        } catch (\Throwable $e) {
+            $this->message = "Gagal kill user: " . $e->getMessage();
         }
-
-        // 1. Revoke / delete all Sanctum personal access tokens
-        if (method_exists($user, 'tokens')) {
-            $user->tokens()->delete();
-        }
-
-        // 2. Clear sessions table if session table exists
-        if (Schema::hasTable('sessions')) {
-            DB::table('sessions')->where('user_id', $userId)->delete();
-        }
-
-        $username = $user->username ?? $user->name ?? "ID #{$userId}";
-        $this->message = "🚫 User {$username} (ID: {$userId}) telah berhasil di-KILL & di-logout dari seluruh device!";
     }
 
     /**
@@ -43,19 +47,33 @@ class UserControlCard extends Card
      */
     public function render()
     {
-        // Retrieve users with active tokens or recent activity
-        $query = User::with(['role'])->withCount('tokens');
+        try {
+            $query = User::query();
 
-        if (!empty($this->search)) {
-            $searchTerm = '%' . strtolower($this->search) . '%';
-            $query->where(function ($q) use ($searchTerm) {
-                $q->whereRaw('LOWER(username) LIKE ?', [$searchTerm])
-                  ->orWhereRaw('LOWER(name) LIKE ?', [$searchTerm])
-                  ->orWhereRaw('LOWER(email) LIKE ?', [$searchTerm]);
-            });
+            // Safely check for role relation
+            if (method_exists(User::class, 'role')) {
+                $query->with('role');
+            }
+
+            // Safely check for personal access tokens count
+            if (Schema::hasTable('personal_access_tokens')) {
+                $query->withCount('tokens');
+            }
+
+            if (!empty($this->search)) {
+                $searchTerm = '%' . strtolower($this->search) . '%';
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->whereRaw('LOWER(username) LIKE ?', [$searchTerm])
+                      ->orWhereRaw('LOWER(name) LIKE ?', [$searchTerm])
+                      ->orWhereRaw('LOWER(email) LIKE ?', [$searchTerm]);
+                });
+            }
+
+            $users = $query->take(25)->get();
+        } catch (\Throwable $e) {
+            $users = collect();
+            $this->message = "Error loading users: " . $e->getMessage();
         }
-
-        $users = $query->orderBy('updated_at', 'desc')->take(20)->get();
 
         return view('livewire.pulse.user-control-card', [
             'users' => $users,
