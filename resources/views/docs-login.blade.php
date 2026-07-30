@@ -16,11 +16,7 @@
         }
 
         body {
-            background-color: #0f172a;
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(2, 132, 199, 0.18) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(30, 58, 138, 0.25) 0px, transparent 50%),
-                radial-gradient(at 50% 50%, rgba(14, 165, 233, 0.08) 0px, transparent 50%);
+            background: linear-gradient(180deg, #030712 0%, #0c4a6e 45%, #0284c7 85%, #0369a1 100%);
             color: #f8fafc;
             display: flex;
             align-items: center;
@@ -31,38 +27,113 @@
             position: relative;
         }
 
-        /* Subtle Animated Grid Background */
-        body::before {
-            content: '';
+        /* Ambient Ocean Sunlight Glow */
+        .ocean-glow {
             position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-                              linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-            background-size: 40px 40px;
+            top: -20%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 800px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(56, 189, 248, 0.25) 0%, rgba(14, 165, 233, 0.08) 50%, transparent 80%);
             pointer-events: none;
             z-index: 0;
+            animation: pulseSunlight 8s ease-in-out infinite alternate;
         }
 
+        /* SVG Ocean Waves Section */
+        .ocean-waves-wrapper {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 35vh;
+            min-height: 200px;
+            max-height: 400px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .waves {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            margin-bottom: -7px;
+        }
+
+        .parallax > use {
+            animation: move-wave 25s cubic-bezier(.55, .5, .45, .5) infinite;
+        }
+        .parallax > use:nth-child(1) {
+            animation-delay: -2s;
+            animation-duration: 9s;
+            fill: rgba(56, 189, 248, 0.4);
+        }
+        .parallax > use:nth-child(2) {
+            animation-delay: -4s;
+            animation-duration: 14s;
+            fill: rgba(14, 165, 233, 0.35);
+        }
+        .parallax > use:nth-child(3) {
+            animation-delay: -6s;
+            animation-duration: 19s;
+            fill: rgba(3, 105, 161, 0.5);
+        }
+        .parallax > use:nth-child(4) {
+            animation-delay: -8s;
+            animation-duration: 25s;
+            fill: #030712;
+        }
+
+        /* Ocean Bubbles Animation */
+        .bubbles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .bubble {
+            position: absolute;
+            bottom: -50px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            animation: riseBubble linear infinite;
+        }
+
+        .bubble:nth-child(1) { left: 10%; width: 18px; height: 18px; animation-duration: 12s; animation-delay: 0s; }
+        .bubble:nth-child(2) { left: 25%; width: 12px; height: 12px; animation-duration: 9s; animation-delay: 2s; }
+        .bubble:nth-child(3) { left: 40%; width: 24px; height: 24px; animation-duration: 15s; animation-delay: 4s; }
+        .bubble:nth-child(4) { left: 60%; width: 14px; height: 14px; animation-duration: 10s; animation-delay: 1s; }
+        .bubble:nth-child(5) { left: 75%; width: 20px; height: 20px; animation-duration: 13s; animation-delay: 3s; }
+        .bubble:nth-child(6) { left: 88%; width: 10px; height: 10px; animation-duration: 8s; animation-delay: 5s; }
+        .bubble:nth-child(7) { left: 52%; width: 16px; height: 16px; animation-duration: 11s; animation-delay: 6s; }
+
+        /* Glassmorphism Card Container */
         .login-card {
-            background: #ffffff;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
             width: 100%;
             max-width: 440px;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), 0 0 30px rgba(2, 132, 199, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(3, 7, 18, 0.6), 0 0 35px rgba(56, 189, 248, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.6);
             overflow: hidden;
             position: relative;
-            z-index: 1;
-            animation: fadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            z-index: 10;
+            animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 
         .login-header {
-            background: linear-gradient(-45deg, #0284c7, #0369a1, #1e3a8a, #0c4a6e);
-            background-size: 300% 300%;
-            animation: gradientBg 12s ease infinite;
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 50%, #075985 100%);
+            background-size: 200% 200%;
+            animation: gradientWave 10s ease infinite;
             color: #ffffff;
             padding: 36px 28px 28px 28px;
             text-align: center;
@@ -70,56 +141,53 @@
             overflow: hidden;
         }
 
-        /* Ambient Glow behind Header Icon */
         .header-icon-wrapper {
-            width: 54px;
-            height: 54px;
+            width: 56px;
+            height: 56px;
             margin: 0 auto 14px auto;
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.18);
             backdrop-filter: blur(8px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            border-radius: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
-            animation: floatGlow 4s ease-in-out infinite;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+            animation: floatIcon 4s ease-in-out infinite;
         }
 
         .header-icon-wrapper svg {
-            width: 26px;
-            height: 26px;
+            width: 28px;
+            height: 28px;
             stroke: #ffffff;
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.25));
         }
 
-        /* Animated Title Effect */
         .login-header h1 {
             font-size: 22px;
             font-weight: 800;
             letter-spacing: 0.08em;
             margin-bottom: 8px;
-            background: linear-gradient(90deg, #ffffff 0%, #bae6fd 50%, #ffffff 100%);
+            background: linear-gradient(90deg, #ffffff 0%, #e0f2fe 50%, #ffffff 100%);
             background-size: 200% auto;
             color: transparent;
             -webkit-background-clip: text;
             background-clip: text;
             animation: textShimmer 4s linear infinite;
             text-transform: uppercase;
-            text-shadow: 0 2px 10px rgba(2, 132, 199, 0.3);
+            text-shadow: 0 2px 12px rgba(2, 132, 199, 0.4);
         }
 
-        /* Subtitle with Animated Pill Badge */
         .subtitle-badge {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            background: rgba(255, 255, 255, 0.12);
-            border: 1px solid rgba(255, 255, 255, 0.25);
-            padding: 5px 14px;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 6px 16px;
             border-radius: 20px;
             font-size: 12px;
-            color: #e0f2fe;
+            color: #f0f9ff;
             font-weight: 600;
             letter-spacing: 0.02em;
             backdrop-filter: blur(4px);
@@ -130,7 +198,7 @@
             height: 7px;
             background-color: #38bdf8;
             border-radius: 50%;
-            box-shadow: 0 0 8px #38bdf8;
+            box-shadow: 0 0 10px #38bdf8;
             animation: badgePulse 2s infinite ease-in-out;
         }
 
@@ -181,7 +249,7 @@
             padding: 12px 16px;
             font-size: 14px;
             border: 1.5px solid #cbd5e1;
-            border-radius: 10px;
+            border-radius: 12px;
             outline: none;
             transition: all 0.25s ease;
             background-color: #f8fafc;
@@ -201,12 +269,12 @@
             background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
             color: #ffffff;
             border: none;
-            border-radius: 10px;
+            border-radius: 12px;
             font-size: 14px;
             font-weight: 700;
             letter-spacing: 0.02em;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
+            box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35);
             transition: all 0.25s ease;
             display: flex;
             align-items: center;
@@ -216,7 +284,7 @@
 
         .btn-submit:hover {
             background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
-            box-shadow: 0 6px 18px rgba(2, 132, 199, 0.45);
+            box-shadow: 0 8px 22px rgba(2, 132, 199, 0.45);
             transform: translateY(-2px);
         }
 
@@ -234,8 +302,31 @@
             color: #64748b;
         }
 
-        /* Keyframe Animations */
-        @keyframes gradientBg {
+        /* Animations */
+        @keyframes move-wave {
+            0% { transform: translate3d(-90px, 0, 0); }
+            100% { transform: translate3d(85px, 0, 0); }
+        }
+
+        @keyframes riseBubble {
+            0% {
+                transform: translateY(0) scale(0.8);
+                opacity: 0;
+            }
+            20% { opacity: 0.6; }
+            80% { opacity: 0.6; }
+            100% {
+                transform: translateY(-110vh) scale(1.2);
+                opacity: 0;
+            }
+        }
+
+        @keyframes pulseSunlight {
+            0% { opacity: 0.5; transform: translateX(-50%) scale(1); }
+            100% { opacity: 0.9; transform: translateX(-50%) scale(1.1); }
+        }
+
+        @keyframes gradientWave {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
@@ -246,15 +337,15 @@
             100% { background-position: 200% 0; }
         }
 
-        @keyframes floatGlow {
-            0%, 100% { transform: translateY(0px); box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15); }
-            50% { transform: translateY(-5px); box-shadow: 0 14px 24px rgba(2, 132, 199, 0.4); }
+        @keyframes floatIcon {
+            0%, 100% { transform: translateY(0px); box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15); }
+            50% { transform: translateY(-6px); box-shadow: 0 16px 28px rgba(2, 132, 199, 0.4); }
         }
 
         @keyframes fadeInUp {
             from {
                 opacity: 0;
-                transform: translateY(24px) scale(0.97);
+                transform: translateY(28px) scale(0.96);
             }
             to {
                 opacity: 1;
@@ -264,11 +355,48 @@
 
         @keyframes badgePulse {
             0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.4; transform: scale(1.3); }
+            50% { opacity: 0.3; transform: scale(1.4); }
+        }
+
+        @media (max-width: 480px) {
+            .ocean-waves-wrapper { height: 25vh; }
+            .login-card { border-radius: 18px; }
         }
     </style>
 </head>
 <body>
+
+    <!-- Ambient Ocean Sunlight Glow -->
+    <div class="ocean-glow"></div>
+
+    <!-- Rising Ocean Bubbles -->
+    <div class="bubbles">
+        <div class="bubble"></div>
+        <div class="bubble"></div>
+        <div class="bubble"></div>
+        <div class="bubble"></div>
+        <div class="bubble"></div>
+        <div class="bubble"></div>
+        <div class="bubble"></div>
+    </div>
+
+    <!-- Ocean Waves SVG at bottom -->
+    <div class="ocean-waves-wrapper">
+        <svg class="waves" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+        viewBox="0 24 150 28" preserveAspectRatio="none" shape-rendering="auto">
+            <defs>
+                <path id="gentle-wave" d="M-160 44c30 0 58-18 88-18s 58 18 88 18 58-18 88-18 58 18 88 18 v44h-352z" />
+            </defs>
+            <g class="parallax">
+                <use xlink:href="#gentle-wave" x="48" y="0" />
+                <use xlink:href="#gentle-wave" x="48" y="3" />
+                <use xlink:href="#gentle-wave" x="48" y="5" />
+                <use xlink:href="#gentle-wave" x="48" y="7" />
+            </g>
+        </svg>
+    </div>
+
+    <!-- Glassmorphism Login Card -->
     <div class="login-card">
         <div class="login-header">
             <div class="header-icon-wrapper">
@@ -322,5 +450,6 @@
             Sistem Keamanan Dokumentasi API &copy; {{ date('Y') }} PT Susanti Megah
         </div>
     </div>
+
 </body>
 </html>
