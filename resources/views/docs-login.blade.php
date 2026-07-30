@@ -51,7 +51,7 @@
             min-height: 200px;
             max-height: 400px;
             pointer-events: none;
-            z-index: 1;
+            z-index: 2;
         }
 
         .waves {
@@ -83,6 +83,68 @@
             animation-delay: -8s;
             animation-duration: 25s;
             fill: #030712;
+        }
+
+        /* Fisherman & Boat Wrapper */
+        .fisherman-wrapper {
+            position: absolute;
+            bottom: 22vh;
+            right: 6%;
+            z-index: 3;
+            pointer-events: none;
+            animation: rockBoat 4.5s ease-in-out infinite alternate;
+            transform-origin: center bottom;
+        }
+
+        .fisherman-svg {
+            filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.4));
+        }
+
+        /* Fishing Bobber / Pelampung */
+        .fishing-bobber {
+            position: absolute;
+            bottom: -20px;
+            right: -8px;
+            width: 10px;
+            height: 14px;
+            background: linear-gradient(to bottom, #ef4444 50%, #ffffff 50%);
+            border-radius: 5px;
+            box-shadow: 0 0 6px rgba(239, 68, 68, 0.8);
+            animation: floatBobbing 2s ease-in-out infinite;
+        }
+
+        /* Swimming & Jumping Fish */
+        .fish-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 35vh;
+            pointer-events: none;
+            z-index: 4;
+            overflow: hidden;
+        }
+
+        .swimming-fish {
+            position: absolute;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+        }
+
+        .fish-1 {
+            bottom: 120px;
+            animation: swimRight 18s linear infinite;
+        }
+
+        .fish-2 {
+            bottom: 60px;
+            animation: swimLeft 24s linear infinite;
+        }
+
+        .jumping-fish {
+            position: absolute;
+            bottom: 140px;
+            right: 12%;
+            animation: fishJump 7s ease-in-out infinite;
         }
 
         /* Ocean Bubbles Animation */
@@ -302,10 +364,56 @@
             color: #64748b;
         }
 
-        /* Animations */
+        /* Keyframe Animations */
         @keyframes move-wave {
             0% { transform: translate3d(-90px, 0, 0); }
             100% { transform: translate3d(85px, 0, 0); }
+        }
+
+        @keyframes rockBoat {
+            0% { transform: translateY(0px) rotate(-3deg); }
+            50% { transform: translateY(-8px) rotate(2deg); }
+            100% { transform: translateY(3px) rotate(-2deg); }
+        }
+
+        @keyframes floatBobbing {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(6px); }
+        }
+
+        @keyframes swimRight {
+            0% { transform: translateX(-120px) translateY(0) scaleX(1); }
+            50% { transform: translateX(calc(100vw + 120px)) translateY(-20px) scaleX(1); }
+            50.01% { transform: translateX(calc(100vw + 120px)) translateY(-20px) scaleX(-1); }
+            100% { transform: translateX(-120px) translateY(0) scaleX(-1); }
+        }
+
+        @keyframes swimLeft {
+            0% { transform: translateX(calc(100vw + 120px)) translateY(0) scaleX(-1); }
+            50% { transform: translateX(-120px) translateY(18px) scaleX(-1); }
+            50.01% { transform: translateX(-120px) translateY(18px) scaleX(1); }
+            100% { transform: translateX(calc(100vw + 120px)) translateY(0) scaleX(1); }
+        }
+
+        @keyframes fishJump {
+            0%, 65%, 100% {
+                transform: translate(0, 0) rotate(0deg);
+                opacity: 0;
+            }
+            15% {
+                opacity: 1;
+            }
+            30% {
+                transform: translate(-65px, -85px) rotate(-40deg);
+                opacity: 1;
+            }
+            45% {
+                transform: translate(-130px, 15px) rotate(40deg);
+                opacity: 0.8;
+            }
+            52% {
+                opacity: 0;
+            }
         }
 
         @keyframes riseBubble {
@@ -358,7 +466,8 @@
             50% { opacity: 0.3; transform: scale(1.4); }
         }
 
-        @media (max-width: 480px) {
+        @media (max-width: 768px) {
+            .fisherman-wrapper { transform: scale(0.75); right: 2%; bottom: 18vh; }
             .ocean-waves-wrapper { height: 25vh; }
             .login-card { border-radius: 18px; }
         }
@@ -378,6 +487,65 @@
         <div class="bubble"></div>
         <div class="bubble"></div>
         <div class="bubble"></div>
+    </div>
+
+    <!-- Fisherman on Boat -->
+    <div class="fisherman-wrapper">
+        <svg class="fisherman-svg" viewBox="0 0 160 120" width="140" height="105">
+            <!-- Wooden Boat Hull -->
+            <path d="M 20 80 Q 80 102 140 80 L 125 98 Q 80 108 35 98 Z" fill="#b45309" stroke="#78350f" stroke-width="2"/>
+            <path d="M 25 80 L 135 80" stroke="#f59e0b" stroke-width="3"/>
+            <path d="M 40 85 L 120 85" stroke="#92400e" stroke-width="1.5"/>
+            
+            <!-- Fisherman Silhouette -->
+            <circle cx="55" cy="50" r="7.5" fill="#fde047"/> <!-- Cap / Head -->
+            <path d="M 48 45 L 60 45 L 66 50 L 46 50 Z" fill="#eab308"/> <!-- Hat Brim -->
+            <path d="M 50 58 Q 55 56 62 58 L 68 78 L 48 78 Z" fill="#0284c7"/> <!-- Jacket -->
+            
+            <!-- Arm & Fishing Rod -->
+            <path d="M 58 63 L 82 56" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"/>
+            <path d="M 78 58 L 148 22" stroke="#fcd34d" stroke-width="2.5" stroke-linecap="round"/> <!-- Fishing Rod -->
+            
+            <!-- Fishing Line going into ocean -->
+            <path d="M 148 22 Q 155 60 148 105" stroke="rgba(255,255,255,0.75)" stroke-width="1" fill="none" stroke-dasharray="3,2"/>
+        </svg>
+        
+        <!-- Red/White Fishing Bobber on water -->
+        <div class="fishing-bobber"></div>
+    </div>
+
+    <!-- Swimming & Jumping Fish -->
+    <div class="fish-container">
+        <!-- Fish 1 Swimming Right -->
+        <div class="swimming-fish fish-1">
+            <svg viewBox="0 0 50 30" width="42" height="25">
+                <path d="M 10 15 C 20 5, 35 5, 45 15 C 35 25, 20 25, 10 15 Z" fill="#f97316"/>
+                <path d="M 10 15 L 0 5 L 4 15 L 0 25 Z" fill="#ea580c"/> <!-- Tail -->
+                <circle cx="38" cy="12" r="2" fill="#ffffff"/> <!-- Eye -->
+                <circle cx="39" cy="12" r="1" fill="#000000"/>
+                <path d="M 25 10 Q 30 15 25 20" stroke="#c2410c" stroke-width="1.5" fill="none"/>
+            </svg>
+        </div>
+
+        <!-- Fish 2 Swimming Left -->
+        <div class="swimming-fish fish-2">
+            <svg viewBox="0 0 50 30" width="36" height="22">
+                <path d="M 10 15 C 20 5, 35 5, 45 15 C 35 25, 20 25, 10 15 Z" fill="#38bdf8"/>
+                <path d="M 10 15 L 0 5 L 4 15 L 0 25 Z" fill="#0284c7"/> <!-- Tail -->
+                <circle cx="38" cy="12" r="2" fill="#ffffff"/> <!-- Eye -->
+                <circle cx="39" cy="12" r="1" fill="#000000"/>
+            </svg>
+        </div>
+
+        <!-- Fish 3 Jumping out of ocean waves -->
+        <div class="jumping-fish">
+            <svg viewBox="0 0 50 30" width="45" height="27">
+                <path d="M 10 15 C 20 5, 35 5, 45 15 C 35 25, 20 25, 10 15 Z" fill="#facc15"/>
+                <path d="M 10 15 L 0 5 L 4 15 L 0 25 Z" fill="#eab308"/> <!-- Tail -->
+                <circle cx="38" cy="12" r="2.5" fill="#ffffff"/> <!-- Eye -->
+                <circle cx="39" cy="12" r="1" fill="#000000"/>
+            </svg>
+        </div>
     </div>
 
     <!-- Ocean Waves SVG at bottom -->
