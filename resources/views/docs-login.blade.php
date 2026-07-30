@@ -16,7 +16,7 @@
         }
 
         body {
-            background: linear-gradient(180deg, #041c32 0%, #064663 35%, #0891b2 75%, #06b6d4 100%);
+            background: linear-gradient(180deg, #020617 0%, #0f172a 40%, #075985 80%, #0c4a6e 100%);
             color: #f8fafc;
             display: flex;
             align-items: center;
@@ -27,45 +27,45 @@
             position: relative;
         }
 
-        /* Aqua Sunbeams / Water Caustics Glow */
-        .aqua-caustics {
+        /* Subtle Ambient Glow (Soft Deep Aqua) */
+        .ocean-glow {
             position: absolute;
-            top: -30%;
+            top: -25%;
             left: 50%;
             transform: translateX(-50%);
-            width: 1000px;
-            height: 700px;
-            background: radial-gradient(circle, rgba(34, 211, 238, 0.35) 0%, rgba(6, 182, 212, 0.15) 45%, transparent 75%);
+            width: 900px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(14, 165, 233, 0.12) 0%, rgba(3, 105, 161, 0.05) 50%, transparent 75%);
             pointer-events: none;
             z-index: 0;
-            animation: pulseAqua 6s ease-in-out infinite alternate;
+            animation: pulseSubtle 8s ease-in-out infinite alternate;
         }
 
-        /* Light Rays Effect */
+        /* Soft Subtle Rays */
         .light-ray {
             position: absolute;
             top: -100px;
-            width: 80px;
+            width: 70px;
             height: 120vh;
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, rgba(34, 211, 238, 0.05) 60%, transparent 100%);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(14, 165, 233, 0.02) 60%, transparent 100%);
             transform: rotate(-25deg);
             pointer-events: none;
             z-index: 0;
-            animation: rayShimmer 10s ease-in-out infinite alternate;
+            animation: rayShimmer 12s ease-in-out infinite alternate;
         }
-        .ray-1 { left: 20%; animation-delay: 0s; }
-        .ray-2 { left: 45%; width: 120px; animation-delay: 3s; }
-        .ray-3 { left: 70%; width: 90px; animation-delay: 1.5s; }
+        .ray-1 { left: 22%; animation-delay: 0s; }
+        .ray-2 { left: 50%; width: 100px; animation-delay: 4s; }
+        .ray-3 { left: 75%; width: 80px; animation-delay: 2s; }
 
-        /* SVG Aqua Waves Section */
-        .aqua-waves-wrapper {
+        /* SVG Waves Section (Deep Midnight Navy Tones) */
+        .waves-wrapper {
             position: absolute;
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 38vh;
-            min-height: 220px;
-            max-height: 420px;
+            height: 36vh;
+            min-height: 200px;
+            max-height: 400px;
             pointer-events: none;
             z-index: 2;
         }
@@ -78,27 +78,27 @@
         }
 
         .parallax > use {
-            animation: move-wave 22s cubic-bezier(.55, .5, .45, .5) infinite;
+            animation: move-wave 24s cubic-bezier(.55, .5, .45, .5) infinite;
         }
         .parallax > use:nth-child(1) {
             animation-delay: -2s;
-            animation-duration: 8s;
-            fill: rgba(34, 211, 238, 0.5);
+            animation-duration: 9s;
+            fill: rgba(14, 165, 233, 0.25);
         }
         .parallax > use:nth-child(2) {
             animation-delay: -4s;
-            animation-duration: 12s;
-            fill: rgba(6, 182, 212, 0.45);
+            animation-duration: 13s;
+            fill: rgba(3, 105, 161, 0.35);
         }
         .parallax > use:nth-child(3) {
             animation-delay: -6s;
-            animation-duration: 17s;
-            fill: rgba(8, 145, 178, 0.6);
+            animation-duration: 18s;
+            fill: rgba(12, 74, 110, 0.6);
         }
         .parallax > use:nth-child(4) {
             animation-delay: -8s;
-            animation-duration: 22s;
-            fill: #041c32;
+            animation-duration: 24s;
+            fill: #020617;
         }
 
         /* Swimming & Jumping Fish Container */
@@ -107,7 +107,7 @@
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 40vh;
+            height: 38vh;
             pointer-events: none;
             z-index: 3;
             overflow: hidden;
@@ -115,49 +115,50 @@
 
         .swimming-fish {
             position: absolute;
-            filter: drop-shadow(0 6px 12px rgba(6, 182, 212, 0.4));
+            opacity: 0.85;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
         }
 
-        /* Fish 1 - Vibrant Aqua Turquoise */
+        /* Fish 1 - Soft Ocean Blue */
         .fish-1 {
-            bottom: 140px;
-            animation: swimRight 16s linear infinite;
+            bottom: 130px;
+            animation: swimRight 18s linear infinite;
         }
 
-        /* Fish 2 - Deep Neon Blue */
+        /* Fish 2 - Deep Sky Blue */
         .fish-2 {
-            bottom: 70px;
-            animation: swimLeft 22s linear infinite;
+            bottom: 65px;
+            animation: swimLeft 24s linear infinite;
         }
 
-        /* Fish 3 - Golden Tropical Aqua Fish Swimming Right Slow */
+        /* Fish 3 - Subtle Amber Warm Fish */
         .fish-3 {
-            bottom: 190px;
-            animation: swimRightSlow 28s linear infinite;
+            bottom: 180px;
+            animation: swimRightSlow 30s linear infinite;
         }
 
-        /* Fish 4 - Small Cyan School */
+        /* Fish 4 - Small Light Cyan Fish */
         .fish-4 {
-            bottom: 110px;
-            animation: swimLeftFast 14s linear infinite;
+            bottom: 100px;
+            animation: swimLeftFast 15s linear infinite;
         }
 
-        /* Jumping Fish Arc */
+        /* Jumping Fish */
         .jumping-fish-1 {
             position: absolute;
-            bottom: 130px;
-            left: 18%;
-            animation: fishJumpLeft 6.5s ease-in-out infinite;
+            bottom: 120px;
+            left: 16%;
+            animation: fishJumpLeft 7s ease-in-out infinite;
         }
 
         .jumping-fish-2 {
             position: absolute;
-            bottom: 150px;
-            right: 22%;
-            animation: fishJumpRight 8s ease-in-out infinite 3.5s;
+            bottom: 140px;
+            right: 20%;
+            animation: fishJumpRight 8.5s ease-in-out infinite 4s;
         }
 
-        /* Aqua Crystal Bubbles */
+        /* Subtle Bubbles */
         .bubbles {
             position: absolute;
             top: 0;
@@ -171,112 +172,109 @@
 
         .bubble {
             position: absolute;
-            bottom: -50px;
-            background: rgba(255, 255, 255, 0.25);
-            border: 1px solid rgba(165, 243, 252, 0.5);
+            bottom: -40px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 50%;
-            box-shadow: 0 0 10px rgba(34, 211, 238, 0.5);
             animation: riseBubble linear infinite;
         }
 
-        .bubble:nth-child(1) { left: 12%; width: 18px; height: 18px; animation-duration: 10s; animation-delay: 0s; }
-        .bubble:nth-child(2) { left: 28%; width: 12px; height: 12px; animation-duration: 7s; animation-delay: 1.5s; }
-        .bubble:nth-child(3) { left: 45%; width: 22px; height: 22px; animation-duration: 13s; animation-delay: 3s; }
-        .bubble:nth-child(4) { left: 62%; width: 14px; height: 14px; animation-duration: 8s; animation-delay: 0.5s; }
-        .bubble:nth-child(5) { left: 78%; width: 20px; height: 20px; animation-duration: 11s; animation-delay: 2.5s; }
-        .bubble:nth-child(6) { left: 90%; width: 10px; height: 10px; animation-duration: 6s; animation-delay: 4s; }
-        .bubble:nth-child(7) { left: 50%; width: 16px; height: 16px; animation-duration: 9s; animation-delay: 5s; }
+        .bubble:nth-child(1) { left: 10%; width: 14px; height: 14px; animation-duration: 12s; animation-delay: 0s; }
+        .bubble:nth-child(2) { left: 26%; width: 10px; height: 10px; animation-duration: 9s; animation-delay: 2s; }
+        .bubble:nth-child(3) { left: 44%; width: 18px; height: 18px; animation-duration: 15s; animation-delay: 4s; }
+        .bubble:nth-child(4) { left: 60%; width: 12px; height: 12px; animation-duration: 10s; animation-delay: 1s; }
+        .bubble:nth-child(5) { left: 76%; width: 16px; height: 16px; animation-duration: 13s; animation-delay: 3s; }
+        .bubble:nth-child(6) { left: 88%; width: 8px; height: 8px; animation-duration: 8s; animation-delay: 5s; }
+        .bubble:nth-child(7) { left: 52%; width: 14px; height: 14px; animation-duration: 11s; animation-delay: 6s; }
 
-        /* Glassmorphism Card Container (Aqua Theme) */
+        /* Glassmorphism Card Container (Dark Professional Tone) */
         .login-card {
-            background: rgba(255, 255, 255, 0.92);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            background: #ffffff;
             width: 100%;
-            max-width: 440px;
-            border-radius: 24px;
-            box-shadow: 0 25px 50px -12px rgba(4, 28, 50, 0.7), 0 0 40px rgba(34, 211, 238, 0.35);
-            border: 1.5px solid rgba(165, 243, 252, 0.6);
+            max-width: 430px;
+            border-radius: 20px;
+            box-shadow: 0 20px 45px -10px rgba(2, 6, 23, 0.7), 0 0 25px rgba(2, 132, 199, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             overflow: hidden;
             position: relative;
             z-index: 10;
-            animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            animation: fadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 
         .login-header {
-            background: linear-gradient(135deg, #0891b2 0%, #06b6d4 50%, #0284c7 100%);
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 60%, #075985 100%);
             background-size: 200% 200%;
-            animation: gradientAqua 8s ease infinite;
+            animation: gradientHeader 10s ease infinite;
             color: #ffffff;
-            padding: 36px 28px 28px 28px;
+            padding: 34px 26px 26px 26px;
             text-align: center;
             position: relative;
             overflow: hidden;
         }
 
         .header-icon-wrapper {
-            width: 58px;
-            height: 58px;
-            margin: 0 auto 14px auto;
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(10px);
-            border: 1.5px solid rgba(255, 255, 255, 0.45);
-            border-radius: 18px;
+            width: 54px;
+            height: 54px;
+            margin: 0 auto 12px auto;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2), 0 0 15px rgba(165, 243, 252, 0.5);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
             animation: floatIcon 4s ease-in-out infinite;
         }
 
         .header-icon-wrapper svg {
-            width: 28px;
-            height: 28px;
+            width: 26px;
+            height: 26px;
             stroke: #ffffff;
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.25));
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
         }
 
         .login-header h1 {
-            font-size: 22px;
+            font-size: 21px;
             font-weight: 800;
             letter-spacing: 0.08em;
             margin-bottom: 8px;
-            background: linear-gradient(90deg, #ffffff 0%, #cffaff 50%, #ffffff 100%);
+            background: linear-gradient(90deg, #ffffff 0%, #e0f2fe 50%, #ffffff 100%);
             background-size: 200% auto;
             color: transparent;
             -webkit-background-clip: text;
             background-clip: text;
             animation: textShimmer 4s linear infinite;
             text-transform: uppercase;
-            text-shadow: 0 2px 14px rgba(6, 182, 212, 0.5);
+            text-shadow: 0 2px 10px rgba(2, 132, 199, 0.3);
         }
 
         .subtitle-badge {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            background: rgba(255, 255, 255, 0.18);
-            border: 1px solid rgba(255, 255, 255, 0.35);
-            padding: 6px 16px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            padding: 5px 14px;
             border-radius: 20px;
             font-size: 12px;
-            color: #ecfeff;
+            color: #f0f9ff;
             font-weight: 600;
             letter-spacing: 0.02em;
-            backdrop-filter: blur(6px);
+            backdrop-filter: blur(4px);
         }
 
         .status-dot {
-            width: 8px;
-            height: 8px;
-            background-color: #22d3ee;
+            width: 7px;
+            height: 7px;
+            background-color: #38bdf8;
             border-radius: 50%;
-            box-shadow: 0 0 12px #22d3ee;
+            box-shadow: 0 0 8px #38bdf8;
             animation: badgePulse 2s infinite ease-in-out;
         }
 
         .login-body {
-            padding: 32px 28px;
+            padding: 30px 26px;
             background-color: #ffffff;
             color: #0f172a;
         }
@@ -285,7 +283,7 @@
             padding: 12px 16px;
             border-radius: 10px;
             font-size: 13px;
-            margin-bottom: 22px;
+            margin-bottom: 20px;
             display: flex;
             align-items: center;
             gap: 10px;
@@ -306,7 +304,7 @@
         }
 
         .form-group {
-            margin-bottom: 22px;
+            margin-bottom: 20px;
         }
 
         .form-group label {
@@ -322,7 +320,7 @@
             padding: 12px 16px;
             font-size: 14px;
             border: 1.5px solid #cbd5e1;
-            border-radius: 12px;
+            border-radius: 10px;
             outline: none;
             transition: all 0.25s ease;
             background-color: #f8fafc;
@@ -330,24 +328,24 @@
         }
 
         .form-control:focus {
-            border-color: #06b6d4;
+            border-color: #0284c7;
             background-color: #ffffff;
-            box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.18);
+            box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.15);
             transform: translateY(-1px);
         }
 
         .btn-submit {
             width: 100%;
             padding: 13px;
-            background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%);
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
             color: #ffffff;
             border: none;
-            border-radius: 12px;
+            border-radius: 10px;
             font-size: 14px;
             font-weight: 700;
             letter-spacing: 0.02em;
             cursor: pointer;
-            box-shadow: 0 6px 18px rgba(6, 182, 212, 0.4);
+            box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3);
             transition: all 0.25s ease;
             display: flex;
             align-items: center;
@@ -356,26 +354,26 @@
         }
 
         .btn-submit:hover {
-            background: linear-gradient(135deg, #0e7490 0%, #0891b2 100%);
-            box-shadow: 0 8px 24px rgba(6, 182, 212, 0.55);
+            background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+            box-shadow: 0 6px 18px rgba(2, 132, 199, 0.4);
             transform: translateY(-2px);
         }
 
         .btn-submit:active {
             transform: translateY(0);
-            box-shadow: 0 2px 8px rgba(6, 182, 212, 0.3);
+            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.2);
         }
 
         .login-footer {
             text-align: center;
-            padding: 16px 28px;
+            padding: 16px 26px;
             background-color: #f8fafc;
             border-top: 1px solid #f1f5f9;
             font-size: 12px;
             color: #64748b;
         }
 
-        /* Keyframe Animations */
+        /* Keyframes */
         @keyframes move-wave {
             0% { transform: translate3d(-90px, 0, 0); }
             100% { transform: translate3d(85px, 0, 0); }
@@ -383,29 +381,29 @@
 
         @keyframes swimRight {
             0% { transform: translateX(-120px) translateY(0) scaleX(1); }
-            50% { transform: translateX(calc(100vw + 120px)) translateY(-20px) scaleX(1); }
-            50.01% { transform: translateX(calc(100vw + 120px)) translateY(-20px) scaleX(-1); }
+            50% { transform: translateX(calc(100vw + 120px)) translateY(-15px) scaleX(1); }
+            50.01% { transform: translateX(calc(100vw + 120px)) translateY(-15px) scaleX(-1); }
             100% { transform: translateX(-120px) translateY(0) scaleX(-1); }
         }
 
         @keyframes swimLeft {
             0% { transform: translateX(calc(100vw + 120px)) translateY(0) scaleX(-1); }
-            50% { transform: translateX(-120px) translateY(18px) scaleX(-1); }
-            50.01% { transform: translateX(-120px) translateY(18px) scaleX(1); }
+            50% { transform: translateX(-120px) translateY(15px) scaleX(-1); }
+            50.01% { transform: translateX(-120px) translateY(15px) scaleX(1); }
             100% { transform: translateX(calc(100vw + 120px)) translateY(0) scaleX(1); }
         }
 
         @keyframes swimRightSlow {
             0% { transform: translateX(-120px) translateY(0) scaleX(1); }
-            50% { transform: translateX(calc(100vw + 120px)) translateY(15px) scaleX(1); }
-            50.01% { transform: translateX(calc(100vw + 120px)) translateY(15px) scaleX(-1); }
+            50% { transform: translateX(calc(100vw + 120px)) translateY(12px) scaleX(1); }
+            50.01% { transform: translateX(calc(100vw + 120px)) translateY(12px) scaleX(-1); }
             100% { transform: translateX(-120px) translateY(0) scaleX(-1); }
         }
 
         @keyframes swimLeftFast {
             0% { transform: translateX(calc(100vw + 120px)) translateY(0) scaleX(-1); }
-            50% { transform: translateX(-120px) translateY(-15px) scaleX(-1); }
-            50.01% { transform: translateX(-120px) translateY(-15px) scaleX(1); }
+            50% { transform: translateX(-120px) translateY(-12px) scaleX(-1); }
+            50.01% { transform: translateX(-120px) translateY(-12px) scaleX(1); }
             100% { transform: translateX(calc(100vw + 120px)) translateY(0) scaleX(1); }
         }
 
@@ -414,14 +412,14 @@
                 transform: translate(0, 0) rotate(0deg);
                 opacity: 0;
             }
-            15% { opacity: 1; }
+            15% { opacity: 0.9; }
             30% {
-                transform: translate(75px, -90px) rotate(35deg);
-                opacity: 1;
+                transform: translate(65px, -80px) rotate(30deg);
+                opacity: 0.9;
             }
             45% {
-                transform: translate(150px, 15px) rotate(-35deg);
-                opacity: 0.8;
+                transform: translate(130px, 15px) rotate(-30deg);
+                opacity: 0.7;
             }
             52% { opacity: 0; }
         }
@@ -431,14 +429,14 @@
                 transform: translate(0, 0) rotate(0deg);
                 opacity: 0;
             }
-            15% { opacity: 1; }
+            15% { opacity: 0.9; }
             30% {
-                transform: translate(-75px, -95px) rotate(-35deg);
-                opacity: 1;
+                transform: translate(-65px, -85px) rotate(-30deg);
+                opacity: 0.9;
             }
             45% {
-                transform: translate(-150px, 15px) rotate(35deg);
-                opacity: 0.8;
+                transform: translate(-130px, 15px) rotate(30deg);
+                opacity: 0.7;
             }
             52% { opacity: 0; }
         }
@@ -448,25 +446,25 @@
                 transform: translateY(0) scale(0.8);
                 opacity: 0;
             }
-            20% { opacity: 0.8; }
-            80% { opacity: 0.8; }
+            20% { opacity: 0.5; }
+            80% { opacity: 0.5; }
             100% {
-                transform: translateY(-110vh) scale(1.3);
+                transform: translateY(-110vh) scale(1.2);
                 opacity: 0;
             }
         }
 
-        @keyframes pulseAqua {
+        @keyframes pulseSubtle {
             0% { opacity: 0.5; transform: translateX(-50%) scale(1); }
-            100% { opacity: 1; transform: translateX(-50%) scale(1.15); }
+            100% { opacity: 0.9; transform: translateX(-50%) scale(1.1); }
         }
 
         @keyframes rayShimmer {
-            0%, 100% { opacity: 0.2; transform: rotate(-25deg) translateY(0); }
-            50% { opacity: 0.6; transform: rotate(-22deg) translateY(10px); }
+            0%, 100% { opacity: 0.15; transform: rotate(-25deg) translateY(0); }
+            50% { opacity: 0.35; transform: rotate(-22deg) translateY(8px); }
         }
 
-        @keyframes gradientAqua {
+        @keyframes gradientHeader {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
@@ -478,14 +476,14 @@
         }
 
         @keyframes floatIcon {
-            0%, 100% { transform: translateY(0px); box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2), 0 0 15px rgba(165, 243, 252, 0.5); }
-            50% { transform: translateY(-6px); box-shadow: 0 16px 28px rgba(6, 182, 212, 0.6); }
+            0%, 100% { transform: translateY(0px); box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15); }
+            50% { transform: translateY(-5px); box-shadow: 0 14px 22px rgba(2, 132, 199, 0.35); }
         }
 
         @keyframes fadeInUp {
             from {
                 opacity: 0;
-                transform: translateY(28px) scale(0.96);
+                transform: translateY(24px) scale(0.97);
             }
             to {
                 opacity: 1;
@@ -495,24 +493,24 @@
 
         @keyframes badgePulse {
             0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.3; transform: scale(1.4); }
+            50% { opacity: 0.4; transform: scale(1.3); }
         }
 
         @media (max-width: 480px) {
-            .aqua-waves-wrapper { height: 28vh; }
-            .login-card { border-radius: 20px; }
+            .waves-wrapper { height: 26vh; }
+            .login-card { border-radius: 18px; }
         }
     </style>
 </head>
 <body>
 
-    <!-- Aqua Caustics Glow & Rays -->
-    <div class="aqua-caustics"></div>
+    <!-- Soft Ocean Ambient Glow & Rays -->
+    <div class="ocean-glow"></div>
     <div class="light-ray ray-1"></div>
     <div class="light-ray ray-2"></div>
     <div class="light-ray ray-3"></div>
 
-    <!-- Rising Crystal Aqua Bubbles -->
+    <!-- Rising Bubbles -->
     <div class="bubbles">
         <div class="bubble"></div>
         <div class="bubble"></div>
@@ -523,72 +521,72 @@
         <div class="bubble"></div>
     </div>
 
-    <!-- Swimming & Jumping Aqua Fish -->
+    <!-- Swimming & Jumping Fish (Deep Dark Ocean Theme) -->
     <div class="fish-container">
-        <!-- Fish 1 - Cyan Aqua Fish Swimming Right -->
+        <!-- Fish 1 - Soft Ocean Blue -->
         <div class="swimming-fish fish-1">
-            <svg viewBox="0 0 50 30" width="46" height="27">
-                <path d="M 10 15 C 20 5, 35 5, 45 15 C 35 25, 20 25, 10 15 Z" fill="#22d3ee"/>
-                <path d="M 10 15 L 0 5 L 4 15 L 0 25 Z" fill="#06b6d4"/> <!-- Tail -->
-                <path d="M 22 8 Q 28 3 32 8" fill="#67e8f9"/> <!-- Dorsal fin -->
+            <svg viewBox="0 0 50 30" width="44" height="26">
+                <path d="M 10 15 C 20 5, 35 5, 45 15 C 35 25, 20 25, 10 15 Z" fill="#38bdf8"/>
+                <path d="M 10 15 L 0 5 L 4 15 L 0 25 Z" fill="#0284c7"/> <!-- Tail -->
+                <path d="M 22 8 Q 28 3 32 8" fill="#7dd3fc"/> <!-- Fin -->
                 <circle cx="38" cy="12" r="2.2" fill="#ffffff"/>
-                <circle cx="39" cy="12" r="1.1" fill="#041c32"/>
+                <circle cx="39" cy="12" r="1.1" fill="#020617"/>
             </svg>
         </div>
 
-        <!-- Fish 2 - Deep Aqua Blue Swimming Left -->
+        <!-- Fish 2 - Deep Sky Blue -->
         <div class="swimming-fish fish-2">
-            <svg viewBox="0 0 50 30" width="38" height="23">
-                <path d="M 10 15 C 20 5, 35 5, 45 15 C 35 25, 20 25, 10 15 Z" fill="#38bdf8"/>
-                <path d="M 10 15 L 0 5 L 4 15 L 0 25 Z" fill="#0284c7"/> <!-- Tail -->
+            <svg viewBox="0 0 50 30" width="36" height="22">
+                <path d="M 10 15 C 20 5, 35 5, 45 15 C 35 25, 20 25, 10 15 Z" fill="#0284c7"/>
+                <path d="M 10 15 L 0 5 L 4 15 L 0 25 Z" fill="#0369a1"/>
                 <circle cx="38" cy="12" r="2" fill="#ffffff"/>
                 <circle cx="39" cy="12" r="1" fill="#0f172a"/>
             </svg>
         </div>
 
-        <!-- Fish 3 - Golden Tropical Aqua Fish Swimming Right Slow -->
+        <!-- Fish 3 - Subtle Amber Warm Fish -->
         <div class="swimming-fish fish-3">
-            <svg viewBox="0 0 50 30" width="40" height="24">
-                <path d="M 10 15 C 20 5, 35 5, 45 15 C 35 25, 20 25, 10 15 Z" fill="#facc15"/>
-                <path d="M 10 15 L 0 5 L 4 15 L 0 25 Z" fill="#eab308"/> <!-- Tail -->
+            <svg viewBox="0 0 50 30" width="38" height="23">
+                <path d="M 10 15 C 20 5, 35 5, 45 15 C 35 25, 20 25, 10 15 Z" fill="#f59e0b"/>
+                <path d="M 10 15 L 0 5 L 4 15 L 0 25 Z" fill="#d97706"/>
                 <circle cx="38" cy="12" r="2" fill="#ffffff"/>
                 <circle cx="39" cy="12" r="1" fill="#000000"/>
             </svg>
         </div>
 
-        <!-- Fish 4 - Small Electric Cyan Fish Swimming Left Fast -->
+        <!-- Fish 4 - Small Light Cyan Fish -->
         <div class="swimming-fish fish-4">
-            <svg viewBox="0 0 50 30" width="32" height="19">
-                <path d="M 10 15 C 20 5, 35 5, 45 15 C 35 25, 20 25, 10 15 Z" fill="#a5f3fc"/>
-                <path d="M 10 15 L 0 5 L 4 15 L 0 25 Z" fill="#06b6d4"/> <!-- Tail -->
+            <svg viewBox="0 0 50 30" width="30" height="18">
+                <path d="M 10 15 C 20 5, 35 5, 45 15 C 35 25, 20 25, 10 15 Z" fill="#7dd3fc"/>
+                <path d="M 10 15 L 0 5 L 4 15 L 0 25 Z" fill="#0284c7"/>
                 <circle cx="38" cy="12" r="1.8" fill="#ffffff"/>
                 <circle cx="39" cy="12" r="0.9" fill="#000000"/>
             </svg>
         </div>
 
-        <!-- Fish 5 - Jumping Fish 1 Left Side -->
+        <!-- Jumping Fish 1 -->
         <div class="jumping-fish-1">
-            <svg viewBox="0 0 50 30" width="48" height="28">
+            <svg viewBox="0 0 50 30" width="44" height="26">
                 <path d="M 10 15 C 20 5, 35 5, 45 15 C 35 25, 20 25, 10 15 Z" fill="#38bdf8"/>
                 <path d="M 10 15 L 0 5 L 4 15 L 0 25 Z" fill="#0284c7"/>
-                <circle cx="38" cy="12" r="2.5" fill="#ffffff"/>
-                <circle cx="39" cy="12" r="1.2" fill="#000000"/>
-            </svg>
-        </div>
-
-        <!-- Fish 6 - Jumping Fish 2 Right Side -->
-        <div class="jumping-fish-2">
-            <svg viewBox="0 0 50 30" width="44" height="26">
-                <path d="M 10 15 C 20 5, 35 5, 45 15 C 35 25, 20 25, 10 15 Z" fill="#67e8f9"/>
-                <path d="M 10 15 L 0 5 L 4 15 L 0 25 Z" fill="#0891b2"/>
                 <circle cx="38" cy="12" r="2.2" fill="#ffffff"/>
                 <circle cx="39" cy="12" r="1.1" fill="#000000"/>
             </svg>
         </div>
+
+        <!-- Jumping Fish 2 -->
+        <div class="jumping-fish-2">
+            <svg viewBox="0 0 50 30" width="42" height="25">
+                <path d="M 10 15 C 20 5, 35 5, 45 15 C 35 25, 20 25, 10 15 Z" fill="#7dd3fc"/>
+                <path d="M 10 15 L 0 5 L 4 15 L 0 25 Z" fill="#0369a1"/>
+                <circle cx="38" cy="12" r="2" fill="#ffffff"/>
+                <circle cx="39" cy="12" r="1" fill="#000000"/>
+            </svg>
+        </div>
     </div>
 
-    <!-- Aqua Waves SVG at bottom -->
-    <div class="aqua-waves-wrapper">
+    <!-- Waves SVG at bottom -->
+    <div class="waves-wrapper">
         <svg class="waves" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
         viewBox="0 24 150 28" preserveAspectRatio="none" shape-rendering="auto">
             <defs>
@@ -603,7 +601,7 @@
         </svg>
     </div>
 
-    <!-- Glassmorphism Login Card -->
+    <!-- Login Card Container -->
     <div class="login-card">
         <div class="login-header">
             <div class="header-icon-wrapper">
