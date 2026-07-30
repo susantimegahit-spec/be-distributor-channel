@@ -81,7 +81,7 @@ Route::get('/monitoringsm/logout', function (Request $request) {
 // 4. Custom Route Dashboard Monitoring SM (Pulse + Custom Kill User Card)
 Route::middleware(['web', \App\Http\Middleware\PulseAuthSession::class, \Laravel\Pulse\Http\Middleware\Authorize::class])->group(function () {
     Route::get('/monitoringsm', function () {
-        return view('vendor.pulse.dashboard');
+        return view('pulse::dashboard');
     });
 });
 
