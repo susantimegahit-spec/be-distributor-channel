@@ -6,19 +6,10 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+use App\Http\Middleware\BasicAuthDocs;
+
 // Route untuk memproteksi dokumentasi API dengan HTTP Basic Auth
-Route::middleware(function (\Illuminate\Http\Request $request, Closure $next) {
-    $user = $request->server('PHP_AUTH_USER');
-    $pass = $request->server('PHP_AUTH_PW');
-
-    if ($user !== 'adminsm' || $pass !== 'adminsm!') {
-        return response('Unauthorized', 401, [
-            'WWW-Authenticate' => 'Basic realm="PT Susanti Megah - API Documentation"',
-        ]);
-    }
-
-    return $next($request);
-})->group(function () {
+Route::middleware([BasicAuthDocs::class])->group(function () {
     Route::get('/docs', function () {
         $path = resource_path('docs/index.html');
         if (!file_exists($path)) {
