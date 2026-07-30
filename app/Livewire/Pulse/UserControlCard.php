@@ -9,6 +9,8 @@ use Laravel\Pulse\Livewire\Card;
 
 class UserControlCard extends Card
 {
+    public int|string|null $cols = 'full';
+    public int|string|null $rows = 2;
     public string $search = '';
     public ?string $message = null;
 
