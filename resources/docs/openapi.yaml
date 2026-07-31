@@ -7768,6 +7768,8 @@ paths:
           description: Gagal mengambil detail Inventory Transfer (Error dari SAP B1)
         '401':
           description: Tidak terautentikasi
+        '422':
+          description: Validasi input gagal (CustomQuery kosong)
 
   /v1/warehouses/inventory-transfer/cancel:
     post:
@@ -7815,8 +7817,6 @@ paths:
           description: Tidak terautentikasi
         '422':
           description: Validation error (DocEntry wajib diisi)
-        '422':
-          description: Validasi input gagal (CustomQuery kosong)
 
 components:
   securitySchemes:
