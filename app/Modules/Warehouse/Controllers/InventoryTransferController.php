@@ -172,4 +172,32 @@ class InventoryTransferController extends Controller
             return $this->errorResponse($e->getMessage(), null, 500);
         }
     }
+
+    /**
+     * Cancel Inventory Transfer in SAP.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function cancel(Request $request): JsonResponse
+    {
+        $request->validate([
+            'DocEntry' => 'required_without:doc_entry',
+        ]);
+
+        try {
+            $docEntry = (string) ($request->input('DocEntry') ?? $request->input('doc_entry'));
+            $userId = $request->user()?->id;
+
+            $result = $this->inventoryTransferService->cancelIT($docEntry, $userId);
+
+            if (isset($result['ErrorCode']) && $result['ErrorCode'] !== 0) {
+                return $this->errorResponse($result['Message'] ?? 'Gagal membatalkan Inventory Transfer', $result, 400);
+            }
+
+            return $this->successResponse($result['Result'] ?? null, $result['Message'] ?? 'Membatalkan Inventory Transfer berhasil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), null, 500);
+        }
+    }
 }

@@ -7705,24 +7705,33 @@ paths:
                   data:
                     type: object
                     properties:
+                      Series:
+                        type: string
+                        example: "5340"
                       DocEntry:
                         type: string
-                        example: "20"
+                        example: "1231"
                       DocNum:
                         type: string
-                        example: "260130001"
+                        example: "260110837"
                       DocDate:
                         type: string
-                        example: "20260102"
+                        example: "20260105"
                       FromWhsCode:
                         type: string
-                        example: "FG03-BM"
+                        example: "PRD01-04"
                       ToWhsCode:
                         type: string
-                        example: "FG03-KR"
+                        example: "FG01"
+                      CardCode:
+                        type: string
+                        example: ""
+                      CardName:
+                        type: string
+                        example: ""
                       Comments:
                         type: string
-                        example: "MUTASI BM KE KR"
+                        example: "LPB 005"
                       lines:
                         type: array
                         items:
@@ -7730,7 +7739,7 @@ paths:
                           properties:
                             DocEntry:
                               type: string
-                              example: "20"
+                              example: "1231"
                             LineNum:
                               type: string
                               example: "0"
@@ -7745,10 +7754,10 @@ paths:
                               example: "10.000000"
                             FromWhsCode:
                               type: string
-                              example: "FG03-BM"
+                              example: "PRD01-04"
                             ToWhsCode:
                               type: string
-                              example: "FG03-KR"
+                              example: "FG01"
                             Uom:
                               type: string
                               example: "Bal"
@@ -7759,6 +7768,53 @@ paths:
           description: Gagal mengambil detail Inventory Transfer (Error dari SAP B1)
         '401':
           description: Tidak terautentikasi
+
+  /v1/warehouses/inventory-transfer/cancel:
+    post:
+      summary: Cancel Inventory Transfer (IT) in SAP
+      description: Membatalkan transaksi Inventory Transfer di SAP berdasarkan DocEntry. System akan mengirimkan DocEntry, UserId (dari user login), dan AddonId (2) ke API SAP CancelIT.
+      tags:
+        - Warehouse
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocEntry
+              properties:
+                DocEntry:
+                  type: string
+                  description: Nomor DocEntry Inventory Transfer yang akan dibatalkan
+                  example: "1231"
+      responses:
+        '200':
+          description: Membatalkan Inventory Transfer berhasil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Membatalkan Inventory Transfer berhasil.
+                  data:
+                    type: object
+                    nullable: true
+                    example:
+                      DocEntry: "1231"
+        '400':
+          description: Gagal membatalkan Inventory Transfer (Error dari SAP B1)
+        '401':
+          description: Tidak terautentikasi
+        '422':
+          description: Validation error (DocEntry wajib diisi)
         '422':
           description: Validasi input gagal (CustomQuery kosong)
 

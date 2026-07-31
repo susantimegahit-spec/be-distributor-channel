@@ -16,10 +16,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::connection($this->connection)->table('production_boms', function (Blueprint $table) {
-            // Drop unique constraint on code column to allow alternate versions
-            $table->dropUnique('production_boms_code_unique');
-        });
+        try {
+            Schema::connection($this->connection)->table('production_boms', function (Blueprint $table) {
+                // Drop unique constraint on code column to allow alternate versions
+                $table->dropUnique('production_boms_code_unique');
+            });
+        } catch (\Throwable $e) {
+            // Ignore if index does not exist
+        }
     }
 
     /**

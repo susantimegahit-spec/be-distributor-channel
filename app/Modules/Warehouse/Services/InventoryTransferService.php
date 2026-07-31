@@ -186,4 +186,27 @@ class InventoryTransferService
 
         return $response->json();
     }
+
+    /**
+     * Cancel Inventory Transfer (IT) in SAP.
+     *
+     * @param string|int $docEntry
+     * @param int|null $userId
+     * @return array
+     */
+    public function cancelIT(string|int $docEntry, ?int $userId): array
+    {
+        $sapUrl = config('services.sap.url');
+        $response = Http::timeout(30)->post("{$sapUrl}/api/CancelIT", [
+            'DocEntry' => (string) $docEntry,
+            'UserId' => (int) $userId,
+            'AddonId' => 2,
+        ]);
+
+        if (!$response->successful()) {
+            throw new \Exception('Gagal menghubungi API SAP untuk membatalkan Inventory Transfer.');
+        }
+
+        return $response->json();
+    }
 }
