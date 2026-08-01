@@ -580,4 +580,19 @@ class ProductionController extends Controller
             return $this->errorResponse('Gagal menghapus Production Order: ' . $e->getMessage(), [], 500);
         }
     }
+
+    /**
+     * Submit Production Order (PDO) directly to SAP API endpoint (/api/addpdo).
+     */
+    public function addPdoSap(Request $request): JsonResponse
+    {
+        $userId = $request->user()?->id;
+
+        try {
+            $result = $this->productionService->addPdoSap($request->all(), $userId);
+            return $this->successResponse($result, 'Production Order (PDO) berhasil dikirim ke SAP.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal mengirim Production Order (PDO) ke SAP: ' . $e->getMessage(), [], 500);
+        }
+    }
 }
