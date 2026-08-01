@@ -310,6 +310,24 @@ class ProductionService
     {
         $sapUrl = config('services.sap.url', 'http://103.18.133.187:3100');
 
+        $mapShift = function ($shiftValue) {
+            $val = trim((string) $shiftValue);
+            $upper = strtoupper($val);
+            if ($upper === 'ALL' || $upper === 'X') {
+                return 'X';
+            }
+            if ($upper === 'SHIFT 1' || $upper === 'SHIFT1' || $upper === '1' || $upper === 'A') {
+                return 'A';
+            }
+            if ($upper === 'SHIFT 2' || $upper === 'SHIFT2' || $upper === '2' || $upper === 'B') {
+                return 'B';
+            }
+            if ($upper === 'SHIFT 3' || $upper === 'SHIFT3' || $upper === '3' || $upper === 'C') {
+                return 'C';
+            }
+            return $val !== '' ? $val : 'X';
+        };
+
         // Check if raw SAP payload keys are provided directly
         if (isset($data['ItemCode']) && isset($data['Lines'])) {
             $payload = [
@@ -320,7 +338,7 @@ class ProductionService
                 'DueDate'     => isset($data['DueDate']) ? date('Y-m-d\TH:i:s', strtotime($data['DueDate'])) : date('Y-m-d\TH:i:s'),
                 'WhsCode'     => (string) ($data['WhsCode'] ?? ''),
                 'Remarks'     => (string) ($data['Remarks'] ?? ''),
-                'Shift'       => (string) ($data['Shift'] ?? ''),
+                'Shift'       => $mapShift($data['Shift'] ?? ''),
                 'Unit'        => (string) ($data['Unit'] ?? ''),
                 'Bomid'       => (string) ($data['Bomid'] ?? ''),
                 'UserId'      => (string) ($data['UserId'] ?? ($userId ? (string)$userId : '1')),
@@ -376,7 +394,7 @@ class ProductionService
                 'DueDate'     => isset($data['due_date']) ? date('Y-m-d\TH:i:s', strtotime($data['due_date'])) : (isset($data['DueDate']) ? date('Y-m-d\TH:i:s', strtotime($data['DueDate'])) : date('Y-m-d\TH:i:s')),
                 'WhsCode'     => (string) ($data['warehouse'] ?? $data['whs_code'] ?? $data['to_whs'] ?? $data['WhsCode'] ?? ''),
                 'Remarks'     => (string) ($data['comments'] ?? $data['remarks'] ?? $data['Remarks'] ?? ''),
-                'Shift'       => (string) ($data['u_shift'] ?? $data['shift'] ?? $data['Shift'] ?? ''),
+                'Shift'       => $mapShift($data['u_shift'] ?? $data['shift'] ?? $data['Shift'] ?? ''),
                 'Unit'        => (string) ($data['u_unit'] ?? $data['unit'] ?? $data['Unit'] ?? ''),
                 'Bomid'       => (string) ($data['production_bom_id'] ?? $data['bom_id'] ?? $data['Bomid'] ?? ''),
                 'UserId'      => (string) ($data['user_id'] ?? $data['UserId'] ?? ($userId ? (string)$userId : '1')),

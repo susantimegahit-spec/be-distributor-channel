@@ -99,6 +99,7 @@ class AddPdoSapTest extends TestCase
         Http::assertSent(function ($request) {
             return str_contains($request->url(), '/api/addpdo') &&
                 $request['ItemCode'] === 'FG_SPECIAL_01' &&
+                $request['Shift'] === 'X' &&
                 count($request['Lines']) === 3;
         });
     }
