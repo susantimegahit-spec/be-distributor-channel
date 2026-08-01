@@ -322,6 +322,26 @@ class ProductionController extends Controller
      */
     public function storeOrder(Request $request): JsonResponse
     {
+        // Merge aliases if SAP PascalCase keys are sent
+        if ($request->has('ItemCode') && !$request->has('item_code')) {
+            $request->merge(['item_code' => $request->input('ItemCode')]);
+        }
+        if ($request->has('PlannedQty') && !$request->has('planned_qty')) {
+            $request->merge(['planned_qty' => $request->input('PlannedQty')]);
+        }
+        if ($request->has('WhsCode') && !$request->has('warehouse')) {
+            $request->merge(['warehouse' => $request->input('WhsCode')]);
+        }
+        if ($request->has('PostingDate') && !$request->has('post_date')) {
+            $request->merge(['post_date' => $request->input('PostingDate')]);
+        }
+        if ($request->has('DueDate') && !$request->has('due_date')) {
+            $request->merge(['due_date' => $request->input('DueDate')]);
+        }
+        if ($request->has('Lines') && !$request->has('details')) {
+            $request->merge(['details' => $request->input('Lines')]);
+        }
+
         $request->validate([
             'item_code' => 'required_without:product|string|max:50',
             'planned_qty' => 'required_without:quantity|numeric|min:0.0001',
@@ -357,34 +377,40 @@ class ProductionController extends Controller
         }
 
         $details = [];
-        foreach ($request->input('details', []) as $raw) {
-            $type = $raw['type'] ?? 'Item';
-            if ($type === '4' || $type === 4) {
+        $rawDetails = $request->input('details') ?? $request->input('Lines') ?? [];
+        foreach ($rawDetails as $raw) {
+            $type = $raw['type'] ?? $raw['ItemType'] ?? 'Item';
+            if ($type === '4' || $type === 4 || $type === 'I') {
                 $type = 'Item';
-            } elseif ($type === '290' || $type === 290) {
+            } elseif ($type === '290' || $type === 290 || $type === 'R') {
                 $type = 'Resource';
+            } elseif ($type === 'T') {
+                $type = 'Text';
             }
 
-            $compCode = $raw['code'] ?? $raw['item_code'] ?? null;
+            $compCode = $raw['code'] ?? $raw['item_code'] ?? $raw['ItemCode'] ?? null;
             if (is_array($raw['item'] ?? null)) {
                 $compCode = $raw['item']['value'];
             } elseif (is_string($raw['item'] ?? null)) {
                 $compCode = $raw['item'];
             }
 
+            $baseQty = floatval($raw['base_qty'] ?? $raw['baseQty'] ?? $raw['BaseQty'] ?? 1.0);
+            $pQty = floatval($raw['planned_qty'] ?? $raw['quantity'] ?? $raw['qty'] ?? ($baseQty * (floatval($plannedQty) > 0 ? floatval($plannedQty) : 1)));
+
             $details[] = [
                 'type' => $type,
                 'item_code' => $compCode,
-                'base_qty' => $raw['base_qty'] ?? $raw['baseQty'] ?? 1.0,
-                'planned_qty' => $raw['planned_qty'] ?? $raw['quantity'] ?? $raw['qty'] ?? 0.0,
-                'issued_qty' => $raw['issued_qty'] ?? $raw['issued'] ?? 0.0,
-                'available_qty' => $raw['available_qty'] ?? $raw['available'] ?? 0.0,
-                'warehouse' => $raw['warehouse'] ?? $raw['whs_code'] ?? null,
-                'issue_mthd' => $raw['issue_mthd'] ?? $raw['issueMethod'] ?? 'B',
-                'ocr_code' => $raw['ocr_code'] ?? null,
-                'ocr_code2' => $raw['ocr_code2'] ?? null,
-                'ocr_code3' => $raw['ocr_code3'] ?? null,
-                'comments' => $raw['comments'] ?? null,
+                'base_qty' => $baseQty,
+                'planned_qty' => $pQty,
+                'issued_qty' => floatval($raw['issued_qty'] ?? $raw['issued'] ?? 0.0),
+                'available_qty' => floatval($raw['available_qty'] ?? $raw['available'] ?? 0.0),
+                'warehouse' => $raw['warehouse'] ?? $raw['whs_code'] ?? $raw['WhsCode'] ?? null,
+                'issue_mthd' => $raw['issue_mthd'] ?? $raw['issueMethod'] ?? $raw['IssueMethod'] ?? 'B',
+                'ocr_code' => $raw['ocr_code'] ?? $raw['OcrCode'] ?? null,
+                'ocr_code2' => $raw['ocr_code2'] ?? $raw['OcrCode2'] ?? null,
+                'ocr_code3' => $raw['ocr_code3'] ?? $raw['OcrCode3'] ?? null,
+                'comments' => $raw['comments'] ?? $raw['Remarks'] ?? null,
                 'base_entry' => $raw['base_entry'] ?? null,
                 'base_type' => $raw['base_type'] ?? null,
                 'base_line' => $raw['base_line'] ?? null,
@@ -588,8 +614,28 @@ class ProductionController extends Controller
     {
         $userId = $request->user()?->id;
 
+        $input = $request->all();
+        if (isset($input['item_code']) && !isset($input['ItemCode'])) {
+            $input['ItemCode'] = $input['item_code'];
+        }
+        if (isset($input['planned_qty']) && !isset($input['PlannedQty'])) {
+            $input['PlannedQty'] = $input['planned_qty'];
+        }
+        if (isset($input['warehouse']) && !isset($input['WhsCode'])) {
+            $input['WhsCode'] = $input['warehouse'];
+        }
+        if (isset($input['post_date']) && !isset($input['PostingDate'])) {
+            $input['PostingDate'] = $input['post_date'];
+        }
+        if (isset($input['due_date']) && !isset($input['DueDate'])) {
+            $input['DueDate'] = $input['due_date'];
+        }
+        if (isset($input['details']) && !isset($input['Lines'])) {
+            $input['Lines'] = $input['details'];
+        }
+
         try {
-            $result = $this->productionService->addPdoSap($request->all(), $userId);
+            $result = $this->productionService->addPdoSap($input, $userId);
             return $this->successResponse($result, 'Production Order (PDO) berhasil dikirim ke SAP.');
         } catch (\Exception $e) {
             return $this->errorResponse('Gagal mengirim Production Order (PDO) ke SAP: ' . $e->getMessage(), [], 500);
