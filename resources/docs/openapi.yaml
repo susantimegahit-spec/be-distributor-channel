@@ -6978,6 +6978,125 @@ paths:
         '201':
           description: Production Order berhasil dibuat.
 
+  /v1/production/orders/sap:
+    post:
+      summary: Submit Production Order (PDO) to SAP
+      description: Mengirim data Production Order (PDO) secara langsung ke API SAP (`http://103.18.133.187:3100/api/addpdo`).
+      tags:
+        - Production Order
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ItemCode
+                - PlannedQty
+                - Lines
+              properties:
+                ItemCode:
+                  type: string
+                  example: "FG_SPECIAL_01"
+                Series:
+                  type: integer
+                  example: 15
+                PlannedQty:
+                  type: number
+                  example: 100.0
+                PostingDate:
+                  type: string
+                  example: "2026-07-31T00:00:00"
+                DueDate:
+                  type: string
+                  example: "2026-08-10T00:00:00"
+                WhsCode:
+                  type: string
+                  example: "01"
+                Remarks:
+                  type: string
+                  example: "Pembuatan barang spesial via API"
+                Shift:
+                  type: string
+                  example: "Shift 1"
+                Unit:
+                  type: string
+                  example: "Unit1"
+                Bomid:
+                  type: string
+                  example: "1312"
+                UserId:
+                  type: string
+                  example: "12"
+                AddonId:
+                  type: string
+                  example: "2"
+                Lines:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - ItemType
+                      - ItemCode
+                      - BaseQty
+                    properties:
+                      ItemType:
+                        type: string
+                        description: "I = Item, R = Resource, T = Text"
+                        example: "I"
+                      ItemCode:
+                        type: string
+                        example: "RM001"
+                      BaseQty:
+                        type: number
+                        example: 2.5
+                      WhsCode:
+                        type: string
+                        example: "01"
+                      IssueMethod:
+                        type: string
+                        description: "M = Manual, B = Backflush"
+                        example: "M"
+                      OcrCode:
+                        type: string
+                        example: "CC01"
+                      OcrCode2:
+                        type: string
+                        example: "DP01"
+                      OcrCode3:
+                        type: string
+                        example: ""
+      responses:
+        '200':
+          description: Production Order (PDO) berhasil dikirim ke SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Production Order (PDO) berhasil dikirim ke SAP.
+                  data:
+                    type: object
+                    properties:
+                      payload:
+                        type: object
+                      sap_response:
+                        type: object
+                        properties:
+                          ErrorCode:
+                            type: integer
+                            example: 0
+                          Message:
+                            type: string
+                            example: "Success create PDO"
+
   /v1/production/orders/{id}:
     get:
       summary: Get details of a production order
