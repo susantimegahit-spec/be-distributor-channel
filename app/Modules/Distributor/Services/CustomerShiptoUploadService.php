@@ -29,11 +29,11 @@ class CustomerShiptoUploadService
         $headerMap = $this->mapHeaders($rawHeaders, [
             'card_code'      => ['card_code', 'kode_customer', 'customer_code', 'cardcode'],
             'alias'          => ['alias', 'nama_alias', 'alias_destination'],
-            'transport_mode' => ['transport_mode', 'moda_pengiriman', 'moda', 'transport'],
-            'street'         => ['street', 'alamat', 'jalan', 'alamat_kirim'],
+            'transport_mode' => ['transport_mode', 'moda_pengiriman', 'moda', 'transport', 'mode'],
+            'street'         => ['street', 'street_address', 'jalan', 'alamat_kirim', 'detail_alamat'],
             'city'           => ['city', 'kota'],
-            'address'        => ['address', 'address_id', 'ship_to_code', 'kode_alamat'],
-            'name'           => ['name', 'nama', 'nama_customer', 'nama_destination'],
+            'address'        => ['address', 'address_id', 'ship_to_code', 'shipto_code', 'kode_shipto', 'kode_alamat'],
+            'name'           => ['name', 'nama', 'nama_customer', 'nama_destination', 'customer_name'],
         ]);
 
         if (!isset($headerMap['card_code'])) {

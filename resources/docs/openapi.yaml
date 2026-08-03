@@ -2406,7 +2406,7 @@ paths:
   /v1/distributors/shiptos/upload:
     post:
       summary: Upload master destination (customer shiptos) file
-      description: Upload file Excel/CSV master destination. Baris wajib berisi card_code, alias, transport_mode (D/DARAT, L/LAUT, U/UDARA), dan street.
+      description: Upload file Excel/CSV master destination. Baris wajib berisi card_code, alias, transport_mode (D/DARAT, L/LAUT, U/UDARA), dan street. Kolom opsional yang dapat disertakan meliputi address, name, dan city.
       tags:
         - Distributors
       security:
