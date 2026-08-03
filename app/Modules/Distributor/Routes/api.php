@@ -13,6 +13,7 @@ Route::prefix('v1/distributors')->middleware('auth:sanctum')->group(function () 
     Route::post('/ocr-codes/sync', [DistributorController::class, 'syncOcrCodes']);
     Route::get('/shiptos', [CustomerShiptoController::class, 'index']);
     Route::post('/shiptos/sync', [CustomerShiptoController::class, 'sync']);
+    Route::post('/shiptos/upload', [CustomerShiptoController::class, 'upload']);
     Route::get('/{id}', [DistributorController::class, 'show'])->whereNumber('id');
 });
 

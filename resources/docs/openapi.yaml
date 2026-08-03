@@ -2403,6 +2403,59 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/distributors/shiptos/upload:
+    post:
+      summary: Upload master destination (customer shiptos) file
+      description: Upload file Excel/CSV master destination. Baris wajib berisi card_code, alias, transport_mode (D/DARAT, L/LAUT, U/UDARA), dan street.
+      tags:
+        - Distributors
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File Excel/CSV (xlsx, xls, csv) maksimal 10MB
+      responses:
+        '200':
+          description: File destination master berhasil diupload dan diproses
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: File destination master berhasil diupload dan diproses.
+                  data:
+                    type: object
+                    properties:
+                      processed_count:
+                        type: integer
+                        example: 10
+                      created_count:
+                        type: integer
+                        example: 8
+                      updated_count:
+                        type: integer
+                        example: 2
+                      errors:
+                        type: array
+                        items:
+                          type: string
+                        example: []
+
   /v1/distributors/{id}:
     get:
       summary: Get distributor detail
