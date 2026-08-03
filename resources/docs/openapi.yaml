@@ -5781,7 +5781,7 @@ paths:
           required: false
           schema:
             type: string
-          description: Moda pengiriman/transportasi (misalnya DARAT, LAUT, UDARA, dll)
+          description: Moda pengiriman/transportasi. Mendukung multiple value dipisahkan koma (contoh DARAT,LAUT) atau single (contoh DARAT)
       responses:
         '200':
           description: Perankingan tarif ekspedisi berhasil diambil
@@ -8003,6 +8003,10 @@ components:
         name:
           type: string
           example: "124, TK"
+        alias:
+          type: string
+          nullable: true
+          example: "Toko Sidoarjo Central"
         address:
           type: string
           example: "Alamat Kirim"
@@ -8012,6 +8016,12 @@ components:
         street:
           type: string
           example: "PS BLURU KIDUL NO 124"
+        transport_mode:
+          type: string
+          nullable: true
+          enum: [D, L, U]
+          description: "Kode moda transportasi: D (Darat), L (Laut), U (Udara)"
+          example: "D"
         created_at:
           type: string
           format: date-time

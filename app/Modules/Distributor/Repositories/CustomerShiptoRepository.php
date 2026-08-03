@@ -26,6 +26,7 @@ class CustomerShiptoRepository implements CustomerShiptoRepositoryInterface
             $search = strtolower($filters['search']);
             $query->where(function ($q) use ($search) {
                 $q->whereRaw('LOWER(name) LIKE ?', ["%{$search}%"])
+                  ->orWhereRaw('LOWER(alias) LIKE ?', ["%{$search}%"])
                   ->orWhereRaw('LOWER(address) LIKE ?', ["%{$search}%"])
                   ->orWhereRaw('LOWER(city) LIKE ?', ["%{$search}%"])
                   ->orWhereRaw('LOWER(street) LIKE ?', ["%{$search}%"]);
@@ -50,8 +51,10 @@ class CustomerShiptoRepository implements CustomerShiptoRepositoryInterface
             ],
             [
                 'name' => $data['name'] ?? null,
+                'alias' => $data['alias'] ?? null,
                 'city' => $data['city'] ?? null,
                 'street' => $data['street'] ?? null,
+                'transport_mode' => $data['transport_mode'] ?? null,
             ]
         );
     }

@@ -175,7 +175,7 @@ class ExpeditionRateController extends Controller
             'destination' => 'required|string',
             'weight' => 'nullable|numeric|min:0',
             'service_type' => 'nullable|string',
-            'transport_mode' => 'nullable|string',
+            'transport_mode' => 'nullable',
         ]);
 
         if ($validator->fails()) {
@@ -233,7 +233,42 @@ class ExpeditionRateController extends Controller
         }
 
         if (!empty($transportMode)) {
-            $query->whereRaw('LOWER(transport_mode) = ?', [strtolower($transportMode)]);
+            $modes = is_array($transportMode)
+                ? $transportMode
+                : explode(',', (string) $transportMode);
+
+            $expandedModes = [];
+            $mapping = [
+                'd' => ['d', 'darat'],
+                'darat' => ['d', 'darat'],
+                'l' => ['l', 'laut'],
+                'laut' => ['l', 'laut'],
+                'u' => ['u', 'udara'],
+                'udara' => ['u', 'udara'],
+            ];
+
+            foreach ($modes as $item) {
+                $clean = strtolower(trim((string) $item));
+                if ($clean === '') {
+                    continue;
+                }
+                if (isset($mapping[$clean])) {
+                    $expandedModes = array_merge($expandedModes, $mapping[$clean]);
+                } else {
+                    $expandedModes[] = $clean;
+                }
+            }
+
+            $expandedModes = array_values(array_unique($expandedModes));
+
+            if (!empty($expandedModes)) {
+                $query->where(function ($q) use ($expandedModes) {
+                    $q->whereIn(\Illuminate\Support\Facades\DB::raw('LOWER(transport_mode)'), $expandedModes)
+                      ->orWhereHas('destination', function ($dq) use ($expandedModes) {
+                          $dq->whereIn(\Illuminate\Support\Facades\DB::raw('LOWER(transport_mode)'), $expandedModes);
+                      });
+                });
+            }
         }
 
         $rates = $query->orderBy('price', 'asc')->get();

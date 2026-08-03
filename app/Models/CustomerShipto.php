@@ -25,9 +25,11 @@ class CustomerShipto extends Model
     protected $fillable = [
         'card_code',
         'name',
+        'alias',
         'address',
         'city',
         'street',
+        'transport_mode',
     ];
 
     /**
