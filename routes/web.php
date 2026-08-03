@@ -85,7 +85,7 @@ Route::middleware(['web', \App\Http\Middleware\PulseAuthSession::class, \Laravel
     });
 });
 
-// 4. Route Dokumentasi API yang Dilindungi Session & Timeout 10 Menit
+// 4. Route Dokumentasi API yang Dilindungi Session & Timeout 1 Hari (86400 Detik)
 Route::middleware([DocsAuthSession::class])->group(function () {
     Route::get('/docs', function () {
         $path = resource_path('docs/index.html');
