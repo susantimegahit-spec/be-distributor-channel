@@ -110,11 +110,26 @@ class CustomerMonthlyOrderService
         }
         $data['doc_total'] = $docTotal;
 
+        // Extract attachment
+        $attachment = $data['attachment'] ?? null;
+        unset($data['attachment']);
+
         // Remove non-db columns
         unset($data['customer_code']);
         unset($data['code_customer']);
 
-        return $this->repository->create($data);
+        $cmo = $this->repository->create($data);
+
+        if ($attachment instanceof \Illuminate\Http\UploadedFile) {
+            try {
+                $this->storeAttachment($cmo->id, $attachment, $userId);
+                $cmo->load('attachments');
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to store CMO attachment: " . $e->getMessage());
+            }
+        }
+
+        return $cmo;
     }
 
     /**
@@ -149,11 +164,26 @@ class CustomerMonthlyOrderService
             $data['doc_total'] = $docTotal;
         }
 
+        // Extract attachment
+        $attachment = $data['attachment'] ?? null;
+        unset($data['attachment']);
+
         // Remove non-db columns
         unset($data['customer_code']);
         unset($data['code_customer']);
 
-        return $this->repository->update($order, $data);
+        $updatedOrder = $this->repository->update($order, $data);
+
+        if ($attachment instanceof \Illuminate\Http\UploadedFile) {
+            try {
+                $this->storeAttachment($updatedOrder->id, $attachment, $userId);
+                $updatedOrder->load('attachments');
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to update CMO attachment: " . $e->getMessage());
+            }
+        }
+
+        return $updatedOrder;
     }
 
     /**
@@ -247,11 +277,53 @@ class CustomerMonthlyOrderService
             // 3. Create the Sales Order
             $salesOrder = $this->salesOrderRepository->create($soData);
 
+            // 3b. Carry over attachments from CMO to newly created Sales Order
+            if ($order->attachments && $order->attachments->count() > 0) {
+                foreach ($order->attachments as $attachment) {
+                    \App\Models\SalesOrderAttachment::create([
+                        'sales_order_id' => $salesOrder->id,
+                        'file_name'      => $attachment->file_name,
+                        'file_path'      => $attachment->file_path,
+                        'file_type'      => $attachment->file_type,
+                        'file_size'      => $attachment->file_size,
+                        'uploaded_by'    => $attachment->uploaded_by ?? $userId,
+                    ]);
+                }
+            }
+
             // 4. Update the CMO Status to POSTED
             $order->update(['status' => 'POSTED']);
 
-            return $salesOrder;
+            return $salesOrder->load(['details.item', 'details.warehouse', 'details.vat', 'details.ocr', 'details.ocr2', 'details.ocr3', 'salesEmployee', 'sapDiscount.details', 'attachments']);
         });
+    }
+
+    /**
+     * Store the attachment file for CMO/Sales Order.
+     *
+     * @param  int  $salesOrderId
+     * @param  \Illuminate\Http\UploadedFile  $file
+     * @param  int  $userId
+     * @return \App\Models\SalesOrderAttachment
+     */
+    protected function storeAttachment(int $salesOrderId, \Illuminate\Http\UploadedFile $file, int $userId): \App\Models\SalesOrderAttachment
+    {
+        $extension = $file->getClientOriginalExtension();
+        $fileName = $file->getClientOriginalName();
+        $dateStr = now()->format('Ymd');
+        $randomStr = \Illuminate\Support\Str::random(6);
+
+        $storedFileName = "{$dateStr}_CMO_{$salesOrderId}_{$randomStr}.{$extension}";
+        $path = $file->storeAs('attachments/order', $storedFileName, 'public');
+
+        return \App\Models\SalesOrderAttachment::create([
+            'sales_order_id' => $salesOrderId,
+            'file_name'      => $fileName,
+            'file_path'      => $path,
+            'file_type'      => $file->getClientMimeType(),
+            'file_size'      => $file->getSize(),
+            'uploaded_by'    => $userId,
+        ]);
     }
 
     /**

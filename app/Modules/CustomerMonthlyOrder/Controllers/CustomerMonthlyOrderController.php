@@ -145,6 +145,7 @@ class CustomerMonthlyOrderController extends Controller
             'id_discount' => 'nullable|string|max:100',
             'series' => 'nullable|string',
             'series_name' => 'nullable|string',
+            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'lines' => 'required|array|min:1',
             'lines.*.item_code' => 'required|string|exists:items,item_code',
             'lines.*.quantity' => 'required|numeric|min:0.0001',
@@ -160,6 +161,10 @@ class CustomerMonthlyOrderController extends Controller
             'lines.*.ocr_code2' => 'nullable|string',
             'lines.*.ocr_code3' => 'nullable|string',
         ]);
+
+        if ($request->hasFile('attachment')) {
+            $payload['attachment'] = $request->file('attachment');
+        }
 
         try {
             $order = $this->service->createOrder($payload, $user->id, $distributorId);
@@ -216,6 +221,7 @@ class CustomerMonthlyOrderController extends Controller
             'id_discount' => 'nullable|string|max:100',
             'series' => 'nullable|string',
             'series_name' => 'nullable|string',
+            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'lines' => 'sometimes|required|array|min:1',
             'lines.*.item_code' => 'required|string|exists:items,item_code',
             'lines.*.quantity' => 'required|numeric|min:0.0001',
@@ -231,6 +237,10 @@ class CustomerMonthlyOrderController extends Controller
             'lines.*.ocr_code2' => 'nullable|string',
             'lines.*.ocr_code3' => 'nullable|string',
         ]);
+
+        if ($request->hasFile('attachment')) {
+            $payload['attachment'] = $request->file('attachment');
+        }
 
         try {
             $order = $this->service->updateOrder($id, $payload, $user->id, $distributorId);
