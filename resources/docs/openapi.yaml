@@ -5766,7 +5766,7 @@ paths:
           description: Kode customer tujuan (card_code, contoh C210000285) atau ID
         - name: weight
           in: query
-          required: true
+          required: false
           schema:
             type: number
           description: Berat barang dalam KG atau satuan tarif (contoh 500)
@@ -5776,6 +5776,12 @@ paths:
           schema:
             type: string
           description: Jenis layanan/tarif (misalnya TONASE, RIT, dll)
+        - name: transport_mode
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Moda pengiriman/transportasi (misalnya DARAT, LAUT, UDARA, dll)
       responses:
         '200':
           description: Perankingan tarif ekspedisi berhasil diambil

@@ -173,8 +173,9 @@ class ExpeditionRateController extends Controller
         $validator = Validator::make($request->all(), [
             'origin' => 'required|string',
             'destination' => 'required|string',
-            'weight' => 'required|numeric|min:0',
+            'weight' => 'nullable|numeric|min:0',
             'service_type' => 'nullable|string',
+            'transport_mode' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -183,8 +184,9 @@ class ExpeditionRateController extends Controller
 
         $origin = $request->get('origin');
         $destination = $request->get('destination');
-        $weight = floatval($request->get('weight'));
+        $weight = $request->filled('weight') ? floatval($request->get('weight')) : null;
         $serviceType = $request->get('service_type');
+        $transportMode = $request->get('transport_mode');
 
         // Resolve origin to warehouse ID
         $warehouse = \Illuminate\Support\Facades\DB::table('warehouses')
@@ -219,12 +221,19 @@ class ExpeditionRateController extends Controller
         $query = ExpeditionRate::with(['expedition', 'warehouse', 'destination'])
             ->where('warehouse_id', $warehouse->id)
             ->whereIn('destination_id', $shiptoIds)
-            ->where('status', 'ACTIVE')
-            ->where('min_tonnage', '<=', $weight)
-            ->where('max_tonnage', '>=', $weight);
+            ->where('status', 'ACTIVE');
+
+        if ($weight !== null) {
+            $query->where('min_tonnage', '<=', $weight)
+                ->where('max_tonnage', '>=', $weight);
+        }
 
         if (!empty($serviceType)) {
             $query->whereRaw('LOWER(service_type) = ?', [strtolower($serviceType)]);
+        }
+
+        if (!empty($transportMode)) {
+            $query->whereRaw('LOWER(transport_mode) = ?', [strtolower($transportMode)]);
         }
 
         $rates = $query->orderBy('price', 'asc')->get();
