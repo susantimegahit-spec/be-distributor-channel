@@ -38,8 +38,44 @@ class ExpeditionRateController extends Controller
             $query->where('destination_id', $request->get('destination_id'));
         }
 
-        if ($request->has('transport_mode')) {
-            $query->where('transport_mode', $request->get('transport_mode'));
+        $transportMode = $request->get('transport_mode');
+        if (!empty($transportMode)) {
+            $modes = is_array($transportMode)
+                ? $transportMode
+                : explode(',', (string) $transportMode);
+
+            $expandedModes = [];
+            $mapping = [
+                'd' => ['d', 'darat'],
+                'darat' => ['d', 'darat'],
+                'l' => ['l', 'laut'],
+                'laut' => ['l', 'laut'],
+                'u' => ['u', 'udara'],
+                'udara' => ['u', 'udara'],
+            ];
+
+            foreach ($modes as $item) {
+                $clean = strtolower(trim((string) $item));
+                if ($clean === '') {
+                    continue;
+                }
+                if (isset($mapping[$clean])) {
+                    $expandedModes = array_merge($expandedModes, $mapping[$clean]);
+                } else {
+                    $expandedModes[] = $clean;
+                }
+            }
+
+            $expandedModes = array_values(array_unique($expandedModes));
+
+            if (!empty($expandedModes)) {
+                $query->where(function ($q) use ($expandedModes) {
+                    $q->whereIn(\Illuminate\Support\Facades\DB::raw('LOWER(transport_mode)'), $expandedModes)
+                      ->orWhereHas('destination', function ($dq) use ($expandedModes) {
+                          $dq->whereIn(\Illuminate\Support\Facades\DB::raw('LOWER(transport_mode)'), $expandedModes);
+                      });
+                });
+            }
         }
 
         if ($request->has('service_type')) {
@@ -48,6 +84,26 @@ class ExpeditionRateController extends Controller
 
         if ($request->has('status')) {
             $query->where('status', $request->get('status'));
+        }
+
+        $search = $request->get('search');
+        if (!empty($search)) {
+            $searchLower = strtolower($search);
+            $query->where(function ($q) use ($searchLower) {
+                $q->whereHas('destination', function ($dq) use ($searchLower) {
+                    $dq->whereRaw('LOWER(alias) LIKE ?', ["%{$searchLower}%"])
+                      ->orWhereRaw('LOWER(name) LIKE ?', ["%{$searchLower}%"])
+                      ->orWhereRaw('LOWER(card_code) LIKE ?', ["%{$searchLower}%"])
+                      ->orWhereRaw('LOWER(city) LIKE ?', ["%{$searchLower}%"])
+                      ->orWhereRaw('LOWER(address) LIKE ?', ["%{$searchLower}%"]);
+                })->orWhereHas('expedition', function ($eq) use ($searchLower) {
+                    $eq->whereRaw('LOWER(expedition_name) LIKE ?', ["%{$searchLower}%"])
+                      ->orWhereRaw('LOWER(expedition_code) LIKE ?', ["%{$searchLower}%"]);
+                })->orWhereHas('warehouse', function ($wq) use ($searchLower) {
+                    $wq->whereRaw('LOWER(whs_name) LIKE ?', ["%{$searchLower}%"])
+                      ->orWhereRaw('LOWER(whs_code) LIKE ?', ["%{$searchLower}%"]);
+                });
+            });
         }
 
         $perPage = $request->get('per_page', 15);
