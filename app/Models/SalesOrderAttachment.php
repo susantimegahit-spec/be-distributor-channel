@@ -12,6 +12,7 @@ class SalesOrderAttachment extends Model
 
     protected $fillable = [
         'sales_order_id',
+        'customer_monthly_order_id',
         'file_name',
         'file_path',
         'file_type',
@@ -37,6 +38,14 @@ class SalesOrderAttachment extends Model
     public function salesOrder(): BelongsTo
     {
         return $this->belongsTo(SalesOrder::class);
+    }
+
+    /**
+     * Get the customer monthly order that owns the attachment.
+     */
+    public function customerMonthlyOrder(): BelongsTo
+    {
+        return $this->belongsTo(CustomerMonthlyOrder::class);
     }
 
     /**

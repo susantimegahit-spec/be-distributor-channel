@@ -75,11 +75,15 @@ class CustomerMonthlyOrder extends Model
     }
 
     /**
-     * Get the attachments (always empty for duplicate draft CMO).
+     * Get the attachments for the customer monthly order.
      */
     public function attachments(): HasMany
     {
-        return $this->hasMany(SalesOrderAttachment::class, 'sales_order_id', 'id');
+        $foreignKey = \Illuminate\Support\Facades\Schema::hasColumn('sales_order_attachments', 'customer_monthly_order_id')
+            ? 'customer_monthly_order_id'
+            : 'sales_order_id';
+
+        return $this->hasMany(SalesOrderAttachment::class, $foreignKey, 'id');
     }
 
     /**

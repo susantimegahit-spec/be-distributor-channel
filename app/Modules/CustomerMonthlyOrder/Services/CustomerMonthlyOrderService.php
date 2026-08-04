@@ -290,13 +290,8 @@ class CustomerMonthlyOrderService
             // 3b. Carry over attachments from CMO to newly created Sales Order
             if ($order->attachments && $order->attachments->count() > 0) {
                 foreach ($order->attachments as $attachment) {
-                    \App\Models\SalesOrderAttachment::create([
+                    $attachment->update([
                         'sales_order_id' => $salesOrder->id,
-                        'file_name'      => $attachment->file_name,
-                        'file_path'      => $attachment->file_path,
-                        'file_type'      => $attachment->file_type,
-                        'file_size'      => $attachment->file_size,
-                        'uploaded_by'    => $attachment->uploaded_by ?? $userId,
                     ]);
                 }
             }
@@ -311,29 +306,36 @@ class CustomerMonthlyOrderService
     /**
      * Store the attachment file for CMO/Sales Order.
      *
-     * @param  int  $salesOrderId
+     * @param  int  $cmoId
      * @param  \Illuminate\Http\UploadedFile  $file
      * @param  int  $userId
      * @return \App\Models\SalesOrderAttachment
      */
-    protected function storeAttachment(int $salesOrderId, \Illuminate\Http\UploadedFile $file, int $userId): \App\Models\SalesOrderAttachment
+    protected function storeAttachment(int $cmoId, \Illuminate\Http\UploadedFile $file, int $userId): \App\Models\SalesOrderAttachment
     {
         $extension = $file->getClientOriginalExtension();
         $fileName = $file->getClientOriginalName();
         $dateStr = now()->format('Ymd');
         $randomStr = \Illuminate\Support\Str::random(6);
 
-        $storedFileName = "{$dateStr}_CMO_{$salesOrderId}_{$randomStr}.{$extension}";
+        $storedFileName = "{$dateStr}_CMO_{$cmoId}_{$randomStr}.{$extension}";
         $path = $file->storeAs('attachments/order', $storedFileName, 'public');
 
-        return \App\Models\SalesOrderAttachment::create([
-            'sales_order_id' => $salesOrderId,
-            'file_name'      => $fileName,
-            'file_path'      => $path,
-            'file_type'      => $file->getClientMimeType(),
-            'file_size'      => $file->getSize(),
-            'uploaded_by'    => $userId,
-        ]);
+        $attachmentData = [
+            'file_name' => $fileName,
+            'file_path' => $path,
+            'file_type' => $file->getClientMimeType(),
+            'file_size' => $file->getSize(),
+            'uploaded_by' => $userId,
+        ];
+
+        if (\Illuminate\Support\Facades\Schema::hasColumn('sales_order_attachments', 'customer_monthly_order_id')) {
+            $attachmentData['customer_monthly_order_id'] = $cmoId;
+        } else {
+            $attachmentData['sales_order_id'] = $cmoId;
+        }
+
+        return \App\Models\SalesOrderAttachment::create($attachmentData);
     }
 
     /**

@@ -716,17 +716,12 @@ class SalesOrderService
             'uploaded_by' => $userId,
         ]);
 
-        // Duplicate attachment reference to associated CMO if exists
+        // Link attachment to associated CMO if exists
         if ($salesOrder->order_no) {
             $cmo = \App\Models\CustomerMonthlyOrder::where('order_no', $salesOrder->order_no)->first();
-            if ($cmo && $cmo->id !== $salesOrder->id) {
-                \App\Models\SalesOrderAttachment::create([
-                    'sales_order_id' => $cmo->id,
-                    'file_name'      => $originalName,
-                    'file_path'      => $path,
-                    'file_type'      => $file->getClientMimeType(),
-                    'file_size'      => $file->getSize(),
-                    'uploaded_by'    => $userId,
+            if ($cmo) {
+                $soAttachment->update([
+                    'customer_monthly_order_id' => $cmo->id,
                 ]);
             }
         }
