@@ -7,7 +7,7 @@ Route::prefix('v1/customer-monthly-orders')->middleware('auth:sanctum')->group(f
     Route::get('/', [CustomerMonthlyOrderController::class, 'index']);
     Route::get('/{id}', [CustomerMonthlyOrderController::class, 'show']);
     Route::post('/', [CustomerMonthlyOrderController::class, 'store']);
-    Route::put('/{id}', [CustomerMonthlyOrderController::class, 'update']);
+    Route::match(['put', 'post'], '/{id}', [CustomerMonthlyOrderController::class, 'update']);
     Route::delete('/{id}', [CustomerMonthlyOrderController::class, 'destroy']);
     Route::post('/{id}/post-to-so', [CustomerMonthlyOrderController::class, 'postToSalesOrder']);
 });

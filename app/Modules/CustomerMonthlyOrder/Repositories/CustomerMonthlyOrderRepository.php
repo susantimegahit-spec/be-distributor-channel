@@ -102,7 +102,14 @@ class CustomerMonthlyOrderRepository implements CustomerMonthlyOrderRepositoryIn
                 $order->details()->create($line);
             }
 
-            return $order->load(['details.item', 'details.warehouse', 'details.vat', 'details.ocr', 'details.ocr2', 'details.ocr3', 'salesEmployee', 'sapDiscount.details', 'attachments']);
+            $order->load(['details.item', 'details.warehouse', 'details.vat', 'details.ocr', 'details.ocr2', 'details.ocr3', 'salesEmployee', 'sapDiscount.details', 'attachments']);
+            if ($order->attachments->isEmpty() && !empty($order->order_no)) {
+                $so = \App\Models\SalesOrder::where('order_no', $order->order_no)->with('attachments')->first();
+                if ($so && $so->attachments->isNotEmpty()) {
+                    $order->setRelation('attachments', $so->attachments);
+                }
+            }
+            return $order;
         });
     }
 
@@ -126,7 +133,14 @@ class CustomerMonthlyOrderRepository implements CustomerMonthlyOrderRepositoryIn
                 $order->details()->create($line);
             }
 
-            return $order->load(['details.item', 'details.warehouse', 'details.vat', 'details.ocr', 'details.ocr2', 'details.ocr3', 'salesEmployee', 'sapDiscount.details', 'attachments']);
+            $order->load(['details.item', 'details.warehouse', 'details.vat', 'details.ocr', 'details.ocr2', 'details.ocr3', 'salesEmployee', 'sapDiscount.details', 'attachments']);
+            if ($order->attachments->isEmpty() && !empty($order->order_no)) {
+                $so = \App\Models\SalesOrder::where('order_no', $order->order_no)->with('attachments')->first();
+                if ($so && $so->attachments->isNotEmpty()) {
+                    $order->setRelation('attachments', $so->attachments);
+                }
+            }
+            return $order;
         });
     }
 
