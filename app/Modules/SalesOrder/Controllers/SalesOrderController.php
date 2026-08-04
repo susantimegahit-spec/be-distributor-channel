@@ -122,8 +122,15 @@ class SalesOrderController extends Controller
             abort(400, 'Data distributor tidak terdaftar.');
         }
 
+        $payload = $request->validated();
+        if ($request->hasFile('attachment')) {
+            $payload['attachment'] = $request->file('attachment');
+        } elseif ($request->hasFile('attachments')) {
+            $payload['attachments'] = $request->file('attachments');
+        }
+
         $salesOrder = $this->salesOrderService->createDraft(
-            $request->validated(),
+            $payload,
             $user->id,
             $distributor->id
         );
@@ -191,9 +198,16 @@ class SalesOrderController extends Controller
             abort(403, 'Anda tidak memiliki akses ke sales order ini.');
         }
 
+        $payload = $request->validated();
+        if ($request->hasFile('attachment')) {
+            $payload['attachment'] = $request->file('attachment');
+        } elseif ($request->hasFile('attachments')) {
+            $payload['attachments'] = $request->file('attachments');
+        }
+
         $salesOrder = $this->salesOrderService->updateDraft(
             $id,
-            $request->validated(),
+            $payload,
             $user->id,
             $salesOrder->distributor_id
         );
