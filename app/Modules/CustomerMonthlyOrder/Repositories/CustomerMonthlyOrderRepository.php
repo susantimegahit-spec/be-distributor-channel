@@ -48,7 +48,18 @@ class CustomerMonthlyOrderRepository implements CustomerMonthlyOrderRepositoryIn
             $query->whereDate('doc_date', '<=', $filters['end_date']);
         }
 
-        return $query->orderBy('created_at', 'desc')->get();
+        $orders = $query->orderBy('created_at', 'desc')->get();
+
+        foreach ($orders as $order) {
+            if ($order->attachments->isEmpty() && !empty($order->order_no)) {
+                $so = \App\Models\SalesOrder::where('order_no', $order->order_no)->with('attachments')->first();
+                if ($so && $so->attachments->isNotEmpty()) {
+                    $order->setRelation('attachments', $so->attachments);
+                }
+            }
+        }
+
+        return $orders;
     }
 
     /**
@@ -59,9 +70,18 @@ class CustomerMonthlyOrderRepository implements CustomerMonthlyOrderRepositoryIn
      */
     public function getById(int $id): ?CustomerMonthlyOrder
     {
-        return CustomerMonthlyOrder::query()
+        $order = CustomerMonthlyOrder::query()
             ->with(['details.item', 'details.warehouse', 'details.vat', 'details.ocr', 'details.ocr2', 'details.ocr3', 'salesEmployee', 'sapDiscount.details', 'attachments', 'distributor'])
             ->find($id);
+
+        if ($order && $order->attachments->isEmpty() && !empty($order->order_no)) {
+            $so = \App\Models\SalesOrder::where('order_no', $order->order_no)->with('attachments')->first();
+            if ($so && $so->attachments->isNotEmpty()) {
+                $order->setRelation('attachments', $so->attachments);
+            }
+        }
+
+        return $order;
     }
 
     /**

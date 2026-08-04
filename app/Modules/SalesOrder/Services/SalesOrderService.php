@@ -707,7 +707,7 @@ class SalesOrderService
         // Store file in 'public/attachments/order' directory
         $path = $file->storeAs('attachments/order', $fileName, 'public');
 
-        return \App\Models\SalesOrderAttachment::create([
+        $soAttachment = \App\Models\SalesOrderAttachment::create([
             'sales_order_id' => $salesOrder->id,
             'file_name' => $originalName,
             'file_path' => $path,
@@ -715,6 +715,23 @@ class SalesOrderService
             'file_size' => $file->getSize(),
             'uploaded_by' => $userId,
         ]);
+
+        // Duplicate attachment reference to associated CMO if exists
+        if ($salesOrder->order_no) {
+            $cmo = \App\Models\CustomerMonthlyOrder::where('order_no', $salesOrder->order_no)->first();
+            if ($cmo && $cmo->id !== $salesOrder->id) {
+                \App\Models\SalesOrderAttachment::create([
+                    'sales_order_id' => $cmo->id,
+                    'file_name'      => $originalName,
+                    'file_path'      => $path,
+                    'file_type'      => $file->getClientMimeType(),
+                    'file_size'      => $file->getSize(),
+                    'uploaded_by'    => $userId,
+                ]);
+            }
+        }
+
+        return $soAttachment;
     }
 
     /**
