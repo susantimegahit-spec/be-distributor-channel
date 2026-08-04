@@ -110,9 +110,9 @@ class CustomerMonthlyOrderService
         }
         $data['doc_total'] = $docTotal;
 
-        // Extract attachment
-        $attachment = $data['attachment'] ?? null;
-        unset($data['attachment']);
+        // Extract attachment(s)
+        $rawAttachments = $data['attachment'] ?? $data['attachments'] ?? null;
+        unset($data['attachment'], $data['attachments']);
 
         // Remove non-db columns
         unset($data['customer_code']);
@@ -120,13 +120,18 @@ class CustomerMonthlyOrderService
 
         $cmo = $this->repository->create($data);
 
-        if ($attachment instanceof \Illuminate\Http\UploadedFile) {
-            try {
-                $this->storeAttachment($cmo->id, $attachment, $userId);
-                $cmo->load('attachments');
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error("Failed to store CMO attachment: " . $e->getMessage());
+        $attachmentsList = is_array($rawAttachments) ? $rawAttachments : ($rawAttachments ? [$rawAttachments] : []);
+        foreach ($attachmentsList as $file) {
+            if ($file instanceof \Illuminate\Http\UploadedFile) {
+                try {
+                    $this->storeAttachment($cmo->id, $file, $userId);
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error("Failed to store CMO attachment: " . $e->getMessage());
+                }
             }
+        }
+        if (!empty($attachmentsList)) {
+            $cmo->load('attachments');
         }
 
         return $cmo;
@@ -164,9 +169,9 @@ class CustomerMonthlyOrderService
             $data['doc_total'] = $docTotal;
         }
 
-        // Extract attachment
-        $attachment = $data['attachment'] ?? null;
-        unset($data['attachment']);
+        // Extract attachment(s)
+        $rawAttachments = $data['attachment'] ?? $data['attachments'] ?? null;
+        unset($data['attachment'], $data['attachments']);
 
         // Remove non-db columns
         unset($data['customer_code']);
@@ -174,13 +179,18 @@ class CustomerMonthlyOrderService
 
         $updatedOrder = $this->repository->update($order, $data);
 
-        if ($attachment instanceof \Illuminate\Http\UploadedFile) {
-            try {
-                $this->storeAttachment($updatedOrder->id, $attachment, $userId);
-                $updatedOrder->load('attachments');
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error("Failed to update CMO attachment: " . $e->getMessage());
+        $attachmentsList = is_array($rawAttachments) ? $rawAttachments : ($rawAttachments ? [$rawAttachments] : []);
+        foreach ($attachmentsList as $file) {
+            if ($file instanceof \Illuminate\Http\UploadedFile) {
+                try {
+                    $this->storeAttachment($updatedOrder->id, $file, $userId);
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error("Failed to update CMO attachment: " . $e->getMessage());
+                }
             }
+        }
+        if (!empty($attachmentsList)) {
+            $updatedOrder->load('attachments');
         }
 
         return $updatedOrder;

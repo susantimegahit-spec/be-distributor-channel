@@ -100,9 +100,9 @@ class SalesOrderService
     {
         $distributor = \App\Models\Distributor::find($distributorId);
 
-        // Extract attachment
-        $attachment = $data['attachment'] ?? null;
-        unset($data['attachment']);
+        // Extract attachment(s)
+        $rawAttachments = $data['attachment'] ?? $data['attachments'] ?? null;
+        unset($data['attachment'], $data['attachments']);
 
         // Auto-generate order number
         $data['order_no'] = $this->generateOrderNumber();
@@ -122,19 +122,25 @@ class SalesOrderService
 
         $salesOrder = $this->salesOrderRepository->create($data);
 
-        // Store attachment if present
-        if ($attachment instanceof \Illuminate\Http\UploadedFile) {
-            try {
-                $this->storeAttachment($salesOrder, $attachment, $userId);
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error("Failed to store Sales Order attachment: " . $e->getMessage());
+        // Store attachment(s) if present
+        $attachmentsList = is_array($rawAttachments) ? $rawAttachments : ($rawAttachments ? [$rawAttachments] : []);
+        foreach ($attachmentsList as $file) {
+            if ($file instanceof \Illuminate\Http\UploadedFile) {
+                try {
+                    $this->storeAttachment($salesOrder, $file, $userId);
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error("Failed to store Sales Order attachment: " . $e->getMessage());
+                }
             }
         }
 
         $this->auditLogService->log(
             $userId,
-            'CREATE_SALES_ORDER_DRAFT',
-            "Created Sales Order draft {$salesOrder->order_no}."
+            'SalesOrder',
+            $salesOrder->id,
+            'CREATE',
+            null,
+            $salesOrder->toArray()
         );
 
         try {
@@ -147,17 +153,16 @@ class SalesOrderService
     }
 
     /**
-     * Update an existing draft sales order.
+     * Update an existing Sales Order draft.
      *
      * @param  int  $id
      * @param  array  $data
      * @param  int  $userId
      * @param  int  $distributorId
      * @return SalesOrder
-     *
      * @throws ValidationException
      */
-    public function updateDraft(int $id, array $data, int $userId, int $distributorId): SalesOrder
+    public function updateOrder(int $id, array $data, int $userId, int $distributorId): SalesOrder
     {
         $salesOrder = $this->getOrderById($id, $distributorId);
 
@@ -173,9 +178,9 @@ class SalesOrderService
             ]);
         }
 
-        // Extract attachment
-        $attachment = $data['attachment'] ?? null;
-        unset($data['attachment']);
+        // Extract attachment(s)
+        $rawAttachments = $data['attachment'] ?? $data['attachments'] ?? null;
+        unset($data['attachment'], $data['attachments']);
 
         $distributor = \App\Models\Distributor::find($distributorId);
         $data['customer_name'] = $distributor ? $distributor->name : $salesOrder->customer_name;
@@ -191,21 +196,26 @@ class SalesOrderService
 
         $updatedOrder = $this->salesOrderRepository->update($salesOrder, $data);
 
-        // Store attachment if present
-        if ($attachment instanceof \Illuminate\Http\UploadedFile) {
-            try {
-                // Delete old files from storage and database
-                $oldAttachments = $updatedOrder->attachments;
-                foreach ($oldAttachments as $oldAttachment) {
-                    if (\Illuminate\Support\Facades\Storage::disk('public')->exists($oldAttachment->file_path)) {
-                        \Illuminate\Support\Facades\Storage::disk('public')->delete($oldAttachment->file_path);
-                    }
-                    $oldAttachment->delete();
+        // Store attachment(s) if present
+        $attachmentsList = is_array($rawAttachments) ? $rawAttachments : ($rawAttachments ? [$rawAttachments] : []);
+        if (!empty($attachmentsList)) {
+            // Delete old files from storage and database
+            $oldAttachments = $updatedOrder->attachments;
+            foreach ($oldAttachments as $oldAttachment) {
+                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($oldAttachment->file_path)) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($oldAttachment->file_path);
                 }
+                $oldAttachment->delete();
+            }
 
-                $this->storeAttachment($updatedOrder, $attachment, $userId);
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error("Failed to update Sales Order attachment: " . $e->getMessage());
+            foreach ($attachmentsList as $file) {
+                if ($file instanceof \Illuminate\Http\UploadedFile) {
+                    try {
+                        $this->storeAttachment($updatedOrder, $file, $userId);
+                    } catch (\Exception $e) {
+                        \Illuminate\Support\Facades\Log::error("Failed to update Sales Order attachment: " . $e->getMessage());
+                    }
+                }
             }
         }
 

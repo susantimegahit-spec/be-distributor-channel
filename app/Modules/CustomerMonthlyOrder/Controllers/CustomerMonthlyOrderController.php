@@ -145,7 +145,8 @@ class CustomerMonthlyOrderController extends Controller
             'id_discount' => 'nullable|string|max:100',
             'series' => 'nullable|string',
             'series_name' => 'nullable|string',
-            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'attachment' => 'nullable',
+            'attachments' => 'nullable',
             'lines' => 'required|array|min:1',
             'lines.*.item_code' => 'required|string|exists:items,item_code',
             'lines.*.quantity' => 'required|numeric|min:0.0001',
@@ -164,6 +165,8 @@ class CustomerMonthlyOrderController extends Controller
 
         if ($request->hasFile('attachment')) {
             $payload['attachment'] = $request->file('attachment');
+        } elseif ($request->hasFile('attachments')) {
+            $payload['attachments'] = $request->file('attachments');
         }
 
         try {
@@ -221,7 +224,8 @@ class CustomerMonthlyOrderController extends Controller
             'id_discount' => 'nullable|string|max:100',
             'series' => 'nullable|string',
             'series_name' => 'nullable|string',
-            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'attachment' => 'nullable',
+            'attachments' => 'nullable',
             'lines' => 'sometimes|required|array|min:1',
             'lines.*.item_code' => 'required|string|exists:items,item_code',
             'lines.*.quantity' => 'required|numeric|min:0.0001',
@@ -240,6 +244,8 @@ class CustomerMonthlyOrderController extends Controller
 
         if ($request->hasFile('attachment')) {
             $payload['attachment'] = $request->file('attachment');
+        } elseif ($request->hasFile('attachments')) {
+            $payload['attachments'] = $request->file('attachments');
         }
 
         try {
