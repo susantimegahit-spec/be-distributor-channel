@@ -438,12 +438,13 @@ class SalesDashboardService
         ->get();
 
         // --- 2. CMO realtime langsung dari customer_monthly_orders ---
-        // Ini memastikan CMO muncul meski belum di-sync ke sales_dashboard_data
+        // Hanya hitung CMO status DRAFT (belum diposting jadi SO)
+        // Yang sudah POSTED tidak dihitung karena sudah masuk ke SO
         $cmoQuery = DB::table('customer_monthly_order_details as cmod')
             ->join('customer_monthly_orders as cmo', 'cmo.id', '=', 'cmod.customer_monthly_order_id')
             ->join('items as i', 'i.item_code', '=', 'cmod.item_code')
             ->whereYear('cmo.doc_date', $year)
-            ->whereNotIn('cmo.status', ['DRAFT', 'REJECTED'])
+            ->where('cmo.status', 'DRAFT')
             ->whereNotNull('i.brand')
             ->where('i.brand', '!=', '');
 
@@ -597,13 +598,14 @@ class SalesDashboardService
         // 1. Sync CMO
         // Gunakan line_total dari cmod (sudah mencerminkan qty * price dengan diskon)
         // JANGAN pakai per_kg karena bisa 0/NULL dan menyebabkan cmo_amount = 0
+        // Hanya sync CMO status DRAFT (belum diposting jadi SO)
         $cmoDetails = DB::table('customer_monthly_order_details as cmod')
             ->join('customer_monthly_orders as cmo', 'cmo.id', '=', 'cmod.customer_monthly_order_id')
             ->join('items as i', 'i.item_code', '=', 'cmod.item_code')
             ->whereYear('cmo.doc_date', $year)
             ->where('cmo.card_code', $customerCode)
             ->whereIn('i.brand', $brands)
-            ->whereNotIn('cmo.status', ['DRAFT', 'REJECTED'])
+            ->where('cmo.status', 'DRAFT')
             ->select(
                 DB::raw($cmoMonthSql . ' as month'),
                 'i.brand',
