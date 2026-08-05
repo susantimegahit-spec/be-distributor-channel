@@ -114,6 +114,14 @@ class AppServiceProvider extends ServiceProvider
             \App\Modules\SalesReturn\Repositories\SalesReturnRepositoryInterface::class,
             \App\Modules\SalesReturn\Repositories\SalesReturnRepository::class
         );
+        $this->app->bind(
+            \App\Modules\Budgeting\Repositories\MasterBudgetRepositoryInterface::class,
+            \App\Modules\Budgeting\Repositories\MasterBudgetRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\PurchasingRequest\Repositories\PurchaseRequestRepositoryInterface::class,
+            \App\Modules\PurchasingRequest\Repositories\PurchaseRequestRepository::class
+        );
     }
 
     /**
