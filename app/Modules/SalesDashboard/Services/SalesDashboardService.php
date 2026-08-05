@@ -402,27 +402,31 @@ class SalesDashboardService
      */
     public function getComparison(int $year, array $filters = []): array
     {
-        $query = DB::table('sales_dashboard_data')
+        $driver = DB::connection()->getDriverName();
+        $cmoMonthSql = $driver === 'pgsql' ? 'EXTRACT(MONTH FROM cmo.doc_date)' : 'MONTH(cmo.doc_date)';
+
+        // --- 1. Data dari sales_dashboard_data (Target, SO, DO) ---
+        $dashQuery = DB::table('sales_dashboard_data')
             ->where('year', $year);
 
         if (!empty($filters['customer_code'])) {
             $custCodes = array_map('trim', explode(',', $filters['customer_code']));
             if (count($custCodes) > 1) {
-                $query->whereIn('customer_code', $custCodes);
+                $dashQuery->whereIn('customer_code', $custCodes);
             } else {
-                $query->where('customer_code', $custCodes[0]);
+                $dashQuery->where('customer_code', $custCodes[0]);
             }
         }
 
         if (!empty($filters['month'])) {
-            $query->where('month', (int)$filters['month']);
+            $dashQuery->where('month', (int)$filters['month']);
         }
 
         if (!empty($filters['brands'])) {
-            $query->whereIn('brand', $filters['brands']);
+            $dashQuery->whereIn('brand', $filters['brands']);
         }
 
-        $records = $query->select(
+        $dashRecords = $dashQuery->select(
             'month',
             'brand',
             DB::raw('SUM(target_amount) as target_amount'),
@@ -431,17 +435,53 @@ class SalesDashboardService
             DB::raw('SUM(do_amount) as do_amount')
         )
         ->groupBy('month', 'brand')
-        ->orderBy('brand', 'asc')
-        ->orderBy('month', 'asc')
         ->get();
 
-        // Determine unique brands
+        // --- 2. CMO realtime langsung dari customer_monthly_orders ---
+        // Ini memastikan CMO muncul meski belum di-sync ke sales_dashboard_data
+        $cmoQuery = DB::table('customer_monthly_order_details as cmod')
+            ->join('customer_monthly_orders as cmo', 'cmo.id', '=', 'cmod.customer_monthly_order_id')
+            ->join('items as i', 'i.item_code', '=', 'cmod.item_code')
+            ->whereYear('cmo.doc_date', $year)
+            ->whereNotIn('cmo.status', ['DRAFT', 'REJECTED'])
+            ->whereNotNull('i.brand')
+            ->where('i.brand', '!=', '');
+
+        if (!empty($filters['customer_code'])) {
+            $custCodes = array_map('trim', explode(',', $filters['customer_code']));
+            if (count($custCodes) > 1) {
+                $cmoQuery->whereIn('cmo.card_code', $custCodes);
+            } else {
+                $cmoQuery->where('cmo.card_code', $custCodes[0]);
+            }
+        }
+
+        if (!empty($filters['month'])) {
+            $cmoQuery->whereRaw("{$cmoMonthSql} = ?", [(int)$filters['month']]);
+        }
+
+        if (!empty($filters['brands'])) {
+            $cmoQuery->whereIn('i.brand', $filters['brands']);
+        }
+
+        $cmoRecords = $cmoQuery->select(
+            DB::raw($cmoMonthSql . ' as month'),
+            'i.brand',
+            DB::raw('SUM(cmod.line_total) as cmo_amount')
+        )
+        ->groupBy(DB::raw($cmoMonthSql), 'i.brand')
+        ->get()
+        ->keyBy(fn($r) => $r->brand . '_' . (int)$r->month);
+
+        // --- 3. Tentukan unique brands ---
+        $brandsFromDash = $dashRecords->pluck('brand')->filter()->unique();
+        $brandsFromCmo = $cmoRecords->values()->pluck('brand')->filter()->unique();
         if (!empty($filters['brands'])) {
             $uniqueBrands = $filters['brands'];
         } else {
-            $uniqueBrands = $records->pluck('brand')->unique()->filter()->toArray();
+            $uniqueBrands = $brandsFromDash->merge($brandsFromCmo)->unique()->filter()->values()->toArray();
             if (empty($uniqueBrands)) {
-                // Fallback to active brands in items table if no target records exist yet
+                // Fallback ke brand dari items jika belum ada data sama sekali
                 $uniqueBrands = DB::table('items')
                     ->whereNotNull('brand')
                     ->where('brand', '!=', '')
@@ -451,10 +491,10 @@ class SalesDashboardService
             }
         }
 
-        // Determine range of months
+        // --- 4. Tentukan range bulan ---
         $monthsToGenerate = !empty($filters['month']) ? [(int)$filters['month']] : range(1, 12);
 
-        // Pre-populate grid
+        // --- 5. Pre-populate grid ---
         $grid = [];
         foreach ($uniqueBrands as $brand) {
             foreach ($monthsToGenerate as $m) {
@@ -469,8 +509,8 @@ class SalesDashboardService
             }
         }
 
-        // Fill real records
-        foreach ($records as $rec) {
+        // --- 6. Isi dari sales_dashboard_data (target, so, do; cmo sebagai fallback) ---
+        foreach ($dashRecords as $rec) {
             $brand = $rec->brand;
             $month = (int)$rec->month;
             if (isset($grid[$brand][$month])) {
@@ -481,7 +521,20 @@ class SalesDashboardService
             }
         }
 
-        // Flatten data
+        // --- 7. Override cmo_amount dengan data realtime dari CMO table ---
+        // Data realtime selalu lebih akurat daripada yang tersimpan di dashboard_data
+        foreach ($cmoRecords as $key => $rec) {
+            $brand = $rec->brand;
+            $month = (int)$rec->month;
+            if (isset($grid[$brand][$month])) {
+                $grid[$brand][$month]['cmo_amount'] = (float)$rec->cmo_amount;
+            } elseif (in_array($brand, $uniqueBrands) && in_array($month, $monthsToGenerate)) {
+                // Brand ada tapi belum ada di grid (dari CMO tapi belum ada di dashboard_data)
+                $grid[$brand][$month]['cmo_amount'] = (float)$rec->cmo_amount;
+            }
+        }
+
+        // --- 8. Flatten data ---
         $formatted = [];
         $totals = [
             'target' => 0.00,
@@ -542,16 +595,19 @@ class SalesDashboardService
         $soMonthSql = $driver === 'pgsql' ? 'EXTRACT(MONTH FROM so.doc_date)' : 'MONTH(so.doc_date)';
 
         // 1. Sync CMO
+        // Gunakan line_total dari cmod (sudah mencerminkan qty * price dengan diskon)
+        // JANGAN pakai per_kg karena bisa 0/NULL dan menyebabkan cmo_amount = 0
         $cmoDetails = DB::table('customer_monthly_order_details as cmod')
             ->join('customer_monthly_orders as cmo', 'cmo.id', '=', 'cmod.customer_monthly_order_id')
             ->join('items as i', 'i.item_code', '=', 'cmod.item_code')
             ->whereYear('cmo.doc_date', $year)
             ->where('cmo.card_code', $customerCode)
             ->whereIn('i.brand', $brands)
+            ->whereNotIn('cmo.status', ['DRAFT', 'REJECTED'])
             ->select(
                 DB::raw($cmoMonthSql . ' as month'),
                 'i.brand',
-                DB::raw('SUM(cmod.quantity * COALESCE(i.per_kg, 0)) as total_cmo')
+                DB::raw('SUM(cmod.line_total) as total_cmo')
             )
             ->groupBy(DB::raw($cmoMonthSql), 'i.brand')
             ->get();
