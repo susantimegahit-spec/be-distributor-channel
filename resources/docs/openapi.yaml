@@ -8699,6 +8699,346 @@ paths:
         '422':
           description: Validation error.
 
+  /v1/cron-jobs:
+    get:
+      summary: Get Cron Job list with search and filter
+      tags:
+        - Cron Jobs & Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search by name, command, or description
+        - name: is_active
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filter active/inactive status
+      responses:
+        '200':
+          description: Daftar cron job berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar cron job berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CronJob'
+
+    post:
+      summary: Create new Cron Job schedule
+      tags:
+        - Cron Jobs & Monitoring
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - command
+                - expression
+              properties:
+                name:
+                  type: string
+                  example: Sync Master Products
+                command:
+                  type: string
+                  example: sync:master-products
+                expression:
+                  type: string
+                  example: "0 0 * * *"
+                is_active:
+                  type: boolean
+                  example: true
+                description:
+                  type: string
+                  nullable: true
+                  example: Sinkronisasi master produk otomatis setiap tengah malam.
+      responses:
+        '201':
+          description: Cron job berhasil dibuat.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Cron job berhasil dibuat.
+                  data:
+                    $ref: '#/components/schemas/CronJob'
+        '422':
+          description: Validation error.
+
+  /v1/cron-jobs/logs/all:
+    get:
+      summary: Get real-time execution logs across all cron jobs (Monitoring)
+      tags:
+        - Cron Jobs & Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [running, success, failed]
+          description: Filter status eksekusi
+        - name: cron_job_id
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter ID cron job
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search term (message/nama cron/command)
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+          description: Items per page
+      responses:
+        '200':
+          description: Daftar monitoring log eksekusi cron job berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar monitoring log eksekusi cron job berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CronJobLog'
+
+  /v1/cron-jobs/{id}:
+    get:
+      summary: Get Cron Job detail
+      tags:
+        - Cron Jobs & Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Cron Job ID
+      responses:
+        '200':
+          description: Detail cron job berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Detail cron job berhasil diambil.
+                  data:
+                    $ref: '#/components/schemas/CronJob'
+        '404':
+          description: Cron job tidak ditemukan.
+
+    put:
+      summary: Update Cron Job
+      tags:
+        - Cron Jobs & Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Cron Job ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Sync Master Products Updated
+                command:
+                  type: string
+                  example: sync:master-products
+                expression:
+                  type: string
+                  example: "*/15 * * * *"
+                is_active:
+                  type: boolean
+                  example: true
+                description:
+                  type: string
+                  nullable: true
+                  example: Sync setiap 15 menit.
+      responses:
+        '200':
+          description: Cron job berhasil diupdate.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Cron job berhasil diupdate.
+                  data:
+                    $ref: '#/components/schemas/CronJob'
+        '404':
+          description: Cron job tidak ditemukan.
+        '422':
+          description: Validation error.
+
+    delete:
+      summary: Delete Cron Job
+      tags:
+        - Cron Jobs & Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Cron Job ID
+      responses:
+        '200':
+          description: Cron job berhasil dihapus.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Cron job berhasil dihapus.
+                  data:
+                    type: object
+                    nullable: true
+        '404':
+          description: Cron job tidak ditemukan.
+
+  /v1/cron-jobs/{id}/run:
+    post:
+      summary: Trigger manual execution of a Cron Job
+      tags:
+        - Cron Jobs & Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Cron Job ID
+      responses:
+        '200':
+          description: Cron Job berhasil dijalankan.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Cron Job berhasil dijalankan.
+                  data:
+                    $ref: '#/components/schemas/CronJob'
+        '404':
+          description: Cron job tidak ditemukan.
+        '500':
+          description: Cron Job gagal dijalankan.
+
+  /v1/cron-jobs/{id}/logs:
+    get:
+      summary: Get execution logs of a specific Cron Job
+      tags:
+        - Cron Jobs & Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Cron Job ID
+      responses:
+        '200':
+          description: Riwayat log cron job berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Riwayat log cron job berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CronJobLog'
+        '404':
+          description: Cron job tidak ditemukan.
+
 components:
   securitySchemes:
     BearerAuth:
@@ -11396,5 +11736,83 @@ components:
           type: string
           format: date-time
           example: "2026-08-05T10:00:00.000000Z"
+
+    CronJob:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Sync Master Products
+        command:
+          type: string
+          example: sync:master-products
+        expression:
+          type: string
+          example: "0 0 * * *"
+        description:
+          type: string
+          nullable: true
+          example: Sinkronisasi master produk otomatis setiap tengah malam.
+        is_active:
+          type: boolean
+          example: true
+        last_run_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-08-06T00:00:00.000000Z"
+        last_run_status:
+          type: string
+          nullable: true
+          example: success
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-08-01T10:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-08-06T00:00:00.000000Z"
+
+    CronJobLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        cron_job_id:
+          type: integer
+          example: 1
+        run_at:
+          type: string
+          format: date-time
+          example: "2026-08-06T00:00:00.000000Z"
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-08-06T00:00:05.000000Z"
+        status:
+          type: string
+          example: success
+        duration_seconds:
+          type: integer
+          example: 5
+        message:
+          type: string
+          nullable: true
+          example: Executed successfully via manual trigger.
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-08-06T00:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-08-06T00:00:05.000000Z"
+
 
 

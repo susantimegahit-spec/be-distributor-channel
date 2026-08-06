@@ -18,10 +18,65 @@ class CronJobController extends Controller
     /**
      * Display a listing of the cron jobs.
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $cronJobs = CronJob::orderBy('name', 'asc')->get();
+        $query = CronJob::query();
+
+        if ($request->has('search') && !empty($request->input('search'))) {
+            $search = '%' . $request->input('search') . '%';
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', $search)
+                  ->orWhere('command', 'like', $search)
+                  ->orWhere('description', 'like', $search);
+            });
+        }
+
+        if ($request->has('is_active')) {
+            $query->where('is_active', filter_var($request->input('is_active'), FILTER_VALIDATE_BOOLEAN));
+        }
+
+        $cronJobs = $query->orderBy('name', 'asc')->get();
         return $this->successResponse($cronJobs, 'Daftar cron job berhasil diambil.');
+    }
+
+    /**
+     * Store a newly created cron job in storage.
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'command' => 'required|string|max:255',
+            'expression' => 'required|string|max:100',
+            'description' => 'nullable|string',
+            'is_active' => 'sometimes|boolean',
+        ]);
+
+        $parts = explode(' ', $validated['expression']);
+        if (count($parts) !== 5 && !str_starts_with($validated['expression'], '@')) {
+            return $this->errorResponse('Format ekspresi cron tidak valid. Harus memiliki 5 bagian (misal: */15 * * * *).', null, 422);
+        }
+
+        $validated['is_active'] = $validated['is_active'] ?? true;
+        $cronJob = CronJob::create($validated);
+
+        return $this->successResponse($cronJob, 'Cron job berhasil dibuat.', 201);
+    }
+
+    /**
+     * Display the specified cron job detail.
+     */
+    public function show(int $id): JsonResponse
+    {
+        $cronJob = CronJob::with(['logs' => function ($q) {
+            $q->orderBy('run_at', 'desc')->limit(10);
+        }])->find($id);
+
+        if (!$cronJob) {
+            return $this->errorResponse('Cron job tidak ditemukan.', null, 404);
+        }
+
+        return $this->successResponse($cronJob, 'Detail cron job berhasil diambil.');
     }
 
     /**
@@ -36,20 +91,40 @@ class CronJobController extends Controller
         }
 
         $validated = $request->validate([
-            'expression' => 'required|string',
-            'is_active' => 'required|boolean',
+            'name' => 'sometimes|required|string|max:255',
+            'command' => 'sometimes|required|string|max:255',
+            'expression' => 'sometimes|required|string|max:100',
+            'is_active' => 'sometimes|boolean',
             'description' => 'nullable|string',
         ]);
 
-        // Simple validation for cron expression format (must have 5 fields or be a predefined string like @daily)
-        $parts = explode(' ', $validated['expression']);
-        if (count($parts) !== 5 && !str_starts_with($validated['expression'], '@')) {
-            return $this->errorResponse('Format ekspresi cron tidak valid. Harus memiliki 5 bagian (misal: */15 * * * *).');
+        if (isset($validated['expression'])) {
+            $parts = explode(' ', $validated['expression']);
+            if (count($parts) !== 5 && !str_starts_with($validated['expression'], '@')) {
+                return $this->errorResponse('Format ekspresi cron tidak valid. Harus memiliki 5 bagian (misal: */15 * * * *).', null, 422);
+            }
         }
 
         $cronJob->update($validated);
 
         return $this->successResponse($cronJob, 'Cron job berhasil diupdate.');
+    }
+
+    /**
+     * Remove the specified cron job from storage.
+     */
+    public function destroy(int $id): JsonResponse
+    {
+        $cronJob = CronJob::find($id);
+
+        if (!$cronJob) {
+            return $this->errorResponse('Cron job tidak ditemukan.', null, 404);
+        }
+
+        $cronJob->logs()->delete();
+        $cronJob->delete();
+
+        return $this->successResponse(null, 'Cron job berhasil dihapus.');
     }
 
     /**
@@ -106,7 +181,7 @@ class CronJobController extends Controller
     }
 
     /**
-     * Display the execution logs of a cron job.
+     * Display the execution logs of a specific cron job.
      */
     public function logs(int $id): JsonResponse
     {
@@ -123,4 +198,37 @@ class CronJobController extends Controller
 
         return $this->successResponse($logs, 'Riwayat log cron job berhasil diambil.');
     }
+
+    /**
+     * Display real-time execution logs across all cron jobs with filters and pagination.
+     */
+    public function allLogs(Request $request): JsonResponse
+    {
+        $query = CronJobLog::with('cronJob');
+
+        if ($request->has('status') && !empty($request->input('status'))) {
+            $query->where('status', $request->input('status'));
+        }
+
+        if ($request->has('cron_job_id') && !empty($request->input('cron_job_id'))) {
+            $query->where('cron_job_id', $request->input('cron_job_id'));
+        }
+
+        if ($request->has('search') && !empty($request->input('search'))) {
+            $search = '%' . $request->input('search') . '%';
+            $query->where(function ($q) use ($search) {
+                $q->where('message', 'like', $search)
+                  ->orWhereHas('cronJob', function ($cq) use ($search) {
+                      $cq->where('name', 'like', $search)
+                         ->orWhere('command', 'like', $search);
+                  });
+            });
+        }
+
+        $perPage = (int)$request->query('per_page', 20);
+        $logs = $query->orderBy('run_at', 'desc')->paginate($perPage);
+
+        return $this->successResponse($logs, 'Daftar monitoring log eksekusi cron job berhasil diambil.');
+    }
 }
+
