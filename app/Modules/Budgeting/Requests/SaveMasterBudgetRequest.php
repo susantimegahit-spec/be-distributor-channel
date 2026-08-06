@@ -16,7 +16,7 @@ class SaveMasterBudgetRequest extends FormRequest
         $id = $this->route('master_budget') ?? $this->route('id');
 
         return [
-            'budget_code' => 'required|string|max:50|unique:master_budgets,budget_code,' . $id,
+            'budget_code' => 'nullable|string|max:50|unique:master_budgets,budget_code,' . $id,
             'department' => 'required|string|max:100',
             'cost_center' => 'required|string|max:100',
             'budget_category' => 'nullable|string|max:100',
