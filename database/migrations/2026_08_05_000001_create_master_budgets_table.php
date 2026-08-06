@@ -17,7 +17,7 @@ return new class extends Migration
                 $table->string('budget_code', 50)->unique();
                 $table->string('department', 100);
                 $table->string('cost_center', 100);
-                $table->string('budget_category', 100);
+                $table->string('budget_category', 100)->nullable();
                 $table->decimal('budget_amount', 20, 2)->default(0.00);
                 $table->decimal('used_amount', 20, 2)->default(0.00);
                 $table->unsignedSmallInteger('period_month')->nullable(); // 1-12

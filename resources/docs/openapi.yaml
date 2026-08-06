@@ -8105,7 +8105,6 @@ paths:
                 - budget_code
                 - department
                 - cost_center
-                - budget_category
                 - budget_amount
                 - period_year
                 - status
@@ -8121,6 +8120,7 @@ paths:
                   example: CC-FIN-01
                 budget_category:
                   type: string
+                  nullable: true
                   example: OPERATIONAL
                 budget_amount:
                   type: number
@@ -8215,7 +8215,6 @@ paths:
                 - budget_code
                 - department
                 - cost_center
-                - budget_category
                 - budget_amount
                 - period_year
                 - status
@@ -8231,6 +8230,7 @@ paths:
                   example: CC-FIN-01
                 budget_category:
                   type: string
+                  nullable: true
                   example: OPERATIONAL
                 budget_amount:
                   type: number
@@ -11587,6 +11587,7 @@ components:
           example: CC-FIN-01
         budget_category:
           type: string
+          nullable: true
           example: OPERATIONAL
         budget_amount:
           type: number
