@@ -40,6 +40,22 @@ class CronJobController extends Controller
     }
 
     /**
+     * Clean command string by stripping 'php artisan' or 'artisan' prefix if present.
+     */
+    private function cleanCommand(string $command): string
+    {
+        $cmd = trim($command);
+        if (str_starts_with($cmd, 'php artisan ')) {
+            $cmd = substr($cmd, 12);
+        } elseif (str_starts_with($cmd, 'artisan ')) {
+            $cmd = substr($cmd, 8);
+        } elseif (str_starts_with($cmd, 'php ')) {
+            $cmd = substr($cmd, 4);
+        }
+        return trim($cmd);
+    }
+
+    /**
      * Store a newly created cron job in storage.
      */
     public function store(Request $request): JsonResponse
@@ -51,6 +67,8 @@ class CronJobController extends Controller
             'description' => 'nullable|string',
             'is_active' => 'sometimes|boolean',
         ]);
+
+        $validated['command'] = $this->cleanCommand($validated['command']);
 
         $parts = explode(' ', $validated['expression']);
         if (count($parts) !== 5 && !str_starts_with($validated['expression'], '@')) {
@@ -97,6 +115,10 @@ class CronJobController extends Controller
             'is_active' => 'sometimes|boolean',
             'description' => 'nullable|string',
         ]);
+
+        if (isset($validated['command'])) {
+            $validated['command'] = $this->cleanCommand($validated['command']);
+        }
 
         if (isset($validated['expression'])) {
             $parts = explode(' ', $validated['expression']);
@@ -147,7 +169,8 @@ class CronJobController extends Controller
 
         try {
             $outputBuffer = new BufferedOutput();
-            Artisan::call($cronJob->command, [], $outputBuffer);
+            $command = $this->cleanCommand($cronJob->command);
+            Artisan::call($command, [], $outputBuffer);
             $output = $outputBuffer->fetch();
 
             $cronJob->update([
