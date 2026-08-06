@@ -8103,7 +8103,6 @@ paths:
               type: object
               required:
                 - department
-                - cost_center
                 - budget_amount
                 - period_year
                 - status
@@ -8118,6 +8117,7 @@ paths:
                   example: FINANCE
                 cost_center:
                   type: string
+                  nullable: true
                   example: CC-FIN-01
                 budget_category:
                   type: string
@@ -8213,21 +8213,21 @@ paths:
             schema:
               type: object
               required:
-                - budget_code
                 - department
-                - cost_center
                 - budget_amount
                 - period_year
                 - status
               properties:
                 budget_code:
                   type: string
+                  nullable: true
                   example: BDG-2026-001
                 department:
                   type: string
                   example: FINANCE
                 cost_center:
                   type: string
+                  nullable: true
                   example: CC-FIN-01
                 budget_category:
                   type: string
@@ -11585,6 +11585,7 @@ components:
           example: FINANCE
         cost_center:
           type: string
+          nullable: true
           example: CC-FIN-01
         budget_category:
           type: string
