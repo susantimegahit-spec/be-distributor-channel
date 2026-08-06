@@ -8002,6 +8002,703 @@ paths:
         '422':
           description: Validation error (DocEntry wajib diisi)
 
+  /v1/budgeting/master-budgets:
+    get:
+      summary: Get Master Budget list with filters and pagination
+      tags:
+        - Budgeting
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: department
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter department
+        - name: cost_center
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter cost center
+        - name: budget_category
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter budget category
+        - name: period_year
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter period year (e.g. 2026)
+        - name: period_month
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter period month (1-12)
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE, CLOSED]
+          description: Filter status
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search term (budget_code, description, department, cost_center)
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 15
+          description: Items per page
+        - name: paginate
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+          description: Enable or disable pagination
+      responses:
+        '200':
+          description: Data Master Budget berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data Master Budget berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MasterBudget'
+
+    post:
+      summary: Create new Master Budget
+      tags:
+        - Budgeting
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - budget_code
+                - department
+                - cost_center
+                - budget_category
+                - budget_amount
+                - period_year
+                - status
+              properties:
+                budget_code:
+                  type: string
+                  example: BDG-2026-001
+                department:
+                  type: string
+                  example: FINANCE
+                cost_center:
+                  type: string
+                  example: CC-FIN-01
+                budget_category:
+                  type: string
+                  example: OPERATIONAL
+                budget_amount:
+                  type: number
+                  example: 50000000
+                period_month:
+                  type: integer
+                  nullable: true
+                  example: 8
+                period_year:
+                  type: integer
+                  example: 2026
+                status:
+                  type: string
+                  enum: [ACTIVE, INACTIVE, CLOSED]
+                  example: ACTIVE
+                description:
+                  type: string
+                  nullable: true
+                  example: Budget Operasional Q3
+      responses:
+        '201':
+          description: Master Budget berhasil dibuat.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Master Budget berhasil dibuat.
+                  data:
+                    $ref: '#/components/schemas/MasterBudget'
+        '422':
+          description: Validation error.
+
+  /v1/budgeting/master-budgets/{id}:
+    get:
+      summary: Get Master Budget detail
+      tags:
+        - Budgeting
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Master Budget ID
+      responses:
+        '200':
+          description: Detail Master Budget berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Detail Master Budget berhasil diambil.
+                  data:
+                    $ref: '#/components/schemas/MasterBudget'
+        '404':
+          description: Master Budget tidak ditemukan.
+
+    put:
+      summary: Update Master Budget
+      tags:
+        - Budgeting
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Master Budget ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - budget_code
+                - department
+                - cost_center
+                - budget_category
+                - budget_amount
+                - period_year
+                - status
+              properties:
+                budget_code:
+                  type: string
+                  example: BDG-2026-001
+                department:
+                  type: string
+                  example: FINANCE
+                cost_center:
+                  type: string
+                  example: CC-FIN-01
+                budget_category:
+                  type: string
+                  example: OPERATIONAL
+                budget_amount:
+                  type: number
+                  example: 60000000
+                period_month:
+                  type: integer
+                  nullable: true
+                  example: 8
+                period_year:
+                  type: integer
+                  example: 2026
+                status:
+                  type: string
+                  enum: [ACTIVE, INACTIVE, CLOSED]
+                  example: ACTIVE
+                description:
+                  type: string
+                  nullable: true
+                  example: Revision Budget Operasional Q3
+      responses:
+        '200':
+          description: Master Budget berhasil diperbarui.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Master Budget berhasil diperbarui.
+                  data:
+                    $ref: '#/components/schemas/MasterBudget'
+        '404':
+          description: Master Budget tidak ditemukan.
+        '422':
+          description: Validation error.
+
+    delete:
+      summary: Delete Master Budget
+      tags:
+        - Budgeting
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Master Budget ID
+      responses:
+        '200':
+          description: Master Budget berhasil dihapus.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Master Budget berhasil dihapus.
+                  data:
+                    type: object
+                    nullable: true
+        '404':
+          description: Master Budget tidak ditemukan.
+
+  /v1/purchasing-request/requests:
+    get:
+      summary: Get Purchase Request list
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: department
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter department
+        - name: cost_center
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter cost center
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [DRAFT, SUBMITTED, APPROVED, REJECTED, CANCELLED, COMPLETED]
+          description: Filter status
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search term (pr_number, requester_name, remarks)
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 15
+          description: Items per page
+      responses:
+        '200':
+          description: Data Purchase Request berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data Purchase Request berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/PurchaseRequest'
+
+    post:
+      summary: Create new Purchase Request
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pr_number
+                - department
+                - cost_center
+                - doc_date
+                - status
+                - details
+              properties:
+                pr_number:
+                  type: string
+                  example: PR-2026-001
+                department:
+                  type: string
+                  example: FINANCE
+                cost_center:
+                  type: string
+                  example: CC-FIN-01
+                requester_name:
+                  type: string
+                  nullable: true
+                  example: John Doe
+                doc_date:
+                  type: string
+                  format: date
+                  example: "2026-08-05"
+                required_date:
+                  type: string
+                  format: date
+                  nullable: true
+                  example: "2026-08-15"
+                status:
+                  type: string
+                  enum: [DRAFT, SUBMITTED, APPROVED, REJECTED, CANCELLED, COMPLETED]
+                  example: DRAFT
+                remarks:
+                  type: string
+                  nullable: true
+                  example: Pengadaan Perlengkapan Kantor
+                details:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - item_description
+                      - quantity
+                      - unit_price
+                    properties:
+                      master_budget_id:
+                        type: integer
+                        nullable: true
+                        example: 1
+                      item_code:
+                        type: string
+                        nullable: true
+                        example: ITEM-001
+                      item_description:
+                        type: string
+                        example: Laptop ThinkPad T14
+                      quantity:
+                        type: number
+                        example: 1
+                      uom:
+                        type: string
+                        nullable: true
+                        example: UNIT
+                      unit_price:
+                        type: number
+                        example: 15000000
+                      remarks:
+                        type: string
+                        nullable: true
+                        example: Specs Core i7, RAM 16GB
+      responses:
+        '201':
+          description: Purchase Request berhasil dibuat.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Purchase Request berhasil dibuat.
+                  data:
+                    $ref: '#/components/schemas/PurchaseRequest'
+        '422':
+          description: Validation error.
+
+  /v1/purchasing-request/requests/{id}:
+    get:
+      summary: Get Purchase Request detail
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Purchase Request ID
+      responses:
+        '200':
+          description: Detail Purchase Request berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Detail Purchase Request berhasil diambil.
+                  data:
+                    $ref: '#/components/schemas/PurchaseRequest'
+        '404':
+          description: Purchase Request tidak ditemukan.
+
+    put:
+      summary: Update Purchase Request
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Purchase Request ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pr_number
+                - department
+                - cost_center
+                - doc_date
+                - status
+                - details
+              properties:
+                pr_number:
+                  type: string
+                  example: PR-2026-001
+                department:
+                  type: string
+                  example: FINANCE
+                cost_center:
+                  type: string
+                  example: CC-FIN-01
+                requester_name:
+                  type: string
+                  nullable: true
+                  example: John Doe
+                doc_date:
+                  type: string
+                  format: date
+                  example: "2026-08-05"
+                required_date:
+                  type: string
+                  format: date
+                  nullable: true
+                  example: "2026-08-15"
+                status:
+                  type: string
+                  enum: [DRAFT, SUBMITTED, APPROVED, REJECTED, CANCELLED, COMPLETED]
+                  example: SUBMITTED
+                remarks:
+                  type: string
+                  nullable: true
+                  example: Revision Pengadaan Laptop
+                details:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - item_description
+                      - quantity
+                      - unit_price
+                    properties:
+                      master_budget_id:
+                        type: integer
+                        nullable: true
+                        example: 1
+                      item_code:
+                        type: string
+                        nullable: true
+                        example: ITEM-001
+                      item_description:
+                        type: string
+                        example: Laptop ThinkPad T14
+                      quantity:
+                        type: number
+                        example: 1
+                      uom:
+                        type: string
+                        nullable: true
+                        example: UNIT
+                      unit_price:
+                        type: number
+                        example: 15000000
+                      remarks:
+                        type: string
+                        nullable: true
+                        example: Specs Core i7, RAM 16GB
+      responses:
+        '200':
+          description: Purchase Request berhasil diperbarui.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Purchase Request berhasil diperbarui.
+                  data:
+                    $ref: '#/components/schemas/PurchaseRequest'
+        '404':
+          description: Purchase Request tidak ditemukan.
+        '422':
+          description: Validation error.
+
+    delete:
+      summary: Delete Purchase Request
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Purchase Request ID
+      responses:
+        '200':
+          description: Purchase Request berhasil dihapus.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Purchase Request berhasil dihapus.
+                  data:
+                    type: object
+                    nullable: true
+        '404':
+          description: Purchase Request tidak ditemukan.
+
+  /v1/purchasing-request/requests/{id}/status:
+    post:
+      summary: Update Purchase Request Status
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Purchase Request ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [DRAFT, SUBMITTED, APPROVED, REJECTED, CANCELLED, COMPLETED]
+                  example: APPROVED
+                remarks:
+                  type: string
+                  nullable: true
+                  example: Approved by Manager
+      responses:
+        '200':
+          description: Status Purchase Request berhasil diperbarui.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Status Purchase Request berhasil diperbarui.
+                  data:
+                    $ref: '#/components/schemas/PurchaseRequest'
+        '404':
+          description: Purchase Request tidak ditemukan.
+        '422':
+          description: Validation error.
+
 components:
   securitySchemes:
     BearerAuth:
@@ -10532,4 +11229,172 @@ components:
           type: string
           format: date-time
           example: "2026-07-25T10:00:00.000000Z"
+
+    MasterBudget:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        budget_code:
+          type: string
+          example: BDG-2026-001
+        department:
+          type: string
+          example: FINANCE
+        cost_center:
+          type: string
+          example: CC-FIN-01
+        budget_category:
+          type: string
+          example: OPERATIONAL
+        budget_amount:
+          type: number
+          example: 50000000
+        used_amount:
+          type: number
+          example: 10000000
+        remaining_amount:
+          type: number
+          example: 40000000
+        period_month:
+          type: integer
+          nullable: true
+          example: 8
+        period_year:
+          type: integer
+          example: 2026
+        status:
+          type: string
+          example: ACTIVE
+        description:
+          type: string
+          nullable: true
+          example: Budget Operasional Q3
+        created_by:
+          type: integer
+          nullable: true
+          example: 1
+        updated_by:
+          type: integer
+          nullable: true
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-08-05T10:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-08-05T10:00:00.000000Z"
+
+    PurchaseRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        pr_number:
+          type: string
+          example: PR-2026-001
+        department:
+          type: string
+          example: FINANCE
+        cost_center:
+          type: string
+          example: CC-FIN-01
+        requester_id:
+          type: integer
+          nullable: true
+          example: 1
+        requester_name:
+          type: string
+          nullable: true
+          example: John Doe
+        doc_date:
+          type: string
+          format: date
+          example: "2026-08-05"
+        required_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-08-15"
+        total_amount:
+          type: number
+          example: 15000000
+        status:
+          type: string
+          example: DRAFT
+        remarks:
+          type: string
+          nullable: true
+          example: Pengadaan Perlengkapan Kantor
+        created_by:
+          type: integer
+          nullable: true
+          example: 1
+        updated_by:
+          type: integer
+          nullable: true
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-08-05T10:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-08-05T10:00:00.000000Z"
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseRequestDetail'
+
+    PurchaseRequestDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        purchase_request_id:
+          type: integer
+          example: 1
+        master_budget_id:
+          type: integer
+          nullable: true
+          example: 1
+        item_code:
+          type: string
+          nullable: true
+          example: ITEM-001
+        item_description:
+          type: string
+          example: Laptop ThinkPad T14
+        quantity:
+          type: number
+          example: 1
+        uom:
+          type: string
+          nullable: true
+          example: UNIT
+        unit_price:
+          type: number
+          example: 15000000
+        total_price:
+          type: number
+          example: 15000000
+        remarks:
+          type: string
+          nullable: true
+          example: Specs Core i7, RAM 16GB
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-08-05T10:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-08-05T10:00:00.000000Z"
+
 
