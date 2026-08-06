@@ -404,6 +404,7 @@ class SalesDashboardService
     {
         $driver = DB::connection()->getDriverName();
         $cmoMonthSql = $driver === 'pgsql' ? 'EXTRACT(MONTH FROM cmo.doc_date)' : 'MONTH(cmo.doc_date)';
+        $soMonthSql = $driver === 'pgsql' ? 'EXTRACT(MONTH FROM so.doc_date)' : 'MONTH(so.doc_date)';
 
         // --- 1. Data dari sales_dashboard_data (Target, SO, DO) ---
         $dashQuery = DB::table('sales_dashboard_data')
@@ -439,7 +440,6 @@ class SalesDashboardService
 
         // --- 2. CMO realtime langsung dari customer_monthly_orders ---
         // Hanya hitung CMO status DRAFT (belum diposting jadi SO)
-        // Yang sudah POSTED tidak dihitung karena sudah masuk ke SO
         $cmoQuery = DB::table('customer_monthly_order_details as cmod')
             ->join('customer_monthly_orders as cmo', 'cmo.id', '=', 'cmod.customer_monthly_order_id')
             ->join('items as i', 'i.item_code', '=', 'cmod.item_code')
@@ -474,13 +474,92 @@ class SalesDashboardService
         ->get()
         ->keyBy(fn($r) => $r->brand . '_' . (int)$r->month);
 
-        // --- 3. Tentukan unique brands ---
+        // --- 3. SO realtime langsung dari sales_orders & sales_order_details ---
+        // Hitung semua SO yang sudah diproses (status selain DRAFT, REJECTED, FAILED)
+        $soQuery = DB::table('sales_order_details as sod')
+            ->join('sales_orders as so', 'so.id', '=', 'sod.sales_order_id')
+            ->leftJoin('items as i', 'i.item_code', '=', 'sod.item_code')
+            ->whereYear('so.doc_date', $year)
+            ->whereNotIn('so.status', ['DRAFT', 'REJECTED', 'FAILED'])
+            ->whereNotNull('i.brand')
+            ->where('i.brand', '!=', '');
+
+        if (!empty($filters['customer_code'])) {
+            $custCodes = array_map('trim', explode(',', $filters['customer_code']));
+            if (count($custCodes) > 1) {
+                $soQuery->whereIn('so.card_code', $custCodes);
+            } else {
+                $soQuery->where('so.card_code', $custCodes[0]);
+            }
+        }
+
+        if (!empty($filters['month'])) {
+            $soQuery->whereRaw("{$soMonthSql} = ?", [(int)$filters['month']]);
+        }
+
+        if (!empty($filters['brands'])) {
+            $soQuery->whereIn('i.brand', $filters['brands']);
+        }
+
+        $soRecords = $soQuery->select(
+            DB::raw($soMonthSql . ' as month'),
+            'i.brand',
+            DB::raw('SUM(sod.line_total) as so_amount')
+        )
+        ->groupBy(DB::raw($soMonthSql), 'i.brand')
+        ->get()
+        ->keyBy(fn($r) => $r->brand . '_' . (int)$r->month);
+
+        // --- 4. DO realtime langsung dari sales_orders (DELIVERY / ARRIVED / COMPLETED) ---
+        $doQuery = DB::table('sales_order_details as sod')
+            ->join('sales_orders as so', 'so.id', '=', 'sod.sales_order_id')
+            ->leftJoin('items as i', 'i.item_code', '=', 'sod.item_code')
+            ->whereYear('so.doc_date', $year)
+            ->whereIn('so.status', ['DELIVERY', 'ARRIVED', 'COMPLETED'])
+            ->whereNotNull('i.brand')
+            ->where('i.brand', '!=', '');
+
+        if (!empty($filters['customer_code'])) {
+            $custCodes = array_map('trim', explode(',', $filters['customer_code']));
+            if (count($custCodes) > 1) {
+                $doQuery->whereIn('so.card_code', $custCodes);
+            } else {
+                $doQuery->where('so.card_code', $custCodes[0]);
+            }
+        }
+
+        if (!empty($filters['month'])) {
+            $doQuery->whereRaw("{$soMonthSql} = ?", [(int)$filters['month']]);
+        }
+
+        if (!empty($filters['brands'])) {
+            $doQuery->whereIn('i.brand', $filters['brands']);
+        }
+
+        $doRecords = $doQuery->select(
+            DB::raw($soMonthSql . ' as month'),
+            'i.brand',
+            DB::raw('SUM(sod.line_total) as do_amount')
+        )
+        ->groupBy(DB::raw($soMonthSql), 'i.brand')
+        ->get()
+        ->keyBy(fn($r) => $r->brand . '_' . (int)$r->month);
+
+        // --- 5. Tentukan unique brands ---
         $brandsFromDash = $dashRecords->pluck('brand')->filter()->unique();
         $brandsFromCmo = $cmoRecords->values()->pluck('brand')->filter()->unique();
+        $brandsFromSo = $soRecords->values()->pluck('brand')->filter()->unique();
+        $brandsFromDo = $doRecords->values()->pluck('brand')->filter()->unique();
+
         if (!empty($filters['brands'])) {
             $uniqueBrands = $filters['brands'];
         } else {
-            $uniqueBrands = $brandsFromDash->merge($brandsFromCmo)->unique()->filter()->values()->toArray();
+            $uniqueBrands = $brandsFromDash
+                ->merge($brandsFromCmo)
+                ->merge($brandsFromSo)
+                ->merge($brandsFromDo)
+                ->unique()->filter()->values()->toArray();
+
             if (empty($uniqueBrands)) {
                 // Fallback ke brand dari items jika belum ada data sama sekali
                 $uniqueBrands = DB::table('items')
@@ -492,10 +571,10 @@ class SalesDashboardService
             }
         }
 
-        // --- 4. Tentukan range bulan ---
+        // --- 6. Tentukan range bulan ---
         $monthsToGenerate = !empty($filters['month']) ? [(int)$filters['month']] : range(1, 12);
 
-        // --- 5. Pre-populate grid ---
+        // --- 7. Pre-populate grid ---
         $grid = [];
         foreach ($uniqueBrands as $brand) {
             foreach ($monthsToGenerate as $m) {
@@ -510,7 +589,7 @@ class SalesDashboardService
             }
         }
 
-        // --- 6. Isi dari sales_dashboard_data (target, so, do; cmo sebagai fallback) ---
+        // --- 8. Isi dari sales_dashboard_data (target, so, do; cmo sebagai fallback) ---
         foreach ($dashRecords as $rec) {
             $brand = $rec->brand;
             $month = (int)$rec->month;
@@ -522,20 +601,35 @@ class SalesDashboardService
             }
         }
 
-        // --- 7. Override cmo_amount dengan data realtime dari CMO table ---
-        // Data realtime selalu lebih akurat daripada yang tersimpan di dashboard_data
+        // --- 9. Override cmo_amount dengan data realtime dari CMO table ---
         foreach ($cmoRecords as $key => $rec) {
             $brand = $rec->brand;
             $month = (int)$rec->month;
             if (isset($grid[$brand][$month])) {
                 $grid[$brand][$month]['cmo_amount'] = (float)$rec->cmo_amount;
-            } elseif (in_array($brand, $uniqueBrands) && in_array($month, $monthsToGenerate)) {
-                // Brand ada tapi belum ada di grid (dari CMO tapi belum ada di dashboard_data)
-                $grid[$brand][$month]['cmo_amount'] = (float)$rec->cmo_amount;
             }
         }
 
-        // --- 8. Flatten data ---
+        // --- 10. Override/Merge SO realtime dari sales_orders table ---
+        foreach ($soRecords as $key => $rec) {
+            $brand = $rec->brand;
+            $month = (int)$rec->month;
+            if (isset($grid[$brand][$month])) {
+                // Ambil nilai maksimal antara realtime SO dan data dashboard
+                $grid[$brand][$month]['so_amount'] = max((float)$grid[$brand][$month]['so_amount'], (float)$rec->so_amount);
+            }
+        }
+
+        // --- 11. Override/Merge DO realtime dari sales_orders table ---
+        foreach ($doRecords as $key => $rec) {
+            $brand = $rec->brand;
+            $month = (int)$rec->month;
+            if (isset($grid[$brand][$month])) {
+                $grid[$brand][$month]['do_amount'] = max((float)$grid[$brand][$month]['do_amount'], (float)$rec->do_amount);
+            }
+        }
+
+        // --- 12. Flatten data ---
         $formatted = [];
         $totals = [
             'target' => 0.00,
