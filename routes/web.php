@@ -48,56 +48,57 @@ Route::get('/docs/logout', function (Request $request) {
 // MONITORING SM (PULSE) AUTHENTICATION ROUTES
 // ----------------------------------------------------
 
-// 1. Halaman Login Monitoring SM
-Route::get('/monitoringsm/login', function () {
-    if (session('pulse_authenticated')) {
-        return redirect('/monitoringsm/hub');
-    }
-    return view('pulse-login');
+Route::middleware('web')->prefix('monitoringsm')->group(function () {
+
+    // Login & Logout (public - no PulseAuthSession guard)
+    Route::get('/login', function () {
+        if (session('pulse_authenticated')) {
+            return redirect('/monitoringsm/hub');
+        }
+        return view('pulse-login');
+    });
+
+    Route::post('/login', function (Request $request) {
+        $username = $request->input('username');
+        $password = $request->input('password');
+
+        if ($username === 'adminsm' && $password === 'adminsm!') {
+            $request->session()->put('pulse_authenticated', true);
+            $request->session()->put('pulse_last_activity', time());
+            $request->session()->save();
+            return redirect('/monitoringsm/hub');
+        }
+
+        return redirect('/monitoringsm/login')->with('error', 'Username atau password admin yang Anda masukkan salah!');
+    });
+
+    Route::get('/logout', function (Request $request) {
+        $request->session()->forget(['pulse_authenticated', 'pulse_last_activity']);
+        return redirect('/monitoringsm/login');
+    });
+
+    // Protected Routes (require PulseAuthSession + Pulse Authorize)
+    Route::middleware([\App\Http\Middleware\PulseAuthSession::class, \Laravel\Pulse\Http\Middleware\Authorize::class])->group(function () {
+        // Admin Hub: Navigation Center after Login
+        Route::get('/hub', function () {
+            return view('admin-hub');
+        });
+
+        // Laravel Pulse System Monitoring
+        Route::get('/', function () {
+            return view('monitoring-dashboard');
+        });
+
+        // B2B API Key Monitoring & Management
+        Route::get('/api-keys', [\App\Http\Controllers\ApiKeyWebController::class, 'index']);
+        Route::post('/api-keys/generate', [\App\Http\Controllers\ApiKeyWebController::class, 'store']);
+        Route::post('/api-keys/{id}/toggle', [\App\Http\Controllers\ApiKeyWebController::class, 'toggleStatus']);
+        Route::post('/api-keys/{id}/delete', [\App\Http\Controllers\ApiKeyWebController::class, 'destroy']);
+    });
 });
 
-// 2. Proses Login Monitoring SM
-Route::post('/monitoringsm/login', function (Request $request) {
-    $username = $request->input('username');
-    $password = $request->input('password');
-
-    if ($username === 'adminsm' && $password === 'adminsm!') {
-        session([
-            'pulse_authenticated' => true,
-            'pulse_last_activity' => time(),
-        ]);
-        return redirect('/monitoringsm/hub');
-    }
-
-    return redirect('/monitoringsm/login')->with('error', 'Username atau password admin yang Anda masukkan salah!');
-});
-
-// 3. Proses Logout Monitoring SM
-Route::get('/monitoringsm/logout', function (Request $request) {
-    $request->session()->forget(['pulse_authenticated', 'pulse_last_activity']);
-    return redirect('/monitoringsm/login');
-});
-
-// 4. Custom Route Dashboard Monitoring SM & API Keys Dashboard
 use App\Http\Controllers\ApiKeyWebController;
 
-Route::middleware(['web', \App\Http\Middleware\PulseAuthSession::class, \Laravel\Pulse\Http\Middleware\Authorize::class])->group(function () {
-    // Admin Hub: Navigation Center after Login
-    Route::get('/monitoringsm/hub', function () {
-        return view('admin-hub');
-    });
-
-    // Laravel Pulse System Monitoring
-    Route::get('/monitoringsm', function () {
-        return view('monitoring-dashboard');
-    });
-
-    // B2B API Key Monitoring & Management
-    Route::get('/monitoringsm/api-keys', [ApiKeyWebController::class, 'index']);
-    Route::post('/monitoringsm/api-keys/generate', [ApiKeyWebController::class, 'store']);
-    Route::post('/monitoringsm/api-keys/{id}/toggle', [ApiKeyWebController::class, 'toggleStatus']);
-    Route::post('/monitoringsm/api-keys/{id}/delete', [ApiKeyWebController::class, 'destroy']);
-});
 
 // 4. Route Dokumentasi API yang Dilindungi Session & Timeout 1 Hari (86400 Detik)
 Route::middleware([DocsAuthSession::class])->group(function () {
