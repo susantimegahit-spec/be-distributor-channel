@@ -24,10 +24,15 @@ paths:
             schema:
               type: object
               required:
+                - card_code
                 - distributor_ref_no
                 - doc_date
                 - lines
               properties:
+                card_code:
+                  type: string
+                  example: "C110003074"
+                  description: Kode Customer/Distributor di sistem PT Susanti Megah
                 distributor_ref_no:
                   type: string
                   example: "PO-DIST-202608-001"
