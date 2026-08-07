@@ -74,6 +74,10 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->prepend(\Illuminatech\MultipartMiddleware\MultipartFormDataParser::class);
+        $middleware->validateCsrfTokens(except: [
+            'monitoringsm/*',
+            'docs/*',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->render(function (\Illuminate\Validation\ValidationException $e, \Illuminate\Http\Request $request) {
