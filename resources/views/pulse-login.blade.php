@@ -226,7 +226,6 @@
             @endif
 
             <form action="{{ url('/monitoringsm/login') }}" method="POST">
-                @csrf
                 <div class="form-group">
                     <label for="username">Username Admin</label>
                     <input type="text" id="username" name="username" class="form-control" placeholder="Masukkan username" required autofocus autocomplete="username">
