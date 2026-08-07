@@ -27,22 +27,24 @@ class AuthenticateDistributorApiKey
 
         $hashedKey = DistributorApiKey::hashKey($token);
 
-        $apiKey = DistributorApiKey::with('distributor')
+        $apiKey = DistributorApiKey::with('distributors')
             ->where('api_key_hash', $hashedKey)
             ->where('is_active', true)
             ->first();
 
-        if (!$apiKey || !$apiKey->distributor) {
+        if (!$apiKey || $apiKey->distributors->isEmpty()) {
             return response()->json([
                 'success' => false,
-                'message' => 'API Key tidak valid atau telah dinonaktifkan.',
+                'message' => 'API Key tidak valid, telah dinonaktifkan, atau tidak memiliki distributor yang terdaftar.',
             ], 401);
         }
 
         // IP Whitelisting Check (if allowed_ips is configured)
         if (!empty($apiKey->allowed_ips)) {
             $clientIp = $request->ip();
-            $allowedIps = is_array($apiKey->allowed_ips) ? $apiKey->allowed_ips : array_map('trim', explode(',', $apiKey->allowed_ips));
+            $allowedIps = is_array($apiKey->allowed_ips)
+                ? $apiKey->allowed_ips
+                : array_map('trim', explode(',', $apiKey->allowed_ips));
 
             if (!in_array($clientIp, $allowedIps)) {
                 return response()->json([
@@ -55,9 +57,14 @@ class AuthenticateDistributorApiKey
         // Update last_used_at timestamp silently
         $apiKey->updateQuietly(['last_used_at' => now()]);
 
-        // Inject distributor context into request
-        $request->attributes->set('distributor', $apiKey->distributor);
+        // Inject all allowed distributors & api key into request context
+        $request->attributes->set('allowed_distributors', $apiKey->distributors);
         $request->attributes->set('distributor_api_key', $apiKey);
+
+        // For backward compat: inject single 'distributor' if only 1 exists
+        if ($apiKey->distributors->count() === 1) {
+            $request->attributes->set('distributor', $apiKey->distributors->first());
+        }
 
         return $next($request);
     }

@@ -159,7 +159,7 @@
                 <table class="w-full text-left text-sm text-slate-300">
                     <thead class="bg-slate-900/90 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800">
                         <tr>
-                            <th class="py-3.5 px-4">Distributor</th>
+                            <th class="py-3.5 px-4">Distributor(s)</th>
                             <th class="py-3.5 px-4">Label / Nama Sistem</th>
                             <th class="py-3.5 px-4">Prefix Key</th>
                             <th class="py-3.5 px-4">Allowed IPs</th>
@@ -172,8 +172,15 @@
                         @forelse($apiKeys as $key)
                             <tr class="hover:bg-slate-900/50 transition">
                                 <td class="py-4 px-4">
-                                    <div class="font-semibold text-slate-100">{{ $key->distributor?->name ?? '-' }}</div>
-                                    <div class="text-xs font-mono text-slate-400 mt-0.5">{{ $key->distributor?->code_customer ?? '-' }}</div>
+                                    @if($key->company_name)
+                                        <div class="font-semibold text-amber-300 text-xs mb-1">{{ $key->company_name }}</div>
+                                    @endif
+                                    @forelse($key->distributors as $dist)
+                                        <div class="text-xs text-slate-200">{{ $dist->name }}</div>
+                                        <div class="text-[11px] font-mono text-slate-500">{{ $dist->code_customer }}</div>
+                                    @empty
+                                        <span class="text-slate-500 italic text-xs">Tidak ada distributor</span>
+                                    @endforelse
                                 </td>
                                 <td class="py-4 px-4 font-medium text-slate-200">
                                     {{ $key->name }}
@@ -253,22 +260,32 @@
                 <button onclick="document.getElementById('generateModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-200 text-xl font-bold">&times;</button>
             </div>
 
-            <form action="/monitoringsm/api-keys/generate" method="POST" class="space-y-4 text-xs sm:text-sm">
+            <form action="/monitoringsm/api-keys/generate" method="POST" class="space-y-4 text-xs sm:text-sm max-h-[80vh] overflow-y-auto pr-1">
                 @csrf
 
                 <div>
-                    <label class="block font-medium text-slate-300 mb-1">Pilih Distributor <span class="text-rose-400">*</span></label>
-                    <select name="distributor_id" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-200 focus:outline-none focus:border-amber-500 transition">
-                        <option value="">-- Pilih Distributor --</option>
-                        @foreach($distributors as $d)
-                            <option value="{{ $d->id }}">{{ $d->name }} ({{ $d->code_customer }})</option>
-                        @endforeach
-                    </select>
+                    <label class="block font-medium text-slate-300 mb-1">Nama Perusahaan (Opsional)</label>
+                    <input type="text" name="company_name" placeholder="Contoh: PT Sakti Setia Santosa" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-200 focus:outline-none focus:border-amber-500 transition">
+                    <p class="text-[11px] text-slate-500 mt-1">Label grup perusahaan jika 1 key digunakan untuk banyak distributor.</p>
                 </div>
 
                 <div>
                     <label class="block font-medium text-slate-300 mb-1">Label / Nama Sistem Integrasi <span class="text-rose-400">*</span></label>
-                    <input type="text" name="name" placeholder="Contoh: ERP Distributor Surabaya" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-200 focus:outline-none focus:border-amber-500 transition">
+                    <input type="text" name="name" placeholder="Contoh: ERP Sakti Setia Santosa" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-200 focus:outline-none focus:border-amber-500 transition">
+                </div>
+
+                <div>
+                    <label class="block font-medium text-slate-300 mb-2">Pilih Distributor <span class="text-rose-400">*</span> <span class="text-slate-500 font-normal">(bisa lebih dari 1)</span></label>
+                    <input type="text" id="distSearch" placeholder="🔍 Cari nama distributor..." oninput="filterDist(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 text-xs focus:outline-none focus:border-amber-500 transition mb-2">
+                    <div id="distList" class="bg-slate-950 border border-slate-800 rounded-xl max-h-48 overflow-y-auto p-2 space-y-1">
+                        @foreach($distributors as $d)
+                            <label class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-800 cursor-pointer dist-item">
+                                <input type="checkbox" name="distributor_ids[]" value="{{ $d->id }}" class="accent-amber-500">
+                                <span class="text-slate-200">{{ $d->name }}</span>
+                                <span class="text-slate-500 font-mono ml-auto text-[11px]">{{ $d->code_customer }}</span>
+                            </label>
+                        @endforeach
+                    </div>
                 </div>
 
                 <div>
@@ -289,7 +306,7 @@
         </div>
     </div>
 
-    <!-- Script for Clipboard Copy -->
+    <!-- Scripts -->
     <script>
         function copyToClipboard() {
             const keyText = document.getElementById('rawApiKeyText').innerText.trim();
@@ -305,6 +322,15 @@
                 }, 2500);
             }).catch(err => {
                 alert('Gagal menyalin text: ' + err);
+            });
+        }
+
+        function filterDist(query) {
+            const items = document.querySelectorAll('.dist-item');
+            const q = query.toLowerCase();
+            items.forEach(item => {
+                const text = item.innerText.toLowerCase();
+                item.style.display = text.includes(q) ? '' : 'none';
             });
         }
     </script>

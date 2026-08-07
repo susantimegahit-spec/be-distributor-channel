@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class DistributorApiKey extends Model
 {
@@ -21,7 +22,20 @@ class DistributorApiKey extends Model
     ];
 
     /**
-     * Get the distributor associated with the API key.
+     * Get ALL distributors associated with this API Key (many-to-many).
+     */
+    public function distributors(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Distributor::class,
+            'distributor_api_key_distributor',
+            'distributor_api_key_id',
+            'distributor_id'
+        );
+    }
+
+    /**
+     * Get the primary distributor (legacy single distributor - kept for backward compat).
      */
     public function distributor(): BelongsTo
     {
@@ -36,4 +50,3 @@ class DistributorApiKey extends Model
         return hash('sha256', $key);
     }
 }
-?>
