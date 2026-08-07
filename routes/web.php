@@ -51,7 +51,7 @@ Route::get('/docs/logout', function (Request $request) {
 // 1. Halaman Login Monitoring SM
 Route::get('/monitoringsm/login', function () {
     if (session('pulse_authenticated')) {
-        return redirect('/monitoringsm');
+        return redirect('/monitoringsm/hub');
     }
     return view('pulse-login');
 });
@@ -66,7 +66,7 @@ Route::post('/monitoringsm/login', function (Request $request) {
             'pulse_authenticated' => true,
             'pulse_last_activity' => time(),
         ]);
-        return redirect('/monitoringsm');
+        return redirect('/monitoringsm/hub');
     }
 
     return redirect('/monitoringsm/login')->with('error', 'Username atau password admin yang Anda masukkan salah!');
@@ -82,10 +82,17 @@ Route::get('/monitoringsm/logout', function (Request $request) {
 use App\Http\Controllers\ApiKeyWebController;
 
 Route::middleware(['web', \App\Http\Middleware\PulseAuthSession::class, \Laravel\Pulse\Http\Middleware\Authorize::class])->group(function () {
+    // Admin Hub: Navigation Center after Login
+    Route::get('/monitoringsm/hub', function () {
+        return view('admin-hub');
+    });
+
+    // Laravel Pulse System Monitoring
     Route::get('/monitoringsm', function () {
         return view('monitoring-dashboard');
     });
 
+    // B2B API Key Monitoring & Management
     Route::get('/monitoringsm/api-keys', [ApiKeyWebController::class, 'index']);
     Route::post('/monitoringsm/api-keys/generate', [ApiKeyWebController::class, 'store']);
     Route::post('/monitoringsm/api-keys/{id}/toggle', [ApiKeyWebController::class, 'toggleStatus']);
