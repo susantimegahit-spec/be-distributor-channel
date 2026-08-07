@@ -1,20 +1,77 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>B2B API Key Monitoring - PT Susanti Megah</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Configure Tailwind dark mode via class strategy
+        tailwind.config = { darkMode: 'class' };
+        // Apply saved theme before page renders (avoid flash)
+        (function() {
+            const saved = localStorage.getItem('sm-theme') || 'dark';
+            if (saved === 'dark') document.documentElement.classList.add('dark');
+            else document.documentElement.classList.remove('dark');
+        })();
+    </script>
     <!-- Google Fonts Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        * { font-family: 'Inter', sans-serif; }
+
+        /* ── Light mode body & surface ── */
+        html.light body                { background-color: #f1f5f9; color: #0f172a; }
+        html.light header              { background: rgba(255,255,255,0.9) !important; border-color: #e2e8f0 !important; }
+        html.light h1                  { color: #0f172a !important; }
+        html.light p.text-slate-400,
+        html.light .text-slate-400     { color: #64748b !important; }
+        html.light .text-slate-100     { color: #0f172a !important; }
+        html.light .text-slate-200     { color: #1e293b !important; }
+        html.light .text-slate-300     { color: #334155 !important; }
+        html.light .text-slate-500     { color: #94a3b8 !important; }
+        html.light .bg-slate-800       { background-color: #e2e8f0 !important; }
+        html.light .bg-slate-700       { background-color: #cbd5e1 !important; }
+        html.light .bg-slate-900       { background-color: #f8fafc !important; }
+        html.light .bg-slate-950\/70   { background-color: #ffffff !important; }
+        html.light .bg-slate-950\/60   { background-color: rgba(0,0,0,0.04) !important; }
+        html.light .bg-slate-950\/80   { background-color: rgba(255,255,255,0.92) !important; }
+        html.light .bg-slate-950       { background-color: #f1f5f9 !important; }
+        html.light .border-slate-800   { border-color: #e2e8f0 !important; }
+        html.light .border-slate-700   { border-color: #cbd5e1 !important; }
+        html.light .divide-slate-800\/60 > * { border-color: #e2e8f0 !important; }
+        html.light .hover\:bg-slate-900\/50:hover { background-color: rgba(0,0,0,0.04) !important; }
+        html.light .hover\:bg-slate-700:hover     { background-color: #cbd5e1 !important; }
+        html.light .bg-slate-900\/60   { background-color: rgba(248,250,252,0.8) !important; }
+        html.light .hover\:bg-slate-800\/60:hover { background-color: #e2e8f0 !important; }
+        html.light .text-slate-950     { color: #f8fafc !important; }
+
+        /* Toggle switch animation */
+        .theme-toggle-track {
+            width: 44px; height: 24px;
+            border-radius: 9999px;
+            position: relative;
+            transition: background 0.3s;
+            cursor: pointer;
+        }
+        .dark .theme-toggle-track  { background: #312e81; }
+        html.light .theme-toggle-track { background: #fbbf24; }
+
+        .theme-toggle-thumb {
+            position: absolute; top: 3px; width: 18px; height: 18px;
+            border-radius: 9999px; background: white;
+            transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+        }
+        .dark .theme-toggle-thumb  { transform: translateX(3px); }
+        html.light .theme-toggle-thumb { transform: translateX(23px); }
     </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen">
+
 
     <!-- Top Navigation Header -->
     <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-40">
@@ -36,6 +93,16 @@
                 <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 transition">
                     📖 API Docs
                 </a>
+
+                <!-- Dark / Light Mode Toggle -->
+                <button onclick="toggleTheme()" title="Toggle Dark/Light Mode" class="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-slate-800 transition group">
+                    <span id="themeIcon" class="text-sm">🌙</span>
+                    <div class="theme-toggle-track">
+                        <div class="theme-toggle-thumb"></div>
+                    </div>
+                    <span id="themeLabel" class="text-xs font-medium text-slate-400 hidden sm:block">Dark</span>
+                </button>
+
                 <a href="/monitoringsm/logout" class="px-3 py-1.5 rounded-lg bg-red-950/50 hover:bg-red-900/60 border border-red-800/50 text-xs font-medium text-red-300 transition">
                     Logout
                 </a>
@@ -364,6 +431,39 @@
                 item.style.display = text.includes(q) ? '' : 'none';
             });
         }
+
+        // ── Dark / Light Mode Toggle ────────────────────────────────────
+        function toggleTheme() {
+            const html    = document.documentElement;
+            const isDark  = html.classList.contains('dark');
+            const newMode = isDark ? 'light' : 'dark';
+
+            html.classList.toggle('dark',  newMode === 'dark');
+            html.classList.toggle('light', newMode === 'light');
+            localStorage.setItem('sm-theme', newMode);
+            updateThemeUI(newMode);
+        }
+
+        function updateThemeUI(mode) {
+            const icon  = document.getElementById('themeIcon');
+            const label = document.getElementById('themeLabel');
+            if (!icon || !label) return;
+            if (mode === 'dark') {
+                icon.textContent  = '🌙';
+                label.textContent = 'Dark';
+            } else {
+                icon.textContent  = '☀️';
+                label.textContent = 'Light';
+            }
+        }
+
+        // Init UI labels on load
+        document.addEventListener('DOMContentLoaded', function() {
+            const saved = localStorage.getItem('sm-theme') || 'dark';
+            document.documentElement.classList.toggle('light', saved === 'light');
+            document.documentElement.classList.toggle('dark',  saved === 'dark');
+            updateThemeUI(saved);
+        });
 
         // ── Distributor Detail Slide-over ───────────────────────────────
         function openDistDetail(keyId, keyName, distributors) {
