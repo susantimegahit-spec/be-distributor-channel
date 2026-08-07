@@ -9,6 +9,75 @@ servers:
   - url: http://localhost:8000/api/distributor-channel
     description: Local Server
 paths:
+  /v1/external/customer-monthly-orders:
+    post:
+      summary: Add Customer Monthly Order via External B2B API
+      description: Endpoint terproteksi API Key untuk sistem distributor (ERP/DMS) membuat CMO secara otomatis dari luar tanpa perlu double input di Customer Portal.
+      tags:
+        - External B2B Integration
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - distributor_ref_no
+                - doc_date
+                - lines
+              properties:
+                distributor_ref_no:
+                  type: string
+                  example: "PO-DIST-202608-001"
+                  description: Nomor PO / Ref Order Distributor (Idempotency Key)
+                doc_date:
+                  type: string
+                  format: date
+                  example: "2026-08-07"
+                doc_due_date:
+                  type: string
+                  format: date
+                  example: "2026-08-30"
+                po_number:
+                  type: string
+                  example: "PO-12345"
+                comments:
+                  type: string
+                  example: "Order bulanan minyak via ERP"
+                lines:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - item_code
+                      - quantity
+                    properties:
+                      item_code:
+                        type: string
+                        example: "SKU-MINYAK-01"
+                      quantity:
+                        type: number
+                        example: 50
+                      unit_price:
+                        type: number
+                        example: 150000
+                      unit_msr:
+                        type: string
+                        example: "CTN"
+                      whs_code:
+                        type: string
+                        example: "WHS-01"
+      responses:
+        '201':
+          description: CMO berhasil dibuat.
+        '200':
+          description: Response Idempotent (Order sudah pernah dibuat sebelumnya).
+        '401':
+          description: API Key / Bearer token tidak valid.
+        '422':
+          description: Validasi data gagal (misal SKU tidak ditemukan).
   /v1/sales-dashboard/upload:
     post:
       summary: Upload Target or CMO Excel/CSV file

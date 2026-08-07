@@ -78,11 +78,18 @@ Route::get('/monitoringsm/logout', function (Request $request) {
     return redirect('/monitoringsm/login');
 });
 
-// 4. Custom Route Dashboard Monitoring SM (Pulse + Custom Kill User Card)
+// 4. Custom Route Dashboard Monitoring SM & API Keys Dashboard
+use App\Http\Controllers\ApiKeyWebController;
+
 Route::middleware(['web', \App\Http\Middleware\PulseAuthSession::class, \Laravel\Pulse\Http\Middleware\Authorize::class])->group(function () {
     Route::get('/monitoringsm', function () {
         return view('monitoring-dashboard');
     });
+
+    Route::get('/monitoringsm/api-keys', [ApiKeyWebController::class, 'index']);
+    Route::post('/monitoringsm/api-keys/generate', [ApiKeyWebController::class, 'store']);
+    Route::post('/monitoringsm/api-keys/{id}/toggle', [ApiKeyWebController::class, 'toggleStatus']);
+    Route::post('/monitoringsm/api-keys/{id}/delete', [ApiKeyWebController::class, 'destroy']);
 });
 
 // 4. Route Dokumentasi API yang Dilindungi Session & Timeout 1 Hari (86400 Detik)

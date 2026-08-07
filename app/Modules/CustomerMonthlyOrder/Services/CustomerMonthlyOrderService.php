@@ -91,7 +91,7 @@ class CustomerMonthlyOrderService
      * @param  int  $distributorId
      * @return CustomerMonthlyOrder
      */
-    public function createOrder(array $data, int $userId, int $distributorId): CustomerMonthlyOrder
+    public function createOrder(array $data, ?int $userId, int $distributorId): CustomerMonthlyOrder
     {
         $distributor = \App\Models\Distributor::find($distributorId);
 

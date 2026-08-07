@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B2B API Key Monitoring - PT Susanti Megah</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen">
+
+    <!-- Top Navigation Header -->
+    <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center font-bold text-slate-950 text-xl shadow-lg shadow-orange-500/20">
+                    SM
+                </div>
+                <div>
+                    <h1 class="font-semibold text-lg leading-none text-slate-100">B2B API Key Monitoring</h1>
+                    <p class="text-xs text-slate-400 mt-1">PT Susanti Megah Distributor Channel</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <a href="/monitoringsm" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 transition">
+                    ← System Pulse Monitoring
+                </a>
+                <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 transition">
+                    📖 API Docs
+                </a>
+                <a href="/monitoringsm/logout" class="px-3 py-1.5 rounded-lg bg-red-950/50 hover:bg-red-900/60 border border-red-800/50 text-xs font-medium text-red-300 transition">
+                    Logout
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        <!-- Flash Messages -->
+        @if(session('success'))
+            <div class="bg-emerald-950/60 border border-emerald-500/50 rounded-xl p-4 flex items-center justify-between text-emerald-200 text-sm shadow-lg">
+                <div class="flex items-center space-x-2">
+                    <span class="text-emerald-400 text-lg">✓</span>
+                    <span>{{ session('success') }}</span>
+                </div>
+                <button onclick="this.parentElement.remove()" class="text-emerald-400 hover:text-emerald-200">&times;</button>
+            </div>
+        @endif
+
+        @if(session('info'))
+            <div class="bg-blue-950/60 border border-blue-500/50 rounded-xl p-4 flex items-center justify-between text-blue-200 text-sm shadow-lg">
+                <div class="flex items-center space-x-2">
+                    <span class="text-blue-400 text-lg">ℹ</span>
+                    <span>{{ session('info') }}</span>
+                </div>
+                <button onclick="this.parentElement.remove()" class="text-blue-400 hover:text-blue-200">&times;</button>
+            </div>
+        @endif
+
+        @if($errors->any())
+            <div class="bg-rose-950/60 border border-rose-500/50 rounded-xl p-4 text-rose-200 text-sm space-y-1">
+                <p class="font-semibold">Perhatian:</p>
+                <ul class="list-disc list-inside">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        <!-- Single-Time Generated Key Banner Alert -->
+        @if(session('generated_key'))
+            <div class="bg-gradient-to-r from-amber-950 to-orange-950 border-2 border-amber-500 rounded-2xl p-6 shadow-2xl shadow-amber-500/10 space-y-4">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <span class="px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-300 text-xs font-semibold uppercase tracking-wider">
+                            API Key Baru Ter-generate
+                        </span>
+                        <h3 class="text-lg font-bold text-slate-100 mt-2">
+                            API Key untuk <span class="text-amber-400">{{ session('distributor_name') }}</span>
+                        </h3>
+                        <p class="text-xs text-amber-200/80 mt-1">
+                            ⚠️ Simpan API Key ini sekarang. Key mentah ini <strong>hanya ditampilkan sekali saja</strong> demi keamanan.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-2 bg-slate-950/90 border border-amber-500/40 rounded-xl p-3">
+                    <code id="rawApiKeyText" class="font-mono text-sm sm:text-base text-amber-300 break-all select-all flex-1">
+                        {{ session('generated_key') }}
+                    </code>
+                    <button onclick="copyToClipboard()" id="copyBtn" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs rounded-lg transition shrink-0 flex items-center space-x-1 shadow-md">
+                        <span>📋 Copy Key</span>
+                    </button>
+                </div>
+            </div>
+        @endif
+
+        <!-- Metric Stat Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-5 shadow-sm">
+                <p class="text-xs font-medium text-slate-400">Total API Keys</p>
+                <div class="flex items-baseline space-x-2 mt-2">
+                    <span class="text-3xl font-bold text-slate-100">{{ $stats['total_keys'] }}</span>
+                    <span class="text-xs text-slate-500">keys registered</span>
+                </div>
+            </div>
+
+            <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-5 shadow-sm">
+                <p class="text-xs font-medium text-emerald-400">API Keys Aktif</p>
+                <div class="flex items-baseline space-x-2 mt-2">
+                    <span class="text-3xl font-bold text-emerald-400">{{ $stats['active_keys'] }}</span>
+                    <span class="text-xs text-emerald-500/80">ready to use</span>
+                </div>
+            </div>
+
+            <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-5 shadow-sm">
+                <p class="text-xs font-medium text-rose-400">API Keys Nonaktif</p>
+                <div class="flex items-baseline space-x-2 mt-2">
+                    <span class="text-3xl font-bold text-rose-400">{{ $stats['inactive_keys'] }}</span>
+                    <span class="text-xs text-rose-500/80">revoked/disabled</span>
+                </div>
+            </div>
+
+            <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-5 shadow-sm">
+                <p class="text-xs font-medium text-blue-400">Distributor Terdaftar</p>
+                <div class="flex items-baseline space-x-2 mt-2">
+                    <span class="text-3xl font-bold text-blue-400">{{ $stats['total_distributors'] }}</span>
+                    <span class="text-xs text-blue-500/80">distributors in DB</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Bar & Generate Form Modal Toggle -->
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2">
+            <div>
+                <h2 class="text-xl font-bold text-slate-100">Daftar API Key B2B</h2>
+                <p class="text-xs text-slate-400">Monitoring akses API Add CMO dari sistem distributor luar</p>
+            </div>
+
+            <button onclick="document.getElementById('generateModal').classList.remove('hidden')" class="px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-slate-950 font-semibold text-sm rounded-xl shadow-lg shadow-orange-500/20 transition flex items-center space-x-2">
+                <span>🔑 Generate API Key Baru</span>
+            </button>
+        </div>
+
+        <!-- Monitoring Data Table -->
+        <div class="bg-slate-950/70 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-slate-300">
+                    <thead class="bg-slate-900/90 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                        <tr>
+                            <th class="py-3.5 px-4">Distributor</th>
+                            <th class="py-3.5 px-4">Label / Nama Sistem</th>
+                            <th class="py-3.5 px-4">Prefix Key</th>
+                            <th class="py-3.5 px-4">Allowed IPs</th>
+                            <th class="py-3.5 px-4">Terakhir Digunakan</th>
+                            <th class="py-3.5 px-4">Status</th>
+                            <th class="py-3.5 px-4 text-right">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60 text-xs sm:text-sm">
+                        @forelse($apiKeys as $key)
+                            <tr class="hover:bg-slate-900/50 transition">
+                                <td class="py-4 px-4">
+                                    <div class="font-semibold text-slate-100">{{ $key->distributor?->name ?? '-' }}</div>
+                                    <div class="text-xs font-mono text-slate-400 mt-0.5">{{ $key->distributor?->code_customer ?? '-' }}</div>
+                                </td>
+                                <td class="py-4 px-4 font-medium text-slate-200">
+                                    {{ $key->name }}
+                                </td>
+                                <td class="py-4 px-4 font-mono text-xs text-amber-300/90">
+                                    {{ $key->key_prefix }}...
+                                </td>
+                                <td class="py-4 px-4">
+                                    @if(!empty($key->allowed_ips))
+                                        <div class="flex flex-wrap gap-1">
+                                            @foreach((array)$key->allowed_ips as $ip)
+                                                <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-xs font-mono text-slate-300">
+                                                    {{ $ip }}
+                                                </span>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <span class="text-xs text-slate-500 italic">ANY (Semua IP)</span>
+                                    @endif
+                                </td>
+                                <td class="py-4 px-4 text-xs text-slate-300">
+                                    @if($key->last_used_at)
+                                        <span class="text-emerald-400 font-medium">{{ $key->last_used_at->diffForHumans() }}</span>
+                                        <div class="text-[11px] text-slate-500">{{ $key->last_used_at->format('Y-m-d H:i:s') }}</div>
+                                    @else
+                                        <span class="text-slate-500 italic">Belum Pernah</span>
+                                    @endif
+                                </td>
+                                <td class="py-4 px-4">
+                                    @if($key->is_active)
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-950/80 text-emerald-300 border border-emerald-500/40">
+                                            ● Aktif
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-950/80 text-rose-300 border border-rose-500/40">
+                                            ○ Nonaktif
+                                        </span>
+                                    @endif
+                                </td>
+                                <td class="py-4 px-4 text-right space-x-2">
+                                    <!-- Toggle Active Form -->
+                                    <form action="/monitoringsm/api-keys/{{ $key->id }}/toggle" method="POST" class="inline">
+                                        @csrf
+                                        <button type="submit" class="px-2.5 py-1 rounded-lg text-xs font-medium border transition {{ $key->is_active ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-amber-300' : 'bg-emerald-950 hover:bg-emerald-900 border-emerald-700 text-emerald-200' }}">
+                                            {{ $key->is_active ? 'Matikan' : 'Aktifkan' }}
+                                        </button>
+                                    </form>
+
+                                    <!-- Delete/Revoke Form -->
+                                    <form action="/monitoringsm/api-keys/{{ $key->id }}/delete" method="POST" class="inline" onsubmit="return confirm('Apakah Anda yakin ingin mencabut (revoke) API Key ini secara permanen?')">
+                                        @csrf
+                                        <button type="submit" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-rose-950/60 hover:bg-rose-900 border border-rose-800 text-rose-300 transition">
+                                            Hapus
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="py-8 text-center text-slate-500">
+                                    Belum ada API Key B2B yang di-generate. Klik tombol <strong>Generate API Key Baru</strong> untuk menambahkan.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal Generate New API Key -->
+    <div id="generateModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                <h3 class="text-lg font-bold text-slate-100">Generate API Key B2B Baru</h3>
+                <button onclick="document.getElementById('generateModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-200 text-xl font-bold">&times;</button>
+            </div>
+
+            <form action="/monitoringsm/api-keys/generate" method="POST" class="space-y-4 text-xs sm:text-sm">
+                @csrf
+
+                <div>
+                    <label class="block font-medium text-slate-300 mb-1">Pilih Distributor <span class="text-rose-400">*</span></label>
+                    <select name="distributor_id" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-200 focus:outline-none focus:border-amber-500 transition">
+                        <option value="">-- Pilih Distributor --</option>
+                        @foreach($distributors as $d)
+                            <option value="{{ $d->id }}">{{ $d->name }} ({{ $d->code_customer }})</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block font-medium text-slate-300 mb-1">Label / Nama Sistem Integrasi <span class="text-rose-400">*</span></label>
+                    <input type="text" name="name" placeholder="Contoh: ERP Distributor Surabaya" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-200 focus:outline-none focus:border-amber-500 transition">
+                </div>
+
+                <div>
+                    <label class="block font-medium text-slate-300 mb-1">Allowed IPs (Opsional)</label>
+                    <input type="text" name="allowed_ips" placeholder="Contoh: 203.0.113.195, 198.51.100.22" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-200 focus:outline-none focus:border-amber-500 transition">
+                    <p class="text-[11px] text-slate-500 mt-1">Pisahkan dengan koma jika lebih dari 1 IP. Kosongkan jika IP distributor dinamis.</p>
+                </div>
+
+                <div class="flex items-center justify-end space-x-3 pt-4 border-t border-slate-800">
+                    <button type="button" onclick="document.getElementById('generateModal').classList.add('hidden')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition">
+                        Batal
+                    </button>
+                    <button type="submit" class="px-5 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-slate-950 rounded-xl text-xs font-bold shadow-md transition">
+                        Generate Token
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Script for Clipboard Copy -->
+    <script>
+        function copyToClipboard() {
+            const keyText = document.getElementById('rawApiKeyText').innerText.trim();
+            navigator.clipboard.writeText(keyText).then(() => {
+                const btn = document.getElementById('copyBtn');
+                btn.innerHTML = '<span>✅ Copied!</span>';
+                btn.classList.replace('bg-amber-500', 'bg-emerald-500');
+                btn.classList.replace('hover:bg-amber-400', 'hover:bg-emerald-400');
+                setTimeout(() => {
+                    btn.innerHTML = '<span>📋 Copy Key</span>';
+                    btn.classList.replace('bg-emerald-500', 'bg-amber-500');
+                    btn.classList.replace('hover:bg-emerald-400', 'hover:bg-amber-400');
+                }, 2500);
+            }).catch(err => {
+                alert('Gagal menyalin text: ' + err);
+            });
+        }
+    </script>
+</body>
+</html>

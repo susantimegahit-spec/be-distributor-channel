@@ -1,8 +1,11 @@
 <?php
 
+use App\Http\Middleware\AuthenticateDistributorApiKey;
 use App\Modules\CustomerMonthlyOrder\Controllers\CustomerMonthlyOrderController;
+use App\Modules\CustomerMonthlyOrder\Controllers\ExternalCustomerMonthlyOrderController;
 use Illuminate\Support\Facades\Route;
 
+// Internal Customer Portal API Routes (Sanctum User Auth)
 Route::prefix('v1/customer-monthly-orders')->middleware('auth:sanctum')->group(function () {
     Route::get('/', [CustomerMonthlyOrderController::class, 'index']);
     Route::get('/{id}', [CustomerMonthlyOrderController::class, 'show']);
@@ -11,3 +14,11 @@ Route::prefix('v1/customer-monthly-orders')->middleware('auth:sanctum')->group(f
     Route::delete('/{id}', [CustomerMonthlyOrderController::class, 'destroy']);
     Route::post('/{id}/post-to-so', [CustomerMonthlyOrderController::class, 'postToSalesOrder']);
 });
+
+// External B2B API Routes for Distributor Integration (API Key Auth)
+Route::prefix('v1/external/customer-monthly-orders')
+    ->middleware([AuthenticateDistributorApiKey::class, 'throttle:60,1'])
+    ->group(function () {
+        Route::post('/', [ExternalCustomerMonthlyOrderController::class, 'store']);
+        Route::get('/{refNo}', [ExternalCustomerMonthlyOrderController::class, 'show']);
+    });
