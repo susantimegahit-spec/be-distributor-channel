@@ -159,8 +159,8 @@
                 <table class="w-full text-left text-sm text-slate-300">
                     <thead class="bg-slate-900/90 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800">
                         <tr>
-                            <th class="py-3.5 px-4">Distributor(s)</th>
-                            <th class="py-3.5 px-4">Label / Nama Sistem</th>
+                            <th class="py-3.5 px-4">Label / Sistem</th>
+                            <th class="py-3.5 px-4">Distributor</th>
                             <th class="py-3.5 px-4">Prefix Key</th>
                             <th class="py-3.5 px-4">Allowed IPs</th>
                             <th class="py-3.5 px-4">Terakhir Digunakan</th>
@@ -170,24 +170,46 @@
                     </thead>
                     <tbody class="divide-y divide-slate-800/60 text-xs sm:text-sm">
                         @forelse($apiKeys as $key)
+                            @php
+                                $distCount = $key->distributors->count();
+                                $distJson  = $key->distributors->map(fn($d) => ['name' => $d->name, 'code' => $d->code_customer])->toJson();
+                            @endphp
                             <tr class="hover:bg-slate-900/50 transition">
+                                {{-- Kolom Label / Sistem --}}
                                 <td class="py-4 px-4">
+                                    <div class="font-semibold text-slate-100 text-sm">{{ $key->name }}</div>
                                     @if($key->company_name)
-                                        <div class="font-semibold text-amber-300 text-xs mb-1">{{ $key->company_name }}</div>
+                                        <div class="text-xs text-amber-400 mt-0.5">{{ $key->company_name }}</div>
                                     @endif
-                                    @forelse($key->distributors as $dist)
-                                        <div class="text-xs text-slate-200">{{ $dist->name }}</div>
-                                        <div class="text-[11px] font-mono text-slate-500">{{ $dist->code_customer }}</div>
-                                    @empty
-                                        <span class="text-slate-500 italic text-xs">Tidak ada distributor</span>
-                                    @endforelse
                                 </td>
-                                <td class="py-4 px-4 font-medium text-slate-200">
-                                    {{ $key->name }}
+
+                                {{-- Kolom Distributor (ringkasan) --}}
+                                <td class="py-4 px-4">
+                                    @if($distCount === 0)
+                                        <span class="text-slate-500 italic text-xs">Tidak ada</span>
+                                    @else
+                                        <button
+                                            type="button"
+                                            onclick="openDistDetail({{ $key->id }}, '{{ addslashes($key->name) }}', {{ $distJson }})"
+                                            class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-amber-500/50 transition group"
+                                        >
+                                            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 text-[11px] font-bold">
+                                                {{ $distCount }}
+                                            </span>
+                                            <span class="text-xs text-slate-300 group-hover:text-amber-300 transition">
+                                                {{ $distCount === 1 ? $key->distributors->first()->name : 'Distributor' }}
+                                            </span>
+                                            <svg class="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                                        </button>
+                                    @endif
                                 </td>
+
+                                {{-- Prefix Key --}}
                                 <td class="py-4 px-4 font-mono text-xs text-amber-300/90">
                                     {{ $key->key_prefix }}...
                                 </td>
+
+                                {{-- Allowed IPs --}}
                                 <td class="py-4 px-4">
                                     @if(!empty($key->allowed_ips))
                                         <div class="flex flex-wrap gap-1">
@@ -201,6 +223,8 @@
                                         <span class="text-xs text-slate-500 italic">ANY (Semua IP)</span>
                                     @endif
                                 </td>
+
+                                {{-- Terakhir Digunakan --}}
                                 <td class="py-4 px-4 text-xs text-slate-300">
                                     @if($key->last_used_at)
                                         <span class="text-emerald-400 font-medium">{{ $key->last_used_at->diffForHumans() }}</span>
@@ -209,6 +233,8 @@
                                         <span class="text-slate-500 italic">Belum Pernah</span>
                                     @endif
                                 </td>
+
+                                {{-- Status --}}
                                 <td class="py-4 px-4">
                                     @if($key->is_active)
                                         <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-950/80 text-emerald-300 border border-emerald-500/40">
@@ -220,22 +246,26 @@
                                         </span>
                                     @endif
                                 </td>
-                                <td class="py-4 px-4 text-right space-x-2">
-                                    <!-- Toggle Active Form -->
-                                    <form action="/monitoringsm/api-keys/{{ $key->id }}/toggle" method="POST" class="inline">
-                                        @csrf
-                                        <button type="submit" class="px-2.5 py-1 rounded-lg text-xs font-medium border transition {{ $key->is_active ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-amber-300' : 'bg-emerald-950 hover:bg-emerald-900 border-emerald-700 text-emerald-200' }}">
-                                            {{ $key->is_active ? 'Matikan' : 'Aktifkan' }}
-                                        </button>
-                                    </form>
 
-                                    <!-- Delete/Revoke Form -->
-                                    <form action="/monitoringsm/api-keys/{{ $key->id }}/delete" method="POST" class="inline" onsubmit="return confirm('Apakah Anda yakin ingin mencabut (revoke) API Key ini secara permanen?')">
-                                        @csrf
-                                        <button type="submit" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-rose-950/60 hover:bg-rose-900 border border-rose-800 text-rose-300 transition">
-                                            Hapus
-                                        </button>
-                                    </form>
+                                {{-- Aksi --}}
+                                <td class="py-4 px-4 text-right">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <!-- Toggle Active Form -->
+                                        <form action="/monitoringsm/api-keys/{{ $key->id }}/toggle" method="POST" class="inline">
+                                            @csrf
+                                            <button type="submit" class="px-2.5 py-1 rounded-lg text-xs font-medium border transition {{ $key->is_active ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-amber-300' : 'bg-emerald-950 hover:bg-emerald-900 border-emerald-700 text-emerald-200' }}">
+                                                {{ $key->is_active ? 'Matikan' : 'Aktifkan' }}
+                                            </button>
+                                        </form>
+
+                                        <!-- Delete/Revoke Form -->
+                                        <form action="/monitoringsm/api-keys/{{ $key->id }}/delete" method="POST" class="inline" onsubmit="return confirm('Apakah Anda yakin ingin mencabut (revoke) API Key ini secara permanen?')">
+                                            @csrf
+                                            <button type="submit" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-rose-950/60 hover:bg-rose-900 border border-rose-800 text-rose-300 transition">
+                                                Hapus
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                         @empty
@@ -246,6 +276,7 @@
                             </tr>
                         @endforelse
                     </tbody>
+
                 </table>
             </div>
         </div>
@@ -333,6 +364,99 @@
                 item.style.display = text.includes(q) ? '' : 'none';
             });
         }
+
+        // ── Distributor Detail Slide-over ───────────────────────────────
+        function openDistDetail(keyId, keyName, distributors) {
+            const panel   = document.getElementById('distDetailPanel');
+            const title   = document.getElementById('distDetailTitle');
+            const badge   = document.getElementById('distDetailBadge');
+            const list    = document.getElementById('distDetailList');
+            const search  = document.getElementById('distDetailSearch');
+
+            title.textContent  = keyName;
+            badge.textContent  = distributors.length + ' Distributor';
+            search.value       = '';
+            list.innerHTML     = '';
+
+            distributors.forEach(d => {
+                const row = document.createElement('div');
+                row.className = 'dist-detail-row flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/60 transition';
+                row.setAttribute('data-name', d.name.toLowerCase());
+                row.innerHTML = `
+                    <div class="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 font-bold text-xs shrink-0">
+                        ${d.code.replace('C', '')}
+                    </div>
+                    <div class="min-w-0">
+                        <div class="text-sm font-semibold text-slate-100 truncate">${d.name}</div>
+                        <div class="text-xs font-mono text-slate-500 mt-0.5">${d.code}</div>
+                    </div>
+                `;
+                list.appendChild(row);
+            });
+
+            panel.classList.remove('translate-x-full', 'opacity-0', 'pointer-events-none');
+            panel.classList.add('translate-x-0', 'opacity-100');
+            document.getElementById('distDetailOverlay').classList.remove('hidden');
+        }
+
+        function closeDistDetail() {
+            const panel = document.getElementById('distDetailPanel');
+            panel.classList.add('translate-x-full', 'opacity-0', 'pointer-events-none');
+            panel.classList.remove('translate-x-0', 'opacity-100');
+            document.getElementById('distDetailOverlay').classList.add('hidden');
+        }
+
+        function filterDistDetail(query) {
+            const rows = document.querySelectorAll('.dist-detail-row');
+            const q = query.toLowerCase();
+            rows.forEach(row => {
+                row.style.display = row.getAttribute('data-name').includes(q) ? '' : 'none';
+            });
+        }
     </script>
+
+    <!-- Distributor Detail Slide-over Panel -->
+    <div id="distDetailOverlay" class="hidden fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm" onclick="closeDistDetail()"></div>
+
+    <div id="distDetailPanel"
+         class="fixed top-0 right-0 h-full w-full max-w-sm z-50 bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col
+                transform translate-x-full opacity-0 pointer-events-none transition-all duration-300 ease-in-out">
+
+        <!-- Panel Header -->
+        <div class="px-5 py-4 border-b border-slate-800 flex items-start justify-between shrink-0">
+            <div>
+                <p class="text-xs text-slate-500 mb-1 font-medium uppercase tracking-wider">Daftar Distributor</p>
+                <h3 id="distDetailTitle" class="text-base font-bold text-slate-100 leading-snug"></h3>
+                <span id="distDetailBadge" class="inline-block mt-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30"></span>
+            </div>
+            <button onclick="closeDistDetail()" class="text-slate-500 hover:text-slate-200 transition mt-0.5 p-1 rounded-lg hover:bg-slate-800">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Search -->
+        <div class="px-5 py-3 border-b border-slate-800/60 shrink-0">
+            <input
+                id="distDetailSearch"
+                type="text"
+                placeholder="🔍 Cari nama distributor..."
+                oninput="filterDistDetail(this.value)"
+                class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500 transition"
+            >
+        </div>
+
+        <!-- List -->
+        <div id="distDetailList" class="flex-1 overflow-y-auto p-4 space-y-2"></div>
+
+        <!-- Footer -->
+        <div class="px-5 py-4 border-t border-slate-800 shrink-0">
+            <button onclick="closeDistDetail()" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-semibold transition">
+                Tutup
+            </button>
+        </div>
+    </div>
+
 </body>
 </html>
