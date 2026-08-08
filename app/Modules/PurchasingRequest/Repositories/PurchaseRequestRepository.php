@@ -77,12 +77,22 @@ class PurchaseRequestRepository implements PurchaseRequestRepositoryInterface
 
                 $pr->details()->create([
                     'master_budget_id' => $item['master_budget_id'] ?? null,
+                    'bom_id' => $item['bom_id'] ?? null,
                     'item_code' => $item['item_code'] ?? null,
-                    'item_description' => $item['item_description'],
+                    'item_description' => $item['item_description'] ?? $item['item_code'] ?? 'Item',
+                    'pqt_req_date' => $item['pqt_req_date'] ?? null,
                     'quantity' => $qty,
-                    'uom' => $item['uom'] ?? null,
+                    'uom' => $item['uom'] ?? $item['unit_msr'] ?? null,
+                    'uom_entry' => $item['uom_entry'] ?? null,
+                    'uom_code' => $item['uom_code'] ?? null,
+                    'whs_code' => $item['whs_code'] ?? null,
+                    'unit_msr' => $item['unit_msr'] ?? null,
                     'unit_price' => $price,
                     'line_total' => $lineTotal,
+                    'free_txt' => $item['free_txt'] ?? null,
+                    'ocr_code' => $item['ocr_code'] ?? null,
+                    'ocr_code2' => $item['ocr_code2'] ?? null,
+                    'ocr_code3' => $item['ocr_code3'] ?? null,
                     'remarks' => $item['remarks'] ?? null,
                 ]);
 

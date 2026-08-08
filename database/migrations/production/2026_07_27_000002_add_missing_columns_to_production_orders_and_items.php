@@ -16,25 +16,57 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::connection($this->connection)->table('production_orders', function (Blueprint $table) {
-            $table->decimal('act_item_cost', 18, 4)->default(0.0000)->comment('Actual Item Component Cost');
-            $table->decimal('act_res_cost', 18, 4)->default(0.0000)->comment('Actual Resource Component Cost');
-            $table->decimal('act_add_cost', 18, 4)->default(0.0000)->comment('Actual Additional Cost');
-            $table->decimal('act_prod_cost', 18, 4)->default(0.0000)->comment('Actual Product Cost');
-            $table->decimal('act_by_prod_cost', 18, 4)->default(0.0000)->comment('Actual By-Product Cost');
-            $table->decimal('total_variance', 18, 4)->default(0.0000)->comment('Total Variance');
-            $table->string('jrnl_memo', 255)->nullable()->comment('Journal Remarks / OWOR.JrnlMemo');
-            $table->string('ref_doc', 100)->nullable()->comment('Referenced Document');
-            $table->date('act_close_date')->nullable()->comment('Actual Closing Date');
-            $table->integer('overdue')->nullable()->comment('Overdue days');
-        });
+        if (Schema::connection($this->connection)->hasTable('production_orders')) {
+            Schema::connection($this->connection)->table('production_orders', function (Blueprint $table) {
+                if (!Schema::connection($this->connection)->hasColumn('production_orders', 'act_item_cost')) {
+                    $table->decimal('act_item_cost', 18, 4)->default(0.0000)->comment('Actual Item Component Cost');
+                }
+                if (!Schema::connection($this->connection)->hasColumn('production_orders', 'act_res_cost')) {
+                    $table->decimal('act_res_cost', 18, 4)->default(0.0000)->comment('Actual Resource Component Cost');
+                }
+                if (!Schema::connection($this->connection)->hasColumn('production_orders', 'act_add_cost')) {
+                    $table->decimal('act_add_cost', 18, 4)->default(0.0000)->comment('Actual Additional Cost');
+                }
+                if (!Schema::connection($this->connection)->hasColumn('production_orders', 'act_prod_cost')) {
+                    $table->decimal('act_prod_cost', 18, 4)->default(0.0000)->comment('Actual Product Cost');
+                }
+                if (!Schema::connection($this->connection)->hasColumn('production_orders', 'act_by_prod_cost')) {
+                    $table->decimal('act_by_prod_cost', 18, 4)->default(0.0000)->comment('Actual By-Product Cost');
+                }
+                if (!Schema::connection($this->connection)->hasColumn('production_orders', 'total_variance')) {
+                    $table->decimal('total_variance', 18, 4)->default(0.0000)->comment('Total Variance');
+                }
+                if (!Schema::connection($this->connection)->hasColumn('production_orders', 'jrnl_memo')) {
+                    $table->string('jrnl_memo', 255)->nullable()->comment('Journal Remarks / OWOR.JrnlMemo');
+                }
+                if (!Schema::connection($this->connection)->hasColumn('production_orders', 'ref_doc')) {
+                    $table->string('ref_doc', 100)->nullable()->comment('Referenced Document');
+                }
+                if (!Schema::connection($this->connection)->hasColumn('production_orders', 'act_close_date')) {
+                    $table->date('act_close_date')->nullable()->comment('Actual Closing Date');
+                }
+                if (!Schema::connection($this->connection)->hasColumn('production_orders', 'overdue')) {
+                    $table->integer('overdue')->nullable()->comment('Overdue days');
+                }
+            });
+        }
 
-        Schema::connection($this->connection)->table('production_order_items', function (Blueprint $table) {
-            $table->decimal('available_qty', 18, 4)->default(0.0000)->comment('Current physical stock available');
-            $table->integer('base_entry')->nullable()->comment('Base document DocEntry');
-            $table->integer('base_type')->nullable()->comment('Base document ObjType');
-            $table->integer('base_line')->nullable()->comment('Base document LineNum');
-        });
+        if (Schema::connection($this->connection)->hasTable('production_order_items')) {
+            Schema::connection($this->connection)->table('production_order_items', function (Blueprint $table) {
+                if (!Schema::connection($this->connection)->hasColumn('production_order_items', 'available_qty')) {
+                    $table->decimal('available_qty', 18, 4)->default(0.0000)->comment('Current physical stock available');
+                }
+                if (!Schema::connection($this->connection)->hasColumn('production_order_items', 'base_entry')) {
+                    $table->integer('base_entry')->nullable()->comment('Base document DocEntry');
+                }
+                if (!Schema::connection($this->connection)->hasColumn('production_order_items', 'base_type')) {
+                    $table->integer('base_type')->nullable()->comment('Base document ObjType');
+                }
+                if (!Schema::connection($this->connection)->hasColumn('production_order_items', 'base_line')) {
+                    $table->integer('base_line')->nullable()->comment('Base document LineNum');
+                }
+            });
+        }
     }
 
     /**

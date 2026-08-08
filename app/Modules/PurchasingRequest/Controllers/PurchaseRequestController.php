@@ -40,10 +40,16 @@ class PurchaseRequestController extends Controller
 
     public function store(SavePurchaseRequestRequest $request): JsonResponse
     {
-        $userId = $request->user()?->id;
-        $pr = $this->service->create($request->validated(), $userId);
+        try {
+            $userId = $request->user()?->id;
+            $pr = $this->service->create($request->all(), $userId);
 
-        return $this->successResponse($pr, 'Purchasing Request berhasil dibuat.', 201);
+            return $this->successResponse($pr, 'Purchasing Request berhasil dibuat.', 201);
+        } catch (\App\Exceptions\SapException $e) {
+            return $this->errorResponse($e->getMessage(), $e->getSapError(), $e->getStatusCode());
+        } catch (\Throwable $e) {
+            return $this->errorResponse($e->getMessage(), [], 400);
+        }
     }
 
     public function show(int $id): JsonResponse

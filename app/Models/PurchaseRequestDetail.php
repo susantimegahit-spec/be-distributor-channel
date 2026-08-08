@@ -14,12 +14,22 @@ class PurchaseRequestDetail extends Model
     protected $fillable = [
         'purchase_request_id',
         'master_budget_id',
+        'bom_id',
         'item_code',
         'item_description',
+        'pqt_req_date',
         'quantity',
         'uom',
+        'uom_entry',
+        'uom_code',
+        'whs_code',
+        'unit_msr',
         'unit_price',
         'line_total',
+        'free_txt',
+        'ocr_code',
+        'ocr_code2',
+        'ocr_code3',
         'remarks',
     ];
 

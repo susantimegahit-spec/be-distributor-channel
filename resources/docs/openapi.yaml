@@ -8453,78 +8453,78 @@ paths:
           application/json:
             schema:
               type: object
-              required:
-                - pr_number
-                - department
-                - cost_center
-                - doc_date
-                - status
-                - details
               properties:
-                pr_number:
+                Series:
                   type: string
-                  example: PR-2026-001
-                department:
+                  example: "4876"
+                ReqType:
                   type: string
-                  example: FINANCE
-                cost_center:
+                  example: "12"
+                Requester:
                   type: string
-                  example: CC-FIN-01
-                requester_name:
+                  example: "IND01"
+                RequesterName:
                   type: string
-                  nullable: true
-                  example: John Doe
-                doc_date:
+                  example: "Purchasing Balaraja"
+                Department:
                   type: string
-                  format: date
-                  example: "2026-08-05"
-                required_date:
+                  example: "9"
+                DocDate:
                   type: string
                   format: date
-                  nullable: true
-                  example: "2026-08-15"
-                status:
+                  example: "2025-10-22"
+                DocDueDate:
                   type: string
-                  enum: [DRAFT, SUBMITTED, APPROVED, REJECTED, CANCELLED, COMPLETED]
-                  example: DRAFT
-                remarks:
+                  format: date
+                  example: "2025-10-22"
+                Comments:
                   type: string
-                  nullable: true
-                  example: Pengadaan Perlengkapan Kantor
-                details:
+                  example: ""
+                UserId:
+                  type: string
+                  example: "19"
+                AddonId:
+                  type: string
+                  example: "2"
+                Lines:
                   type: array
                   items:
                     type: object
-                    required:
-                      - item_description
-                      - quantity
-                      - unit_price
                     properties:
-                      master_budget_id:
-                        type: integer
-                        nullable: true
-                        example: 1
-                      item_code:
+                      ItemCode:
                         type: string
-                        nullable: true
-                        example: ITEM-001
-                      item_description:
+                        example: "JS000009"
+                      PQTReqDate:
                         type: string
-                        example: Laptop ThinkPad T14
-                      quantity:
+                        format: date
+                        example: "2025-10-22"
+                      Quantity:
                         type: number
-                        example: 1
-                      uom:
+                        example: 2.00
+                      UomEntry:
                         type: string
-                        nullable: true
-                        example: UNIT
-                      unit_price:
-                        type: number
-                        example: 15000000
-                      remarks:
+                        example: "-1"
+                      UomCode:
                         type: string
-                        nullable: true
-                        example: Specs Core i7, RAM 16GB
+                        example: "-1"
+                      WhsCode:
+                        type: string
+                        example: "01"
+                      UnitMsr:
+                        type: string
+                        example: "Pcs"
+                      FreeTxt:
+                        type: string
+                        example: "untuk upgrade"
+                      OcrCode:
+                        type: string
+                        example: "BLR"
+                      OcrCode2:
+                        type: string
+                        example: "GRM"
+                      OcrCode3:
+                        type: string
+                        example: "PCG"
       responses:
         '201':
           description: Purchase Request berhasil dibuat.
