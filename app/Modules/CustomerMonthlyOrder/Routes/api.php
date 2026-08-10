@@ -21,5 +21,6 @@ Route::prefix('v1/external/customer-monthly-orders')
     ->group(function () {
         Route::post('/', [ExternalCustomerMonthlyOrderController::class, 'store']);
         Route::get('/distributors', [ExternalCustomerMonthlyOrderController::class, 'getDistributors']);
+        Route::get('/items', [ExternalCustomerMonthlyOrderController::class, 'getItems']);
         Route::get('/{refNo}', [ExternalCustomerMonthlyOrderController::class, 'show']);
     });

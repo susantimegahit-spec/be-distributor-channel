@@ -265,7 +265,7 @@ class ExternalCustomerMonthlyOrderApiTest extends TestCase
         $response->assertStatus(200)
             ->assertJson([
                 'success' => true,
-                'message' => 'Daftar distributor yang diizinkan untuk API Key ini berhasil diambil.',
+                'message' => 'Daftar distributor berhasil diambil.',
             ])
             ->assertJsonFragment([
                 'card_code' => 'CUST-TEST-001',

@@ -139,7 +139,7 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: "Daftar distributor yang diizinkan untuk API Key ini berhasil diambil."
+                    example: "Daftar distributor berhasil diambil."
                   data:
                     type: array
                     items:
@@ -159,6 +159,65 @@ paths:
                           example: "JL.KERTOPATEN NOMOR 16 SURABAYA"
         '401':
           description: API Key tidak valid atau dinonaktifkan.
+  /v1/external/customer-monthly-orders/items:
+    get:
+      summary: Get allowed items and prices for customer
+      description: Mendapatkan daftar barang, satuan, dan harga yang berlaku untuk card_code distributor. Akses dibatasi hanya untuk card_code yang terhubung dengan API Key.
+      tags:
+        - External B2B Integration
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: card_code
+          in: query
+          required: true
+          description: Kode Customer/Distributor (contoh C110003419)
+          schema:
+            type: string
+        - name: search
+          in: query
+          required: false
+          description: Pencarian nama barang atau kode barang
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Daftar barang berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Daftar barang berhasil diambil."
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        item_code:
+                          type: string
+                          example: "B26"
+                        item_name:
+                          type: string
+                          example: "MINYAK GORENG 1L"
+                        sales_uom:
+                          type: string
+                          example: "Bal"
+                        price:
+                          type: number
+                          example: 150000.00
+                        brand:
+                          type: string
+                          example: "Sania"
+        '403':
+          description: Akses ditolak karena card_code di luar mapingan API Key.
+        '422':
+          description: Parameter card_code wajib disertakan.
   /v1/sales-dashboard/upload:
     post:
       summary: Upload Target or CMO Excel/CSV file

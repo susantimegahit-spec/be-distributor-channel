@@ -144,7 +144,72 @@ class ExternalCustomerMonthlyOrderController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Daftar distributor yang diizinkan untuk API Key ini berhasil diambil.',
+            'message' => 'Daftar distributor berhasil diambil.',
+            'data'    => $data,
+        ], 200);
+    }
+
+    /**
+     * Get list of items/products.
+     * Accessible by B2B key owner. Verifies the requested card_code is allowed.
+     *
+     * @param  Request  $request
+     * @return JsonResponse
+     */
+    public function getItems(Request $request): JsonResponse
+    {
+        $allowedDistributors = $request->get('allowed_distributors');
+        if (!$allowedDistributors || $allowedDistributors->isEmpty()) {
+            return $this->errorResponse('Tidak ada distributor yang terdaftar pada API Key ini.', [], 401);
+        }
+
+        $cardCode = $request->query('card_code');
+
+        // If card_code is not passed, default to the first one if there's only one allowed
+        if (empty($cardCode) && $allowedDistributors->count() === 1) {
+            $cardCode = $allowedDistributors->first()->code_customer;
+        }
+
+        if (empty($cardCode)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Parameter card_code wajib disertakan untuk memfilter barang.',
+                'errors' => []
+            ], 422);
+        }
+
+        // Validate the card_code is in the allowed list for this API Key
+        $distributor = $allowedDistributors->firstWhere('code_customer', $cardCode);
+        if (!$distributor) {
+            $allowedCodes = $allowedDistributors->pluck('code_customer')->implode(', ');
+            return response()->json([
+                'success' => false,
+                'message' => "Akses ditolak. card_code '{$cardCode}' tidak terdaftar untuk API Key ini. Distributor yang diizinkan: [{$allowedCodes}]",
+                'errors' => []
+            ], 403);
+        }
+
+        // Fetch items
+        $search = $request->query('search');
+        $itemService = app(\App\Modules\Item\Services\ItemService::class);
+        $items = $itemService->getAll([
+            'search' => $search,
+            'code_customer' => $cardCode,
+        ]);
+
+        $data = $items->map(function ($item) {
+            return [
+                'item_code' => $item->item_code,
+                'item_name' => $item->item_name,
+                'sales_uom' => $item->sal_unit_msr ?? 'CTN',
+                'price'     => (float)($item->price ?? 0.0),
+                'brand'     => $item->brand,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Daftar barang berhasil diambil.',
             'data'    => $data,
         ], 200);
     }
