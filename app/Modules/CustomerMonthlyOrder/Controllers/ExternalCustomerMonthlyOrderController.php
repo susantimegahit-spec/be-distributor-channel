@@ -61,12 +61,10 @@ class ExternalCustomerMonthlyOrderController extends Controller
             ->first();
 
         if ($existingOrder) {
-            $existingOrder->load('details');
             return response()->json([
                 'success'      => true,
                 'message'      => 'Customer Monthly Order dengan distributor_ref_no ini sudah pernah dibuat sebelumnya (Idempotent Response).',
                 'is_duplicate' => true,
-                'data'         => $existingOrder,
             ], 200);
         }
 
@@ -103,14 +101,12 @@ class ExternalCustomerMonthlyOrderController extends Controller
         ]);
 
         try {
-            $order = $this->service->createOrder($payload, null, $distributor->id);
-            $order->load('details');
+            $this->service->createOrder($payload, null, $distributor->id);
 
             return response()->json([
                 'success'      => true,
                 'message'      => 'Customer Monthly Order berhasil dibuat via External API.',
                 'is_duplicate' => false,
-                'data'         => $order,
             ], 201);
         } catch (\Exception $e) {
             return $this->errorResponse('Gagal membuat Customer Monthly Order: ' . $e->getMessage(), [], 500);
