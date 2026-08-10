@@ -37,6 +37,7 @@ class ExternalCustomerMonthlyOrderApiTest extends TestCase
             'api_key_hash' => $hashedKey,
             'is_active' => true,
         ]);
+        $this->apiKeyRecord->distributors()->attach($this->distributor->id);
 
         $this->item = Item::create([
             'item_code' => 'SKU-TEST-001',
@@ -70,6 +71,7 @@ class ExternalCustomerMonthlyOrderApiTest extends TestCase
     public function test_creates_cmo_successfully_via_external_api(): void
     {
         $payload = [
+            'card_code' => 'CUST-TEST-001',
             'distributor_ref_no' => 'PO-DIST-2026-001',
             'doc_date' => '2026-08-07',
             'lines' => [
@@ -100,6 +102,7 @@ class ExternalCustomerMonthlyOrderApiTest extends TestCase
     public function test_idempotency_returns_existing_order_for_duplicate_ref_no(): void
     {
         $payload = [
+            'card_code' => 'CUST-TEST-001',
             'distributor_ref_no' => 'PO-DIST-2026-RETRY',
             'doc_date' => '2026-08-07',
             'lines' => [
@@ -131,6 +134,7 @@ class ExternalCustomerMonthlyOrderApiTest extends TestCase
     public function test_fails_validation_for_non_existent_item(): void
     {
         $payload = [
+            'card_code' => 'CUST-TEST-001',
             'distributor_ref_no' => 'PO-DIST-INVALID-SKU',
             'doc_date' => '2026-08-07',
             'lines' => [
