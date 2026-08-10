@@ -20,5 +20,6 @@ Route::prefix('v1/external/customer-monthly-orders')
     ->middleware([AuthenticateDistributorApiKey::class, 'throttle:60,1'])
     ->group(function () {
         Route::post('/', [ExternalCustomerMonthlyOrderController::class, 'store']);
+        Route::get('/distributors', [ExternalCustomerMonthlyOrderController::class, 'getDistributors']);
         Route::get('/{refNo}', [ExternalCustomerMonthlyOrderController::class, 'show']);
     });

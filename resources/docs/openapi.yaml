@@ -118,6 +118,47 @@ paths:
           description: API Key / Bearer token tidak valid.
         '422':
           description: Validasi data gagal (misal SKU tidak ditemukan).
+  /v1/external/customer-monthly-orders/distributors:
+    get:
+      summary: Get allowed customer codes for API Key
+      description: Mendapatkan daftar kode customer (card_code) yang diizinkan untuk digunakan oleh API Key pengirim.
+      tags:
+        - External B2B Integration
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar distributor berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Daftar distributor yang diizinkan untuk API Key ini berhasil diambil."
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        card_code:
+                          type: string
+                          example: "C110003419"
+                        customer_name:
+                          type: string
+                          example: "SAKTI SETIA SANTOSA, PT."
+                        depo:
+                          type: string
+                          example: "SITUBONDO"
+                        address:
+                          type: string
+                          example: "JL.KERTOPATEN NOMOR 16 SURABAYA"
+        '401':
+          description: API Key tidak valid atau dinonaktifkan.
   /v1/sales-dashboard/upload:
     post:
       summary: Upload Target or CMO Excel/CSV file

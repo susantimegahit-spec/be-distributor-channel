@@ -256,4 +256,20 @@ class ExternalCustomerMonthlyOrderApiTest extends TestCase
             ])
             ->assertJsonPath('errors.attachment.0', 'Dokumen bukti PO fisik (attachment) dalam format PDF wajib diunggah.');
     }
+
+    public function test_lists_allowed_distributor_customer_codes_successfully(): void
+    {
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->rawApiKey)
+            ->getJson('/api/distributor-channel/v1/external/customer-monthly-orders/distributors');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Daftar distributor yang diizinkan untuk API Key ini berhasil diambil.',
+            ])
+            ->assertJsonFragment([
+                'card_code' => 'CUST-TEST-001',
+                'customer_name' => 'Distributor Test PT',
+            ]);
+    }
 }

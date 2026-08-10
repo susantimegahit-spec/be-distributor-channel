@@ -120,6 +120,36 @@ class ExternalCustomerMonthlyOrderController extends Controller
     }
 
     /**
+     * Get list of allowed customer codes (distributors) for this API key.
+     *
+     * @param  Request  $request
+     * @return JsonResponse
+     */
+    public function getDistributors(Request $request): JsonResponse
+    {
+        $allowedDistributors = $request->get('allowed_distributors');
+
+        if (!$allowedDistributors || $allowedDistributors->isEmpty()) {
+            return $this->errorResponse('Tidak ada distributor yang terdaftar pada API Key ini.', [], 401);
+        }
+
+        $data = $allowedDistributors->map(function ($distributor) {
+            return [
+                'card_code'     => $distributor->code_customer,
+                'customer_name' => $distributor->name,
+                'depo'          => $distributor->depo,
+                'address'       => $distributor->address,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Daftar distributor yang diizinkan untuk API Key ini berhasil diambil.',
+            'data'    => $data,
+        ], 200);
+    }
+
+    /**
      * Get detail/status of CMO by distributor_ref_no or order_no.
      * Only returns orders for distributors allowed by the API Key.
      *
