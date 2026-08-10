@@ -332,10 +332,10 @@ class CustomerMonthlyOrderService
      *
      * @param  int  $cmoId
      * @param  \Illuminate\Http\UploadedFile  $file
-     * @param  int  $userId
+     * @param  int|null  $userId
      * @return \App\Models\SalesOrderAttachment
      */
-    protected function storeAttachment(int $cmoId, \Illuminate\Http\UploadedFile $file, int $userId): \App\Models\SalesOrderAttachment
+    protected function storeAttachment(int $cmoId, \Illuminate\Http\UploadedFile $file, ?int $userId = null): \App\Models\SalesOrderAttachment
     {
         $extension = $file->getClientOriginalExtension();
         $fileName = $file->getClientOriginalName();

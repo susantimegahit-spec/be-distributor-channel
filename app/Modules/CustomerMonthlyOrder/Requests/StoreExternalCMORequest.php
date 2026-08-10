@@ -17,6 +17,19 @@ class StoreExternalCMORequest extends FormRequest
     }
 
     /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->input('lines'))) {
+            $decoded = json_decode($this->input('lines'), true);
+            if (is_array($decoded)) {
+                $this->merge(['lines' => $decoded]);
+            }
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
@@ -35,12 +48,14 @@ class StoreExternalCMORequest extends FormRequest
             'address2'            => 'nullable|string',
             'po_number'           => 'nullable|string|max:100',
             'comments'            => 'nullable|string',
+            'attachment'          => 'required|file|mimes:pdf|max:10240',
+            'attachments'         => 'nullable',
+            'attachments.*'       => 'nullable|file|mimes:pdf|max:10240',
             'lines'               => 'required|array|min:1',
             'lines.*.item_code'   => 'required|string|exists:items,item_code',
             'lines.*.quantity'    => 'required|numeric|min:0.0001',
             'lines.*.unit_price'  => 'nullable|numeric|min:0',
             'lines.*.unit_msr'    => 'nullable|string|max:50',
-            'lines.*.whs_code'    => 'nullable|string|exists:warehouses,whs_code',
         ];
     }
 
@@ -50,9 +65,10 @@ class StoreExternalCMORequest extends FormRequest
     public function messages(): array
     {
         return [
-            'card_code.required'         => 'Kode distributor (card_code) wajib diisi untuk menentukan distributor mana yang membuat order.',
+            'card_code.required'          => 'Kode distributor (card_code) wajib diisi untuk menentukan distributor mana yang membuat order.',
             'distributor_ref_no.required' => 'Header distributor_ref_no (Nomor PO/Ref Order Distributor) wajib diisi untuk idempotency control.',
             'doc_date.required'           => 'Tanggal dokumen (doc_date) wajib diisi dengan format YYYY-MM-DD.',
+            'attachment.required'         => 'Dokumen bukti PO fisik (attachment) dalam format PDF wajib diunggah.',
             'lines.required'              => 'Daftar item order (lines) wajib diisi minimal 1 baris.',
             'lines.min'                   => 'Daftar item order (lines) harus berisi minimal 1 item.',
             'lines.*.item_code.required'  => 'Kode barang (item_code) wajib diisi.',

@@ -27,6 +27,7 @@ paths:
                 - card_code
                 - distributor_ref_no
                 - doc_date
+                - attachment
                 - lines
               properties:
                 card_code:
@@ -45,14 +46,51 @@ paths:
                   type: string
                   format: date
                   example: "2026-08-30"
+                eta_date:
+                  type: string
+                  format: date
+                  example: "2026-08-14"
+                  description: Tanggal perkiraan tiba (otomatis diset ke doc_date + 7 hari jika kosong)
                 po_number:
                   type: string
                   example: "PO-12345"
                 comments:
                   type: string
                   example: "Order bulanan minyak via ERP"
+                attachment:
+                  type: string
+                  format: binary
+                  description: File dokumen PO/lampiran pendukung (Hanya format .pdf, max 10MB)
                 lines:
                   type: array
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - card_code
+                - distributor_ref_no
+                - doc_date
+                - attachment
+                - lines
+              properties:
+                card_code:
+                  type: string
+                  example: "C110003074"
+                distributor_ref_no:
+                  type: string
+                  example: "PO-DIST-202608-001"
+                doc_date:
+                  type: string
+                  format: date
+                  example: "2026-08-07"
+                attachment:
+                  type: string
+                  format: binary
+                  description: File dokumen PO/lampiran pendukung (Hanya format .pdf, max 10MB)
+                lines:
+                  type: string
+                  description: Array item order dalam format JSON string (misal '[{"item_code":"B26","quantity":10}]')
+                  example: '[{"item_code":"SKU-MINYAK-01","quantity":50,"unit_price":150000}]'
                   items:
                     type: object
                     required:
@@ -71,9 +109,6 @@ paths:
                       unit_msr:
                         type: string
                         example: "CTN"
-                      whs_code:
-                        type: string
-                        example: "WHS-01"
       responses:
         '201':
           description: CMO berhasil dibuat.

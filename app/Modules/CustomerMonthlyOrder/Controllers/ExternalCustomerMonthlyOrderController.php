@@ -100,6 +100,12 @@ class ExternalCustomerMonthlyOrderController extends Controller
             'lines'              => $normalizedLines,
         ]);
 
+        if ($request->hasFile('attachment')) {
+            $payload['attachment'] = $request->file('attachment');
+        } elseif ($request->hasFile('attachments')) {
+            $payload['attachments'] = $request->file('attachments');
+        }
+
         try {
             $this->service->createOrder($payload, null, $distributor->id);
 
