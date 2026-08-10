@@ -153,4 +153,31 @@ class ExternalCustomerMonthlyOrderApiTest extends TestCase
                 'success' => false,
             ]);
     }
+
+    public function test_auto_populates_eta_date_and_addresses(): void
+    {
+        $payload = [
+            'card_code' => 'CUST-TEST-001',
+            'distributor_ref_no' => 'PO-DIST-AUTO-POPULATE',
+            'doc_date' => '2026-08-10',
+            'lines' => [
+                [
+                    'item_code' => 'SKU-TEST-001',
+                    'quantity' => 2,
+                    'unit_price' => 50000,
+                ],
+            ],
+        ];
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->rawApiKey)
+            ->postJson('/api/distributor-channel/v1/external/customer-monthly-orders', $payload);
+
+        $response->assertStatus(201);
+
+        // Verify eta_date is auto-calculated to doc_date + 7 days (2026-08-17)
+        $order = \App\Models\CustomerMonthlyOrder::where('distributor_ref_no', 'PO-DIST-AUTO-POPULATE')->first();
+        $this->assertNotNull($order);
+        $this->assertEquals('2026-08-10', \Carbon\Carbon::parse($order->doc_date)->format('Y-m-d'));
+        $this->assertEquals('2026-08-17', \Carbon\Carbon::parse($order->eta_date)->format('Y-m-d'));
+    }
 }

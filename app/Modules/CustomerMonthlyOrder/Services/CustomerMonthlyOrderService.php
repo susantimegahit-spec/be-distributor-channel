@@ -3,23 +3,30 @@
 namespace App\Modules\CustomerMonthlyOrder\Services;
 
 use App\Models\CustomerMonthlyOrder;
+use App\Models\Distributor;
 use App\Models\SalesOrder;
 use App\Modules\CustomerMonthlyOrder\Repositories\CustomerMonthlyOrderRepositoryInterface;
+use App\Modules\Distributor\Services\DistributorService;
 use App\Modules\SalesOrder\Repositories\SalesOrderRepositoryInterface;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class CustomerMonthlyOrderService
 {
     protected CustomerMonthlyOrderRepositoryInterface $repository;
     protected SalesOrderRepositoryInterface $salesOrderRepository;
+    protected DistributorService $distributorService;
 
     public function __construct(
         CustomerMonthlyOrderRepositoryInterface $repository,
-        SalesOrderRepositoryInterface $salesOrderRepository
+        SalesOrderRepositoryInterface $salesOrderRepository,
+        DistributorService $distributorService
     ) {
         $this->repository = $repository;
         $this->salesOrderRepository = $salesOrderRepository;
+        $this->distributorService = $distributorService;
     }
 
     /**
@@ -87,13 +94,13 @@ class CustomerMonthlyOrderService
      * Create a new Customer Monthly Order.
      *
      * @param  array  $data
-     * @param  int  $userId
+     * @param  int|null  $userId
      * @param  int  $distributorId
      * @return CustomerMonthlyOrder
      */
     public function createOrder(array $data, ?int $userId, int $distributorId): CustomerMonthlyOrder
     {
-        $distributor = \App\Models\Distributor::find($distributorId);
+        $distributor = Distributor::find($distributorId);
 
         $data['order_no'] = $this->generateCmoNumber();
         $data['distributor_id'] = $distributorId;
@@ -102,6 +109,23 @@ class CustomerMonthlyOrderService
         $data['status'] = 'DRAFT';
         $data['created_by'] = $userId;
         $data['updated_by'] = $userId;
+
+        // Auto-fill Dates if missing
+        $docDate = $data['doc_date'] ?? now()->toDateString();
+        $data['doc_date'] = $docDate;
+
+        if (empty($data['doc_due_date'])) {
+            $data['doc_due_date'] = $docDate;
+        }
+
+        if (empty($data['eta_date'])) {
+            $data['eta_date'] = Carbon::parse($docDate)->addDays(7)->toDateString();
+        }
+
+        // Auto-fill Addresses from SAP if missing
+        if (empty($data['address']) || empty($data['address2']) || empty($data['pay_to_code']) || empty($data['ship_to_code'])) {
+            $this->populateAddressesFromSap($data, $distributor);
+        }
 
         // Calculate doc_total as sum of line_total
         $docTotal = 0;
@@ -370,5 +394,61 @@ class CustomerMonthlyOrderService
         }
 
         return $prefix . $random;
+    }
+
+    /**
+     * Auto-fill billing address, shipping address, pay_to_code, and ship_to_code from SAP or Distributor.
+     *
+     * @param  array  $data
+     * @param  Distributor|null  $distributor
+     * @return void
+     */
+    protected function populateAddressesFromSap(array &$data, ?Distributor $distributor): void
+    {
+        if (!$distributor || !$distributor->code_customer) {
+            return;
+        }
+
+        $addresses = [];
+        try {
+            $addresses = $this->distributorService->getAddressesFromSap($distributor->code_customer);
+        } catch (\Throwable $e) {
+            Log::warning("Failed to fetch SAP addresses for distributor {$distributor->code_customer}: " . $e->getMessage());
+        }
+
+        $billing = null;
+        $shipping = null;
+
+        if (is_array($addresses)) {
+            foreach ($addresses as $item) {
+                $type = $item['AdresType'] ?? '';
+                if ($type === 'B' && !$billing) {
+                    $billing = $item;
+                } elseif ($type === 'S' && !$shipping) {
+                    $shipping = $item;
+                }
+            }
+        }
+
+        // Fallback: if shipping not found specifically with 'S', use second address or billing
+        if (!$shipping && is_array($addresses) && count($addresses) > 1) {
+            $shipping = $addresses[1];
+        }
+
+        // Populate Billing Address (pay_to_code & address)
+        if (empty($data['pay_to_code'])) {
+            $data['pay_to_code'] = $billing['Address'] ?? 'MAIN';
+        }
+        if (empty($data['address'])) {
+            $data['address'] = $billing['Street'] ?? $distributor->address ?? null;
+        }
+
+        // Populate Shipping Address (ship_to_code & address2)
+        if (empty($data['ship_to_code'])) {
+            $data['ship_to_code'] = $shipping['Address'] ?? $billing['Address'] ?? 'MAIN';
+        }
+        if (empty($data['address2'])) {
+            $data['address2'] = $shipping['Street'] ?? $distributor->mail_address ?? $distributor->address ?? null;
+        }
     }
 }
