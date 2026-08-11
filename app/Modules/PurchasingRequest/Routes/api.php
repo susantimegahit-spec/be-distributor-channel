@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\PurchasingRequest\Controllers\DocumentTypeController;
 use App\Modules\PurchasingRequest\Controllers\PurchaseRequestController;
 use Illuminate\Support\Facades\Route;
 
@@ -10,4 +11,7 @@ Route::prefix('v1/purchasing-request')->group(function () {
     Route::put('/requests/{id}', [PurchaseRequestController::class, 'update']);
     Route::post('/requests/{id}/status', [PurchaseRequestController::class, 'updateStatus']);
     Route::delete('/requests/{id}', [PurchaseRequestController::class, 'destroy']);
+    Route::get('/document-types', [DocumentTypeController::class, 'index']);
 });
+
+Route::get('v1/document-types', [DocumentTypeController::class, 'index']);
