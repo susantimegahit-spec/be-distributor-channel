@@ -461,7 +461,8 @@ class CustomerMonthlyOrderService
         ?string $cardCode = null,
         ?string $startDate = null,
         ?string $endDate = null,
-        ?int $year = null
+        ?int $year = null,
+        ?int $month = null
     ): array {
         $filters = [];
         if ($distributorId) {
@@ -481,6 +482,9 @@ class CustomerMonthlyOrderService
         }
         if ($year) {
             $filters['year'] = $year;
+        }
+        if ($month) {
+            $filters['month'] = $month;
         }
 
         return $this->repository->getReportByDepo($filters);
@@ -495,7 +499,8 @@ class CustomerMonthlyOrderService
         ?string $cardCode = null,
         ?string $startDate = null,
         ?string $endDate = null,
-        ?int $year = null
+        ?int $year = null,
+        ?int $month = null
     ): array {
         $filters = [];
         if ($distributorId) {
@@ -516,7 +521,60 @@ class CustomerMonthlyOrderService
         if ($year) {
             $filters['year'] = $year;
         }
+        if ($month) {
+            $filters['month'] = $month;
+        }
 
         return $this->repository->getReportByYear($filters);
+    }
+
+    /**
+     * Get detailed monthly report grouped by depo, item, and brand.
+     */
+    public function getReportDetailed(
+        int|array|null $distributorId = null,
+        ?string $status = null,
+        ?string $cardCode = null,
+        ?string $startDate = null,
+        ?string $endDate = null,
+        ?int $year = null,
+        ?int $month = null,
+        ?string $depo = null,
+        ?string $brand = null,
+        ?string $itemCode = null
+    ): array {
+        $filters = [];
+        if ($distributorId) {
+            $filters['distributor_id'] = $distributorId;
+        }
+        if ($status) {
+            $filters['status'] = $status;
+        }
+        if ($cardCode) {
+            $filters['card_code'] = $cardCode;
+        }
+        if ($startDate) {
+            $filters['start_date'] = $startDate;
+        }
+        if ($endDate) {
+            $filters['end_date'] = $endDate;
+        }
+        if ($year) {
+            $filters['year'] = $year;
+        }
+        if ($month) {
+            $filters['month'] = $month;
+        }
+        if ($depo) {
+            $filters['depo'] = $depo;
+        }
+        if ($brand) {
+            $filters['brand'] = $brand;
+        }
+        if ($itemCode) {
+            $filters['item_code'] = $itemCode;
+        }
+
+        return $this->repository->getReportDetailed($filters);
     }
 }

@@ -287,5 +287,86 @@ class CustomerMonthlyOrderRepository implements CustomerMonthlyOrderRepositoryIn
                 $query->whereRaw("EXTRACT(YEAR FROM c.doc_date) = ?", [$filters['year']]);
             }
         }
+
+        if (!empty($filters['month'])) {
+            $driver = DB::getDriverName();
+            if ($driver === 'sqlite') {
+                $query->whereRaw("CAST(strftime('%m', c.doc_date) as integer) = ?", [$filters['month']]);
+            } else {
+                $query->whereRaw("EXTRACT(MONTH FROM c.doc_date) = ?", [$filters['month']]);
+            }
+        }
+    }
+
+    /**
+     * Get detailed monthly report grouped by depo, item, and brand.
+     */
+    public function getReportDetailed(array $filters = []): array
+    {
+        $driver = DB::getDriverName();
+        $yearExpr = $driver === 'sqlite' ? "strftime('%Y', c.doc_date)" : "EXTRACT(YEAR FROM c.doc_date)";
+        $monthExpr = $driver === 'sqlite' ? "strftime('%m', c.doc_date)" : "EXTRACT(MONTH FROM c.doc_date)";
+
+        $query = DB::table('customer_monthly_order_details as cd')
+            ->join('customer_monthly_orders as c', 'cd.customer_monthly_order_id', '=', 'c.id')
+            ->leftJoin('items as i', 'cd.item_code', '=', 'i.item_code')
+            ->join('distributors as d', 'c.distributor_id', '=', 'd.id')
+            ->select([
+                'd.depo',
+                'cd.item_code',
+                'i.item_name',
+                'i.brand',
+                DB::raw("CAST({$yearExpr} as integer) as year"),
+                DB::raw("CAST({$monthExpr} as integer) as month"),
+                DB::raw('COUNT(DISTINCT c.id) as total_orders'),
+                DB::raw('COALESCE(SUM(cd.quantity), 0) as total_qty'),
+                DB::raw('COALESCE(SUM(cd.line_total), 0) as total_amount')
+            ]);
+
+        // Apply shared filters
+        $this->applyReportFilters($query, $filters);
+
+        // Apply report-specific filters
+        if (!empty($filters['depo'])) {
+            $depos = is_array($filters['depo']) ? $filters['depo'] : array_map('trim', explode(',', $filters['depo']));
+            $query->whereIn('d.depo', $depos);
+        }
+
+        if (!empty($filters['brand'])) {
+            $brands = is_array($filters['brand']) ? $filters['brand'] : array_map('trim', explode(',', $filters['brand']));
+            $query->whereIn('i.brand', $brands);
+        }
+
+        if (!empty($filters['item_code'])) {
+            $query->where('cd.item_code', $filters['item_code']);
+        }
+
+        return $query->groupBy([
+                'd.depo',
+                'cd.item_code',
+                'i.item_name',
+                'i.brand',
+                DB::raw($yearExpr),
+                DB::raw($monthExpr)
+            ])
+            ->orderBy('year', 'desc')
+            ->orderBy('month', 'desc')
+            ->orderBy('d.depo', 'asc')
+            ->orderBy('total_amount', 'desc')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'depo' => $item->depo ?: 'TANPA DEPO',
+                    'item_code' => $item->item_code,
+                    'item_name' => $item->item_name ?: 'UNKNOWN ITEM',
+                    'brand' => $item->brand ?: 'NO BRAND',
+                    'year' => (int)$item->year,
+                    'month' => (int)$item->month,
+                    'total_orders' => (int)$item->total_orders,
+                    'total_qty' => (float)$item->total_qty,
+                    'total_amount' => (float)$item->total_amount,
+                ];
+            })
+            ->toArray();
     }
 }

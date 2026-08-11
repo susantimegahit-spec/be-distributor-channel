@@ -63,4 +63,12 @@ interface CustomerMonthlyOrderRepositoryInterface
      * @return array
      */
     public function getReportByYear(array $filters = []): array;
+
+    /**
+     * Get detailed monthly report grouped by depo, item, and brand.
+     *
+     * @param  array  $filters
+     * @return array
+     */
+    public function getReportDetailed(array $filters = []): array;
 }

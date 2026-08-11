@@ -3715,6 +3715,12 @@ paths:
           schema:
             type: integer
           description: Year filter (e.g. 2026)
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Month filter (1-12)
       responses:
         '200':
           description: Laporan CMO per depo berhasil diambil
@@ -3785,6 +3791,12 @@ paths:
           schema:
             type: integer
           description: Specific year filter to retrieve monthly breakdown
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Month filter (1-12)
       responses:
         '200':
           description: Laporan CMO per tahun/bulan berhasil diambil
@@ -3827,6 +3839,118 @@ paths:
                             total_amount:
                               type: number
                               example: 150000000.00
+
+  /v1/customer-monthly-orders/reports/detailed:
+    get:
+      summary: Get detailed monthly CMO report (Depo, Item, Brand)
+      description: Mendapatkan laporan bulanan detail transaksi CMO yang dikelompokkan dan diakumulasikan per depo, kode barang, nama barang, dan brand.
+      tags:
+        - Customer Monthly Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by status
+        - name: card_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by customer code
+        - name: start_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Start date filter
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: End date filter
+        - name: year
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Year filter (e.g. 2026)
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Month filter (1-12)
+        - name: depo
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by depo name (supports comma-separated list)
+        - name: brand
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by brand name (supports comma-separated list)
+        - name: item_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by item code
+      responses:
+        '200':
+          description: Laporan CMO detail per bulan berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Laporan CMO detail per bulan berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        depo:
+                          type: string
+                          example: SURABAYA
+                        item_code:
+                          type: string
+                          example: SKU-TEST-001
+                        item_name:
+                          type: string
+                          example: Barang Test 1
+                        brand:
+                          type: string
+                          example: Brand A
+                        year:
+                          type: integer
+                          example: 2026
+                        month:
+                          type: integer
+                          example: 8
+                        total_orders:
+                          type: integer
+                          example: 2
+                        total_qty:
+                          type: number
+                          example: 15.00
+                        total_amount:
+                          type: number
+                          example: 750000.00
 
   /v1/customer-monthly-orders:
     get:

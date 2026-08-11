@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\Distributor;
+use App\Models\Item;
 use App\Models\CustomerMonthlyOrder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -16,6 +17,7 @@ class CustomerMonthlyOrderReportTest extends TestCase
     protected User $sbyUser;
     protected Distributor $sbyDistributor;
     protected Distributor $jktDistributor;
+    protected Item $item;
 
     protected function setUp(): void
     {
@@ -32,6 +34,15 @@ class CustomerMonthlyOrderReportTest extends TestCase
             'code_customer' => 'CUST-JKT-001',
             'name' => 'Distributor Jkt PT',
             'depo' => 'JAKARTA',
+        ]);
+
+        // Create item with brand
+        $this->item = Item::create([
+            'item_code' => 'SKU-TEST-001',
+            'item_name' => 'Barang Test 1',
+            'price' => 50000,
+            'sales_uom' => 'CTN',
+            'brand' => 'BRAND-A',
         ]);
 
         // Create users
@@ -54,7 +65,7 @@ class CustomerMonthlyOrderReportTest extends TestCase
 
         // Create monthly orders
         // 2025: Sby Order
-        CustomerMonthlyOrder::create([
+        $order1 = CustomerMonthlyOrder::create([
             'distributor_id' => $this->sbyDistributor->id,
             'card_code' => 'CUST-SBY-001',
             'customer_name' => 'Distributor Sby PT',
@@ -63,9 +74,15 @@ class CustomerMonthlyOrderReportTest extends TestCase
             'doc_total' => 100000.00,
             'status' => 'APPROVED',
         ]);
+        $order1->details()->create([
+            'item_code' => 'SKU-TEST-001',
+            'quantity' => 2.00,
+            'unit_price' => 50000.00,
+            'line_total' => 100000.00,
+        ]);
 
         // 2026: Sby Order
-        CustomerMonthlyOrder::create([
+        $order2 = CustomerMonthlyOrder::create([
             'distributor_id' => $this->sbyDistributor->id,
             'card_code' => 'CUST-SBY-001',
             'customer_name' => 'Distributor Sby PT',
@@ -74,9 +91,15 @@ class CustomerMonthlyOrderReportTest extends TestCase
             'doc_total' => 150000.00,
             'status' => 'APPROVED',
         ]);
+        $order2->details()->create([
+            'item_code' => 'SKU-TEST-001',
+            'quantity' => 3.00,
+            'unit_price' => 50000.00,
+            'line_total' => 150000.00,
+        ]);
 
         // 2026: Jkt Order
-        CustomerMonthlyOrder::create([
+        $order3 = CustomerMonthlyOrder::create([
             'distributor_id' => $this->jktDistributor->id,
             'card_code' => 'CUST-JKT-001',
             'customer_name' => 'Distributor Jkt PT',
@@ -84,6 +107,12 @@ class CustomerMonthlyOrderReportTest extends TestCase
             'doc_date' => '2026-09-01',
             'doc_total' => 200000.00,
             'status' => 'SUBMITTED',
+        ]);
+        $order3->details()->create([
+            'item_code' => 'SKU-TEST-001',
+            'quantity' => 4.00,
+            'unit_price' => 50000.00,
+            'line_total' => 200000.00,
         ]);
     }
 
@@ -99,7 +128,6 @@ class CustomerMonthlyOrderReportTest extends TestCase
             ])
             ->assertJsonCount(2, 'data');
 
-        // Should be ordered by total_amount desc (Jakarta: 200000.00 > Surabaya: 250000.00? No, Surabaya total is 100000 + 150000 = 250000, so Surabaya should be first)
         $response->assertJsonPath('data.0.depo', 'SURABAYA')
             ->assertJsonPath('data.0.total_amount', 250000)
             ->assertJsonPath('data.0.total_orders', 2)
@@ -137,10 +165,19 @@ class CustomerMonthlyOrderReportTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonCount(2, 'data')
-            ->assertJsonPath('data.0.depo', 'JAKARTA') // Jkt: 200000 > Sby 2026: 150000
+            ->assertJsonPath('data.0.depo', 'JAKARTA')
             ->assertJsonPath('data.0.total_amount', 200000)
             ->assertJsonPath('data.1.depo', 'SURABAYA')
             ->assertJsonPath('data.1.total_amount', 150000);
+
+        // Filter by month = 9
+        $response = $this->actingAs($this->adminUser, 'sanctum')
+            ->getJson('/api/distributor-channel/v1/customer-monthly-orders/reports/by-depo?month=9');
+
+        $response->assertStatus(200)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.depo', 'JAKARTA')
+            ->assertJsonPath('data.0.total_amount', 200000);
     }
 
     public function test_admin_can_retrieve_report_by_year_summary(): void
@@ -155,9 +192,8 @@ class CustomerMonthlyOrderReportTest extends TestCase
             ])
             ->assertJsonCount(2, 'data');
 
-        // Ordered by year desc (2026 then 2025)
         $response->assertJsonPath('data.0.year', 2026)
-            ->assertJsonPath('data.0.total_amount', 350000) // 150000 + 200000
+            ->assertJsonPath('data.0.total_amount', 350000)
             ->assertJsonPath('data.0.total_orders', 2)
             ->assertJsonPath('data.1.year', 2025)
             ->assertJsonPath('data.1.total_amount', 100000)
@@ -175,10 +211,50 @@ class CustomerMonthlyOrderReportTest extends TestCase
             ])
             ->assertJsonCount(2, 'data');
 
-        // Sorted by month asc: August (8) -> Sept (9)
         $response->assertJsonPath('data.0.month', 8)
             ->assertJsonPath('data.0.total_amount', 150000)
             ->assertJsonPath('data.1.month', 9)
             ->assertJsonPath('data.1.total_amount', 200000);
+    }
+
+    public function test_admin_can_retrieve_detailed_report(): void
+    {
+        $response = $this->actingAs($this->adminUser, 'sanctum')
+            ->getJson('/api/distributor-channel/v1/customer-monthly-orders/reports/detailed');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Laporan CMO detail per bulan berhasil diambil.',
+            ])
+            ->assertJsonCount(3, 'data'); // 3 distinct monthly order details (Sby 2025, Sby 2026, Jkt 2026)
+
+        // Validate top item (Jkt 2026: 200000 > Sby 2026: 150000 > Sby 2025: 100000)
+        $response->assertJsonPath('data.0.depo', 'JAKARTA')
+            ->assertJsonPath('data.0.item_code', 'SKU-TEST-001')
+            ->assertJsonPath('data.0.brand', 'BRAND-A')
+            ->assertJsonPath('data.0.total_qty', 4)
+            ->assertJsonPath('data.0.total_amount', 200000);
+    }
+
+    public function test_detailed_report_filters(): void
+    {
+        // Filter by depo = SURABAYA
+        $response = $this->actingAs($this->adminUser, 'sanctum')
+            ->getJson('/api/distributor-channel/v1/customer-monthly-orders/reports/detailed?depo=SURABAYA');
+
+        $response->assertStatus(200)
+            ->assertJsonCount(2, 'data');
+
+        // Filter by brand = BRAND-A & year = 2026 & month = 8
+        $response = $this->actingAs($this->adminUser, 'sanctum')
+            ->getJson('/api/distributor-channel/v1/customer-monthly-orders/reports/detailed?brand=BRAND-A&year=2026&month=8');
+
+        $response->assertStatus(200)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.depo', 'SURABAYA')
+            ->assertJsonPath('data.0.year', 2026)
+            ->assertJsonPath('data.0.month', 8)
+            ->assertJsonPath('data.0.total_amount', 150000);
     }
 }
