@@ -8909,6 +8909,72 @@ paths:
         '422':
           description: Validation error.
 
+  /v1/document-types:
+    get:
+      summary: Get Document Type list
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search by code or name
+      responses:
+        '200':
+          description: Daftar document type berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar document type berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DocumentType'
+
+  /v1/purchasing-request/document-types:
+    get:
+      summary: Get Document Type list (Alternative endpoint)
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search by code or name
+      responses:
+        '200':
+          description: Daftar document type berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar document type berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DocumentType'
+
   /v1/cron-jobs:
     get:
       summary: Get Cron Job list with search and filter
@@ -12025,6 +12091,19 @@ components:
           type: string
           format: date-time
           example: "2026-08-06T00:00:05.000000Z"
+
+    DocumentType:
+      type: object
+      properties:
+        code:
+          type: string
+          example: ORDR
+        name:
+          type: string
+          example: Sales Order
+        object_type:
+          type: string
+          example: "17"
 
 
 
