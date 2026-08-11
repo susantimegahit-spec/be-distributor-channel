@@ -10733,6 +10733,21 @@ components:
         invalid_rows:
           type: integer
           example: 5
+        approved_rows:
+          type: integer
+          example: 80
+        pending_rows:
+          type: integer
+          example: 20
+        item_not_found_rows:
+          type: integer
+          example: 2
+        program_not_found_rows:
+          type: integer
+          example: 2
+        strata_not_found_rows:
+          type: integer
+          example: 1
         total_diskon:
           type: number
           example: 2500000.00
@@ -10765,6 +10780,21 @@ components:
         invalid_rows:
           type: integer
           example: 5
+        approved_rows:
+          type: integer
+          example: 80
+        pending_rows:
+          type: integer
+          example: 20
+        item_not_found_rows:
+          type: integer
+          example: 2
+        program_not_found_rows:
+          type: integer
+          example: 2
+        strata_not_found_rows:
+          type: integer
+          example: 1
         total_diskon:
           type: number
           example: 2500000.00

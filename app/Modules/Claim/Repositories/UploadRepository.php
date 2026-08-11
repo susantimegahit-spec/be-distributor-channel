@@ -46,6 +46,33 @@ class UploadRepository implements UploadRepositoryInterface
             ->whereColumn('u.batch_id', 'b.id')
             ->where('r.status', '!=', 'VALID_PROGRAM');
 
+        $approvedRowsQuery = DB::table('trx_program_result as r')
+            ->join('trx_program_upload as u', 'r.upload_id', '=', 'u.id')
+            ->whereColumn('u.batch_id', 'b.id')
+            ->where('r.status', 'VALID_PROGRAM')
+            ->where('r.is_verified', true);
+
+        $pendingRowsQuery = DB::table('trx_program_result as r')
+            ->join('trx_program_upload as u', 'r.upload_id', '=', 'u.id')
+            ->whereColumn('u.batch_id', 'b.id')
+            ->where('r.status', 'VALID_PROGRAM')
+            ->where('r.is_verified', false);
+
+        $itemNotFoundRowsQuery = DB::table('trx_program_result as r')
+            ->join('trx_program_upload as u', 'r.upload_id', '=', 'u.id')
+            ->whereColumn('u.batch_id', 'b.id')
+            ->where('r.status', 'ITEM_NOT_FOUND');
+
+        $programNotFoundRowsQuery = DB::table('trx_program_result as r')
+            ->join('trx_program_upload as u', 'r.upload_id', '=', 'u.id')
+            ->whereColumn('u.batch_id', 'b.id')
+            ->where('r.status', 'PROGRAM_NOT_FOUND');
+
+        $strataNotFoundRowsQuery = DB::table('trx_program_result as r')
+            ->join('trx_program_upload as u', 'r.upload_id', '=', 'u.id')
+            ->whereColumn('u.batch_id', 'b.id')
+            ->where('r.status', 'STRATA_NOT_FOUND');
+
         $totalDiskonQuery = DB::table('trx_program_result as r')
             ->join('trx_program_upload as u', 'r.upload_id', '=', 'u.id')
             ->whereColumn('u.batch_id', 'b.id');
@@ -68,6 +95,11 @@ class UploadRepository implements UploadRepositoryInterface
             $totalRowsQuery->whereIn('customer_code', $customerCodes);
             $validRowsQuery->whereIn('r.customer_code', $customerCodes);
             $invalidRowsQuery->whereIn('r.customer_code', $customerCodes);
+            $approvedRowsQuery->whereIn('r.customer_code', $customerCodes);
+            $pendingRowsQuery->whereIn('r.customer_code', $customerCodes);
+            $itemNotFoundRowsQuery->whereIn('r.customer_code', $customerCodes);
+            $programNotFoundRowsQuery->whereIn('r.customer_code', $customerCodes);
+            $strataNotFoundRowsQuery->whereIn('r.customer_code', $customerCodes);
             $totalDiskonQuery->whereIn('r.customer_code', $customerCodes);
             $verifiedDiskonQuery->whereIn('r.customer_code', $customerCodes);
             $totalDeductedQuery->whereIn('l.customer_code', $customerCodes);
@@ -100,6 +132,11 @@ class UploadRepository implements UploadRepositoryInterface
             ->selectSub($totalRowsQuery->selectRaw('COUNT(*)'), 'total_rows')
             ->selectSub($validRowsQuery->selectRaw('COUNT(*)'), 'valid_rows')
             ->selectSub($invalidRowsQuery->selectRaw('COUNT(*)'), 'invalid_rows')
+            ->selectSub($approvedRowsQuery->selectRaw('COUNT(*)'), 'approved_rows')
+            ->selectSub($pendingRowsQuery->selectRaw('COUNT(*)'), 'pending_rows')
+            ->selectSub($itemNotFoundRowsQuery->selectRaw('COUNT(*)'), 'item_not_found_rows')
+            ->selectSub($programNotFoundRowsQuery->selectRaw('COUNT(*)'), 'program_not_found_rows')
+            ->selectSub($strataNotFoundRowsQuery->selectRaw('COUNT(*)'), 'strata_not_found_rows')
             ->selectSub($totalDiskonQuery->selectRaw('COALESCE(SUM(r.total_diskon), 0)'), 'total_diskon')
             ->selectSub($verifiedDiskonQuery->selectRaw('COALESCE(SUM(r.total_diskon), 0)'), 'total_diskon_verified')
             ->selectSub($totalDeductedQuery->selectRaw('COALESCE(SUM(l.credit), 0)'), 'total_deducted')
@@ -122,6 +159,11 @@ class UploadRepository implements UploadRepositoryInterface
             $item->total_rows = (int)$item->total_rows;
             $item->valid_rows = (int)$item->valid_rows;
             $item->invalid_rows = (int)$item->invalid_rows;
+            $item->approved_rows = (int)$item->approved_rows;
+            $item->pending_rows = (int)$item->pending_rows;
+            $item->item_not_found_rows = (int)$item->item_not_found_rows;
+            $item->program_not_found_rows = (int)$item->program_not_found_rows;
+            $item->strata_not_found_rows = (int)$item->strata_not_found_rows;
             $item->total_diskon = (float)$item->total_diskon;
             $item->total_diskon_verified = (float)$item->total_diskon_verified;
             
@@ -159,6 +201,38 @@ class UploadRepository implements UploadRepositoryInterface
             ->where('trx_program_result.status', '!=', 'VALID_PROGRAM')
             ->count();
 
+        $approvedRows = DB::table('trx_program_result')
+            ->join('trx_program_upload', 'trx_program_result.upload_id', '=', 'trx_program_upload.id')
+            ->where('trx_program_upload.batch_id', $id)
+            ->where('trx_program_result.status', 'VALID_PROGRAM')
+            ->where('trx_program_result.is_verified', true)
+            ->count();
+
+        $pendingRows = DB::table('trx_program_result')
+            ->join('trx_program_upload', 'trx_program_result.upload_id', '=', 'trx_program_upload.id')
+            ->where('trx_program_upload.batch_id', $id)
+            ->where('trx_program_result.status', 'VALID_PROGRAM')
+            ->where('trx_program_result.is_verified', false)
+            ->count();
+
+        $itemNotFoundRows = DB::table('trx_program_result')
+            ->join('trx_program_upload', 'trx_program_result.upload_id', '=', 'trx_program_upload.id')
+            ->where('trx_program_upload.batch_id', $id)
+            ->where('trx_program_result.status', 'ITEM_NOT_FOUND')
+            ->count();
+
+        $programNotFoundRows = DB::table('trx_program_result')
+            ->join('trx_program_upload', 'trx_program_result.upload_id', '=', 'trx_program_upload.id')
+            ->where('trx_program_upload.batch_id', $id)
+            ->where('trx_program_result.status', 'PROGRAM_NOT_FOUND')
+            ->count();
+
+        $strataNotFoundRows = DB::table('trx_program_result')
+            ->join('trx_program_upload', 'trx_program_result.upload_id', '=', 'trx_program_upload.id')
+            ->where('trx_program_upload.batch_id', $id)
+            ->where('trx_program_result.status', 'STRATA_NOT_FOUND')
+            ->count();
+
         $totalDiskon = DB::table('trx_program_result')
             ->join('trx_program_upload', 'trx_program_result.upload_id', '=', 'trx_program_upload.id')
             ->where('trx_program_upload.batch_id', $id)
@@ -192,6 +266,11 @@ class UploadRepository implements UploadRepositoryInterface
             'total_rows' => $totalRows,
             'valid_rows' => $validRows,
             'invalid_rows' => $invalidRows,
+            'approved_rows' => $approvedRows,
+            'pending_rows' => $pendingRows,
+            'item_not_found_rows' => $itemNotFoundRows,
+            'program_not_found_rows' => $programNotFoundRows,
+            'strata_not_found_rows' => $strataNotFoundRows,
             'total_diskon' => (float)$totalDiskon,
             'total_diskon_verified' => (float)$totalDiskonVerified,
             'available_balance' => $availableBalance,
