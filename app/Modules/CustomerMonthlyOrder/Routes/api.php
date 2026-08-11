@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Route;
 
 // Internal Customer Portal API Routes (Sanctum User Auth)
 Route::prefix('v1/customer-monthly-orders')->middleware('auth:sanctum')->group(function () {
+    Route::get('/reports/by-depo', [CustomerMonthlyOrderController::class, 'reportByDepo']);
+    Route::get('/reports/by-year', [CustomerMonthlyOrderController::class, 'reportByYear']);
     Route::get('/', [CustomerMonthlyOrderController::class, 'index']);
     Route::get('/{id}', [CustomerMonthlyOrderController::class, 'show']);
     Route::post('/', [CustomerMonthlyOrderController::class, 'store']);

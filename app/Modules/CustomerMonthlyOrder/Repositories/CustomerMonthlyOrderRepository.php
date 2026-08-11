@@ -160,4 +160,132 @@ class CustomerMonthlyOrderRepository implements CustomerMonthlyOrderRepositoryIn
             return false;
         });
     }
+
+    /**
+     * Get report grouped by depo.
+     */
+    public function getReportByDepo(array $filters = []): array
+    {
+        $query = DB::table('customer_monthly_orders as c')
+            ->join('distributors as d', 'c.distributor_id', '=', 'd.id')
+            ->select([
+                'd.depo',
+                DB::raw('COUNT(c.id) as total_orders'),
+                DB::raw('COALESCE(SUM(c.doc_total), 0) as total_amount')
+            ]);
+
+        $this->applyReportFilters($query, $filters);
+
+        return $query->groupBy('d.depo')
+            ->orderBy('total_amount', 'desc')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'depo' => $item->depo ?: 'TANPA DEPO',
+                    'total_orders' => (int)$item->total_orders,
+                    'total_amount' => (float)$item->total_amount,
+                ];
+            })
+            ->toArray();
+    }
+
+    /**
+     * Get report grouped by year / month.
+     */
+    public function getReportByYear(array $filters = []): array
+    {
+        $driver = DB::getDriverName();
+
+        if (!empty($filters['year'])) {
+            $monthExpr = $driver === 'sqlite' ? "strftime('%m', c.doc_date)" : "EXTRACT(MONTH FROM c.doc_date)";
+            
+            $query = DB::table('customer_monthly_orders as c')
+                ->select([
+                    DB::raw("{$monthExpr} as month"),
+                    DB::raw('COUNT(c.id) as total_orders'),
+                    DB::raw('COALESCE(SUM(c.doc_total), 0) as total_amount')
+                ]);
+
+            $this->applyReportFilters($query, $filters);
+
+            return $query->groupBy(DB::raw($monthExpr))
+                ->orderBy('month', 'asc')
+                ->get()
+                ->map(function ($item) {
+                    return [
+                        'month' => (int)$item->month,
+                        'total_orders' => (int)$item->total_orders,
+                        'total_amount' => (float)$item->total_amount,
+                    ];
+                })
+                ->toArray();
+        } else {
+            $yearExpr = $driver === 'sqlite' ? "strftime('%Y', c.doc_date)" : "EXTRACT(YEAR FROM c.doc_date)";
+
+            $query = DB::table('customer_monthly_orders as c')
+                ->select([
+                    DB::raw("{$yearExpr} as year"),
+                    DB::raw('COUNT(c.id) as total_orders'),
+                    DB::raw('COALESCE(SUM(c.doc_total), 0) as total_amount')
+                ]);
+
+            $this->applyReportFilters($query, $filters);
+
+            return $query->groupBy(DB::raw($yearExpr))
+                ->orderBy('year', 'desc')
+                ->get()
+                ->map(function ($item) {
+                    return [
+                        'year' => (int)$item->year,
+                        'total_orders' => (int)$item->total_orders,
+                        'total_amount' => (float)$item->total_amount,
+                    ];
+                })
+                ->toArray();
+        }
+    }
+
+    /**
+     * Apply report filters helper.
+     */
+    private function applyReportFilters($query, array $filters): void
+    {
+        if (!empty($filters['distributor_id'])) {
+            if (is_array($filters['distributor_id'])) {
+                $query->whereIn('c.distributor_id', $filters['distributor_id']);
+            } else {
+                $query->where('c.distributor_id', $filters['distributor_id']);
+            }
+        }
+
+        if (!empty($filters['status'])) {
+            $query->where('c.status', $filters['status']);
+        }
+
+        if (!empty($filters['card_code'])) {
+            $cardCodes = array_map('trim', explode(',', $filters['card_code']));
+            if (count($cardCodes) > 1) {
+                $query->whereIn('c.card_code', $cardCodes);
+            } else {
+                $query->where('c.card_code', $cardCodes[0]);
+            }
+        }
+
+        if (!empty($filters['start_date'])) {
+            $query->whereDate('c.doc_date', '>=', $filters['start_date']);
+        }
+
+        if (!empty($filters['end_date'])) {
+            $query->whereDate('c.doc_date', '<=', $filters['end_date']);
+        }
+
+        if (!empty($filters['year'])) {
+            $driver = DB::getDriverName();
+            if ($driver === 'sqlite') {
+                $query->whereRaw("CAST(strftime('%Y', c.doc_date) as integer) = ?", [$filters['year']]);
+            } else {
+                $query->whereRaw("EXTRACT(YEAR FROM c.doc_date) = ?", [$filters['year']]);
+            }
+        }
+    }
 }

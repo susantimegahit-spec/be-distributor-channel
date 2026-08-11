@@ -317,4 +317,60 @@ class CustomerMonthlyOrderController extends Controller
             return $this->errorResponse($e->getMessage(), [], 400);
         }
     }
+
+    /**
+     * Get report grouped by depo.
+     *
+     * @param  Request  $request
+     * @return JsonResponse
+     */
+    public function reportByDepo(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $distributorId = null;
+
+        if ($user->code_customer) {
+            $custCodes = array_map('trim', explode(',', $user->code_customer));
+            $distributorIds = Distributor::whereIn('code_customer', $custCodes)->pluck('id')->toArray();
+            $distributorId = count($distributorIds) > 0 ? $distributorIds : null;
+        }
+
+        $status = $request->query('status');
+        $cardCode = $request->query('card_code') ?? $request->query('customer_code');
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
+        $year = $request->query('year') ? (int)$request->query('year') : null;
+
+        $report = $this->service->getReportByDepo($distributorId, $status, $cardCode, $startDate, $endDate, $year);
+
+        return $this->successResponse($report, 'Laporan CMO per depo berhasil diambil.');
+    }
+
+    /**
+     * Get report grouped by year / month.
+     *
+     * @param  Request  $request
+     * @return JsonResponse
+     */
+    public function reportByYear(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $distributorId = null;
+
+        if ($user->code_customer) {
+            $custCodes = array_map('trim', explode(',', $user->code_customer));
+            $distributorIds = Distributor::whereIn('code_customer', $custCodes)->pluck('id')->toArray();
+            $distributorId = count($distributorIds) > 0 ? $distributorIds : null;
+        }
+
+        $status = $request->query('status');
+        $cardCode = $request->query('card_code') ?? $request->query('customer_code');
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
+        $year = $request->query('year') ? (int)$request->query('year') : null;
+
+        $report = $this->service->getReportByYear($distributorId, $status, $cardCode, $startDate, $endDate, $year);
+
+        return $this->successResponse($report, 'Laporan CMO per tahun/bulan berhasil diambil.');
+    }
 }

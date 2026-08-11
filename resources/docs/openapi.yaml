@@ -3674,6 +3674,160 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/customer-monthly-orders/reports/by-depo:
+    get:
+      summary: Get CMO report grouped by depo
+      description: Mendapatkan laporan kumulatif jumlah order dan nilai nominal rupiah CMO per depo.
+      tags:
+        - Customer Monthly Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by status
+        - name: card_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by customer code
+        - name: start_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Start date filter
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: End date filter
+        - name: year
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Year filter (e.g. 2026)
+      responses:
+        '200':
+          description: Laporan CMO per depo berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Laporan CMO per depo berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        depo:
+                          type: string
+                          example: SURABAYA
+                        total_orders:
+                          type: integer
+                          example: 5
+                        total_amount:
+                          type: number
+                          example: 250000000.00
+
+  /v1/customer-monthly-orders/reports/by-year:
+    get:
+      summary: Get CMO report grouped by year / month
+      description: Mendapatkan laporan kumulatif CMO per tahun. Jika filter tahun diisi, akan mengembalikan detail bulanan untuk tahun tersebut.
+      tags:
+        - Customer Monthly Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by status
+        - name: card_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by customer code
+        - name: start_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Start date filter
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: End date filter
+        - name: year
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Specific year filter to retrieve monthly breakdown
+      responses:
+        '200':
+          description: Laporan CMO per tahun/bulan berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Laporan CMO per tahun/bulan berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      oneOf:
+                        - type: object
+                          description: Yearly Summary (If no year is specified)
+                          properties:
+                            year:
+                              type: integer
+                              example: 2026
+                            total_orders:
+                              type: integer
+                              example: 10
+                            total_amount:
+                              type: number
+                              example: 550000000.00
+                        - type: object
+                          description: Monthly Breakdown (If year is specified)
+                          properties:
+                            month:
+                              type: integer
+                              example: 8
+                            total_orders:
+                              type: integer
+                              example: 3
+                            total_amount:
+                              type: number
+                              example: 150000000.00
+
   /v1/customer-monthly-orders:
     get:
       summary: List all customer monthly orders (CMO)

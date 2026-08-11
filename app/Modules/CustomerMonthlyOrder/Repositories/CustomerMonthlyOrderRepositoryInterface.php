@@ -47,4 +47,20 @@ interface CustomerMonthlyOrderRepositoryInterface
      * @return bool
      */
     public function delete(int $id): bool;
+
+    /**
+     * Get report grouped by depo.
+     *
+     * @param  array  $filters
+     * @return array
+     */
+    public function getReportByDepo(array $filters = []): array;
+
+    /**
+     * Get report grouped by year / month.
+     *
+     * @param  array  $filters
+     * @return array
+     */
+    public function getReportByYear(array $filters = []): array;
 }

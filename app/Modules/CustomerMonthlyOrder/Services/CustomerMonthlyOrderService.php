@@ -451,4 +451,72 @@ class CustomerMonthlyOrderService
             $data['address2'] = $shipping['Street'] ?? $distributor->mail_address ?? $distributor->address ?? null;
         }
     }
+
+    /**
+     * Get report grouped by depo.
+     */
+    public function getReportByDepo(
+        int|array|null $distributorId = null,
+        ?string $status = null,
+        ?string $cardCode = null,
+        ?string $startDate = null,
+        ?string $endDate = null,
+        ?int $year = null
+    ): array {
+        $filters = [];
+        if ($distributorId) {
+            $filters['distributor_id'] = $distributorId;
+        }
+        if ($status) {
+            $filters['status'] = $status;
+        }
+        if ($cardCode) {
+            $filters['card_code'] = $cardCode;
+        }
+        if ($startDate) {
+            $filters['start_date'] = $startDate;
+        }
+        if ($endDate) {
+            $filters['end_date'] = $endDate;
+        }
+        if ($year) {
+            $filters['year'] = $year;
+        }
+
+        return $this->repository->getReportByDepo($filters);
+    }
+
+    /**
+     * Get report grouped by year / month.
+     */
+    public function getReportByYear(
+        int|array|null $distributorId = null,
+        ?string $status = null,
+        ?string $cardCode = null,
+        ?string $startDate = null,
+        ?string $endDate = null,
+        ?int $year = null
+    ): array {
+        $filters = [];
+        if ($distributorId) {
+            $filters['distributor_id'] = $distributorId;
+        }
+        if ($status) {
+            $filters['status'] = $status;
+        }
+        if ($cardCode) {
+            $filters['card_code'] = $cardCode;
+        }
+        if ($startDate) {
+            $filters['start_date'] = $startDate;
+        }
+        if ($endDate) {
+            $filters['end_date'] = $endDate;
+        }
+        if ($year) {
+            $filters['year'] = $year;
+        }
+
+        return $this->repository->getReportByYear($filters);
+    }
 }
