@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1/customer-monthly-orders')->middleware('auth:sanctum')->group(function () {
     Route::get('/reports/by-depo', [CustomerMonthlyOrderController::class, 'reportByDepo']);
     Route::get('/reports/by-year', [CustomerMonthlyOrderController::class, 'reportByYear']);
-    Route::get('/reports/detailed', [CustomerMonthlyOrderController::class, 'reportDetailed']);
+    Route::get('/reports/detail-export', [CustomerMonthlyOrderController::class, 'reportDetailExport']);
     Route::get('/', [CustomerMonthlyOrderController::class, 'index']);
     Route::get('/{id}', [CustomerMonthlyOrderController::class, 'show']);
     Route::post('/', [CustomerMonthlyOrderController::class, 'store']);

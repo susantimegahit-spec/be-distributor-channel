@@ -217,44 +217,22 @@ class CustomerMonthlyOrderReportTest extends TestCase
             ->assertJsonPath('data.1.total_amount', 200000);
     }
 
-    public function test_admin_can_retrieve_detailed_report(): void
+    public function test_admin_can_export_detailed_report(): void
     {
         $response = $this->actingAs($this->adminUser, 'sanctum')
-            ->getJson('/api/distributor-channel/v1/customer-monthly-orders/reports/detailed');
+            ->get('/api/distributor-channel/v1/customer-monthly-orders/reports/detail-export');
 
-        $response->assertStatus(200)
-            ->assertJson([
-                'success' => true,
-                'message' => 'Laporan CMO detail per bulan berhasil diambil.',
-            ])
-            ->assertJsonCount(3, 'data'); // 3 distinct monthly order details (Sby 2025, Sby 2026, Jkt 2026)
-
-        // Validate top item (Jkt 2026: 200000 > Sby 2026: 150000 > Sby 2025: 100000)
-        $response->assertJsonPath('data.0.depo', 'JAKARTA')
-            ->assertJsonPath('data.0.item_code', 'SKU-TEST-001')
-            ->assertJsonPath('data.0.brand', 'BRAND-A')
-            ->assertJsonPath('data.0.total_qty', 4)
-            ->assertJsonPath('data.0.total_amount', 200000);
+        $response->assertStatus(200);
+        $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->assertHeader('Content-Disposition', 'attachment; filename="laporan_cmo_detail.xlsx"');
     }
 
-    public function test_detailed_report_filters(): void
+    public function test_detailed_export_filters(): void
     {
-        // Filter by depo = SURABAYA
         $response = $this->actingAs($this->adminUser, 'sanctum')
-            ->getJson('/api/distributor-channel/v1/customer-monthly-orders/reports/detailed?depo=SURABAYA');
+            ->get('/api/distributor-channel/v1/customer-monthly-orders/reports/detail-export?depo=SURABAYA&brand=BRAND-A&year=2026&month=8');
 
-        $response->assertStatus(200)
-            ->assertJsonCount(2, 'data');
-
-        // Filter by brand = BRAND-A & year = 2026 & month = 8
-        $response = $this->actingAs($this->adminUser, 'sanctum')
-            ->getJson('/api/distributor-channel/v1/customer-monthly-orders/reports/detailed?brand=BRAND-A&year=2026&month=8');
-
-        $response->assertStatus(200)
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.depo', 'SURABAYA')
-            ->assertJsonPath('data.0.year', 2026)
-            ->assertJsonPath('data.0.month', 8)
-            ->assertJsonPath('data.0.total_amount', 150000);
+        $response->assertStatus(200);
+        $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     }
 }

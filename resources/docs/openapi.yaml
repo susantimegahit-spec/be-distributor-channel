@@ -3840,10 +3840,10 @@ paths:
                               type: number
                               example: 150000000.00
 
-  /v1/customer-monthly-orders/reports/detailed:
+  /v1/customer-monthly-orders/reports/detail-export:
     get:
-      summary: Get detailed monthly CMO report (Depo, Item, Brand)
-      description: Mendapatkan laporan bulanan detail transaksi CMO yang dikelompokkan dan diakumulasikan per depo, kode barang, nama barang, dan brand.
+      summary: Export detailed monthly CMO report as Excel
+      description: Mendapatkan file Excel laporan bulanan detail transaksi CMO yang dikelompokkan dan diakumulasikan per depo, kode barang, nama barang, dan brand.
       tags:
         - Customer Monthly Orders
       security:
@@ -3907,50 +3907,12 @@ paths:
           description: Filter by item code
       responses:
         '200':
-          description: Laporan CMO detail per bulan berhasil diambil
+          description: Laporan CMO detail per bulan berhasil diexport dalam format Excel
           content:
-            application/json:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Laporan CMO detail per bulan berhasil diambil.
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        depo:
-                          type: string
-                          example: SURABAYA
-                        item_code:
-                          type: string
-                          example: SKU-TEST-001
-                        item_name:
-                          type: string
-                          example: Barang Test 1
-                        brand:
-                          type: string
-                          example: Brand A
-                        year:
-                          type: integer
-                          example: 2026
-                        month:
-                          type: integer
-                          example: 8
-                        total_orders:
-                          type: integer
-                          example: 2
-                        total_qty:
-                          type: number
-                          example: 15.00
-                        total_amount:
-                          type: number
-                          example: 750000.00
+                type: string
+                format: binary
 
   /v1/customer-monthly-orders:
     get:

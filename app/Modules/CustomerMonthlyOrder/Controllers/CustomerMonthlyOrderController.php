@@ -8,6 +8,7 @@ use App\Modules\CustomerMonthlyOrder\Services\CustomerMonthlyOrderService;
 use App\Traits\ApiResponseFormatter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CustomerMonthlyOrderController extends Controller
 {
@@ -377,12 +378,12 @@ class CustomerMonthlyOrderController extends Controller
     }
 
     /**
-     * Get detailed monthly report grouped by depo, item, and brand.
+     * Export detailed monthly report as Excel.
      *
      * @param  Request  $request
-     * @return JsonResponse
+     * @return StreamedResponse
      */
-    public function reportDetailed(Request $request): JsonResponse
+    public function reportDetailExport(Request $request): StreamedResponse
     {
         $user = $request->user();
         $distributorId = null;
@@ -403,7 +404,7 @@ class CustomerMonthlyOrderController extends Controller
         $brand = $request->query('brand');
         $itemCode = $request->query('item_code') ?? $request->query('item');
 
-        $report = $this->service->getReportDetailed(
+        return $this->service->exportReportDetailed(
             $distributorId,
             $status,
             $cardCode,
@@ -415,7 +416,5 @@ class CustomerMonthlyOrderController extends Controller
             $brand,
             $itemCode
         );
-
-        return $this->successResponse($report, 'Laporan CMO detail per bulan berhasil diambil.');
     }
 }

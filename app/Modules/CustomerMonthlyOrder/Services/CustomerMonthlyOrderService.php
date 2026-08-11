@@ -8,6 +8,9 @@ use App\Models\SalesOrder;
 use App\Modules\CustomerMonthlyOrder\Repositories\CustomerMonthlyOrderRepositoryInterface;
 use App\Modules\Distributor\Services\DistributorService;
 use App\Modules\SalesOrder\Repositories\SalesOrderRepositoryInterface;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -576,5 +579,98 @@ class CustomerMonthlyOrderService
         }
 
         return $this->repository->getReportDetailed($filters);
+    }
+
+    /**
+     * Export detailed monthly report as Excel.
+     */
+    public function exportReportDetailed(
+        int|array|null $distributorId = null,
+        ?string $status = null,
+        ?string $cardCode = null,
+        ?string $startDate = null,
+        ?string $endDate = null,
+        ?int $year = null,
+        ?int $month = null,
+        ?string $depo = null,
+        ?string $brand = null,
+        ?string $itemCode = null
+    ): StreamedResponse {
+        $data = $this->getReportDetailed(
+            $distributorId,
+            $status,
+            $cardCode,
+            $startDate,
+            $endDate,
+            $year,
+            $month,
+            $depo,
+            $brand,
+            $itemCode
+        );
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Laporan CMO Detail');
+
+        $headers = [
+            'Depo',
+            'Item Code',
+            'Item Name',
+            'Brand',
+            'Year',
+            'Month',
+            'Total Orders',
+            'Total Qty',
+            'Total Amount'
+        ];
+
+        foreach ($headers as $colIndex => $header) {
+            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex + 1);
+            $sheet->setCellValue("{$colLetter}1", $header);
+            $sheet->getStyle("{$colLetter}1")->getFont()->setBold(true);
+        }
+
+        $rowNum = 2;
+        foreach ($data as $item) {
+            $sheet->setCellValue("A{$rowNum}", $item['depo']);
+            $sheet->setCellValue("B{$rowNum}", $item['item_code']);
+            $sheet->setCellValue("C{$rowNum}", $item['item_name']);
+            $sheet->setCellValue("D{$rowNum}", $item['brand']);
+            $sheet->setCellValue("E{$rowNum}", $item['year']);
+            $sheet->setCellValue("F{$rowNum}", $item['month']);
+            $sheet->setCellValue("G{$rowNum}", $item['total_orders']);
+            $sheet->setCellValue("H{$rowNum}", $item['total_qty']);
+            $sheet->setCellValue("I{$rowNum}", $item['total_amount']);
+            $rowNum++;
+        }
+
+        $columnWidths = [
+            'A' => 15, // Depo
+            'B' => 15, // Item Code
+            'C' => 30, // Item Name
+            'D' => 15, // Brand
+            'E' => 10, // Year
+            'F' => 10, // Month
+            'G' => 15, // Total Orders
+            'H' => 15, // Total Qty
+            'I' => 20, // Total Amount
+        ];
+
+        foreach ($columnWidths as $col => $width) {
+            $sheet->getColumnDimension($col)->setWidth($width);
+        }
+
+        $writer = new Xlsx($spreadsheet);
+
+        $response = new StreamedResponse(function () use ($writer) {
+            $writer->save('php://output');
+        });
+
+        $response->headers->set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->headers->set('Content-Disposition', 'attachment; filename="laporan_cmo_detail.xlsx"');
+        $response->headers->set('Cache-Control', 'max-age=0');
+
+        return $response;
     }
 }
