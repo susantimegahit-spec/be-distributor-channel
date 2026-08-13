@@ -641,4 +641,20 @@ class ProductionController extends Controller
             return $this->errorResponse('Gagal mengirim Production Order (PDO) ke SAP: ' . $e->getMessage(), [], 500);
         }
     }
+
+    /**
+     * Get list of Production Orders (PDO) directly from SAP API (/api/getListPDO).
+     */
+    public function getListPdoSap(Request $request): JsonResponse
+    {
+        $userId = $request->user()?->id;
+        $filters = $request->all();
+
+        try {
+            $result = $this->productionService->getListPdoSap($filters, $userId);
+            return $this->successResponse($result['items'], 'Daftar Production Order (PDO) dari SAP berhasil diambil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal mengambil daftar Production Order (PDO) dari SAP: ' . $e->getMessage(), [], 500);
+        }
+    }
 }

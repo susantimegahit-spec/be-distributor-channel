@@ -428,4 +428,60 @@ class ProductionService
             'sap_response' => $body,
         ];
     }
+
+    /**
+     * Get list of Production Orders (PDO) from SAP API endpoint (/api/getListPDO).
+     *
+     * @param array $filters
+     * @param int|null $userId
+     * @return array
+     */
+    public function getListPdoSap(array $filters = [], ?int $userId = null): array
+    {
+        $sapUrl = config('services.sap.url', 'http://103.18.133.187:3100');
+
+        $rawFrom = $filters['from'] ?? $filters['from_date'] ?? $filters['From'] ?? date('Y-1-1');
+        $rawTo = $filters['to'] ?? $filters['to_date'] ?? $filters['To'] ?? date('Y-12-31');
+
+        $fromTime = strtotime((string) $rawFrom);
+        $toTime = strtotime((string) $rawTo);
+
+        $fromFormatted = $fromTime ? date('Y-n-j', $fromTime) : (string) $rawFrom;
+        $toFormatted = $toTime ? date('Y-n-j', $toTime) : (string) $rawTo;
+
+        $whsCode = (string) ($filters['whs_code'] ?? $filters['warehouse'] ?? $filters['WhsCode'] ?? '');
+        $toWhsCode = (string) ($filters['to_whs_code'] ?? $filters['to_warehouse'] ?? $filters['ToWhsCode'] ?? '');
+
+        $payload = [
+            'From'      => $fromFormatted,
+            'To'        => $toFormatted,
+            'WhsCode'   => $whsCode,
+            'ToWhsCode' => $toWhsCode,
+        ];
+
+        $response = Http::timeout(30)->post("{$sapUrl}/api/getListPDO", $payload);
+
+        if (!$response->successful()) {
+            throw new \Exception('Gagal menghubungi API SAP getListPDO. HTTP Status: ' . $response->status());
+        }
+
+        $body = $response->json();
+
+        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
+            throw new \Exception('API SAP getListPDO error: ' . ($body['Message'] ?? 'Unknown SAP error'));
+        }
+
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'GET_LIST_PDO_SAP',
+                "Fetched Production Orders list from SAP (From: {$fromFormatted}, To: {$toFormatted})."
+            );
+        }
+
+        return [
+            'filters' => $payload,
+            'items'   => $body['Result'] ?? [],
+        ];
+    }
 }
