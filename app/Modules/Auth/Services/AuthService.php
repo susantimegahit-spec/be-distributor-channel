@@ -127,7 +127,7 @@ class AuthService
      * @param  User  $user
      * @return void
      */
-    public function logout(User $user): void
+    public function logout(User $user, ?string $fcmToken = null): void
     {
         // Log to Audit Log BEFORE revoking token (or during)
         $this->auditLogService->log(
@@ -136,8 +136,13 @@ class AuthService
             "User {$user->username} logged out."
         );
 
+        // Delete FCM device token if passed during logout
+        if ($fcmToken) {
+            $user->deviceTokens()->where('fcm_token', $fcmToken)->delete();
+        }
+
         // Revoke the current access token
-        $user->currentAccessToken()->delete();
+        $user->currentAccessToken()?->delete();
     }
 
     /**
