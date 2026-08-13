@@ -191,24 +191,6 @@
       }, 15000);
     });
 
-    // Auto logout jika tidak ada aktivitas pengguna selama 10 menit (600,000 md)
-    (function setupInactivityTimer() {
-      let timeoutTimer;
-      const TEN_MINUTES = 10 * 60 * 1000;
-
-      function resetTimer() {
-        clearTimeout(timeoutTimer);
-        timeoutTimer = setTimeout(function() {
-          window.location.href = '/docs/logout?expired=1';
-        }, TEN_MINUTES);
-      }
-
-      ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(function(evt) {
-        window.addEventListener(evt, resetTimer, { passive: true });
-      });
-
-      resetTimer();
-    })();
   </script>
 
 </body>
