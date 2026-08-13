@@ -55,12 +55,13 @@ class NotificationService
         broadcast(new PushNotificationCreated($notification))->toOthers();
 
         // Push to Firebase Cloud Messaging (FCM) for mobile devices
+        $fcmResults = [];
         try {
             $deviceTokens = $user->deviceTokens()->pluck('fcm_token');
             if ($deviceTokens->isNotEmpty()) {
                 $fcmService = app(\App\Services\FCMService::class);
                 foreach ($deviceTokens as $token) {
-                    $fcmService->sendNotification(
+                    $res = $fcmService->sendNotificationDetailed(
                         $token,
                         $notification->title,
                         $notification->message,
@@ -70,11 +71,14 @@ class NotificationService
                             'url' => (string) ($notification->url ?? ''),
                         ], $data['data'] ?? [])
                     );
+                    $fcmResults[] = array_merge(['fcm_token' => $token], $res);
                 }
             }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error("FCM Push notification error for user [{$user->id}]: " . $e->getMessage());
         }
+
+        $notification->fcm_results = $fcmResults;
 
         return $notification;
     }

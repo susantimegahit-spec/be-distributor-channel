@@ -57,8 +57,13 @@ class NotificationController extends Controller
 
         $notification = $this->notificationService->sendTest($request->user(), $payload);
 
-        return $this->successResponse(
+        $data = array_merge(
             $notification->toFrontendPayload(),
+            ['fcm_results' => $notification->fcm_results ?? []]
+        );
+
+        return $this->successResponse(
+            $data,
             'Notifikasi test berhasil dikirim.'
         );
     }

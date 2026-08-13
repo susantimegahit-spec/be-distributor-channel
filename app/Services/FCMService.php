@@ -102,18 +102,27 @@ class FCMService
      * @param string $title
      * @param string $message
      * @param array $data
-     * @return bool
-     */
     public function sendNotification(string $fcmToken, string $title, string $message, array $data = []): bool
     {
+        $res = $this->sendNotificationDetailed($fcmToken, $title, $message, $data);
+        return $res['success'];
+    }
+
+    /**
+     * Send FCM Push Notification with detailed response output.
+     */
+    public function sendNotificationDetailed(string $fcmToken, string $title, string $message, array $data = []): array
+    {
         if (empty($this->projectId)) {
-            Log::warning("FCM Service: FIREBASE_PROJECT_ID is not configured in .env. Skipping FCM notification.");
-            return false;
+            $msg = "FIREBASE_PROJECT_ID is not configured in .env.";
+            Log::warning("FCM Service: {$msg}");
+            return ['success' => false, 'error' => $msg];
         }
 
         $accessToken = $this->getAccessToken();
         if (!$accessToken) {
-            return false;
+            $msg = "Failed to obtain Google OAuth 2.0 access token from credentials file.";
+            return ['success' => false, 'error' => $msg];
         }
 
         $url = "https://fcm.googleapis.com/v1/projects/{$this->projectId}/messages:send";
@@ -133,15 +142,23 @@ class FCMService
                 ],
                 'data' => $stringifiedData,
                 'android' => [
+                    'priority' => 'HIGH',
                     'notification' => [
                         'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                         'sound' => 'default',
+                        'channel_id' => 'high_importance_channel',
+                        'priority' => 'HIGH',
                     ],
                 ],
                 'apns' => [
+                    'headers' => [
+                        'apns-priority' => '10',
+                    ],
                     'payload' => [
                         'aps' => [
                             'sound' => 'default',
+                            'badge' => 1,
+                            'content-available' => 1,
                         ],
                     ],
                 ],
@@ -154,16 +171,27 @@ class FCMService
                 'Content-Type' => 'application/json',
             ])->post($url, $payload);
 
+            $body = $response->json();
+
             if ($response->successful()) {
-                Log::info("FCM Notification sent successfully to token [{$fcmToken}]");
-                return true;
+                Log::info("FCM Notification sent successfully to token [{$fcmToken}]", $body ?? []);
+                return [
+                    'success' => true,
+                    'message_id' => $body['name'] ?? null,
+                    'google_response' => $body,
+                ];
             }
 
             Log::error("FCM Service HTTP error: " . $response->body());
-            return false;
+            return [
+                'success' => false,
+                'status_code' => $response->status(),
+                'error' => $body['error']['message'] ?? $response->body(),
+                'google_response' => $body,
+            ];
         } catch (\Throwable $e) {
             Log::error("FCM Service Exception: " . $e->getMessage());
-            return false;
+            return ['success' => false, 'error' => $e->getMessage()];
         }
     }
 }
