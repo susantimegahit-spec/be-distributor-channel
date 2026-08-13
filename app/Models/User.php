@@ -143,5 +143,13 @@ class User extends Authenticatable
     public function getAccessibleSystemsAttribute(): array
     {
         return $this->role ? $this->role->accessible_systems : [];
-     }
+    }
+
+    /**
+     * Get all FCM device tokens for the user.
+     */
+    public function deviceTokens(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(UserDeviceToken::class);
+    }
 }

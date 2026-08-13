@@ -1417,6 +1417,189 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/notifications/device-token:
+    post:
+      summary: Register / Update FCM Device Token
+      description: Menyimpan atau memperbarui token FCM milik perangkat pengguna untuk keperluan push notification.
+      tags:
+        - Notifications
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - fcm_token
+              properties:
+                fcm_token:
+                  type: string
+                  example: "fcm_token_string_here_12345"
+                device_type:
+                  type: string
+                  enum: [android, ios, web]
+                  example: "android"
+      responses:
+        '200':
+          description: Device token berhasil didaftarkan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Device token FCM berhasil didaftarkan.
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      fcm_token:
+                        type: string
+                        example: "fcm_token_string_here_12345"
+                      device_type:
+                        type: string
+                        example: "android"
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete FCM Device Token
+      description: Menghapus token FCM perangkat dari akun pengguna (misal saat logout).
+      tags:
+        - Notifications
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - fcm_token
+              properties:
+                fcm_token:
+                  type: string
+                  example: "fcm_token_string_here_12345"
+      responses:
+        '200':
+          description: Device token berhasil dihapus
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessageResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/notifications:
+    get:
+      summary: List User Notifications
+      description: Mendapatkan daftar notifikasi milik user yang sedang login beserta unread count.
+      tags:
+        - Notifications
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Jumlah item per halaman
+      responses:
+        '200':
+          description: Daftar notifikasi berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar notifikasi berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      notifications:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            title:
+                              type: string
+                              example: "Persetujuan Sales Order"
+                            message:
+                              type: string
+                              example: "Sales Order SO-202606001 membutuhkan tindakan Anda."
+                            type:
+                              type: string
+                              example: "info"
+                            url:
+                              type: string
+                              nullable: true
+                              example: "/sales-orders/1"
+                            is_read:
+                              type: boolean
+                              example: false
+                            created_at:
+                              type: string
+                              format: date-time
+                              example: "2026-08-13T10:00:00.000000Z"
+                      unread_count:
+                        type: integer
+                        example: 3
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/notifications/read-all:
+    post:
+      summary: Mark All Notifications as Read
+      description: Menandai semua notifikasi milik user yang sedang login sebagai sudah dibaca.
+      tags:
+        - Notifications
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Semua notifikasi berhasil ditandai dibaca
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessageResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /v1/master-approvals:
     get:
       summary: List all master approvals

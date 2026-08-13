@@ -54,6 +54,28 @@ class NotificationService
 
         broadcast(new PushNotificationCreated($notification))->toOthers();
 
+        // Push to Firebase Cloud Messaging (FCM) for mobile devices
+        try {
+            $deviceTokens = $user->deviceTokens()->pluck('fcm_token');
+            if ($deviceTokens->isNotEmpty()) {
+                $fcmService = app(\App\Services\FCMService::class);
+                foreach ($deviceTokens as $token) {
+                    $fcmService->sendNotification(
+                        $token,
+                        $notification->title,
+                        $notification->message,
+                        array_merge([
+                            'notification_id' => (string) $notification->id,
+                            'type' => (string) $notification->type,
+                            'url' => (string) ($notification->url ?? ''),
+                        ], $data['data'] ?? [])
+                    );
+                }
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("FCM Push notification error for user [{$user->id}]: " . $e->getMessage());
+        }
+
         return $notification;
     }
 

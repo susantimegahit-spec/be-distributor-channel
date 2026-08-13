@@ -44,4 +44,9 @@ return [
         'url' => env('SAP_API_URL', 'http://103.18.133.187:3100'),
     ],
 
+    'firebase' => [
+        'project_id' => env('FIREBASE_PROJECT_ID'),
+        'credentials_path' => env('FIREBASE_CREDENTIALS_PATH', 'storage/app/firebase-service-account.json'),
+    ],
+
 ];

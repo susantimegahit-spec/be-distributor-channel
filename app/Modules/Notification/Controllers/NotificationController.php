@@ -117,4 +117,44 @@ class NotificationController extends Controller
             'Notifikasi berhasil dihapus.'
         );
     }
+
+    /**
+     * Register or update FCM device token for the authenticated user.
+     */
+    public function registerDeviceToken(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'fcm_token' => 'required|string',
+            'device_type' => 'nullable|string|in:android,ios,web',
+        ]);
+
+        $deviceToken = $request->user()->deviceTokens()->updateOrCreate(
+            ['fcm_token' => $validated['fcm_token']],
+            ['device_type' => $validated['device_type'] ?? null]
+        );
+
+        return $this->successResponse([
+            'id' => $deviceToken->id,
+            'fcm_token' => $deviceToken->fcm_token,
+            'device_type' => $deviceToken->device_type,
+        ], 'Device token FCM berhasil didaftarkan.');
+    }
+
+    /**
+     * Delete FCM device token for the authenticated user.
+     */
+    public function deleteDeviceToken(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'fcm_token' => 'required|string',
+        ]);
+
+        $deleted = $request->user()->deviceTokens()
+            ->where('fcm_token', $validated['fcm_token'])
+            ->delete();
+
+        return $this->successResponse([
+            'deleted' => (bool) $deleted
+        ], 'Device token FCM berhasil dihapus.');
+    }
 }
