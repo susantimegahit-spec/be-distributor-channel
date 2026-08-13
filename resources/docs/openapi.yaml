@@ -1439,8 +1439,8 @@ paths:
                   example: "fcm_token_string_here_12345"
                 device_type:
                   type: string
-                  enum: [android, ios, web]
-                  example: "android"
+                  description: Free text deskripsi perangkat (misal "Samsung Galaxy S23", "iPhone 15", "Web Chrome", dsb.)
+                  example: "Samsung Galaxy S23"
       responses:
         '200':
           description: Device token berhasil didaftarkan

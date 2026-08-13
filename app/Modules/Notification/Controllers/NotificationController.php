@@ -125,7 +125,7 @@ class NotificationController extends Controller
     {
         $validated = $request->validate([
             'fcm_token' => 'required|string',
-            'device_type' => 'nullable|string|in:android,ios,web',
+            'device_type' => 'nullable|string|max:255',
         ]);
 
         $deviceToken = $request->user()->deviceTokens()->updateOrCreate(
