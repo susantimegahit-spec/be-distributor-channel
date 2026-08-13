@@ -33,6 +33,8 @@ class User extends Authenticatable
         'ocr_code2',
         'ocr_code3',
         'is_active',
+        'originator',
+        'stage',
     ];
 
     /**

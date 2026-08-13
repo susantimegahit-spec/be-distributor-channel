@@ -9702,6 +9702,14 @@ components:
                 is_active:
                   type: boolean
                   example: true
+                originator:
+                  type: string
+                  nullable: true
+                  example: "PR_ORIGINATOR_01"
+                stage:
+                  type: string
+                  nullable: true
+                  example: "OM"
                 accessible_systems:
                   type: array
                   items:
