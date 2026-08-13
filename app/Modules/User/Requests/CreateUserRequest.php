@@ -94,6 +94,8 @@ class CreateUserRequest extends FormRequest
             'ocr_code2' => 'sometimes|nullable|string|max:100',
             'ocr_code3' => 'sometimes|nullable|string|max:100',
             'is_active' => 'sometimes|boolean',
+            'originator' => 'sometimes|nullable|string|max:100',
+            'stage' => 'sometimes|nullable|string|max:100',
             'accessible_systems' => 'nullable|array',
             'accessible_systems.*' => 'string',
         ];
