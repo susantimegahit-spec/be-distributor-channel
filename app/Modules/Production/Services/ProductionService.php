@@ -651,8 +651,8 @@ class ProductionService
 
         $payload = [
             'DocEntry' => $docEntry,
-            'UserId'   => (int) ($data['user_id'] ?? $data['UserId'] ?? ($userId ?? 1)),
-            'AddonId'  => (int) ($data['addon_id'] ?? $data['AddonId'] ?? 2),
+            'UserId'   => $userId ?? 1,
+            'AddonId'  => 2,
         ];
 
         $response = Http::timeout(30)->post("{$sapUrl}/api/cancelpdo", $payload);
@@ -699,8 +699,8 @@ class ProductionService
 
         $payload = [
             'DocEntry' => $docEntry,
-            'UserId'   => (int) ($data['user_id'] ?? $data['UserId'] ?? ($userId ?? 1)),
-            'AddonId'  => (int) ($data['addon_id'] ?? $data['AddonId'] ?? 2),
+            'UserId'   => $userId ?? 1,
+            'AddonId'  => 2,
         ];
 
         $response = Http::timeout(30)->post("{$sapUrl}/api/CancelIT", $payload);

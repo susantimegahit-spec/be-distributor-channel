@@ -10217,15 +10217,7 @@ paths:
                 DocEntry:
                   type: string
                   example: "1231"
-                  description: DocEntry dari PDO yang ingin dibatalkan
-                UserId:
-                  type: integer
-                  example: 12
-                  description: ID User operator
-                AddonId:
-                  type: integer
-                  example: 2
-                  description: ID Addon sistem
+                  description: "DocEntry dari PDO yang ingin dibatalkan (UserId diambil otomatis dari session auth, AddonId hardcoded = 2)"
       responses:
         '200':
           description: Production Order (PDO) berhasil dibatalkan di SAP.
@@ -10274,15 +10266,7 @@ paths:
                 DocEntry:
                   type: string
                   example: "1231"
-                  description: DocEntry dari IT yang ingin dibatalkan
-                UserId:
-                  type: integer
-                  example: 12
-                  description: ID User operator
-                AddonId:
-                  type: integer
-                  example: 2
-                  description: ID Addon sistem
+                  description: "DocEntry dari IT yang ingin dibatalkan (UserId diambil otomatis dari session auth, AddonId hardcoded = 2)"
       responses:
         '200':
           description: Inventory Transfer (IT) berhasil dibatalkan di SAP.
