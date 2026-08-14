@@ -16,13 +16,18 @@ class FCMService
         $this->credentialsPath = base_path(config('services.firebase.credentials_path', 'storage/app/firebase-service-account.json'));
     }
 
+    protected ?string $lastError = null;
+
     /**
      * Get OAuth 2.0 Access Token from Google Auth Library or Service Account JSON.
      */
     public function getAccessToken(): ?string
     {
+        $this->lastError = null;
+
         if (!file_exists($this->credentialsPath)) {
-            Log::warning("FCM Service: Credentials file not found at [{$this->credentialsPath}]. Skipping FCM push notification.");
+            $this->lastError = "Credentials file not found at [{$this->credentialsPath}].";
+            Log::warning("FCM Service: {$this->lastError}");
             return null;
         }
 
@@ -31,12 +36,16 @@ class FCMService
                 $scopes = ['https://www.googleapis.com/auth/firebase.messaging'];
                 $credentials = new \Google\Auth\Credentials\ServiceAccountCredentials($scopes, $this->credentialsPath);
                 $token = $credentials->fetchAuthToken();
-                return $token['access_token'] ?? null;
+                if (!empty($token['access_token'])) {
+                    return $token['access_token'];
+                }
+                $this->lastError = $token['error_description'] ?? $token['error'] ?? 'Unknown error fetching auth token';
             }
 
-            // Fallback manually if Google Auth package is not loaded yet
+            // Fallback manually if Google Auth package is not loaded or failed
             return $this->getAccessTokenManually();
         } catch (\Throwable $e) {
+            $this->lastError = $e->getMessage();
             Log::error("FCM Service: Failed to fetch Google Access Token: " . $e->getMessage());
             return null;
         }
@@ -121,7 +130,7 @@ class FCMService
 
         $accessToken = $this->getAccessToken();
         if (!$accessToken) {
-            $msg = "Failed to obtain Google OAuth 2.0 access token from credentials file.";
+            $msg = "Failed to obtain Google OAuth 2.0 access token: " . ($this->lastError ?? 'Unknown error');
             return ['success' => false, 'error' => $msg];
         }
 
