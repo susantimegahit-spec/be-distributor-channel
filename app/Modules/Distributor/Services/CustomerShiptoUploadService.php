@@ -28,28 +28,22 @@ class CustomerShiptoUploadService
         $rawHeaders = array_shift($rows);
         $headerMap = $this->mapHeaders($rawHeaders, [
             'card_code'      => ['card_code', 'kode_customer', 'customer_code', 'cardcode'],
+            'name'           => ['name', 'nama', 'nama_customer', 'nama_destination', 'customer_name'],
+            'address'        => ['address', 'address_id', 'ship_to_code', 'shipto_code', 'kode_shipto', 'kode_alamat'],
+            'city'           => ['city', 'kota'],
+            'street'         => ['street', 'street_address', 'jalan', 'alamat_kirim', 'detail_alamat'],
             'alias'          => ['alias', 'nama_alias', 'alias_destination'],
             'transport_mode' => ['transport_mode', 'moda_pengiriman', 'moda', 'transport', 'mode'],
-            'street'         => ['street', 'street_address', 'jalan', 'alamat_kirim', 'detail_alamat'],
-            'city'           => ['city', 'kota'],
-            'address'        => ['address', 'address_id', 'ship_to_code', 'shipto_code', 'kode_shipto', 'kode_alamat'],
-            'name'           => ['name', 'nama', 'nama_customer', 'nama_destination', 'customer_name'],
+            'created_at'     => ['created_at', 'created_date', 'tanggal_buat'],
+            'updated_at'     => ['updated_at', 'updated_date', 'tanggal_update'],
         ]);
 
         if (!isset($headerMap['card_code'])) {
             throw new \Exception('Header "card_code" atau "kode_customer" wajib ada dalam file.');
         }
 
-        if (!isset($headerMap['alias'])) {
-            throw new \Exception('Header "alias" atau "nama_alias" wajib ada dalam file.');
-        }
-
-        if (!isset($headerMap['transport_mode'])) {
-            throw new \Exception('Header "transport_mode" atau "moda_pengiriman" wajib ada dalam file.');
-        }
-
-        if (!isset($headerMap['street'])) {
-            throw new \Exception('Header "street" atau "alamat" wajib ada dalam file.');
+        if (!isset($headerMap['name']) && !isset($headerMap['alias']) && !isset($headerMap['address'])) {
+            throw new \Exception('Header "name", "address", atau "alias" wajib ada dalam file.');
         }
 
         $processed = 0;
@@ -68,65 +62,68 @@ class CustomerShiptoUploadService
                 }
 
                 $cardCode = trim((string) ($this->getValueByMap($row, $headerMap, 'card_code') ?? ''));
-                $alias = trim((string) ($this->getValueByMap($row, $headerMap, 'alias') ?? ''));
-                $transportModeRaw = trim((string) ($this->getValueByMap($row, $headerMap, 'transport_mode') ?? ''));
-                $street = trim((string) ($this->getValueByMap($row, $headerMap, 'street') ?? ''));
-                $city = $this->getValueByMap($row, $headerMap, 'city');
                 $name = $this->getValueByMap($row, $headerMap, 'name');
                 $address = trim((string) ($this->getValueByMap($row, $headerMap, 'address') ?? ''));
+                $city = $this->getValueByMap($row, $headerMap, 'city');
+                $street = trim((string) ($this->getValueByMap($row, $headerMap, 'street') ?? ''));
+                $alias = trim((string) ($this->getValueByMap($row, $headerMap, 'alias') ?? ''));
+                $transportModeRaw = trim((string) ($this->getValueByMap($row, $headerMap, 'transport_mode') ?? ''));
 
                 if (empty($cardCode)) {
                     $errors[] = "Baris #{$rowNum}: card_code kosong.";
                     continue;
                 }
 
-                if (empty($alias)) {
-                    $errors[] = "Baris #{$rowNum}: alias kosong.";
-                    continue;
-                }
-
-                if (empty($transportModeRaw)) {
-                    $errors[] = "Baris #{$rowNum}: transport_mode kosong.";
-                    continue;
-                }
-
-                if (empty($street)) {
-                    $errors[] = "Baris #{$rowNum}: street kosong.";
-                    continue;
-                }
-
-                // Normalize transport_mode
-                $modeUpper = strtoupper($transportModeRaw);
-                $transportMode = null;
-
-                if (in_array($modeUpper, ['D', 'DARAT'])) {
-                    $transportMode = 'D';
-                } elseif (in_array($modeUpper, ['L', 'LAUT'])) {
-                    $transportMode = 'L';
-                } elseif (in_array($modeUpper, ['U', 'UDARA'])) {
-                    $transportMode = 'U';
-                } else {
-                    $errors[] = "Baris #{$rowNum}: transport_mode '{$transportModeRaw}' tidak valid (harus D/DARAT, L/LAUT, atau U/UDARA).";
-                    continue;
-                }
-
+                // If address is empty, fallback to alias or name
                 if (empty($address)) {
-                    $address = $alias;
+                    $address = !empty($alias) ? $alias : (!empty($name) ? $name : $street);
+                }
+
+                // If alias is empty, fallback to address or name
+                if (empty($alias)) {
+                    $alias = !empty($name) ? $name : $address;
+                }
+
+                // If name is empty, fallback to alias or address
+                if (empty($name)) {
+                    $name = !empty($alias) ? $alias : $address;
+                }
+
+                // Normalize transport_mode (optional / fallback to D)
+                $transportMode = 'D';
+                if (!empty($transportModeRaw)) {
+                    $modeUpper = strtoupper($transportModeRaw);
+                    if (in_array($modeUpper, ['D', 'DARAT'])) {
+                        $transportMode = 'D';
+                    } elseif (in_array($modeUpper, ['L', 'LAUT'])) {
+                        $transportMode = 'L';
+                    } elseif (in_array($modeUpper, ['U', 'UDARA'])) {
+                        $transportMode = 'U';
+                    } else {
+                        // If specific text not recognized, keep raw or fallback
+                        $transportMode = in_array($modeUpper, ['D', 'L', 'U']) ? $modeUpper : 'D';
+                    }
                 }
 
                 $payload = [
                     'name'           => $name,
                     'alias'          => $alias,
                     'city'           => $city,
-                    'street'         => $street,
+                    'street'         => $street ?: $address,
                     'transport_mode' => $transportMode,
                 ];
 
                 $shipto = CustomerShipto::where('card_code', $cardCode)
-                    ->where('address', $address)
+                    ->where(function ($q) use ($address, $name) {
+                        $q->where('address', $address);
+                        if (!empty($name)) {
+                            $q->orWhere('name', $name);
+                        }
+                    })
                     ->first();
 
                 if ($shipto) {
+                    $payload['address'] = $address;
                     $shipto->update($payload);
                     $updated++;
                 } else {
