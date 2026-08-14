@@ -28,4 +28,14 @@ Route::prefix('v1/production')->middleware('auth:sanctum')->group(function () {
     Route::post('/add-pdo-sap', [ProductionController::class, 'addPdoSap']);
     Route::put('/orders/{id}', [ProductionController::class, 'updateOrder']);
     Route::delete('/orders/{id}', [ProductionController::class, 'destroyOrder']);
+
+    // Production Receipt from SAP
+    Route::get('/receipts/sap-list', [ProductionController::class, 'getListReceiptProdSap']);
+    Route::post('/receipts/sap-list', [ProductionController::class, 'getListReceiptProdSap']);
+    Route::get('/get-list-receipt-prod', [ProductionController::class, 'getListReceiptProdSap']);
+    Route::post('/get-list-receipt-prod', [ProductionController::class, 'getListReceiptProdSap']);
+    Route::get('/receipts/sap/{id}', [ProductionController::class, 'getReceiptProdByIdSap']);
+    Route::post('/receipts/sap/detail', [ProductionController::class, 'getReceiptProdByIdSap']);
+    Route::get('/get-receipt-prod-by-id', [ProductionController::class, 'getReceiptProdByIdSap']);
+    Route::post('/get-receipt-prod-by-id', [ProductionController::class, 'getReceiptProdByIdSap']);
 });

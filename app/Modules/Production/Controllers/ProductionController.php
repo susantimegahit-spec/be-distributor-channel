@@ -657,4 +657,40 @@ class ProductionController extends Controller
             return $this->errorResponse('Gagal mengambil daftar Production Order (PDO) dari SAP: ' . $e->getMessage(), [], 500);
         }
     }
+
+    /**
+     * Get list of Production Receipts from SAP API (/api/getListReceiptProd).
+     */
+    public function getListReceiptProdSap(Request $request): JsonResponse
+    {
+        $userId = $request->user()?->id;
+        $filters = $request->all();
+
+        try {
+            $result = $this->productionService->getListReceiptProd($filters, $userId);
+            return $this->successResponse($result['items'], 'Daftar Receipt Production dari SAP berhasil diambil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal mengambil daftar Receipt Production dari SAP: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
+     * Get detail of Production Receipt from SAP API (/api/getReceiptProdbyId).
+     */
+    public function getReceiptProdByIdSap(Request $request, ?string $id = null): JsonResponse
+    {
+        $userId = $request->user()?->id;
+        $customQuery = $id ?? $request->input('custom_query') ?? $request->input('CustomQuery') ?? $request->input('doc_entry') ?? $request->input('doc_num');
+
+        if (empty($customQuery)) {
+            return $this->errorResponse('Parameter identifier / custom_query (DocEntry / DocNum) wajib diisi.', [], 422);
+        }
+
+        try {
+            $result = $this->productionService->getReceiptProdById($customQuery, $userId);
+            return $this->successResponse($result, 'Detail Receipt Production dari SAP berhasil diambil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal mengambil detail Receipt Production dari SAP: ' . $e->getMessage(), [], 500);
+        }
+    }
 }
