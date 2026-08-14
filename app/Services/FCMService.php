@@ -18,6 +18,38 @@ class FCMService
 
     protected ?string $lastError = null;
 
+    protected function getCredentialsData(): ?array
+    {
+        // 1. Check if provided as BASE64 string in env
+        $base64 = config('services.firebase.credentials_base64');
+        if (!empty($base64)) {
+            $decoded = base64_decode($base64);
+            $json = json_decode($decoded, true);
+            if ($json && !empty($json['client_email']) && !empty($json['private_key'])) {
+                return $json;
+            }
+        }
+
+        // 2. Check if provided as raw JSON string in env
+        $rawJson = config('services.firebase.credentials_json');
+        if (!empty($rawJson)) {
+            $json = json_decode($rawJson, true);
+            if ($json && !empty($json['client_email']) && !empty($json['private_key'])) {
+                return $json;
+            }
+        }
+
+        // 3. Fallback to physical file
+        if (file_exists($this->credentialsPath)) {
+            $json = json_decode(file_get_contents($this->credentialsPath), true);
+            if ($json && !empty($json['client_email']) && !empty($json['private_key'])) {
+                return $json;
+            }
+        }
+
+        return null;
+    }
+
     /**
      * Get OAuth 2.0 Access Token from Google Auth Library or Service Account JSON.
      */
@@ -25,8 +57,9 @@ class FCMService
     {
         $this->lastError = null;
 
-        if (!file_exists($this->credentialsPath)) {
-            $this->lastError = "Credentials file not found at [{$this->credentialsPath}].";
+        $credentialsData = $this->getCredentialsData();
+        if (!$credentialsData) {
+            $this->lastError = "Credentials not found in FIREBASE_CREDENTIALS_BASE64, FIREBASE_CREDENTIALS_JSON, or file [{$this->credentialsPath}].";
             Log::warning("FCM Service: {$this->lastError}");
             return null;
         }
@@ -34,7 +67,7 @@ class FCMService
         try {
             if (class_exists(\Google\Auth\Credentials\ServiceAccountCredentials::class)) {
                 $scopes = ['https://www.googleapis.com/auth/firebase.messaging'];
-                $credentials = new \Google\Auth\Credentials\ServiceAccountCredentials($scopes, $this->credentialsPath);
+                $credentials = new \Google\Auth\Credentials\ServiceAccountCredentials($scopes, $credentialsData);
                 $token = $credentials->fetchAuthToken();
                 if (!empty($token['access_token'])) {
                     return $token['access_token'];
@@ -43,7 +76,7 @@ class FCMService
             }
 
             // Fallback manually if Google Auth package is not loaded or failed
-            return $this->getAccessTokenManually();
+            return $this->getAccessTokenManually($credentialsData);
         } catch (\Throwable $e) {
             $this->lastError = $e->getMessage();
             Log::error("FCM Service: Failed to fetch Google Access Token: " . $e->getMessage());
@@ -54,11 +87,11 @@ class FCMService
     /**
      * Fallback manual JWT creation & OAuth2 token exchange without third party packages.
      */
-    protected function getAccessTokenManually(): ?string
+    protected function getAccessTokenManually(array $jsonKey): ?string
     {
-        $jsonKey = json_decode(file_get_contents($this->credentialsPath), true);
-        if (!$jsonKey || empty($jsonKey['private_key']) || empty($jsonKey['client_email'])) {
-            Log::error("FCM Service: Invalid Firebase credentials JSON file format.");
+        if (empty($jsonKey['private_key']) || empty($jsonKey['client_email'])) {
+            $this->lastError = "Invalid Firebase credentials JSON format (missing client_email or private_key).";
+            Log::error("FCM Service: {$this->lastError}");
             return null;
         }
 
@@ -84,7 +117,8 @@ class FCMService
         );
 
         if (!$success) {
-            Log::error("FCM Service: OpenSSL sign failed for JWT.");
+            $this->lastError = "OpenSSL sign failed. Ensure private_key format is valid RSA private key.";
+            Log::error("FCM Service: {$this->lastError}");
             return null;
         }
 
@@ -100,7 +134,8 @@ class FCMService
             return $response->json('access_token');
         }
 
-        Log::error("FCM Service: Manual OAuth token exchange failed: " . $response->body());
+        $this->lastError = "Google OAuth error: " . $response->body();
+        Log::error("FCM Service: " . $this->lastError);
         return null;
     }
 

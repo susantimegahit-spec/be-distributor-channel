@@ -47,6 +47,8 @@ return [
     'firebase' => [
         'project_id' => env('FIREBASE_PROJECT_ID'),
         'credentials_path' => env('FIREBASE_CREDENTIALS_PATH', 'storage/app/firebase-service-account.json'),
+        'credentials_base64' => env('FIREBASE_CREDENTIALS_BASE64'),
+        'credentials_json' => env('FIREBASE_CREDENTIALS_JSON'),
     ],
 
 ];
