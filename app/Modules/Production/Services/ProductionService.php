@@ -632,4 +632,100 @@ class ProductionService
             'raw'    => $result,
         ];
     }
+
+    /**
+     * Cancel Production Order (PDO) on SAP (/api/cancelpdo).
+     *
+     * @param array $data
+     * @param int|null $userId
+     * @return array
+     */
+    public function cancelPdoSap(array $data, ?int $userId = null): array
+    {
+        $sapUrl = config('services.sap.url', 'http://103.18.133.187:3100');
+
+        $docEntry = (string) ($data['doc_entry'] ?? $data['DocEntry'] ?? '');
+        if (empty($docEntry)) {
+            throw new \Exception('DocEntry wajib diisi untuk membatalkan PDO.');
+        }
+
+        $payload = [
+            'DocEntry' => $docEntry,
+            'UserId'   => (int) ($data['user_id'] ?? $data['UserId'] ?? ($userId ?? 1)),
+            'AddonId'  => (int) ($data['addon_id'] ?? $data['AddonId'] ?? 2),
+        ];
+
+        $response = Http::timeout(30)->post("{$sapUrl}/api/cancelpdo", $payload);
+
+        if (!$response->successful()) {
+            throw new \Exception('Gagal menghubungi API SAP cancelpdo. HTTP Status: ' . $response->status());
+        }
+
+        $body = $response->json();
+
+        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
+            throw new \Exception('API SAP cancelpdo error: ' . ($body['Message'] ?? 'Unknown SAP error'));
+        }
+
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'CANCEL_PDO_SAP',
+                "Cancelled Production Order (PDO) on SAP for DocEntry {$docEntry}."
+            );
+        }
+
+        return [
+            'payload' => $payload,
+            'sap_response' => $body,
+        ];
+    }
+
+    /**
+     * Cancel Inventory Transfer (IT) on SAP (/api/CancelIT).
+     *
+     * @param array $data
+     * @param int|null $userId
+     * @return array
+     */
+    public function cancelItSap(array $data, ?int $userId = null): array
+    {
+        $sapUrl = config('services.sap.url', 'http://103.18.133.187:3100');
+
+        $docEntry = (string) ($data['doc_entry'] ?? $data['DocEntry'] ?? '');
+        if (empty($docEntry)) {
+            throw new \Exception('DocEntry wajib diisi untuk membatalkan Inventory Transfer (IT).');
+        }
+
+        $payload = [
+            'DocEntry' => $docEntry,
+            'UserId'   => (int) ($data['user_id'] ?? $data['UserId'] ?? ($userId ?? 1)),
+            'AddonId'  => (int) ($data['addon_id'] ?? $data['AddonId'] ?? 2),
+        ];
+
+        $response = Http::timeout(30)->post("{$sapUrl}/api/CancelIT", $payload);
+
+        if (!$response->successful()) {
+            throw new \Exception('Gagal menghubungi API SAP CancelIT. HTTP Status: ' . $response->status());
+        }
+
+        $body = $response->json();
+
+        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
+            throw new \Exception('API SAP CancelIT error: ' . ($body['Message'] ?? 'Unknown SAP error'));
+        }
+
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'CANCEL_IT_SAP',
+                "Cancelled Inventory Transfer (IT) on SAP for DocEntry {$docEntry}."
+            );
+        }
+
+        return [
+            'payload' => $payload,
+            'sap_response' => $body,
+        ];
+    }
 }

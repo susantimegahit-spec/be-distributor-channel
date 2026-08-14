@@ -10267,6 +10267,120 @@ paths:
         '200':
           description: Detail Receipt Production dari SAP berhasil diambil.
 
+  /v1/production/orders/sap/cancel:
+    post:
+      summary: Cancel Production Order (PDO) on SAP
+      description: Membatalkan Production Order (PDO) di SAP API (/api/cancelpdo).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocEntry
+              properties:
+                DocEntry:
+                  type: string
+                  example: "1231"
+                  description: DocEntry dari PDO yang ingin dibatalkan
+                UserId:
+                  type: integer
+                  example: 12
+                  description: ID User operator
+                AddonId:
+                  type: integer
+                  example: 2
+                  description: ID Addon sistem
+      responses:
+        '200':
+          description: Production Order (PDO) berhasil dibatalkan di SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Production Order (PDO) berhasil dibatalkan di SAP.
+                  data:
+                    type: object
+                    properties:
+                      ErrorCode:
+                        type: integer
+                        example: 0
+                      Message:
+                        type: string
+                        example: ""
+        '422':
+          description: DocEntry tidak valid.
+        '500':
+          description: Gagal menghubungi API SAP.
+
+  /v1/production/inventory-transfer/sap/cancel:
+    post:
+      summary: Cancel Inventory Transfer (IT) on SAP
+      description: Membatalkan dokumen Inventory Transfer (IT) di SAP API (/api/CancelIT).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocEntry
+              properties:
+                DocEntry:
+                  type: string
+                  example: "1231"
+                  description: DocEntry dari IT yang ingin dibatalkan
+                UserId:
+                  type: integer
+                  example: 12
+                  description: ID User operator
+                AddonId:
+                  type: integer
+                  example: 2
+                  description: ID Addon sistem
+      responses:
+        '200':
+          description: Inventory Transfer (IT) berhasil dibatalkan di SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Inventory Transfer (IT) berhasil dibatalkan di SAP.
+                  data:
+                    type: object
+                    properties:
+                      ErrorCode:
+                        type: integer
+                        example: 0
+                      Message:
+                        type: string
+                        example: ""
+        '422':
+          description: DocEntry tidak valid.
+        '500':
+          description: Gagal menghubungi API SAP.
+
 components:
   securitySchemes:
     BearerAuth:

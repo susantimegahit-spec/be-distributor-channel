@@ -713,4 +713,44 @@ class ProductionController extends Controller
             return $this->errorResponse('Gagal mengambil detail Receipt Production dari SAP: ' . $e->getMessage(), [], 500);
         }
     }
+
+    /**
+     * Cancel Production Order (PDO) on SAP (/api/cancelpdo).
+     */
+    public function cancelPdoSap(Request $request): JsonResponse
+    {
+        $userId = $request->user()?->id;
+        $input = $request->all();
+
+        if (empty($input['DocEntry']) && empty($input['doc_entry'])) {
+            return $this->errorResponse('DocEntry wajib diisi.', [], 422);
+        }
+
+        try {
+            $result = $this->productionService->cancelPdoSap($input, $userId);
+            return $this->successResponse($result['sap_response'], 'Production Order (PDO) berhasil dibatalkan di SAP.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal membatalkan Production Order di SAP: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
+     * Cancel Inventory Transfer (IT) on SAP (/api/CancelIT).
+     */
+    public function cancelItSap(Request $request): JsonResponse
+    {
+        $userId = $request->user()?->id;
+        $input = $request->all();
+
+        if (empty($input['DocEntry']) && empty($input['doc_entry'])) {
+            return $this->errorResponse('DocEntry wajib diisi.', [], 422);
+        }
+
+        try {
+            $result = $this->productionService->cancelItSap($input, $userId);
+            return $this->successResponse($result['sap_response'], 'Inventory Transfer (IT) berhasil dibatalkan di SAP.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal membatalkan Inventory Transfer di SAP: ' . $e->getMessage(), [], 500);
+        }
+    }
 }
