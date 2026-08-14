@@ -22,6 +22,10 @@ Route::prefix('v1/production')->middleware('auth:sanctum')->group(function () {
     Route::post('/orders/sap-list', [ProductionController::class, 'getListPdoSap']);
     Route::get('/get-list-pdo-sap', [ProductionController::class, 'getListPdoSap']);
     Route::post('/get-list-pdo-sap', [ProductionController::class, 'getListPdoSap']);
+    Route::get('/orders/sap/{id}', [ProductionController::class, 'getPdoByIdSap']);
+    Route::post('/orders/sap/detail', [ProductionController::class, 'getPdoByIdSap']);
+    Route::get('/get-pdo-by-id', [ProductionController::class, 'getPdoByIdSap']);
+    Route::post('/get-pdo-by-id', [ProductionController::class, 'getPdoByIdSap']);
     Route::get('/orders/{id}', [ProductionController::class, 'showOrder']);
     Route::post('/orders', [ProductionController::class, 'storeOrder']);
     Route::post('/orders/sap', [ProductionController::class, 'addPdoSap']);

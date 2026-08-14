@@ -486,6 +486,52 @@ class ProductionService
     }
 
     /**
+     * Get detail of Production Order (PDO) from SAP API endpoint (/api/getPDObyId).
+     *
+     * @param string|int $customQuery
+     * @param int|null $userId
+     * @return array
+     */
+    public function getPdoById(string|int $customQuery, ?int $userId = null): array
+    {
+        $sapUrl = config('services.sap.url', 'http://103.18.133.187:3100');
+
+        $payload = [
+            'CustomQuery' => (string) $customQuery,
+        ];
+
+        $response = Http::timeout(30)->post("{$sapUrl}/api/getPDObyId", $payload);
+
+        if (!$response->successful()) {
+            throw new \Exception('Gagal menghubungi API SAP getPDObyId. HTTP Status: ' . $response->status());
+        }
+
+        $body = $response->json();
+
+        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
+            throw new \Exception('API SAP getPDObyId error: ' . ($body['Message'] ?? 'Unknown SAP error'));
+        }
+
+        $result = $body['Result'] ?? [];
+        $header = $result['Table1'][0] ?? (is_array($result) && !isset($result['Table1']) ? ($result[0] ?? $result) : null);
+        $items = $result['Table2'] ?? [];
+
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'GET_PDO_DETAIL_SAP',
+                "Fetched Production Order detail from SAP for query: {$customQuery}."
+            );
+        }
+
+        return [
+            'header' => $header,
+            'items'  => $items,
+            'raw'    => $result,
+        ];
+    }
+
+    /**
      * Get list of Production Receipts from SAP API endpoint (/api/getListReceiptProd).
      *
      * @param array $filters

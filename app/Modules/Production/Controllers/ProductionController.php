@@ -659,6 +659,26 @@ class ProductionController extends Controller
     }
 
     /**
+     * Get detail of Production Order (PDO) from SAP API (/api/getPDObyId).
+     */
+    public function getPdoByIdSap(Request $request, ?string $id = null): JsonResponse
+    {
+        $userId = $request->user()?->id;
+        $customQuery = $id ?? $request->input('custom_query') ?? $request->input('CustomQuery') ?? $request->input('doc_entry') ?? $request->input('doc_num');
+
+        if (empty($customQuery)) {
+            return $this->errorResponse('Parameter identifier / custom_query (DocEntry / DocNum) wajib diisi.', [], 422);
+        }
+
+        try {
+            $result = $this->productionService->getPdoById($customQuery, $userId);
+            return $this->successResponse($result, 'Detail Production Order (PDO) dari SAP berhasil diambil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal mengambil detail Production Order (PDO) dari SAP: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
      * Get list of Production Receipts from SAP API (/api/getListReceiptProd).
      */
     public function getListReceiptProdSap(Request $request): JsonResponse
