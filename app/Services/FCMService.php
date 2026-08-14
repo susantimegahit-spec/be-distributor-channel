@@ -147,7 +147,7 @@ class FCMService
                         'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                         'sound' => 'default',
                         'channel_id' => 'high_importance_channel',
-                        'priority' => 'HIGH',
+                        'notification_priority' => 'PRIORITY_HIGH',
                     ],
                 ],
                 'apns' => [
