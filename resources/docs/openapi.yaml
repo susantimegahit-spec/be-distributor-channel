@@ -7810,77 +7810,6 @@ paths:
                             type: string
                             example: "Success create PDO"
 
-  /v1/production/orders/sap-list:
-    post:
-      summary: Get List of Production Orders (PDO) from SAP
-      description: Mengambil daftar Production Order (PDO) dari API SAP (`http://103.18.133.187:3100/api/getListPDO`) berdasarkan rentang tanggal dan gudang.
-      tags:
-        - Production Order
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                From:
-                  type: string
-                  description: "Tanggal mulai (Format: YYYY-M-D / YYYY-MM-DD)"
-                  example: "2026-1-1"
-                To:
-                  type: string
-                  description: "Tanggal akhir (Format: YYYY-M-D / YYYY-MM-DD)"
-                  example: "2026-12-31"
-                WhsCode:
-                  type: string
-                  description: "Kode gudang asal"
-                  example: "VRTR01"
-                ToWhsCode:
-                  type: string
-                  description: "Kode gudang tujuan"
-                  example: "FG01"
-      responses:
-        '200':
-          description: Daftar Production Order (PDO) dari SAP berhasil diambil.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: "Daftar Production Order (PDO) dari SAP berhasil diambil."
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        DocEntry:
-                          type: string
-                          example: "15287"
-                        DocNum:
-                          type: string
-                          example: "260810656"
-                        DocDate:
-                          type: string
-                          example: "20260811"
-                        CardCode:
-                          type: string
-                          example: "VN10000013"
-                        CardName:
-                          type: string
-                          example: "DWI JAYA, UD"
-                        DocTotal:
-                          type: string
-                          example: "90000.000000"
-                        Comments:
-                          type: string
-                          example: "UNTUK PERBAIKAN MESIN PRODUKSI DAN STOCK ALL UNIT Based On Purchase Request 260810049. Based On Purchase Orders 260810078."
 
   /v1/production/orders/{id}:
     get:
@@ -9823,6 +9752,7 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/CronJobLog'
+
   /v1/production/orders/sap-list:
     get:
       summary: Get list of Production Orders (PDO) from SAP
