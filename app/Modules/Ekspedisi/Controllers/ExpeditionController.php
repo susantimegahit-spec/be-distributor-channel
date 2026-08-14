@@ -34,8 +34,12 @@ class ExpeditionController extends Controller
             $query->where('status', $request->get('status'));
         }
 
-        $perPage = $request->get('per_page', 15);
-        $expeditions = $query->orderBy('expedition_name')->paginate($perPage);
+        if ($request->has('per_page') || $request->has('page')) {
+            $perPage = (int) $request->get('per_page', 15);
+            $expeditions = $query->orderBy('expedition_name')->paginate($perPage);
+        } else {
+            $expeditions = $query->orderBy('expedition_name')->get();
+        }
 
         return $this->successResponse($expeditions, 'Daftar master ekspedisi berhasil diambil.');
     }
