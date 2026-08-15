@@ -69,12 +69,7 @@ class ExpeditionRateController extends Controller
             $expandedModes = array_values(array_unique($expandedModes));
 
             if (!empty($expandedModes)) {
-                $query->where(function ($q) use ($expandedModes) {
-                    $q->whereIn(\Illuminate\Support\Facades\DB::raw('LOWER(transport_mode)'), $expandedModes)
-                      ->orWhereHas('destination', function ($dq) use ($expandedModes) {
-                          $dq->whereIn(\Illuminate\Support\Facades\DB::raw('LOWER(transport_mode)'), $expandedModes);
-                      });
-                });
+                $query->whereIn(\Illuminate\Support\Facades\DB::raw('LOWER(transport_mode)'), $expandedModes);
             }
         }
 
@@ -318,12 +313,7 @@ class ExpeditionRateController extends Controller
             $expandedModes = array_values(array_unique($expandedModes));
 
             if (!empty($expandedModes)) {
-                $query->where(function ($q) use ($expandedModes) {
-                    $q->whereIn(\Illuminate\Support\Facades\DB::raw('LOWER(transport_mode)'), $expandedModes)
-                      ->orWhereHas('destination', function ($dq) use ($expandedModes) {
-                          $dq->whereIn(\Illuminate\Support\Facades\DB::raw('LOWER(transport_mode)'), $expandedModes);
-                      });
-                });
+                $query->whereIn(\Illuminate\Support\Facades\DB::raw('LOWER(transport_mode)'), $expandedModes);
             }
         }
 

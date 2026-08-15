@@ -207,8 +207,9 @@ class ExpeditionUploadService
                     continue;
                 }
 
-                // Match warehouse ID
-                $whsCode = trim((string) ($this->getValueByMap($row, $headerMap, 'warehouse_code') ?? ''));
+                // Match warehouse ID by code or name
+                $whsInput = trim((string) ($this->getValueByMap($row, $headerMap, 'warehouse_code') ?? ''));
+                $whsCode = $whsInput;
                 if (str_contains($whsCode, '-')) {
                     $whsCode = trim(explode('-', $whsCode)[0]);
                 }
@@ -218,16 +219,21 @@ class ExpeditionUploadService
                     $warehouseId = $warehouseMap[$whsCode];
                 } elseif (is_numeric($whsCode)) {
                     $warehouseId = (int) $whsCode;
+                } else {
+                    $whsObj = Warehouse::where('whs_name', $whsInput)
+                        ->orWhere('whs_name', 'LIKE', "%{$whsInput}%")
+                        ->orWhere('whs_code', $whsCode)
+                        ->first();
+                    if ($whsObj) {
+                        $warehouseId = $whsObj->id;
+                    }
                 }
 
                 $destId = $this->getValueByMap($row, $headerMap, 'destination_id');
                 $destinationId = null;
                 if ($destId !== null) {
                     $destStr = trim((string) $destId);
-                    if (str_contains($destStr, '-')) {
-                        $destStr = trim(explode('-', $destStr)[0]);
-                    }
-
+                    
                     if (is_numeric($destStr)) {
                         $existsAsId = DB::table('customer_shiptos')->where('id', (int) $destStr)->exists();
                         if ($existsAsId) {
@@ -239,7 +245,40 @@ class ExpeditionUploadService
                             }
                         }
                     } else {
+                        // Check exact card_code
                         $shipto = DB::table('customer_shiptos')->where('card_code', $destStr)->first();
+                        
+                        // If not found, try parsing alias - street format or matching alias/name/street
+                        if (!$shipto && str_contains($destStr, ' - ')) {
+                            $parts = explode(' - ', $destStr, 2);
+                            $aliasPart = trim($parts[0]);
+                            $streetPart = trim($parts[1]);
+
+                            $shipto = DB::table('customer_shiptos')
+                                ->where(function ($q) use ($aliasPart, $streetPart) {
+                                    $q->where('alias', $aliasPart)->orWhere('name', $aliasPart);
+                                })
+                                ->where(function ($q) use ($streetPart) {
+                                    $q->where('street', 'LIKE', "%{$streetPart}%")->orWhere('address', 'LIKE', "%{$streetPart}%");
+                                })
+                                ->first();
+
+                            if (!$shipto) {
+                                $shipto = DB::table('customer_shiptos')
+                                    ->where('alias', $aliasPart)
+                                    ->orWhere('name', $aliasPart)
+                                    ->first();
+                            }
+                        }
+
+                        if (!$shipto) {
+                            $shipto = DB::table('customer_shiptos')
+                                ->where('alias', $destStr)
+                                ->orWhere('name', $destStr)
+                                ->orWhere('street', $destStr)
+                                ->first();
+                        }
+
                         if ($shipto) {
                             $destinationId = $shipto->id;
                         }
