@@ -137,6 +137,17 @@ Route::middleware([DocsAuthSession::class])->group(function () {
         ]);
     });
 
+    Route::get('/docs/logo-smesta-transparent.png', function () {
+        $path = public_path('images/logo-smesta-transparent.png');
+        if (!file_exists($path)) {
+            abort(404);
+        }
+        return response()->file($path, [
+            'Content-Type' => 'image/png',
+            'Cache-Control' => 'public, max-age=86400',
+        ]);
+    });
+
     Route::get('/openapi.yaml', function () {
         $path = resource_path('docs/openapi.yaml');
         if (!file_exists($path)) {

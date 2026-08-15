@@ -1,7 +1,12 @@
 openapi: 3.0.3
 info:
   title: SM Connect
-  description: Dokumentasi API Backend Distributor Channel menggunakan Laravel 12.
+  description: |
+    <div style="margin-bottom: 24px;">
+      <img src="/docs/logo-smesta-transparent.png" alt="SMESTA Logo" style="max-height: 70px; width: auto; object-fit: contain;" />
+    </div>
+
+    Dokumentasi API Backend Distributor Channel menggunakan Laravel 12.
   version: 1.0.0
 servers:
   - url: http://api-dev.susantimegah.com/api/distributor-channel
