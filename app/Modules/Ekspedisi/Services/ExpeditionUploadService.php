@@ -168,6 +168,7 @@ class ExpeditionUploadService
         $batchId = $this->generateRateBatchId();
         $processed = 0;
         $created = 0;
+        $updated = 0;
         $errors = [];
 
         // Pre-fetch expeditions & warehouses for fast lookup
@@ -300,7 +301,7 @@ class ExpeditionUploadService
                     }
                 }
 
-                ExpeditionRate::create([
+                $ratePayload = [
                     'expedition_id'    => $expeditionId,
                     'warehouse_id'     => $warehouseId,
                     'destination_id'   => $destinationId,
@@ -317,10 +318,42 @@ class ExpeditionUploadService
                     'status'           => strtoupper((string) ($this->getValueByMap($row, $headerMap, 'status') ?? 'ACTIVE')),
                     'remarks'          => $this->getValueByMap($row, $headerMap, 'remarks'),
                     'upload_batch_id'  => $batchId,
-                    'created_by'       => auth()->id(),
-                ]);
+                ];
 
-                $created++;
+                // Check if existing rate matches unique combination
+                $existingRateQuery = ExpeditionRate::where('expedition_id', $expeditionId)
+                    ->where('warehouse_id', $warehouseId)
+                    ->where('destination_id', $destinationId);
+
+                $tMode = $ratePayload['transport_mode'];
+                if ($tMode) {
+                    $existingRateQuery->whereRaw('LOWER(transport_mode) = ?', [strtolower((string) $tMode)]);
+                } else {
+                    $existingRateQuery->whereNull('transport_mode');
+                }
+
+                $sType = $ratePayload['service_type'];
+                if ($sType) {
+                    $existingRateQuery->whereRaw('LOWER(service_type) = ?', [strtolower((string) $sType)]);
+                } else {
+                    $existingRateQuery->whereNull('service_type');
+                }
+
+                $existingRateQuery->where('min_tonnage', $ratePayload['min_tonnage'])
+                    ->where('max_tonnage', $ratePayload['max_tonnage']);
+
+                $existingRate = $existingRateQuery->first();
+
+                if ($existingRate) {
+                    $ratePayload['updated_by'] = auth()->id();
+                    $existingRate->update($ratePayload);
+                    $updated++;
+                } else {
+                    $ratePayload['created_by'] = auth()->id();
+                    ExpeditionRate::create($ratePayload);
+                    $created++;
+                }
+
                 $processed++;
             }
 
@@ -334,6 +367,7 @@ class ExpeditionUploadService
             'upload_batch_id' => $batchId,
             'processed_count' => $processed,
             'created_count'   => $created,
+            'updated_count'   => $updated,
             'errors'          => $errors,
         ];
     }
