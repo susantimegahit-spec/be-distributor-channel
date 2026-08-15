@@ -186,9 +186,9 @@
             text-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
 
-        /* Minimalist Line Inputs */
+        /* Rounded Inputs */
         .input-group {
-            margin-bottom: 24px;
+            margin-bottom: 20px;
             position: relative;
         }
 
@@ -196,42 +196,45 @@
             display: block;
             font-size: 13.5px;
             font-weight: 600;
-            color: #cbd5e1;
+            color: #e2e8f0;
             margin-bottom: 8px;
             letter-spacing: 0.02em;
         }
 
         .input-line {
             width: 100%;
-            background: transparent;
-            border: none;
-            border-bottom: 2px solid rgba(255, 255, 255, 0.35);
-            padding: 8px 0 10px 0;
-            font-size: 15px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1.5px solid rgba(255, 255, 255, 0.2);
+            border-radius: 14px;
+            padding: 12px 18px;
+            font-size: 14.5px;
             font-weight: 500;
             color: #ffffff;
             outline: none;
-            transition: all 0.3s ease;
+            transition: all 0.25s ease;
             font-family: 'Inter', sans-serif;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
         }
 
         .input-line:focus {
-            border-bottom-color: #38bdf8;
-            padding-left: 4px;
+            background: rgba(255, 255, 255, 0.14);
+            border-color: #38bdf8;
+            box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.2), inset 0 2px 4px rgba(0, 0, 0, 0.15);
+            transform: translateY(-1px);
         }
 
         .input-line::placeholder {
-            color: rgba(203, 213, 225, 0.4);
-            font-size: 14px;
+            color: rgba(203, 213, 225, 0.45);
+            font-size: 13.5px;
         }
 
-        /* Submit Button (SMESTA Cyan/Sky Gradient) */
+        /* Submit Button (SMESTA Cyan/Sky Gradient with Rounded Shape) */
         .btn-login {
             width: 100%;
             padding: 14px;
             background: linear-gradient(90deg, #0284c7 0%, #38bdf8 100%);
             border: none;
-            border-radius: 12px;
+            border-radius: 14px;
             font-size: 15px;
             font-weight: 800;
             color: #ffffff;
