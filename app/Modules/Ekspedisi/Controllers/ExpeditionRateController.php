@@ -170,14 +170,20 @@ class ExpeditionRateController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'expedition_id' => 'sometimes|required|integer|exists:pgsql_ekspedisi.ekspedisi.expeditions,id',
+            'expedition_id' => 'nullable|integer|exists:pgsql_ekspedisi.ekspedisi.expeditions,id',
+            'expedition' => 'nullable|string',
             'warehouse_id' => 'nullable|integer|exists:public.warehouses,id',
+            'origin' => 'nullable|string',
             'destination_id' => 'nullable|integer',
+            'destination' => 'nullable|string',
             'transport_mode' => 'nullable|string|max:50',
             'service_type' => 'nullable|string|max:50',
             'min_tonnage' => 'nullable|numeric|min:0',
+            'min_kg' => 'nullable|numeric|min:0',
             'max_tonnage' => 'nullable|numeric|min:0',
-            'price' => 'sometimes|required|numeric|min:0',
+            'max_kg' => 'nullable|numeric|min:0',
+            'price' => 'nullable|numeric|min:0',
+            'rate' => 'nullable|numeric|min:0',
             'eta_days' => 'nullable|integer|min:0',
             'min_shipment_qty' => 'nullable|numeric|min:0',
             'max_shipment_qty' => 'nullable|numeric|min:0',
@@ -193,11 +199,83 @@ class ExpeditionRateController extends Controller
         }
 
         $data = $validator->validated();
-        $data['updated_by'] = auth()->id();
+        $payload = [];
 
-        $rate->update($data);
+        // Handle price / rate
+        if ($request->has('price')) {
+            $payload['price'] = $request->get('price');
+        } elseif ($request->has('rate')) {
+            $payload['price'] = $request->get('rate');
+        }
 
-        return $this->successResponse($rate->load(['expedition', 'warehouse', 'destination']), 'Tarif ekspedisi berhasil diperbarui.');
+        // Handle min_tonnage / min_kg
+        if ($request->has('min_tonnage')) {
+            $payload['min_tonnage'] = $request->get('min_tonnage');
+        } elseif ($request->has('min_kg')) {
+            $payload['min_tonnage'] = $request->get('min_kg');
+        }
+
+        // Handle max_tonnage / max_kg
+        if ($request->has('max_tonnage')) {
+            $payload['max_tonnage'] = $request->get('max_tonnage');
+        } elseif ($request->has('max_kg')) {
+            $payload['max_tonnage'] = $request->get('max_kg');
+        }
+
+        // Handle expedition
+        if ($request->filled('expedition_id')) {
+            $payload['expedition_id'] = $request->get('expedition_id');
+        } elseif ($request->filled('expedition')) {
+            $expInput = trim((string) $request->get('expedition'));
+            $exp = \App\Models\Expedition::where('expedition_code', $expInput)
+                ->orWhere('id', is_numeric($expInput) ? (int) $expInput : 0)
+                ->first();
+            if ($exp) {
+                $payload['expedition_id'] = $exp->id;
+            }
+        }
+
+        // Handle warehouse / origin
+        if ($request->filled('warehouse_id')) {
+            $payload['warehouse_id'] = $request->get('warehouse_id');
+        } elseif ($request->filled('origin')) {
+            $originInput = trim((string) $request->get('origin'));
+            $whs = \App\Models\Warehouse::where('whs_code', $originInput)
+                ->orWhere('whs_name', $originInput)
+                ->orWhere('id', is_numeric($originInput) ? (int) $originInput : 0)
+                ->first();
+            if ($whs) {
+                $payload['warehouse_id'] = $whs->id;
+            }
+        }
+
+        // Handle destination
+        if ($request->filled('destination_id')) {
+            $payload['destination_id'] = $request->get('destination_id');
+        } elseif ($request->filled('destination')) {
+            $destInput = trim((string) $request->get('destination'));
+            $shipto = \App\Models\CustomerShipto::where('card_code', $destInput)
+                ->orWhere('id', is_numeric($destInput) ? (int) $destInput : 0)
+                ->orWhere('alias', $destInput)
+                ->orWhere('name', $destInput)
+                ->first();
+            if ($shipto) {
+                $payload['destination_id'] = $shipto->id;
+            }
+        }
+
+        // Optional standard fields
+        foreach (['transport_mode', 'service_type', 'eta_days', 'min_shipment_qty', 'max_shipment_qty', 'valid_from', 'valid_until', 'status', 'remarks', 'upload_batch_id'] as $field) {
+            if ($request->has($field)) {
+                $payload[$field] = $request->get($field);
+            }
+        }
+
+        $payload['updated_by'] = auth()->id();
+
+        $rate->update($payload);
+
+        return $this->successResponse($rate->fresh()->load(['expedition', 'warehouse', 'destination']), 'Tarif ekspedisi berhasil diperbarui.');
     }
 
     /**
