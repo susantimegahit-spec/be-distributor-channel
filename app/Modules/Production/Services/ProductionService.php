@@ -850,6 +850,163 @@ class ProductionService
     }
 
     /**
+     * Helper to prepare payload for Add Issue or Add Receipt Production.
+     *
+     * @param array $data
+     * @param int|null $userId
+     * @param string $transactionName
+     * @return array
+     * @throws \Exception
+     */
+    protected function prepareProdTransactionPayload(array $data, ?int $userId, string $transactionName): array
+    {
+        $rawDocDate = $data['doc_date'] ?? $data['DocDate'] ?? null;
+        $rawDocDueDate = $data['doc_due_date'] ?? $data['DocDueDate'] ?? null;
+
+        if (empty($rawDocDate)) {
+            throw new \Exception("Field 'DocDate' wajib diisi (format YYYY-MM-DD).");
+        }
+        if (empty($rawDocDueDate)) {
+            throw new \Exception("Field 'DocDueDate' wajib diisi (format YYYY-MM-DD).");
+        }
+
+        $docDate = date('Y-m-d', strtotime((string) $rawDocDate));
+        $docDueDate = date('Y-m-d', strtotime((string) $rawDocDueDate));
+
+        $rawLines = $data['lines'] ?? $data['Lines'] ?? [];
+        if (!is_array($rawLines) || empty($rawLines)) {
+            throw new \Exception("Field 'Lines' wajib diisi dan minimal berisi 1 item baris.");
+        }
+
+        $lines = [];
+        foreach ($rawLines as $idx => $line) {
+            if (!is_array($line)) {
+                continue;
+            }
+
+            $baseEntry = $line['base_entry'] ?? $line['BaseEntry'] ?? null;
+            $baseLine = $line['base_line'] ?? $line['BaseLine'] ?? null;
+            $quantity = $line['quantity'] ?? $line['Quantity'] ?? null;
+
+            if ($baseEntry === null || $baseEntry === '') {
+                throw new \Exception("Lines index [{$idx}]: 'BaseEntry' (DocEntry Production Order) wajib diisi.");
+            }
+            if ($baseLine === null || $baseLine === '') {
+                throw new \Exception("Lines index [{$idx}]: 'BaseLine' (LineNum component/item) wajib diisi.");
+            }
+            if ($quantity === null || !is_numeric($quantity) || floatval($quantity) <= 0) {
+                throw new \Exception("Lines index [{$idx}]: 'Quantity' wajib diisi dengan nilai lebih dari 0.");
+            }
+
+            $lines[] = [
+                'BaseType'  => is_numeric($line['base_type'] ?? $line['BaseType'] ?? null) ? (int) ($line['base_type'] ?? $line['BaseType']) : 202,
+                'BaseEntry' => is_numeric($baseEntry) ? (int) $baseEntry : (string) $baseEntry,
+                'BaseLine'  => is_numeric($baseLine) ? (int) $baseLine : (string) $baseLine,
+                'Quantity'  => floatval($quantity),
+                'WhsCode'   => (string) ($line['whs_code'] ?? $line['warehouse'] ?? $line['WhsCode'] ?? ''),
+                'UoMEntry'  => is_numeric($line['uom_entry'] ?? $line['UoMEntry'] ?? null) ? (int) ($line['uom_entry'] ?? $line['UoMEntry']) : ($line['uom_entry'] ?? $line['UoMEntry'] ?? 1),
+                'OcrCode'   => (string) ($line['ocr_code'] ?? $line['OcrCode'] ?? ''),
+                'OcrCode2'  => (string) ($line['ocr_code2'] ?? $line['OcrCode2'] ?? ''),
+                'OcrCode3'  => (string) ($line['ocr_code3'] ?? $line['OcrCode3'] ?? ''),
+            ];
+        }
+
+        if (empty($lines)) {
+            throw new \Exception("Lines valid tidak ditemukan dalam request.");
+        }
+
+        return [
+            'DocDate'    => $docDate,
+            'DocDueDate' => $docDueDate,
+            'Comments'   => (string) ($data['comments'] ?? $data['Comments'] ?? ''),
+            'Shift'      => (string) ($data['shift'] ?? $data['u_shift'] ?? $data['Shift'] ?? $data['U_Shift'] ?? ''),
+            'Unit'       => (string) ($data['unit'] ?? $data['u_unit'] ?? $data['Unit'] ?? $data['U_Unit'] ?? ''),
+            'Bomid'      => (string) ($data['bom_id'] ?? $data['bomid'] ?? $data['u_bom_id'] ?? $data['Bomid'] ?? $data['U_BomId'] ?? ''),
+            'AddonId'    => (string) ($data['addon_id'] ?? $data['AddonId'] ?? $data['U_AddonId'] ?? 'ADDON-INT-01'),
+            'UserId'     => (string) ($data['user_id'] ?? $data['UserId'] ?? $data['U_UserId'] ?? ($userId ? (string)$userId : '1')),
+            'Lines'      => $lines,
+        ];
+    }
+
+    /**
+     * Add Goods Issue for Production to SAP API (/api/addissueprod).
+     *
+     * @param array $data
+     * @param int|null $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function addIssueProdSap(array $data, ?int $userId = null): array
+    {
+        $sapUrl = config('services.sap.url', 'http://103.18.133.187:3100');
+        $payload = $this->prepareProdTransactionPayload($data, $userId, 'Issue for Production');
+
+        $response = Http::timeout(45)->post("{$sapUrl}/api/addissueprod", $payload);
+
+        if (!$response->successful()) {
+            throw new \Exception('Gagal menghubungi API SAP addissueprod. HTTP Status: ' . $response->status());
+        }
+
+        $body = $response->json();
+
+        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
+            throw new \Exception('API SAP addissueprod error: ' . ($body['Message'] ?? 'Unknown SAP error'));
+        }
+
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'ADD_ISSUE_PROD_SAP',
+                "Submitted Goods Issue for Production to SAP: " . ($body['Message'] ?? json_encode($body))
+            );
+        }
+
+        return [
+            'payload'      => $payload,
+            'sap_response' => $body,
+        ];
+    }
+
+    /**
+     * Add Receipt for Production to SAP API (/api/addreceiptprod).
+     *
+     * @param array $data
+     * @param int|null $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function addReceiptProdSap(array $data, ?int $userId = null): array
+    {
+        $sapUrl = config('services.sap.url', 'http://103.18.133.187:3100');
+        $payload = $this->prepareProdTransactionPayload($data, $userId, 'Receipt for Production');
+
+        $response = Http::timeout(45)->post("{$sapUrl}/api/addreceiptprod", $payload);
+
+        if (!$response->successful()) {
+            throw new \Exception('Gagal menghubungi API SAP addreceiptprod. HTTP Status: ' . $response->status());
+        }
+
+        $body = $response->json();
+
+        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
+            throw new \Exception('API SAP addreceiptprod error: ' . ($body['Message'] ?? 'Unknown SAP error'));
+        }
+
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'ADD_RECEIPT_PROD_SAP',
+                "Submitted Receipt for Production to SAP: " . ($body['Message'] ?? json_encode($body))
+            );
+        }
+
+        return [
+            'payload'      => $payload,
+            'sap_response' => $body,
+        ];
+    }
+
+    /**
      * Cancel Inventory Transfer (IT) on SAP (/api/CancelIT).
      *
      * @param array $data

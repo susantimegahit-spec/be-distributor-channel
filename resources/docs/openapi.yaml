@@ -10447,6 +10447,224 @@ paths:
         '200':
           description: Detail Issue for Production dari SAP berhasil diambil.
 
+  /v1/production/add-issue-prod-sap:
+    post:
+      summary: Add Goods Issue for Production on SAP
+      description: Melakukan Issue Material/Component ke Production Order pada SAP Business One (/api/addissueprod).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocDate
+                - DocDueDate
+                - Lines
+              properties:
+                DocDate:
+                  type: string
+                  format: date
+                  example: "2026-08-15"
+                DocDueDate:
+                  type: string
+                  format: date
+                  example: "2026-08-15"
+                Comments:
+                  type: string
+                  example: "Goods Issue Production Order #10025"
+                Shift:
+                  type: string
+                  example: "Shift 1"
+                Unit:
+                  type: string
+                  example: "UNIT-01"
+                Bomid:
+                  type: string
+                  example: "BOM-992"
+                AddonId:
+                  type: string
+                  example: "ADDON-INT-01"
+                UserId:
+                  type: string
+                  example: "USR-004"
+                Lines:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - BaseEntry
+                      - BaseLine
+                      - Quantity
+                    properties:
+                      BaseType:
+                        type: integer
+                        example: 202
+                      BaseEntry:
+                        type: integer
+                        example: 10025
+                      BaseLine:
+                        type: integer
+                        example: 0
+                      Quantity:
+                        type: number
+                        example: 50
+                      WhsCode:
+                        type: string
+                        example: "RAW-01"
+                      UoMEntry:
+                        type: integer
+                        example: 1
+                      OcrCode:
+                        type: string
+                        example: "DEPT-PROD"
+                      OcrCode2:
+                        type: string
+                        example: "CC-LINE1"
+                      OcrCode3:
+                        type: string
+                        example: ""
+      responses:
+        '200':
+          description: Goods Issue for Production berhasil diproses ke SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Success - Issue for Production. DocNum: 40512"
+                  data:
+                    type: object
+                    properties:
+                      ErrorCode:
+                        type: integer
+                        example: 0
+                      Message:
+                        type: string
+                        example: "Success - Issue for Production. DocNum: 40512"
+        '422':
+          description: Validasi request gagal.
+        '500':
+          description: Gagal memproses Goods Issue ke SAP.
+
+  /v1/production/add-receipt-prod-sap:
+    post:
+      summary: Add Receipt for Production on SAP
+      description: Melakukan Receipt hasil produksi dari Production Order pada SAP Business One (/api/addreceiptprod).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocDate
+                - DocDueDate
+                - Lines
+              properties:
+                DocDate:
+                  type: string
+                  format: date
+                  example: "2026-08-15"
+                DocDueDate:
+                  type: string
+                  format: date
+                  example: "2026-08-15"
+                Comments:
+                  type: string
+                  example: "Receipt from Production Order #10025"
+                Shift:
+                  type: string
+                  example: "Shift 1"
+                Unit:
+                  type: string
+                  example: "UNIT-01"
+                Bomid:
+                  type: string
+                  example: "BOM-992"
+                AddonId:
+                  type: string
+                  example: "ADDON-INT-01"
+                UserId:
+                  type: string
+                  example: "USR-004"
+                Lines:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - BaseEntry
+                      - BaseLine
+                      - Quantity
+                    properties:
+                      BaseType:
+                        type: integer
+                        example: 202
+                      BaseEntry:
+                        type: integer
+                        example: 10025
+                      BaseLine:
+                        type: integer
+                        example: 0
+                      Quantity:
+                        type: number
+                        example: 50
+                      WhsCode:
+                        type: string
+                        example: "FG-01"
+                      UoMEntry:
+                        type: integer
+                        example: 1
+                      OcrCode:
+                        type: string
+                        example: "DEPT-PROD"
+                      OcrCode2:
+                        type: string
+                        example: "CC-LINE1"
+                      OcrCode3:
+                        type: string
+                        example: ""
+      responses:
+        '200':
+          description: Receipt for Production berhasil diproses ke SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Success - Receipt for Production. DocNum: 40513"
+                  data:
+                    type: object
+                    properties:
+                      ErrorCode:
+                        type: integer
+                        example: 0
+                      Message:
+                        type: string
+                        example: "Success - Receipt for Production. DocNum: 40513"
+        '422':
+          description: Validasi request gagal.
+        '500':
+          description: Gagal memproses Receipt ke SAP.
+
   /v1/production/orders/sap/cancel:
     post:
       summary: Cancel Production Order (PDO) on SAP

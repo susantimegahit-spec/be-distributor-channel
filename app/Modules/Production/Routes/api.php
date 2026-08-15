@@ -48,6 +48,7 @@ Route::prefix('v1/production')->middleware('auth:sanctum')->group(function () {
     Route::post('/receipts/sap/detail', [ProductionController::class, 'getReceiptProdByIdSap']);
     Route::get('/get-receipt-prod-by-id', [ProductionController::class, 'getReceiptProdByIdSap']);
     Route::post('/get-receipt-prod-by-id', [ProductionController::class, 'getReceiptProdByIdSap']);
+    Route::post('/add-receipt-prod-sap', [ProductionController::class, 'addReceiptProdSap']);
 
     // Issue for Production from SAP
     Route::get('/issues/sap-list', [ProductionController::class, 'getListIssueProdSap']);
@@ -58,4 +59,5 @@ Route::prefix('v1/production')->middleware('auth:sanctum')->group(function () {
     Route::post('/issues/sap/detail', [ProductionController::class, 'getIssueProdByIdSap']);
     Route::get('/get-issue-prod-by-id', [ProductionController::class, 'getIssueProdByIdSap']);
     Route::post('/get-issue-prod-by-id', [ProductionController::class, 'getIssueProdByIdSap']);
+    Route::post('/add-issue-prod-sap', [ProductionController::class, 'addIssueProdSap']);
 });

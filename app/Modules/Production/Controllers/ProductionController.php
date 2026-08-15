@@ -766,6 +766,40 @@ class ProductionController extends Controller
     }
 
     /**
+     * Add Goods Issue for Production on SAP (/api/addissueprod).
+     */
+    public function addIssueProdSap(Request $request): JsonResponse
+    {
+        $userId = $request->user()?->id;
+        $input = $request->all();
+
+        try {
+            $result = $this->productionService->addIssueProdSap($input, $userId);
+            $sapResponse = $result['sap_response'] ?? [];
+            return $this->successResponse($sapResponse, $sapResponse['Message'] ?? 'Goods Issue for Production berhasil diproses ke SAP.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal memproses Goods Issue for Production ke SAP: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
+     * Add Receipt for Production on SAP (/api/addreceiptprod).
+     */
+    public function addReceiptProdSap(Request $request): JsonResponse
+    {
+        $userId = $request->user()?->id;
+        $input = $request->all();
+
+        try {
+            $result = $this->productionService->addReceiptProdSap($input, $userId);
+            $sapResponse = $result['sap_response'] ?? [];
+            return $this->successResponse($sapResponse, $sapResponse['Message'] ?? 'Receipt for Production berhasil diproses ke SAP.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal memproses Receipt for Production ke SAP: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
      * Cancel Production Order (PDO) on SAP (/api/cancelpdo).
      */
     public function cancelPdoSap(Request $request): JsonResponse
