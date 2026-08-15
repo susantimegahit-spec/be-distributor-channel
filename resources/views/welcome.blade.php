@@ -663,7 +663,9 @@
         <!-- Navigation Header -->
         <header class="navbar">
             <a href="{{ url('/') }}" class="brand">
-                <img src="{{ asset('images/logo-smesta-transparent.png') }}" alt="SMESTA Logo" style="height: 38px; width: auto; object-fit: contain;" />
+                <div style="background: #ffffff; padding: 6px 12px; border-radius: 10px; display: flex; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                    <img src="{{ asset('images/logo-smesta-transparent.png') }}" alt="SMESTA Logo" style="height: 32px; width: auto; object-fit: contain;" />
+                </div>
                 <div class="brand-text">
                     <h1>PT SUSANTI MEGAH</h1>
                     <span>SMESTA API</span>
