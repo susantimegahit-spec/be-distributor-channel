@@ -688,9 +688,11 @@ class ProductionController extends Controller
 
         try {
             $result = $this->productionService->getListReceiptProd($filters, $userId);
-            return $this->successResponse($result['items'], 'Daftar Receipt Production dari SAP berhasil diambil.');
+            $items = $result['items'] ?? [];
+            $message = empty($items) ? 'Data not found.' : 'Production Receipts retrieved successfully from SAP.';
+            return $this->successResponse($items, $message);
         } catch (\Exception $e) {
-            return $this->errorResponse('Gagal mengambil daftar Receipt Production dari SAP: ' . $e->getMessage(), [], 500);
+            return $this->errorResponse('Failed to retrieve Production Receipts from SAP: ' . $e->getMessage(), [], 500);
         }
     }
 
@@ -703,14 +705,17 @@ class ProductionController extends Controller
         $customQuery = $id ?? $request->input('custom_query') ?? $request->input('CustomQuery') ?? $request->input('doc_entry') ?? $request->input('doc_num');
 
         if (empty($customQuery)) {
-            return $this->errorResponse('Parameter identifier / custom_query (DocEntry / DocNum) wajib diisi.', [], 422);
+            return $this->errorResponse('Identifier parameter / custom_query (DocEntry / DocNum) is required.', [], 422);
         }
 
         try {
             $result = $this->productionService->getReceiptProdById($customQuery, $userId);
-            return $this->successResponse($result, 'Detail Receipt Production dari SAP berhasil diambil.');
+            if (empty($result['header']) && empty($result['items'])) {
+                return $this->successResponse(['header' => null, 'items' => []], 'Data not found.');
+            }
+            return $this->successResponse($result, 'Production Receipt detail retrieved successfully from SAP.');
         } catch (\Exception $e) {
-            return $this->errorResponse('Gagal mengambil detail Receipt Production dari SAP: ' . $e->getMessage(), [], 500);
+            return $this->errorResponse('Failed to retrieve Production Receipt detail from SAP: ' . $e->getMessage(), [], 500);
         }
     }
 
@@ -724,9 +729,11 @@ class ProductionController extends Controller
 
         try {
             $result = $this->productionService->getListIssueProd($filters, $userId);
-            return $this->successResponse($result['items'], 'Daftar Issue for Production dari SAP berhasil diambil.');
+            $items = $result['items'] ?? [];
+            $message = empty($items) ? 'Data not found.' : 'Issue for Production list retrieved successfully from SAP.';
+            return $this->successResponse($items, $message);
         } catch (\Exception $e) {
-            return $this->errorResponse('Gagal mengambil daftar Issue for Production dari SAP: ' . $e->getMessage(), [], 500);
+            return $this->errorResponse('Failed to retrieve Issue for Production list from SAP: ' . $e->getMessage(), [], 500);
         }
     }
 
@@ -739,14 +746,17 @@ class ProductionController extends Controller
         $customQuery = $id ?? $request->input('custom_query') ?? $request->input('CustomQuery') ?? $request->input('doc_entry') ?? $request->input('doc_num');
 
         if (empty($customQuery)) {
-            return $this->errorResponse('Parameter identifier / custom_query (DocEntry / DocNum) wajib diisi.', [], 422);
+            return $this->errorResponse('Identifier parameter / custom_query (DocEntry / DocNum) is required.', [], 422);
         }
 
         try {
             $result = $this->productionService->getIssueProdById($customQuery, $userId);
-            return $this->successResponse($result, 'Detail Issue for Production dari SAP berhasil diambil.');
+            if (empty($result['header']) && empty($result['items'])) {
+                return $this->successResponse(['header' => null, 'items' => []], 'Data not found.');
+            }
+            return $this->successResponse($result, 'Issue for Production detail retrieved successfully from SAP.');
         } catch (\Exception $e) {
-            return $this->errorResponse('Gagal mengambil detail Issue for Production dari SAP: ' . $e->getMessage(), [], 500);
+            return $this->errorResponse('Failed to retrieve Issue for Production detail from SAP: ' . $e->getMessage(), [], 500);
         }
     }
 

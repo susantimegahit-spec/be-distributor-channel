@@ -573,6 +573,18 @@ class ProductionService
             throw new \Exception('API SAP getListReceiptProd error: ' . ($body['Message'] ?? 'Unknown SAP error'));
         }
 
+        $items = $body['Result'] ?? [];
+        if (is_array($items)) {
+            $items = array_values(array_filter($items, function ($item) {
+                if (!is_array($item)) return false;
+                $docEntry = (string) ($item['DocEntry'] ?? '');
+                $docNum = (string) ($item['DocNum'] ?? '');
+                return !in_array($docEntry, ['0', '']) && !in_array($docNum, ['0', '']);
+            }));
+        } else {
+            $items = [];
+        }
+
         if ($userId) {
             $this->auditLogService->log(
                 $userId,
@@ -583,7 +595,7 @@ class ProductionService
 
         return [
             'filters' => $payload,
-            'items'   => $body['Result'] ?? [],
+            'items'   => $items,
         ];
     }
 
@@ -617,6 +629,16 @@ class ProductionService
         $result = $body['Result'] ?? [];
         $header = $result['Table1'][0] ?? null;
         $items = $result['Table2'] ?? [];
+
+        // Check if header is a dummy 0 record
+        if ($header && is_array($header)) {
+            $hDocEntry = (string) ($header['DocEntry'] ?? '');
+            $hDocNum = (string) ($header['DocNum'] ?? '');
+            if (in_array($hDocEntry, ['0', '']) && in_array($hDocNum, ['0', ''])) {
+                $header = null;
+                $items = [];
+            }
+        }
 
         if ($userId) {
             $this->auditLogService->log(
@@ -675,6 +697,18 @@ class ProductionService
             throw new \Exception('API SAP getListIssueProd error: ' . ($body['Message'] ?? 'Unknown SAP error'));
         }
 
+        $items = $body['Result'] ?? [];
+        if (is_array($items)) {
+            $items = array_values(array_filter($items, function ($item) {
+                if (!is_array($item)) return false;
+                $docEntry = (string) ($item['DocEntry'] ?? '');
+                $docNum = (string) ($item['DocNum'] ?? '');
+                return !in_array($docEntry, ['0', '']) && !in_array($docNum, ['0', '']);
+            }));
+        } else {
+            $items = [];
+        }
+
         if ($userId) {
             $this->auditLogService->log(
                 $userId,
@@ -685,7 +719,7 @@ class ProductionService
 
         return [
             'filters' => $payload,
-            'items'   => $body['Result'] ?? [],
+            'items'   => $items,
         ];
     }
 
@@ -719,6 +753,16 @@ class ProductionService
         $result = $body['Result'] ?? [];
         $header = $result['Table1'][0] ?? null;
         $items = $result['Table2'] ?? [];
+
+        // Check if header is a dummy 0 record
+        if ($header && is_array($header)) {
+            $hDocEntry = (string) ($header['DocEntry'] ?? '');
+            $hDocNum = (string) ($header['DocNum'] ?? '');
+            if (in_array($hDocEntry, ['0', '']) && in_array($hDocNum, ['0', ''])) {
+                $header = null;
+                $items = [];
+            }
+        }
 
         if ($userId) {
             $this->auditLogService->log(
