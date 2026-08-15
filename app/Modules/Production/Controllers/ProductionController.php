@@ -643,7 +643,7 @@ class ProductionController extends Controller
     }
 
     /**
-     * Get list of Production Orders (PDO) directly from SAP API (/api/getListPDO).
+     * Get list of Production Orders (PDO) from SAP API (/api/getListPDO).
      */
     public function getListPdoSap(Request $request): JsonResponse
     {
@@ -652,9 +652,11 @@ class ProductionController extends Controller
 
         try {
             $result = $this->productionService->getListPdoSap($filters, $userId);
-            return $this->successResponse($result['items'], 'Daftar Production Order (PDO) dari SAP berhasil diambil.');
+            $items = $result['items'] ?? [];
+            $message = empty($items) ? 'Data not found.' : 'Production Orders retrieved successfully from SAP.';
+            return $this->successResponse($items, $message);
         } catch (\Exception $e) {
-            return $this->errorResponse('Gagal mengambil daftar Production Order (PDO) dari SAP: ' . $e->getMessage(), [], 500);
+            return $this->errorResponse('Failed to retrieve Production Orders from SAP: ' . $e->getMessage(), [], 500);
         }
     }
 
@@ -667,14 +669,17 @@ class ProductionController extends Controller
         $customQuery = $id ?? $request->input('custom_query') ?? $request->input('CustomQuery') ?? $request->input('doc_entry') ?? $request->input('doc_num');
 
         if (empty($customQuery)) {
-            return $this->errorResponse('Parameter identifier / custom_query (DocEntry / DocNum) wajib diisi.', [], 422);
+            return $this->errorResponse('Identifier parameter / custom_query (DocEntry / DocNum) is required.', [], 422);
         }
 
         try {
             $result = $this->productionService->getPdoById($customQuery, $userId);
-            return $this->successResponse($result, 'Detail Production Order (PDO) dari SAP berhasil diambil.');
+            if (empty($result['header']) && empty($result['items'])) {
+                return $this->successResponse(['header' => null, 'items' => []], 'Data not found.');
+            }
+            return $this->successResponse($result, 'Production Order detail retrieved successfully from SAP.');
         } catch (\Exception $e) {
-            return $this->errorResponse('Gagal mengambil detail Production Order (PDO) dari SAP: ' . $e->getMessage(), [], 500);
+            return $this->errorResponse('Failed to retrieve Production Order detail from SAP: ' . $e->getMessage(), [], 500);
         }
     }
 
