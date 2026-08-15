@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SM Connect API - PT Susanti Megah</title>
+    <title>SMESTA API - PT Susanti Megah</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
@@ -108,52 +108,24 @@
             animation: badgePop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 0.4s;
         }
 
-        /* 1. SM Text */
-        .logo-sm {
-            font-size: 88px;
-            font-weight: 900;
-            color: #0a1931;
-            line-height: 0.85;
-            letter-spacing: -0.04em;
+        .splash-logo-img {
+            max-width: 220px;
+            height: auto;
+            object-fit: contain;
             opacity: 0;
-            transform: translateY(-20px) scale(0.8);
-            animation: smPop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 0.9s;
-        }
-
-        /* 2. - CONNECT Text */
-        .logo-connect {
-            font-size: 32px;
-            font-weight: 900;
-            color: #f59e0b;
-            line-height: 1.1;
-            letter-spacing: 0.04em;
-            margin-top: 4px;
-            opacity: 0;
-            transform: translateY(15px);
-            position: relative;
-            animation: connectSlide 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards 1.3s;
-        }
-
-        .logo-connect::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.8) 50%, transparent 100%);
-            animation: shineSweep 1.5s ease-in-out infinite 2s;
+            transform: translateY(-10px) scale(0.9);
+            animation: smPop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 0.8s;
         }
 
         /* 3. CUSTOMER PORTAL Subtitle */
         .logo-subtitle {
-            font-size: 13px;
+            font-size: 11px;
             font-weight: 800;
             color: #0a1931;
-            letter-spacing: 0.28em;
-            margin-top: 10px;
+            letter-spacing: 0.22em;
+            margin-top: 14px;
             opacity: 0;
-            animation: subtitleFade 0.6s ease forwards 1.7s;
+            animation: subtitleFade 0.6s ease forwards 1.3s;
             text-transform: uppercase;
         }
 
@@ -166,18 +138,23 @@
             margin-top: 8px;
             width: 85%;
             opacity: 0;
-            animation: footerFade 0.6s ease forwards 2.0s;
+            animation: footerFade 0.6s ease forwards 1.6s;
         }
 
         .logo-footer-line {
             height: 2px;
             flex: 1;
-            background-color: #f59e0b;
+            background-color: #0284c7;
             border-radius: 2px;
         }
 
         .logo-footer-text {
-            font-size: 10.5px;
+            font-size: 10px;
+            font-weight: 800;
+            color: #0a1931;
+            letter-spacing: 0.08em;
+            white-space: nowrap;
+        }
             font-weight: 800;
             color: #0a1931;
             letter-spacing: 0.08em;
@@ -653,7 +630,7 @@
 </head>
 <body>
 
-    <!-- OPENING ANIMATION OVERLAY (SM CONNECT CUSTOMER PORTAL) -->
+    <!-- OPENING ANIMATION OVERLAY (SMESTA) -->
     <div id="opening-splash">
         <div class="splash-glow"></div>
         
@@ -665,12 +642,11 @@
 
             <!-- White Circular Logo Badge -->
             <div class="logo-circle">
-                <div class="logo-sm">SM</div>
-                <div class="logo-connect">- CONNECT</div>
-                <div class="logo-subtitle">CUSTOMER PORTAL</div>
+                <img src="{{ asset('images/logo-smesta-transparent.png') }}" alt="SMESTA Logo" class="splash-logo-img" />
+                <div class="logo-subtitle">DISTRIBUTOR CHANNEL</div>
                 <div class="logo-footer">
                     <div class="logo-footer-line"></div>
-                    <div class="logo-footer-text">BY SUSANTI MEGAH</div>
+                    <div class="logo-footer-text">PT SUSANTI MEGAH</div>
                     <div class="logo-footer-line"></div>
                 </div>
             </div>
@@ -687,12 +663,10 @@
         <!-- Navigation Header -->
         <header class="navbar">
             <a href="{{ url('/') }}" class="brand">
-                <div class="brand-icon">
-                    <div class="brand-icon-text">SM<span>.</span></div>
-                </div>
+                <img src="{{ asset('images/logo-smesta-transparent.png') }}" alt="SMESTA Logo" style="height: 38px; width: auto; object-fit: contain;" />
                 <div class="brand-text">
                     <h1>PT SUSANTI MEGAH</h1>
-                    <span>SM CONNECT API</span>
+                    <span>SMESTA API</span>
                 </div>
             </a>
 
@@ -715,7 +689,7 @@
         <section class="hero">
             <div class="system-badge">
                 <span class="status-pulse"></span>
-                SM CONNECT API v1.0 • SYSTEM ACTIVE
+                SMESTA API v1.0 • SYSTEM ACTIVE
             </div>
 
             <h2>Backend Integrasi <span>Distributor Channel & SAP B1</span></h2>

@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
-  title: SM Connect
+  title: SMESTA
   description: |
-    <div style="margin-bottom: 24px;">
-      <img src="/docs/logo-smesta-transparent.png" alt="SMESTA Logo" style="max-height: 70px; width: auto; object-fit: contain;" />
+    <div style="margin-bottom: 28px; padding: 12px 0;">
+      <img src="/docs/logo-smesta-transparent.png" alt="SMESTA Logo" style="max-height: 140px; width: auto; object-fit: contain;" />
     </div>
 
     Dokumentasi API Backend Distributor Channel menggunakan Laravel 12.
