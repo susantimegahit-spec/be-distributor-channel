@@ -169,6 +169,7 @@ class ExpeditionUploadService
         $processed = 0;
         $created = 0;
         $updated = 0;
+        $skipped = 0;
         $errors = [];
 
         // Pre-fetch expeditions & warehouses for fast lookup
@@ -203,8 +204,8 @@ class ExpeditionUploadService
                 }
 
                 $priceVal = $this->getValueByMap($row, $headerMap, 'price');
-                if (!is_numeric($priceVal) || floatval($priceVal) < 0) {
-                    $errors[] = "Baris #{$rowNum}: Harga/tarif tidak valid.";
+                if ($priceVal === null || trim((string) $priceVal) === '' || !is_numeric($priceVal) || floatval($priceVal) <= 0) {
+                    $skipped++;
                     continue;
                 }
 
@@ -368,6 +369,7 @@ class ExpeditionUploadService
             'processed_count' => $processed,
             'created_count'   => $created,
             'updated_count'   => $updated,
+            'skipped_count'   => $skipped,
             'errors'          => $errors,
         ];
     }
