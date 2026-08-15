@@ -715,6 +715,42 @@ class ProductionController extends Controller
     }
 
     /**
+     * Get list of Issue for Production from SAP API (/api/getListIssueProd).
+     */
+    public function getListIssueProdSap(Request $request): JsonResponse
+    {
+        $userId = $request->user()?->id;
+        $filters = $request->all();
+
+        try {
+            $result = $this->productionService->getListIssueProd($filters, $userId);
+            return $this->successResponse($result['items'], 'Daftar Issue for Production dari SAP berhasil diambil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal mengambil daftar Issue for Production dari SAP: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
+     * Get detail of Issue for Production from SAP API (/api/getIssueProdbyId).
+     */
+    public function getIssueProdByIdSap(Request $request, ?string $id = null): JsonResponse
+    {
+        $userId = $request->user()?->id;
+        $customQuery = $id ?? $request->input('custom_query') ?? $request->input('CustomQuery') ?? $request->input('doc_entry') ?? $request->input('doc_num');
+
+        if (empty($customQuery)) {
+            return $this->errorResponse('Parameter identifier / custom_query (DocEntry / DocNum) wajib diisi.', [], 422);
+        }
+
+        try {
+            $result = $this->productionService->getIssueProdById($customQuery, $userId);
+            return $this->successResponse($result, 'Detail Issue for Production dari SAP berhasil diambil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal mengambil detail Issue for Production dari SAP: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
      * Cancel Production Order (PDO) on SAP (/api/cancelpdo).
      */
     public function cancelPdoSap(Request $request): JsonResponse

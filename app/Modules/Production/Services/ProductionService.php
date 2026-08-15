@@ -634,6 +634,108 @@ class ProductionService
     }
 
     /**
+     * Get list of Issue for Production from SAP API endpoint (/api/getListIssueProd).
+     *
+     * @param array $filters
+     * @param int|null $userId
+     * @return array
+     */
+    public function getListIssueProd(array $filters = [], ?int $userId = null): array
+    {
+        $sapUrl = config('services.sap.url', 'http://103.18.133.187:3100');
+
+        $rawFrom = $filters['from'] ?? $filters['from_date'] ?? $filters['From'] ?? date('Y-1-1');
+        $rawTo = $filters['to'] ?? $filters['to_date'] ?? $filters['To'] ?? date('Y-12-31');
+
+        $fromTime = strtotime((string) $rawFrom);
+        $toTime = strtotime((string) $rawTo);
+
+        $fromFormatted = $fromTime ? date('Y-n-j', $fromTime) : (string) $rawFrom;
+        $toFormatted = $toTime ? date('Y-n-j', $toTime) : (string) $rawTo;
+
+        $whsCode = (string) ($filters['whs_code'] ?? $filters['warehouse'] ?? $filters['WhsCode'] ?? '');
+        $toWhsCode = (string) ($filters['to_whs_code'] ?? $filters['to_warehouse'] ?? $filters['ToWhsCode'] ?? '');
+
+        $payload = [
+            'From'      => $fromFormatted,
+            'To'        => $toFormatted,
+            'WhsCode'   => $whsCode,
+            'ToWhsCode' => $toWhsCode,
+        ];
+
+        $response = Http::timeout(30)->post("{$sapUrl}/api/getListIssueProd", $payload);
+
+        if (!$response->successful()) {
+            throw new \Exception('Gagal menghubungi API SAP getListIssueProd. HTTP Status: ' . $response->status());
+        }
+
+        $body = $response->json();
+
+        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
+            throw new \Exception('API SAP getListIssueProd error: ' . ($body['Message'] ?? 'Unknown SAP error'));
+        }
+
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'GET_LIST_ISSUE_PROD_SAP',
+                "Fetched Issue for Production list from SAP (From: {$fromFormatted}, To: {$toFormatted})."
+            );
+        }
+
+        return [
+            'filters' => $payload,
+            'items'   => $body['Result'] ?? [],
+        ];
+    }
+
+    /**
+     * Get detail of Issue for Production from SAP API endpoint (/api/getIssueProdbyId).
+     *
+     * @param string|int $customQuery
+     * @param int|null $userId
+     * @return array
+     */
+    public function getIssueProdById(string|int $customQuery, ?int $userId = null): array
+    {
+        $sapUrl = config('services.sap.url', 'http://103.18.133.187:3100');
+
+        $payload = [
+            'CustomQuery' => (string) $customQuery,
+        ];
+
+        $response = Http::timeout(30)->post("{$sapUrl}/api/getIssueProdbyId", $payload);
+
+        if (!$response->successful()) {
+            throw new \Exception('Gagal menghubungi API SAP getIssueProdbyId. HTTP Status: ' . $response->status());
+        }
+
+        $body = $response->json();
+
+        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
+            throw new \Exception('API SAP getIssueProdbyId error: ' . ($body['Message'] ?? 'Unknown SAP error'));
+        }
+
+        $result = $body['Result'] ?? [];
+        $header = $result['Table1'][0] ?? null;
+        $items = $result['Table2'] ?? [];
+
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'GET_ISSUE_PROD_DETAIL_SAP',
+                "Fetched Issue for Production detail from SAP for query: {$customQuery}."
+            );
+        }
+
+        return [
+            'header' => $header,
+            'items'  => $items,
+            'raw'    => $result,
+        ];
+    }
+
+    /**
      * Cancel Production Order (PDO) on SAP (/api/cancelpdo).
      *
      * @param array $data

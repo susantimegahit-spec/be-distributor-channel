@@ -10197,6 +10197,251 @@ paths:
         '200':
           description: Detail Receipt Production dari SAP berhasil diambil.
 
+  /v1/production/issues/sap-list:
+    get:
+      summary: Get list of Issue for Production from SAP
+      description: Mengambil daftar Issue for Production dari SAP API (/api/getListIssueProd).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "2026-01-01"
+          description: Tanggal awal (format YYYY-MM-DD atau YYYY-M-D)
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "2026-12-31"
+          description: Tanggal akhir (format YYYY-MM-DD atau YYYY-M-D)
+        - name: whs_code
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "VRTR01"
+          description: Kode gudang asal (opsional)
+        - name: to_whs_code
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "FG01"
+          description: Kode gudang tujuan (opsional)
+      responses:
+        '200':
+          description: Daftar Issue for Production dari SAP berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar Issue for Production dari SAP berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        DocEntry:
+                          type: string
+                          example: "6563"
+                        DocNum:
+                          type: string
+                          example: "260810197"
+                        DocDate:
+                          type: string
+                          example: "20260808"
+                        ProdOrderNum:
+                          type: string
+                          example: "260810232"
+                        U_Shift:
+                          type: string
+                          example: "C"
+                        U_Unit:
+                          type: string
+                          example: "SBY-DOLPIN"
+                        Comments:
+                          type: string
+                          example: ""
+        '401':
+          description: Tidak terautentikasi.
+        '500':
+          description: Gagal menghubungi API SAP.
+
+    post:
+      summary: Get list of Issue for Production from SAP (via POST body)
+      description: Mengambil daftar Issue for Production dari SAP API menggunakan JSON body.
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                from:
+                  type: string
+                  example: "2026-01-01"
+                to:
+                  type: string
+                  example: "2026-12-31"
+                whs_code:
+                  type: string
+                  example: "VRTR01"
+                to_whs_code:
+                  type: string
+                  example: "FG01"
+      responses:
+        '200':
+          description: Daftar Issue for Production dari SAP berhasil diambil.
+
+  /v1/production/issues/sap/{id}:
+    get:
+      summary: Get detail of Issue for Production from SAP by ID/DocEntry/DocNum
+      description: Mengambil detail header dan line item Issue for Production dari SAP API (/api/getIssueProdbyId).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "6107"
+          description: DocEntry atau DocNum dari Issue Production
+      responses:
+        '200':
+          description: Detail Issue for Production dari SAP berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Detail Issue for Production dari SAP berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      header:
+                        type: object
+                        properties:
+                          Series:
+                            type: string
+                            example: "5056"
+                          DocEntry:
+                            type: string
+                            example: "6107"
+                          DocNum:
+                            type: string
+                            example: "260710538"
+                          DocDate:
+                            type: string
+                            example: "20260725"
+                          TaxDate:
+                            type: string
+                            example: "20260725"
+                          JrnlMemo:
+                            type: string
+                            example: "Issue for Production"
+                          Comments:
+                            type: string
+                            example: ""
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            DocEntry:
+                              type: string
+                              example: "6107"
+                            LineNum:
+                              type: string
+                              example: "0"
+                            ItemCode:
+                              type: string
+                              example: "HB26"
+                            ItemName:
+                              type: string
+                              example: "KOP 250 M @ 10 KG / BAL + JAMPEL"
+                            Quantity:
+                              type: string
+                              example: "1400.000000"
+                            WhsCode:
+                              type: string
+                              example: "PRD01-07"
+                            Uom:
+                              type: string
+                              example: "Bal"
+                            OcrCode:
+                              type: string
+                              example: "SBY"
+                            OcrCode2:
+                              type: string
+                              example: "GRM"
+                            OcrCode3:
+                              type: string
+                              example: "PRO"
+                            BaseType:
+                              type: string
+                              example: "202"
+                            BaseEntry:
+                              type: string
+                              example: "6180"
+                            BaseLine:
+                              type: string
+                              example: "0"
+        '401':
+          description: Tidak terautentikasi.
+        '422':
+          description: Parameter query / identifier tidak valid.
+        '500':
+          description: Gagal menghubungi API SAP.
+
+  /v1/production/issues/sap/detail:
+    post:
+      summary: Get detail of Issue for Production from SAP (via POST body)
+      description: Mengambil detail header dan line item Issue for Production dari SAP API menggunakan JSON body.
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - custom_query
+              properties:
+                custom_query:
+                  type: string
+                  example: "6107"
+                  description: Identifier DocEntry atau DocNum
+      responses:
+        '200':
+          description: Detail Issue for Production dari SAP berhasil diambil.
+
   /v1/production/orders/sap/cancel:
     post:
       summary: Cancel Production Order (PDO) on SAP
