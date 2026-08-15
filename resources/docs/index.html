@@ -9,38 +9,44 @@
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- RapiDoc Web Component -->
+  <script type="module" src="https://unpkg.com/rapidoc/dist/rapidoc-min.js"></script>
 
   <style>
-    :root {
-      --scalar-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    }
-
     html, body {
-      min-height: 100%;
+      height: 100%;
       margin: 0;
       padding: 0;
       font-family: 'Inter', sans-serif;
       background-color: #ffffff;
       color: #0f172a;
+      overflow: hidden;
     }
 
-    /* Top Navigation Bar */
-    .top-navbar {
+    rapi-doc {
+      width: 100%;
+      height: calc(100vh - 60px);
+    }
+
+    /* ============================================================
+       Header Bar (Modern Light Theme)
+     ============================================================ */
+    .header-bar {
+      background-color: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 0 20px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      height: 56px;
-      padding: 0 20px;
-      background: #ffffff;
-      border-bottom: 1px solid #e2e8f0;
+      height: 60px;
       box-sizing: border-box;
-      position: sticky;
-      top: 0;
-      z-index: 1000;
+      z-index: 10;
+      position: relative;
     }
 
-    .brand-section {
+    .brand-wrapper {
       display: flex;
       align-items: center;
       gap: 12px;
@@ -57,7 +63,8 @@
       box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25);
     }
 
-    .brand-title {
+    .brand-text h1 {
+      margin: 0;
       font-size: 15px;
       font-weight: 700;
       color: #0f172a;
@@ -65,108 +72,230 @@
       line-height: 1.2;
     }
 
-    .brand-subtitle {
+    .brand-text span {
       font-size: 11px;
-      color: #64748b;
-      font-weight: 500;
+      color: #0284c7;
+      font-weight: 600;
+      letter-spacing: 0.03em;
     }
 
-    .nav-actions {
+    /* ============================================================
+       Header Controls & Quick Actions
+     ============================================================ */
+    .header-controls {
       display: flex;
+      gap: 8px;
       align-items: center;
-      gap: 10px;
     }
 
-    .spec-link-btn {
+    .control-btn {
+      background-color: #f8fafc;
+      border: 1px solid #e2e8f0;
+      color: #475569;
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 12px;
-      background-color: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 600;
-      color: #334155;
+      letter-spacing: 0.02em;
       text-decoration: none;
       transition: all 0.15s ease;
     }
 
-    .spec-link-btn:hover {
+    .control-btn:hover {
       background-color: #f1f5f9;
       border-color: #cbd5e1;
       color: #0f172a;
     }
 
-    .logout-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      background-color: #fef2f2;
-      border: 1px solid #fecaca;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 600;
-      color: #dc2626;
-      text-decoration: none;
-      transition: all 0.15s ease;
+    .control-btn svg {
+      stroke: currentColor;
     }
 
-    .logout-btn:hover {
+    .control-btn.btn-theme {
+      background-color: #f0fdf4;
+      border-color: #bbf7d0;
+      color: #166534;
+    }
+
+    .control-btn.btn-theme:hover {
+      background-color: #dcfce7;
+    }
+
+    .control-btn.btn-logout {
+      background-color: #fef2f2;
+      border-color: #fecaca;
+      color: #dc2626;
+    }
+
+    .control-btn.btn-logout:hover {
       background-color: #fee2e2;
       border-color: #fca5a5;
-    }
-
-    /* Scalar integration styling */
-    .scalar-api-reference {
-      min-height: calc(100vh - 56px);
     }
   </style>
 </head>
 
 <body>
 
-  <!-- Top Navigation Header -->
-  <header class="top-navbar">
-    <div class="brand-section">
+  <!-- Header Bar -->
+  <div class="header-bar">
+    <div class="brand-wrapper">
       <div class="brand-logo-badge">SM</div>
-      <div>
-        <div class="brand-title">PT SUSANTI MEGAH</div>
-        <div class="brand-subtitle">SM Connect API Documentation</div>
+      <div class="brand-text">
+        <h1>PT SUSANTI MEGAH</h1>
+        <span>SM Connect API Documentation</span>
       </div>
     </div>
-    <div class="nav-actions">
-      <a href="/docs/openapi.yaml" target="_blank" class="spec-link-btn" title="Download raw OpenAPI Specification">
+    
+    <div class="header-controls">
+      <!-- Expand / Collapse Sidebar -->
+      <button class="control-btn" onclick="toggleNavStyle('expanded')" title="Buka Semua Kategori Modul">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+        Expand All
+      </button>
+      <button class="control-btn" onclick="toggleNavStyle('collapsed')" title="Tutup Semua Kategori Modul">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M10 14l-7 7"/></svg>
+        Collapse All
+      </button>
+
+      <!-- Toggle Dark / Light Theme -->
+      <button class="control-btn btn-theme" onclick="toggleTheme()" title="Ubah Tema Light / Dark">
+        <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        <span id="theme-text">Dark Mode</span>
+      </button>
+
+      <!-- Download Raw Spec -->
+      <a href="/docs/openapi.yaml" target="_blank" class="control-btn" title="Download raw openapi.yaml">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         openapi.yaml
       </a>
-      <a href="/docs/logout" class="logout-btn" title="Logout dari Dokumentasi">
+
+      <!-- Logout -->
+      <a href="/docs/logout" class="control-btn btn-logout" title="Logout dari Dokumentasi">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
         Logout
       </a>
     </div>
-  </header>
+  </div>
 
-  <!-- Scalar API Reference Standalone Component -->
-  <script
-    id="api-reference"
-    data-url="./openapi.yaml"
-    data-configuration='{
-      "theme": "default",
-      "layout": "modern",
-      "showSidebar": true,
-      "searchHotKey": "k",
-      "darkMode": false,
-      "hideModels": false,
-      "withDefaultFonts": false,
-      "authentication": {
-        "preferredSecurityScheme": "BearerAuth"
+  <!-- RapiDoc Component with Enhanced Features & Modern Light Design -->
+  <rapi-doc
+    id="api-docs"
+    spec-url="./openapi.yaml"
+    theme="light"
+    render-style="focused"
+    nav-item-style="collapsed"
+    on-nav-tag-click="expand-collapse"
+    show-header="false"
+    allow-search="true"
+    allow-try="true"
+    allow-spec-download="true"
+    allow-server-selection="true"
+    show-components="true"
+    schema-style="tree"
+    schema-expand-level="2"
+    show-method-in-nav-bar="as-colored-block"
+    default-schema-tab="schema"
+    use-path-in-nav-bar="false"
+    regular-font="Inter, sans-serif"
+    mono-font="JetBrains Mono, monospace"
+    primary-color="#0284c7"
+    bg-color="#ffffff"
+    text-color="#0f172a"
+    nav-bg-color="#f8fafc"
+    nav-text-color="#334155"
+    nav-hover-bg-color="#f1f5f9"
+    nav-hover-text-color="#0284c7"
+    nav-accent-color="#0284c7"
+    nav-item-spacing="relaxed"
+    layout="row"
+  > </rapi-doc>
+
+  <script>
+    // Toggle expand/collapse all kategori modul
+    function toggleNavStyle(style) {
+      const apiDocs = document.getElementById('api-docs');
+      if (!apiDocs || !apiDocs.shadowRoot) return;
+
+      const headers = apiDocs.shadowRoot.querySelectorAll('.nav-bar-tag');
+      headers.forEach(header => {
+        const next = header.nextElementSibling;
+        const isExpanded = header.classList.contains('expanded') || (next && next.classList.contains('nav-bar-path'));
+        
+        if (style === 'expanded' && !isExpanded) {
+          header.click();
+        } else if (style === 'collapsed' && isExpanded) {
+          header.click();
+        }
+      });
+    }
+
+    // Toggle Dark Mode / Light Mode
+    function toggleTheme() {
+      const apiDocs = document.getElementById('api-docs');
+      const themeText = document.getElementById('theme-text');
+      if (!apiDocs) return;
+
+      const currentTheme = apiDocs.getAttribute('theme');
+      if (currentTheme === 'light') {
+        apiDocs.setAttribute('theme', 'dark');
+        apiDocs.setAttribute('bg-color', '#0f172a');
+        apiDocs.setAttribute('text-color', '#f8fafc');
+        apiDocs.setAttribute('nav-bg-color', '#0b1120');
+        apiDocs.setAttribute('nav-text-color', '#cbd5e1');
+        apiDocs.setAttribute('nav-hover-bg-color', '#1e293b');
+        apiDocs.setAttribute('nav-hover-text-color', '#38bdf8');
+        document.body.style.backgroundColor = '#0f172a';
+        document.querySelector('.header-bar').style.backgroundColor = '#0b1120';
+        document.querySelector('.header-bar').style.borderColor = '#1e293b';
+        document.querySelector('.brand-text h1').style.color = '#f8fafc';
+        themeText.innerText = 'Light Mode';
+      } else {
+        apiDocs.setAttribute('theme', 'light');
+        apiDocs.setAttribute('bg-color', '#ffffff');
+        apiDocs.setAttribute('text-color', '#0f172a');
+        apiDocs.setAttribute('nav-bg-color', '#f8fafc');
+        apiDocs.setAttribute('nav-text-color', '#334155');
+        apiDocs.setAttribute('nav-hover-bg-color', '#f1f5f9');
+        apiDocs.setAttribute('nav-hover-text-color', '#0284c7');
+        document.body.style.backgroundColor = '#ffffff';
+        document.querySelector('.header-bar').style.backgroundColor = '#ffffff';
+        document.querySelector('.header-bar').style.borderColor = '#e2e8f0';
+        document.querySelector('.brand-text h1').style.color = '#0f172a';
+        themeText.innerText = 'Dark Mode';
       }
-    }'
-  ></script>
+    }
 
-  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+    window.addEventListener('DOMContentLoaded', function () {
+      const apiDocs = document.getElementById('api-docs');
+
+      // Polling listener untuk search input otomatis expand saat user mengetik
+      const attachSearchListener = setInterval(function() {
+        if (apiDocs && apiDocs.shadowRoot) {
+          const searchInput = apiDocs.shadowRoot.querySelector('#nav-bar-search');
+          if (searchInput) {
+            clearInterval(attachSearchListener);
+            
+            searchInput.addEventListener('input', function(e) {
+              const query = e.target.value.trim();
+              if (query === '') {
+                toggleNavStyle('collapsed');
+              } else {
+                toggleNavStyle('expanded');
+              }
+            });
+          }
+        }
+      }, 200);
+
+      setTimeout(function() {
+        clearInterval(attachSearchListener);
+      }, 15000);
+    });
+  </script>
 
 </body>
 
