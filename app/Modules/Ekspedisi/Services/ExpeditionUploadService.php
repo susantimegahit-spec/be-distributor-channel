@@ -207,7 +207,7 @@ class ExpeditionUploadService
                     continue;
                 }
 
-                // Match warehouse ID by code or name
+                // Match warehouse ID by code, name, or warehouse_origins (whs_name_origin)
                 $whsInput = trim((string) ($this->getValueByMap($row, $headerMap, 'warehouse_code') ?? ''));
                 $whsCode = $whsInput;
                 if (str_contains($whsCode, '-')) {
@@ -217,13 +217,28 @@ class ExpeditionUploadService
                 $warehouseId = null;
                 if (isset($warehouseMap[$whsCode])) {
                     $warehouseId = $warehouseMap[$whsCode];
-                } elseif (is_numeric($whsCode)) {
+                } elseif (is_numeric($whsCode) && in_array((int) $whsCode, $warehouseMap)) {
                     $warehouseId = (int) $whsCode;
                 } else {
-                    $whsObj = Warehouse::where('whs_name', $whsInput)
+                    // Check directly in public.warehouses
+                    $whsObj = Warehouse::where('whs_code', $whsCode)
+                        ->orWhere('whs_name', $whsInput)
                         ->orWhere('whs_name', 'LIKE', "%{$whsInput}%")
-                        ->orWhere('whs_code', $whsCode)
                         ->first();
+
+                    // If not found, check in ekspedisi.warehouse_origins (whs_name_origin)
+                    if (!$whsObj) {
+                        $originObj = \App\Models\WarehouseOrigin::where('whs_name_origin', $whsInput)
+                            ->orWhere('whs_name_origin', 'LIKE', "%{$whsInput}%")
+                            ->orWhere('whs_name', $whsInput)
+                            ->orWhere('whs_code', $whsCode)
+                            ->first();
+
+                        if ($originObj && !empty($originObj->whs_code)) {
+                            $whsObj = Warehouse::where('whs_code', $originObj->whs_code)->first();
+                        }
+                    }
+
                     if ($whsObj) {
                         $warehouseId = $whsObj->id;
                     }

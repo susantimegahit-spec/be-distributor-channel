@@ -242,8 +242,21 @@ class ExpeditionRateController extends Controller
             $originInput = trim((string) $request->get('origin'));
             $whs = \App\Models\Warehouse::where('whs_code', $originInput)
                 ->orWhere('whs_name', $originInput)
+                ->orWhere('whs_name', 'LIKE', "%{$originInput}%")
                 ->orWhere('id', is_numeric($originInput) ? (int) $originInput : 0)
                 ->first();
+
+            if (!$whs) {
+                $originObj = \App\Models\WarehouseOrigin::where('whs_name_origin', $originInput)
+                    ->orWhere('whs_name_origin', 'LIKE', "%{$originInput}%")
+                    ->orWhere('whs_name', $originInput)
+                    ->orWhere('whs_code', $originInput)
+                    ->first();
+                if ($originObj && !empty($originObj->whs_code)) {
+                    $whs = \App\Models\Warehouse::where('whs_code', $originObj->whs_code)->first();
+                }
+            }
+
             if ($whs) {
                 $payload['warehouse_id'] = $whs->id;
             }
