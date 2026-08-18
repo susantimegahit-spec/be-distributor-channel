@@ -20,6 +20,9 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             DiscountSettingSeeder::class,
             PiSettingSeeder::class,
+            DocumentTypeSeeder::class,
+            DocumentSchemaSeeder::class,
+            DocumentApprovalDummySeeder::class,
         ]);
     }
 }
