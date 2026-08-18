@@ -73,7 +73,7 @@ class SyncSapOrderStatusTest extends TestCase
         ]);
 
         Http::fake([
-            'http://103.18.133.187:3100/api/Status' => Http::response([
+            '*/api/Status' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => '',
                 'Result' => [
@@ -150,7 +150,7 @@ class SyncSapOrderStatusTest extends TestCase
         ]);
 
         Http::fake([
-            'http://103.18.133.187:3100/api/Status' => Http::response([
+            '*/api/Status' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => '',
                 'Result' => [
@@ -218,7 +218,7 @@ class SyncSapOrderStatusTest extends TestCase
         ]);
 
         Http::fake([
-            'http://103.18.133.187:3100/api/Status' => Http::response([
+            '*/api/Status' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => '',
                 'Result' => [

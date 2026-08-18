@@ -199,14 +199,14 @@ class SalesReturnTest extends TestCase
 
         // Mock SAP HTTP APIs
         \Illuminate\Support\Facades\Http::fake([
-            'http://103.18.133.187:3100/api/getSeriesret' => \Illuminate\Support\Facades\Http::response([
+            '*/api/getSeriesret' => \Illuminate\Support\Facades\Http::response([
                 'ErrorCode' => 0,
                 'Message' => '',
                 'Result' => [
                     ['Series' => '4095']
                 ]
             ], 200),
-            'http://103.18.133.187:3100/api/addretur' => \Illuminate\Support\Facades\Http::response([
+            '*/api/addretur' => \Illuminate\Support\Facades\Http::response([
                 'ErrorCode' => 0,
                 'Message' => 'Success',
                 'Result' => [
@@ -239,12 +239,12 @@ class SalesReturnTest extends TestCase
 
         // Assert HTTP requests
         \Illuminate\Support\Facades\Http::assertSent(function (\Illuminate\Http\Client\Request $request) {
-            return $request->url() === 'http://103.18.133.187:3100/api/getSeriesret' &&
+            return str_ends_with($request->url(), '/api/getSeriesret') &&
                    $request['CustomQuery'] === 'SBY';
         });
 
         \Illuminate\Support\Facades\Http::assertSent(function (\Illuminate\Http\Client\Request $request) {
-            return $request->url() === 'http://103.18.133.187:3100/api/addretur' &&
+            return str_ends_with($request->url(), '/api/addretur') &&
                    $request['NoDO'] === 260710004 &&
                    $request['Series'] === 4095 &&
                    $request['Lines'][0]['BaseLine'] === 0 &&

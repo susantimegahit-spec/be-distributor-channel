@@ -119,7 +119,7 @@ class DistributorTest extends TestCase
     public function test_sync_distributors(): void
     {
         Http::fake([
-            '103.18.133.187:3100/api/ListCust' => Http::response([
+            '*/api/ListCust' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => '',
                 'Result' => [

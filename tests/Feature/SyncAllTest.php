@@ -54,7 +54,7 @@ class SyncAllTest extends TestCase
     {
         // Mock all SAP endpoints called by the services
         Http::fake([
-            '103.18.133.187:3100/api/ListCust' => Http::response([
+            '*/api/ListCust' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => '',
                 'Result' => [
@@ -67,7 +67,7 @@ class SyncAllTest extends TestCase
                 ]
             ], 200),
 
-            '103.18.133.187:3100/api/ListOcrCode' => Http::response([
+            '*/api/ListOcrCode' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => '',
                 'Result' => [
@@ -78,7 +78,7 @@ class SyncAllTest extends TestCase
                 ]
             ], 200),
 
-            '103.18.133.187:3100/api/ListItem' => Http::response([
+            '*/api/ListItem' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => '',
                 'Result' => [
@@ -91,7 +91,7 @@ class SyncAllTest extends TestCase
                 ]
             ], 200),
 
-            '103.18.133.187:3100/api/ListSalesEmp' => Http::response([
+            '*/api/ListSalesEmp' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => '',
                 'Result' => [
@@ -102,7 +102,7 @@ class SyncAllTest extends TestCase
                 ]
             ], 200),
 
-            '103.18.133.187:3100/api/ListVat' => Http::response([
+            '*/api/ListVat' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => '',
                 'Result' => [
@@ -114,7 +114,7 @@ class SyncAllTest extends TestCase
                 ]
             ], 200),
 
-            '103.18.133.187:3100/api/SearchWH' => Http::response([
+            '*/api/SearchWH' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => '',
                 'Result' => [
@@ -125,7 +125,7 @@ class SyncAllTest extends TestCase
                 ]
             ], 200),
 
-            '103.18.133.187:3100/api/ListType' => Http::response([
+            '*/api/ListType' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => '',
                 'Result' => [

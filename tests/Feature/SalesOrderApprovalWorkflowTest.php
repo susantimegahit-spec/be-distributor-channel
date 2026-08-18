@@ -106,7 +106,7 @@ class SalesOrderApprovalWorkflowTest extends TestCase
 
         // Mock SAP endpoints
         Http::fake([
-            '103.18.133.187:3100/api/addso' => Http::response([
+            '*/api/addso' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => 'Success',
                 'Result' => [['DocEntry' => 1234, 'DocNum' => 'SO1234']]
@@ -223,7 +223,7 @@ class SalesOrderApprovalWorkflowTest extends TestCase
         ]);
 
         Http::assertSent(function (\Illuminate\Http\Client\Request $request) {
-            return $request->url() === 'http://103.18.133.187:3100/api/addso' &&
+            return str_ends_with($request->url(), '/api/addso') &&
                 $request['UserId'] === $this->adminSalesUser->id &&
                 $request['AddonId'] === 2;
         });
@@ -364,7 +364,7 @@ class SalesOrderApprovalWorkflowTest extends TestCase
 
         // Mock SAP endpoint for order integration
         Http::fake([
-            '103.18.133.187:3100/api/addso' => Http::response([
+            '*/api/addso' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => 'SO added successfully',
                 'Result' => [
@@ -457,7 +457,7 @@ class SalesOrderApprovalWorkflowTest extends TestCase
 
         // Mock SAP endpoint for order integration
         Http::fake([
-            '103.18.133.187:3100/api/addso' => Http::response([
+            '*/api/addso' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => 'SO added successfully',
                 'Result' => [

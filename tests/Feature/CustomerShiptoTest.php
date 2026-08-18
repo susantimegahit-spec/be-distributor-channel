@@ -100,7 +100,7 @@ class CustomerShiptoTest extends TestCase
 
         // Fake SAP API response
         Http::fake([
-            'http://103.18.133.187:3100/api/ListKiriman' => Http::response([
+            '*/api/ListKiriman' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => '',
                 'Result' => [

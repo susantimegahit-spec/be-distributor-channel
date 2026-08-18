@@ -47,7 +47,7 @@ class InventoryTransferApiTest extends TestCase
         $token = $this->user->createToken('test_token')->plainTextToken;
 
         Http::fake([
-            'http://103.18.133.187:3100/api/getListIT' => Http::response([
+            '*/api/getListIT' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => '',
                 'Result' => [
@@ -81,7 +81,7 @@ class InventoryTransferApiTest extends TestCase
         $token = $this->user->createToken('test_token')->plainTextToken;
 
         Http::fake([
-            'http://103.18.133.187:3100/api/getListIT' => function ($request) {
+            '*/api/getListIT' => function ($request) {
                 $body = json_decode($request->body(), true);
                 if (
                     isset($body['From']) && $body['From'] === '2026-1-1' &&
@@ -127,7 +127,7 @@ class InventoryTransferApiTest extends TestCase
         $token = $this->user->createToken('test_token')->plainTextToken;
 
         Http::fake([
-            'http://103.18.133.187:3100/api/getListIT' => Http::response([
+            '*/api/getListIT' => Http::response([
                 'ErrorCode' => 1,
                 'Message' => 'Gagal mengambil data dari SAP B1',
                 'Result' => null
@@ -151,7 +151,7 @@ class InventoryTransferApiTest extends TestCase
         $token = $this->user->createToken('test_token')->plainTextToken;
 
         Http::fake([
-            'http://103.18.133.187:3100/api/getITbyId' => Http::response([
+            '*/api/getITbyId' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => '',
                 'Result' => [
@@ -223,7 +223,7 @@ class InventoryTransferApiTest extends TestCase
         $token = $this->user->createToken('test_token')->plainTextToken;
 
         Http::fake([
-            'http://103.18.133.187:3100/api/CancelIT' => function ($request) {
+            '*/api/CancelIT' => function ($request) {
                 $body = json_decode($request->body(), true);
                 if (
                     isset($body['DocEntry']) && $body['DocEntry'] === '1231' &&

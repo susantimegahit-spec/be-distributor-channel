@@ -300,7 +300,7 @@ class ProductionService
     }
 
     /**
-     * Post/Add Production Order (PDO) to SAP via API endpoint http://103.18.133.187:3100/api/addpdo
+     * Post/Add Production Order (PDO) to SAP via API endpoint /api/addpdo
      *
      * @param array $data
      * @param int|null $userId
@@ -308,7 +308,7 @@ class ProductionService
      */
     public function addPdoSap(array $data, ?int $userId = null): array
     {
-        $sapUrl = config('services.sap.url', 'http://103.18.133.187:3100');
+        $sapUrl = config('services.sap.url');
 
         $mapShift = function ($shiftValue) {
             $val = trim((string) $shiftValue);
@@ -438,7 +438,7 @@ class ProductionService
      */
     public function getListPdoSap(array $filters = [], ?int $userId = null): array
     {
-        $sapUrl = config('services.sap.url', 'http://103.18.133.187:3100');
+        $sapUrl = config('services.sap.url');
 
         $rawFrom = $filters['from'] ?? $filters['from_date'] ?? $filters['From'] ?? date('Y-1-1');
         $rawTo = $filters['to'] ?? $filters['to_date'] ?? $filters['To'] ?? date('Y-12-31');
@@ -506,7 +506,7 @@ class ProductionService
      */
     public function getPdoById(string|int $customQuery, ?int $userId = null): array
     {
-        $sapUrl = config('services.sap.url', 'http://103.18.133.187:3100');
+        $sapUrl = config('services.sap.url');
 
         $payload = [
             'CustomQuery' => (string) $customQuery,
@@ -562,7 +562,7 @@ class ProductionService
      */
     public function getListReceiptProd(array $filters = [], ?int $userId = null): array
     {
-        $sapUrl = config('services.sap.url', 'http://103.18.133.187:3100');
+        $sapUrl = config('services.sap.url');
 
         $rawFrom = $filters['from'] ?? $filters['from_date'] ?? $filters['From'] ?? date('Y-1-1');
         $rawTo = $filters['to'] ?? $filters['to_date'] ?? $filters['To'] ?? date('Y-12-31');
@@ -630,7 +630,7 @@ class ProductionService
      */
     public function getReceiptProdById(string|int $customQuery, ?int $userId = null): array
     {
-        $sapUrl = config('services.sap.url', 'http://103.18.133.187:3100');
+        $sapUrl = config('services.sap.url');
 
         $payload = [
             'CustomQuery' => (string) $customQuery,
@@ -686,7 +686,7 @@ class ProductionService
      */
     public function getListIssueProd(array $filters = [], ?int $userId = null): array
     {
-        $sapUrl = config('services.sap.url', 'http://103.18.133.187:3100');
+        $sapUrl = config('services.sap.url');
 
         $rawFrom = $filters['from'] ?? $filters['from_date'] ?? $filters['From'] ?? date('Y-1-1');
         $rawTo = $filters['to'] ?? $filters['to_date'] ?? $filters['To'] ?? date('Y-12-31');
@@ -754,7 +754,7 @@ class ProductionService
      */
     public function getIssueProdById(string|int $customQuery, ?int $userId = null): array
     {
-        $sapUrl = config('services.sap.url', 'http://103.18.133.187:3100');
+        $sapUrl = config('services.sap.url');
 
         $payload = [
             'CustomQuery' => (string) $customQuery,
@@ -810,7 +810,7 @@ class ProductionService
      */
     public function cancelPdoSap(array $data, ?int $userId = null): array
     {
-        $sapUrl = config('services.sap.url', 'http://103.18.133.187:3100');
+        $sapUrl = config('services.sap.url');
 
         $docEntry = (string) ($data['doc_entry'] ?? $data['DocEntry'] ?? '');
         if (empty($docEntry)) {
@@ -938,7 +938,7 @@ class ProductionService
      */
     public function addIssueProdSap(array $data, ?int $userId = null): array
     {
-        $sapUrl = config('services.sap.url', 'http://103.18.133.187:3100');
+        $sapUrl = config('services.sap.url');
         $payload = $this->prepareProdTransactionPayload($data, $userId, 'Issue for Production');
 
         $response = Http::timeout(45)->post("{$sapUrl}/api/addissueprod", $payload);
@@ -977,7 +977,7 @@ class ProductionService
      */
     public function addReceiptProdSap(array $data, ?int $userId = null): array
     {
-        $sapUrl = config('services.sap.url', 'http://103.18.133.187:3100');
+        $sapUrl = config('services.sap.url');
         $payload = $this->prepareProdTransactionPayload($data, $userId, 'Receipt for Production');
 
         $response = Http::timeout(45)->post("{$sapUrl}/api/addreceiptprod", $payload);
@@ -1015,7 +1015,7 @@ class ProductionService
      */
     public function cancelItSap(array $data, ?int $userId = null): array
     {
-        $sapUrl = config('services.sap.url', 'http://103.18.133.187:3100');
+        $sapUrl = config('services.sap.url');
 
         $docEntry = (string) ($data['doc_entry'] ?? $data['DocEntry'] ?? '');
         if (empty($docEntry)) {

@@ -110,11 +110,11 @@ class SalesOrderSapIntegrationTest extends TestCase
 
         // Mock SAP addso and addudodiskon endpoints
         Http::fake([
-            '103.18.133.187:3100/api/addudodiskon' => Http::response([
+            '*/api/addudodiskon' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => 'Discount added successfully',
             ], 200),
-            '103.18.133.187:3100/api/addso' => Http::response([
+            '*/api/addso' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => 'Sales Order added successfully',
                 'Result' => [
@@ -187,11 +187,11 @@ class SalesOrderSapIntegrationTest extends TestCase
 
         // Mock SAP addso and addudodiskon endpoints where DocNum is in the Message
         Http::fake([
-            '103.18.133.187:3100/api/addudodiskon' => Http::response([
+            '*/api/addudodiskon' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => 'Discount added successfully',
             ], 200),
-            '103.18.133.187:3100/api/addso' => Http::response([
+            '*/api/addso' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => 'Sales Order added successfully. DocNum: 21414212, DocEntry: 123456',
                 'Result' => []
@@ -239,7 +239,7 @@ class SalesOrderSapIntegrationTest extends TestCase
 
         // Mock SAP addso failure
         Http::fake([
-            '103.18.133.187:3100/api/addso' => Http::response([
+            '*/api/addso' => Http::response([
                 'ErrorCode' => -1001,
                 'Message' => 'Failed to create Sales Order in SAP',
             ], 200),
@@ -301,11 +301,11 @@ class SalesOrderSapIntegrationTest extends TestCase
 
         // Mock SAP addso and addudodiskon endpoints
         Http::fake([
-            '103.18.133.187:3100/api/addudodiskon' => Http::response([
+            '*/api/addudodiskon' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => 'Discount added successfully',
             ], 200),
-            '103.18.133.187:3100/api/addso' => Http::response([
+            '*/api/addso' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => 'Sales Order added successfully',
                 'Result' => [
@@ -363,11 +363,11 @@ class SalesOrderSapIntegrationTest extends TestCase
 
         // Mock SAP addso and addudodiskon endpoints
         Http::fake([
-            '103.18.133.187:3100/api/addudodiskon' => Http::response([
+            '*/api/addudodiskon' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => 'Discount added successfully',
             ], 200),
-            '103.18.133.187:3100/api/addso' => Http::response([
+            '*/api/addso' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => 'Sales Order added successfully',
                 'Result' => [
@@ -459,7 +459,7 @@ class SalesOrderSapIntegrationTest extends TestCase
 
         // Mock SAP addudodiskon endpoint to return failure
         Http::fake([
-            '103.18.133.187:3100/api/addudodiskon' => Http::response([
+            '*/api/addudodiskon' => Http::response([
                 'ErrorCode' => -2002,
                 'Message' => 'Discount UDO creation failed',
             ], 200),
@@ -491,7 +491,7 @@ class SalesOrderSapIntegrationTest extends TestCase
         $token = $this->user->createToken('test_token')->plainTextToken;
 
         Http::fake([
-            '103.18.133.187:3100/api/getSeries' => Http::response([
+            '*/api/getSeries' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => '',
                 'Result' => [
@@ -524,7 +524,7 @@ class SalesOrderSapIntegrationTest extends TestCase
         $token = $this->user->createToken('test_token')->plainTextToken;
 
         Http::fake([
-            '103.18.133.187:3100/api/getCreditlimit' => Http::response([
+            '*/api/getCreditlimit' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => '',
                 'Result' => [
@@ -566,7 +566,7 @@ class SalesOrderSapIntegrationTest extends TestCase
         ]);
 
         Http::fake([
-            '103.18.133.187:3100/api/ListInvoice' => Http::response([
+            '*/api/ListInvoice' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => '',
                 'Result' => [
@@ -624,7 +624,7 @@ class SalesOrderSapIntegrationTest extends TestCase
         ]);
 
         Http::fake([
-            '103.18.133.187:3100/api/ListInvoice' => Http::response([
+            '*/api/ListInvoice' => Http::response([
                 'ErrorCode' => 99,
                 'Message' => 'SAP connection failed',
             ], 200),

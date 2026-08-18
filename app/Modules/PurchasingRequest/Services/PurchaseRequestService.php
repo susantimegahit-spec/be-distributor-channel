@@ -116,7 +116,7 @@ class PurchaseRequestService
     {
         $sapPayload = $this->buildSapPayload($payload, $userId);
 
-        $sapUrl = config('services.sap.url', 'http://103.18.133.187:3100');
+        $sapUrl = config('services.sap.url');
         $response = Http::timeout(30)->post("{$sapUrl}/api/addpr", $sapPayload);
 
         if (!$response->successful()) {

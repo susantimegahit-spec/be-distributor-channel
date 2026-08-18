@@ -59,7 +59,7 @@ class DiscountTest extends TestCase
 
         // Mock SAP endpoints
         Http::fake([
-            '103.18.133.187:3100/api/GetNumDis' => Http::response([
+            '*/api/GetNumDis' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => '',
                 'Result' => [
@@ -68,7 +68,7 @@ class DiscountTest extends TestCase
                     ]
                 ]
             ], 200),
-            '103.18.133.187:3100/api/addudodiskon' => Http::response([
+            '*/api/addudodiskon' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => 'UDO Diskon added successfully',
                 'Result' => []
@@ -169,7 +169,7 @@ class DiscountTest extends TestCase
         $token = $this->user->createToken('test_token')->plainTextToken;
 
         Http::fake([
-            '103.18.133.187:3100/api/ListType' => Http::response([
+            '*/api/ListType' => Http::response([
                 'ErrorCode' => 0,
                 'Message' => '',
                 'Result' => [
