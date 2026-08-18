@@ -44,11 +44,42 @@ class ExpeditionRate extends Model
         'valid_from',
         'valid_until',
         'status',
+        'flag',
+        'approval_status',
+        'approved_by',
+        'approved_at',
+        'approval_notes',
         'remarks',
         'upload_batch_id',
         'created_by',
         'updated_by',
     ];
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'min_tonnage' => 'decimal:2',
+        'max_tonnage' => 'decimal:2',
+        'price' => 'decimal:2',
+        'min_shipment_qty' => 'decimal:2',
+        'max_shipment_qty' => 'decimal:2',
+        'eta_days' => 'integer',
+        'valid_from' => 'date',
+        'valid_until' => 'date',
+        'flag' => 'boolean',
+        'approved_at' => 'datetime',
+    ];
+
+    /**
+     * Scope to filter only approved rates that are eligible for ranking/routing.
+     */
+    public function scopeApproved($query)
+    {
+        return $query->where('flag', true)->where('approval_status', 'APPROVED');
+    }
 
     /**
      * Get expedition associated with this rate.
@@ -72,6 +103,14 @@ class ExpeditionRate extends Model
     public function destination(): BelongsTo
     {
         return $this->belongsTo(CustomerShipto::class, 'destination_id');
+    }
+
+    /**
+     * Get user who approved rate.
+     */
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
     }
 
     /**

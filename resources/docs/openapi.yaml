@@ -7229,6 +7229,95 @@ paths:
         '401':
           description: Tidak terautentikasi
 
+  /v1/ekspedisi/rates/{id}/approve:
+    post:
+      summary: Approve expedition rate (Set Flag True)
+      description: Menyetujui tarif ekspedisi oleh Atasan/Supervisor sehingga Flag aktif dan tarif siap digunakan dalam perankingan kalkulasi pengiriman.
+      tags:
+        - Master Tarif Ekspedisi
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID Tarif Ekspedisi
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes:
+                  type: string
+                  example: "Tarif disetujui sesuai kontrak Q3 2026"
+      responses:
+        '200':
+          description: Tarif ekspedisi berhasil disetujui (Flag Aktif)
+        '404':
+          description: Data tarif tidak ditemukan
+
+  /v1/ekspedisi/rates/{id}/reject:
+    post:
+      summary: Reject expedition rate (Set Flag False)
+      description: Menolak tarif ekspedisi oleh Atasan/Supervisor dengan mencantumkan alasan penolakan.
+      tags:
+        - Master Tarif Ekspedisi
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID Tarif Ekspedisi
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes:
+                  type: string
+                  example: "Harga per kg terlalu mahal, mohon negosiasi ulang."
+      responses:
+        '200':
+          description: Tarif ekspedisi ditolak
+
+  /v1/ekspedisi/rates/bulk-approve:
+    post:
+      summary: Bulk approve expedition rates
+      description: Menyetujui banyak tarif ekspedisi sekaligus berdasarkan array ID.
+      tags:
+        - Master Tarif Ekspedisi
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rate_ids
+              properties:
+                rate_ids:
+                  type: array
+                  items:
+                    type: integer
+                  example: [1, 2, 3, 4]
+                notes:
+                  type: string
+                  example: "Bulk approved batch Agustus 2026"
+      responses:
+        '200':
+          description: Daftar tarif berhasil disetujui sekaligus
+
   /v1/sales-distributors:
     get:
       summary: List all sales-distributor mappings

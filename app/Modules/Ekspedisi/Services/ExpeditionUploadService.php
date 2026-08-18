@@ -317,6 +317,8 @@ class ExpeditionUploadService
                     'valid_from'       => $this->parseDate($this->getValueByMap($row, $headerMap, 'valid_from')),
                     'valid_until'      => $this->parseDate($this->getValueByMap($row, $headerMap, 'valid_until')),
                     'status'           => strtoupper((string) ($this->getValueByMap($row, $headerMap, 'status') ?? 'ACTIVE')),
+                    'flag'             => false,
+                    'approval_status'  => 'PENDING',
                     'remarks'          => $this->getValueByMap($row, $headerMap, 'remarks'),
                     'upload_batch_id'  => $batchId,
                 ];

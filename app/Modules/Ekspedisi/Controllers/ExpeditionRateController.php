@@ -3,10 +3,14 @@
 namespace App\Modules\Ekspedisi\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\CustomerShipto;
+use App\Models\Expedition;
 use App\Models\ExpeditionRate;
+use App\Models\Warehouse;
 use App\Traits\ApiResponseFormatter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class ExpeditionRateController extends Controller
@@ -18,7 +22,7 @@ class ExpeditionRateController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = ExpeditionRate::with(['expedition', 'warehouse', 'destination']);
+        $query = ExpeditionRate::with(['expedition', 'warehouse', 'destination', 'approver']);
 
         $expeditionCode = $request->get('expedition_code') ?? $request->get('expedisi_code') ?? $request->get('kode_ekspedisi');
         if (!empty($expeditionCode)) {
@@ -69,7 +73,7 @@ class ExpeditionRateController extends Controller
             $expandedModes = array_values(array_unique($expandedModes));
 
             if (!empty($expandedModes)) {
-                $query->whereIn(\Illuminate\Support\Facades\DB::raw('LOWER(transport_mode)'), $expandedModes);
+                $query->whereIn(DB::raw('LOWER(transport_mode)'), $expandedModes);
             }
         }
 
@@ -79,6 +83,15 @@ class ExpeditionRateController extends Controller
 
         if ($request->has('status')) {
             $query->where('status', $request->get('status'));
+        }
+
+        // Filter Flag Approval Atasan
+        if ($request->has('flag') && $request->get('flag') !== null && $request->get('flag') !== '') {
+            $query->where('flag', filter_var($request->get('flag'), FILTER_VALIDATE_BOOLEAN));
+        }
+
+        if ($request->filled('approval_status')) {
+            $query->where('approval_status', strtoupper($request->get('approval_status')));
         }
 
         $search = $request->get('search');
@@ -127,6 +140,9 @@ class ExpeditionRateController extends Controller
             'valid_from' => 'nullable|date',
             'valid_until' => 'nullable|date|after_or_equal:valid_from',
             'status' => 'nullable|string|max:20',
+            'flag' => 'nullable|boolean',
+            'approval_status' => 'nullable|string|max:20',
+            'approval_notes' => 'nullable|string',
             'remarks' => 'nullable|string',
             'upload_batch_id' => 'nullable|string|max:100',
         ]);
@@ -138,10 +154,17 @@ class ExpeditionRateController extends Controller
         $data = $validator->validated();
         $data['created_by'] = auth()->id();
         $data['status'] = $data['status'] ?? 'ACTIVE';
+        $data['flag'] = $request->boolean('flag', false);
+        $data['approval_status'] = $data['approval_status'] ?? ($data['flag'] ? 'APPROVED' : 'PENDING');
+
+        if ($data['flag']) {
+            $data['approved_by'] = auth()->id();
+            $data['approved_at'] = now();
+        }
 
         $rate = ExpeditionRate::create($data);
 
-        return $this->successResponse($rate->load(['expedition', 'warehouse', 'destination']), 'Tarif ekspedisi berhasil ditambahkan.', 201);
+        return $this->successResponse($rate->load(['expedition', 'warehouse', 'destination', 'approver']), 'Tarif ekspedisi berhasil ditambahkan.', 201);
     }
 
     /**
@@ -149,7 +172,7 @@ class ExpeditionRateController extends Controller
      */
     public function show(int $id): JsonResponse
     {
-        $rate = ExpeditionRate::with(['expedition', 'warehouse', 'destination', 'creator', 'updater'])->find($id);
+        $rate = ExpeditionRate::with(['expedition', 'warehouse', 'destination', 'creator', 'updater', 'approver'])->find($id);
 
         if (!$rate) {
             return $this->errorResponse('Data tarif ekspedisi tidak ditemukan.', [], 404);
@@ -190,6 +213,9 @@ class ExpeditionRateController extends Controller
             'valid_from' => 'nullable|date',
             'valid_until' => 'nullable|date|after_or_equal:valid_from',
             'status' => 'nullable|string|max:20',
+            'flag' => 'nullable|boolean',
+            'approval_status' => 'nullable|string|max:20',
+            'approval_notes' => 'nullable|string',
             'remarks' => 'nullable|string',
             'upload_batch_id' => 'nullable|string|max:100',
         ]);
@@ -198,76 +224,42 @@ class ExpeditionRateController extends Controller
             return $this->errorResponse($validator->errors()->first(), [], 422);
         }
 
-        $data = $validator->validated();
         $payload = [];
 
-        // Handle price / rate
-        if ($request->has('price')) {
-            $payload['price'] = $request->get('price');
-        } elseif ($request->has('rate')) {
-            $payload['price'] = $request->get('rate');
-        }
-
-        // Handle min_tonnage / min_kg
-        if ($request->has('min_tonnage')) {
-            $payload['min_tonnage'] = $request->get('min_tonnage');
-        } elseif ($request->has('min_kg')) {
-            $payload['min_tonnage'] = $request->get('min_kg');
-        }
-
-        // Handle max_tonnage / max_kg
-        if ($request->has('max_tonnage')) {
-            $payload['max_tonnage'] = $request->get('max_tonnage');
-        } elseif ($request->has('max_kg')) {
-            $payload['max_tonnage'] = $request->get('max_kg');
-        }
-
-        // Handle expedition
+        // Flexible Expedition Resolver
         if ($request->filled('expedition_id')) {
             $payload['expedition_id'] = $request->get('expedition_id');
         } elseif ($request->filled('expedition')) {
             $expInput = trim((string) $request->get('expedition'));
-            $exp = \App\Models\Expedition::where('expedition_code', $expInput)
+            $exp = Expedition::where('expedition_code', $expInput)
                 ->orWhere('id', is_numeric($expInput) ? (int) $expInput : 0)
+                ->orWhere('expedition_name', $expInput)
                 ->first();
             if ($exp) {
                 $payload['expedition_id'] = $exp->id;
             }
         }
 
-        // Handle warehouse / origin
+        // Flexible Warehouse Origin Resolver
         if ($request->filled('warehouse_id')) {
             $payload['warehouse_id'] = $request->get('warehouse_id');
         } elseif ($request->filled('origin')) {
             $originInput = trim((string) $request->get('origin'));
-            $whs = \App\Models\Warehouse::where('whs_code', $originInput)
-                ->orWhere('whs_name', $originInput)
-                ->orWhere('whs_name', 'LIKE', "%{$originInput}%")
+            $whs = Warehouse::where('whs_code', $originInput)
                 ->orWhere('id', is_numeric($originInput) ? (int) $originInput : 0)
+                ->orWhere('whs_name', $originInput)
                 ->first();
-
-            if (!$whs) {
-                $originObj = \App\Models\WarehouseOrigin::where('whs_name_origin', $originInput)
-                    ->orWhere('whs_name_origin', 'LIKE', "%{$originInput}%")
-                    ->orWhere('whs_name', $originInput)
-                    ->orWhere('whs_code', $originInput)
-                    ->first();
-                if ($originObj && !empty($originObj->whs_code)) {
-                    $whs = \App\Models\Warehouse::where('whs_code', $originObj->whs_code)->first();
-                }
-            }
-
             if ($whs) {
                 $payload['warehouse_id'] = $whs->id;
             }
         }
 
-        // Handle destination
+        // Flexible Destination Shipto Resolver
         if ($request->filled('destination_id')) {
             $payload['destination_id'] = $request->get('destination_id');
         } elseif ($request->filled('destination')) {
             $destInput = trim((string) $request->get('destination'));
-            $shipto = \App\Models\CustomerShipto::where('card_code', $destInput)
+            $shipto = CustomerShipto::where('card_code', $destInput)
                 ->orWhere('id', is_numeric($destInput) ? (int) $destInput : 0)
                 ->orWhere('alias', $destInput)
                 ->orWhere('name', $destInput)
@@ -277,10 +269,45 @@ class ExpeditionRateController extends Controller
             }
         }
 
+        // Tonnage & Price Resolvers
+        if ($request->has('min_tonnage') || $request->has('min_kg')) {
+            $payload['min_tonnage'] = floatval($request->get('min_tonnage') ?? $request->get('min_kg') ?? 0);
+        }
+        if ($request->has('max_tonnage') || $request->has('max_kg')) {
+            $payload['max_tonnage'] = floatval($request->get('max_tonnage') ?? $request->get('max_kg') ?? 0);
+        }
+        if ($request->has('price') || $request->has('rate')) {
+            $payload['price'] = floatval($request->get('price') ?? $request->get('rate') ?? 0);
+        }
+
         // Optional standard fields
-        foreach (['transport_mode', 'service_type', 'eta_days', 'min_shipment_qty', 'max_shipment_qty', 'valid_from', 'valid_until', 'status', 'remarks', 'upload_batch_id'] as $field) {
+        foreach (['transport_mode', 'service_type', 'eta_days', 'min_shipment_qty', 'max_shipment_qty', 'valid_from', 'valid_until', 'status', 'approval_notes', 'remarks', 'upload_batch_id'] as $field) {
             if ($request->has($field)) {
                 $payload[$field] = $request->get($field);
+            }
+        }
+
+        // Handle Flag / Approval Status update
+        if ($request->has('flag')) {
+            $flagVal = filter_var($request->get('flag'), FILTER_VALIDATE_BOOLEAN);
+            $payload['flag'] = $flagVal;
+            $payload['approval_status'] = $flagVal ? 'APPROVED' : 'PENDING';
+            if ($flagVal) {
+                $payload['approved_by'] = auth()->id();
+                $payload['approved_at'] = now();
+            }
+        }
+
+        if ($request->filled('approval_status')) {
+            $payload['approval_status'] = strtoupper($request->get('approval_status'));
+            if ($payload['approval_status'] === 'APPROVED') {
+                $payload['flag'] = true;
+                $payload['approved_by'] = auth()->id();
+                $payload['approved_at'] = now();
+            } elseif ($payload['approval_status'] === 'REJECTED') {
+                $payload['flag'] = false;
+                $payload['approved_by'] = auth()->id();
+                $payload['approved_at'] = now();
             }
         }
 
@@ -288,7 +315,83 @@ class ExpeditionRateController extends Controller
 
         $rate->update($payload);
 
-        return $this->successResponse($rate->fresh()->load(['expedition', 'warehouse', 'destination']), 'Tarif ekspedisi berhasil diperbarui.');
+        return $this->successResponse($rate->fresh()->load(['expedition', 'warehouse', 'destination', 'approver']), 'Tarif ekspedisi berhasil diperbarui.');
+    }
+
+    /**
+     * Approve rate by Atasan / Supervisor.
+     */
+    public function approve(Request $request, int $id): JsonResponse
+    {
+        $rate = ExpeditionRate::find($id);
+
+        if (!$rate) {
+            return $this->errorResponse('Data tarif ekspedisi tidak ditemukan.', [], 404);
+        }
+
+        $rate->update([
+            'flag' => true,
+            'approval_status' => 'APPROVED',
+            'approved_by' => auth()->id(),
+            'approved_at' => now(),
+            'approval_notes' => $request->input('notes') ?? 'Approved by supervisor',
+            'updated_by' => auth()->id(),
+        ]);
+
+        return $this->successResponse($rate->load(['expedition', 'warehouse', 'destination', 'approver']), 'Tarif ekspedisi berhasil disetujui (Flag Aktif).');
+    }
+
+    /**
+     * Reject rate by Atasan / Supervisor.
+     */
+    public function reject(Request $request, int $id): JsonResponse
+    {
+        $rate = ExpeditionRate::find($id);
+
+        if (!$rate) {
+            return $this->errorResponse('Data tarif ekspedisi tidak ditemukan.', [], 404);
+        }
+
+        $rate->update([
+            'flag' => false,
+            'approval_status' => 'REJECTED',
+            'approved_by' => auth()->id(),
+            'approved_at' => now(),
+            'approval_notes' => $request->input('notes') ?? $request->input('reason') ?? 'Rejected by supervisor',
+            'updated_by' => auth()->id(),
+        ]);
+
+        return $this->successResponse($rate->load(['expedition', 'warehouse', 'destination', 'approver']), 'Tarif ekspedisi ditolak.');
+    }
+
+    /**
+     * Bulk approve multiple rates by Atasan.
+     */
+    public function bulkApprove(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'rate_ids' => 'required|array|min:1',
+            'rate_ids.*' => 'integer|exists:pgsql_ekspedisi.ekspedisi.expedition_rates,id',
+            'notes' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse($validator->errors()->first(), [], 422);
+        }
+
+        $rateIds = $request->input('rate_ids');
+        $notes = $request->input('notes') ?? 'Bulk approved by supervisor';
+
+        ExpeditionRate::whereIn('id', $rateIds)->update([
+            'flag' => true,
+            'approval_status' => 'APPROVED',
+            'approved_by' => auth()->id(),
+            'approved_at' => now(),
+            'approval_notes' => $notes,
+            'updated_by' => auth()->id(),
+        ]);
+
+        return $this->successResponse(['approved_count' => count($rateIds)], 'Daftar tarif ekspedisi berhasil disetujui sekaligus.');
     }
 
     /**
@@ -318,6 +421,7 @@ class ExpeditionRateController extends Controller
             'weight' => 'nullable|numeric|min:0',
             'service_type' => 'nullable|string',
             'transport_mode' => 'nullable',
+            'include_unapproved' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -331,7 +435,7 @@ class ExpeditionRateController extends Controller
         $transportMode = $request->get('transport_mode');
 
         // Resolve origin to warehouse ID
-        $warehouse = \Illuminate\Support\Facades\DB::table('warehouses')
+        $warehouse = DB::table('warehouses')
             ->where('whs_code', $origin)
             ->first();
 
@@ -340,14 +444,13 @@ class ExpeditionRateController extends Controller
         }
 
         // Resolve destination to customer shipto IDs
-        $shiptoIds = \Illuminate\Support\Facades\DB::table('customer_shiptos')
+        $shiptoIds = DB::table('customer_shiptos')
             ->where('card_code', $destination)
             ->pluck('id')
             ->toArray();
 
         if (is_numeric($destination)) {
-            // Also allow numeric ID directly
-            $exists = \Illuminate\Support\Facades\DB::table('customer_shiptos')
+            $exists = DB::table('customer_shiptos')
                 ->where('id', (int) $destination)
                 ->exists();
             if ($exists) {
@@ -360,10 +463,17 @@ class ExpeditionRateController extends Controller
         }
 
         // Query active rates matching route and weight limits, sorted by price ASC
-        $query = ExpeditionRate::with(['expedition', 'warehouse', 'destination'])
+        $query = ExpeditionRate::with(['expedition', 'warehouse', 'destination', 'approver'])
             ->where('warehouse_id', $warehouse->id)
             ->whereIn('destination_id', $shiptoIds)
             ->where('status', 'ACTIVE');
+
+        // By default, only include approved rates (flag: true) unless explicitly requested
+        if (!$request->boolean('include_unapproved', false)) {
+            $query->where(function ($q) {
+                $q->where('flag', true)->orWhereNull('flag');
+            });
+        }
 
         if ($weight !== null) {
             $query->where('min_tonnage', '<=', $weight)
@@ -404,7 +514,7 @@ class ExpeditionRateController extends Controller
             $expandedModes = array_values(array_unique($expandedModes));
 
             if (!empty($expandedModes)) {
-                $query->whereIn(\Illuminate\Support\Facades\DB::raw('LOWER(transport_mode)'), $expandedModes);
+                $query->whereIn(DB::raw('LOWER(transport_mode)'), $expandedModes);
             }
         }
 

@@ -1,260 +1,191 @@
-# Rancangan Kerja: Integrasi Sistem Ekspedisi (Shared API & Multi-Schema DB)
+# Desain & Rencana Pengembangan Portal Ekspedisi (Multi-Schema PostgreSQL)
 
-Dokumen ini menjelaskan rancangan kerja dan best practices untuk mengembangkan sistem **Ekspedisi** baru yang akan diintegrasikan ke dalam satu codebase API Laravel (`distributor_chnl`) dengan satu database PostgreSQL yang sama namun menggunakan skema terpisah (multi-schema).
-
----
-
-## 1. Arsitektur Sistem
-
-Sistem Ekspedisi akan dibangun sebagai modul baru di dalam sistem yang sudah ada dengan rancangan sebagai berikut:
-
-```mermaid
-graph TD
-    Client[Web / Mobile Client] -->|API Request| LaravelAPI[Laravel API Codebase]
-    LaravelAPI -->|Module: SalesOrder| AppModules[app/Modules/...]
-    LaravelAPI -->|Module: Ekspedisi| EkspedisiModule[app/Modules/Ekspedisi/...]
-    
-    LaravelAPI -->|DB Connection: Default| PostgreSQL[(PostgreSQL Database)]
-    PostgreSQL -->|Schema: public| SchemaPublic[Tabel Distributor Channel]
-    PostgreSQL -->|Schema: ekspedisi| SchemaEkspedisi[Tabel Ekspedisi]
-```
+Dokumen ini berisi arsitektur sistem, struktur database skema `ekspedisi`, integrasi data, **alur persetujuan (*approval flag*) tarif ekspedisi oleh atasan**, dan panduan implementasi teknis.
 
 ---
 
-## 2. Best Practice Pengelolaan Database (Multi-Schema PostgreSQL)
+## 1. Konsep Pemisahan Database Skema
 
-Karena database yang digunakan adalah **PostgreSQL**, memisahkan modul berdasarkan **Schema** (Skema) adalah pilihan terbaik daripada memisahkan database secara fisik. Skema default Laravel/PostgreSQL adalah `public`. Kita akan membuat skema baru bernama `ekspedisi`.
-
-### A. Konfigurasi Database di Laravel (`config/database.php`)
-Tambahkan koneksi khusus untuk skema ekspedisi di `config/database.php` agar model-model ekspedisi secara otomatis mengarah ke skema yang benar.
-
-```php
-'connections' => [
-    'pgsql' => [ // Koneksi default (Skema public)
-        'driver' => 'pgsql',
-        'host' => env('DB_HOST', '127.0.0.1'),
-        'port' => env('DB_PORT', '5432'),
-        'database' => env('DB_DATABASE', 'forge'),
-        'username' => env('DB_USERNAME', 'forge'),
-        'password' => env('DB_PASSWORD', ''),
-        'charset' => 'utf8',
-        'prefix' => '',
-        'search_path' => 'public', // Default ke public
-        'schema' => 'public',
-    ],
-
-    'pgsql_ekspedisi' => [ // Koneksi khusus skema ekspedisi
-        'driver' => 'pgsql',
-        'host' => env('DB_HOST', '127.0.0.1'),
-        'port' => env('DB_PORT', '5432'),
-        'database' => env('DB_DATABASE', 'forge'),
-        'username' => env('DB_USERNAME', 'forge'),
-        'password' => env('DB_PASSWORD', ''),
-        'charset' => 'utf8',
-        'prefix' => '',
-        'search_path' => 'ekspedisi,public', // Mencari di skema ekspedisi dulu, lalu public
-        'schema' => 'ekspedisi',
-    ],
-],
-```
-
-### B. Pemisahan Migration
-Untuk menjaga kerapian, pisahkan file migrasi skema `ekspedisi` ke dalam folder khusus:
-`database/migrations/ekspedisi/`
-
-Pada setiap file migrasi di folder tersebut, pastikan skema dibuat terlebih dahulu jika belum ada:
-
-```php
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Database\Migrations\Migration;
-
-return new class extends Migration
-{
-    protected $connection = 'pgsql_ekspedisi'; // Gunakan koneksi ekspedisi
-
-    public function up()
-    {
-        // Pastikan skema ekspedisi dibuat di Postgres
-        DB::statement('CREATE SCHEMA IF NOT EXISTS ekspedisi');
-
-        Schema::connection($this->connection)->create('deliveries', function (Blueprint $table) {
-            $table->id();
-            $table->string('delivery_number')->unique();
-            // Kolom relasi lintas skema ke tabel di skema public (sales_orders)
-            $table->foreignId('sales_order_id')->constrained('public.sales_orders');
-            $table->string('driver_name');
-            $table->string('plate_number');
-            $table->string('status'); // draft, shipping, delivered
-            $table->timestamps();
-        });
-    }
-
-    public function down()
-    {
-        Schema::connection($this->connection)->dropIfExists('deliveries');
-    }
-};
-```
-
-### C. Deklarasi Skema pada Eloquent Model
-Setiap model yang masuk dalam sistem Ekspedisi harus mendefinisikan properti `$connection` dan nama tabel lengkap dengan nama skemanya:
-
-```php
-namespace App\Models;
-
-use Illuminate\Database\Eloquent\Model;
-
-class Delivery extends Model
-{
-    // Arahkan ke koneksi skema ekspedisi
-    protected $connection = 'pgsql_ekspedisi';
-    
-    // Tulis nama tabel lengkap dengan skemanya
-    protected $table = 'ekspedisi.deliveries';
-
-    protected $fillable = [
-        'delivery_number',
-        'sales_order_id',
-        'driver_name',
-        'plate_number',
-        'status',
-    ];
-}
-```
-
----
-
-## 3. Desain Database Skema `ekspedisi` (Tahap 2)
-
-Berikut adalah struktur tabel geografi wilayah Indonesia (Provinsi, Kota, Kecamatan, Desa) dan struktur tarif ekspedisi berdasarkan rute untuk sistem pengambilan keputusan:
-
-### A. Tabel Wilayah Geografis
-Tabel ini digunakan untuk memetakan rute asal (*origin*) dan tujuan (*destination*) pengiriman.
-
-#### 1. Tabel `provinces` (Provinsi)
-*   `id` (bigint, primary key)
-*   `name` (string) - Nama provinsi
-*   `timestamps`
-
-#### 2. Tabel `regencies` (Kota / Kabupaten)
-*   `id` (bigint, primary key)
-*   `province_id` (foreign key ke `provinces.id`)
-*   `name` (string) - Nama Kota/Kabupaten
-*   `timestamps`
-
-#### 3. Tabel `districts` (Kecamatan)
-*   `id` (bigint, primary key)
-*   `regency_id` (foreign key ke `regencies.id`)
-*   `name` (string) - Nama Kecamatan
-*   `timestamps`
-
-#### 4. Tabel `villages` (Desa / Kelurahan)
-*   `id` (bigint, primary key)
-*   `district_id` (foreign key ke `districts.id`)
-*   `name` (string) - Nama Desa/Kelurahan
-*   `timestamps`
-
----
-
-### B. Tabel Master Ekspedisi & Tarif Rute
-
-#### 5. Tabel `expeditions` (Vendor / Ekspedisi)
-Tabel ini mendaftarkan daftar penyedia ekspedisi (misalnya: JNE, J&T, Sicepat, atau Armada Internal).
-*   `id` (bigint, primary key)
-*   `name` (string) - Nama ekspedisi
-*   `code` (string, unique) - Kode ekspedisi (misal: `JNE`, `JNT`, `INTERNAL`)
-*   `is_active` (boolean, default true)
-*   `timestamps`
-
-#### 6. Tabel `expedition_rates` (Tarif Ekspedisi Rute)
-Tabel ini menyimpan data tarif yang ditawarkan oleh masing-masing ekspedisi berdasarkan rute spesifik dari Kota Asal (*Origin Regency*) ke Kecamatan Tujuan (*Destination District*).
-*   `id` (bigint, primary key)
-*   `expedition_id` (foreign key ke `expeditions.id`)
-*   `origin_regency_id` (foreign key ke `regencies.id`) - Kota Asal Pengirim
-*   `destination_district_id` (foreign key ke `districts.id`) - Kecamatan Tujuan Penerima
-*   `rate_per_kg` (decimal, 12, 2) - Tarif per kilogram
-*   `fixed_rate` (decimal, 12, 2, default 0) - Tarif dasar/flat (jika ada)
-*   `estimated_days` (integer) - Estimasi pengiriman dalam hari
-*   `is_active` (boolean, default true)
-*   `timestamps`
-
----
-
-## 4. Konsep Aktor & Hak Akses (User Roles)
-
-Sistem ini memiliki dua aktor utama yang mengakses API terpadu:
-
-1.  **Aktor 1: User Ekspedisi (Vendor)**
-    *   **Deskripsi:** Perwakilan dari pihak ekspedisi yang diberi akses untuk mengelola data tarif rute mereka sendiri.
-    *   **Hak Akses API:**
-        *   Melihat daftar tarif rute milik ekspedisinya sendiri.
-        *   Mengupdate tarif per kg, flat rate, dan estimasi waktu kirim (`expedition_rates`).
-2.  **Aktor 2: User Pengambil Keputusan (Admin/Sales/Logistik Internal)**
-    *   **Deskripsi:** User internal dari distributor channel yang bertugas memproses pengiriman sales order.
-    *   **Hak Akses API:**
-        *   Mencari tarif ekspedisi termurah berdasarkan rute (membandingkan dari asal ke tujuan berdasarkan berat barang).
-        *   Menentukan ekspedisi mana yang akan dipakai untuk mengirim Sales Order tertentu.
-
----
-
-## 5. Best Practice Struktur Codebase (Modular)
-
-Sistem Anda sudah menerapkan arsitektur modular (`app/Modules`). Kita akan menambahkan modul baru bernama `Ekspedisi` dengan struktur berikut:
+Untuk menjaga performa dan isolasi data operasional pengiriman tanpa membebani tabel transaksional inti distributor, sistem menggunakan arsitektur **Multi-Schema dalam 1 Database PostgreSQL (`distributor_chnl`)**:
 
 ```text
-app/Modules/Ekspedisi/
-├── Controllers/
-│   ├── DeliveryController.php       # Menangani request pengiriman barang
-│   ├── TerritoryController.php      # API untuk list Provinsi/Kota/Kecamatan/Desa
-│   └── RateController.php           # API pencarian tarif & pembanding termurah
-├── Routes/
-│   └── api.php                      # Routing API khusus Ekspedisi
-├── Services/
-│   ├── DeliveryService.php          # Logika pengiriman
-│   └── RateComparisonService.php    # Logika pencarian tarif termurah berdasarkan rute & berat
-├── Repositories/
-│   ├── DeliveryRepository.php
-│   └── RateRepository.php           # Query pencarian tarif terbaik
-└── Requests/
-    └── CompareRateRequest.php       # Validasi input rute dan berat untuk pencarian
+Database: distributor_chnl (PostgreSQL)
+ ├── Skema: public        -> (Tabel Inti: users, roles, sales_orders, items, distributors, dll.)
+ └── Skema: ekspedisi     -> (Tabel Khusus: expeditions, expedition_rates, warehouse_origins, dll.)
 ```
-
-Rute API di dalam `app/Modules/Ekspedisi/Routes/api.php` akan dimuat secara otomatis oleh Service Provider Anda di URL:
-`/api/distributor-channel/v1/ekspedisi/...`
 
 ---
 
-## 6. Rancangan Langkah Kerja (Roadmap Pengembangan)
+## 2. Struktur Database Skema `ekspedisi`
 
-Rencana kerja dibagi menjadi **5 Tahap Utama**:
+### A. Tabel Master Ekspedisi & Tarif Rute
 
-| Tahap | Aktivitas | Detail Target |
-|---|---|---|
-| **Tahap 1** | **Persiapan & Config (SELESAI)** | 1. Tambahkan koneksi `pgsql_ekspedisi` di `config/database.php`. <br>2. Siapkan folder migrasi khusus `database/migrations/ekspedisi/`. |
-| **Tahap 2** | **Desain DB & Migrasi** | 1. Buat file migrasi untuk wilayah geografis (`provinces`, `regencies`, `districts`, `villages`).<br>2. Buat file migrasi untuk master ekspedisi (`expeditions`) dan tabel tarif (`expedition_rates`). |
-| **Tahap 3** | **Pembuatan Model & Repo** | 1. Buat Eloquent Model di `app/Models` dengan koneksi skema `pgsql_ekspedisi`.<br>2. Hubungkan relasi model dari skema `ekspedisi` ke skema `public` (relasi `sales_orders`). |
-| **Tahap 4** | **Business Logic & API** | 1. Buat folder modul baru `app/Modules/Ekspedisi`.<br>2. Buat `RateComparisonService.php` dengan fungsi mencari ekspedisi termurah berdasarkan berat dan rute.<br>3. Daftarkan API endpoint `/rate/compare`, `/rate/update`, dan CRUD wilayah geografis. |
-| **Tahap 5** | **UAT & Deployment** | 1. Uji coba pencarian tarif termurah dengan data wilayah contoh.<br>2. Deploy ke server staging/development dan jalankan migrasi skema `ekspedisi`. |
+#### 1. Tabel `expeditions` (Vendor / Mitra Ekspedisi)
+Menyimpan profil vendor ekspedisi (misal: Siba Surya, Puninar, Dakota, JNE, Armada Internal).
+* `id` (bigint, primary key)
+* `expedition_code` (string, unique) - Kode unik ekspedisi
+* `expedition_name` (string) - Nama ekspedisi / PT vendor
+* `address`, `city`, `province`, `postal_code` (string, nullable)
+* `pic_name`, `pic_phone`, `email` (string, nullable)
+* `npwp` (string, nullable)
+* `vehicle_type` (string, nullable) - CDD, Fuso, Tronton, Container, dll
+* `transport_mode` (string, nullable) - Darat, Laut, Udara
+* `status` (string, default 'ACTIVE')
+* `created_by`, `updated_by` (foreign key ke `public.users.id`)
+* `timestamps`
+
+#### 2. Tabel `expedition_rates` (Tarif Ekspedisi & Status Approval)
+Menyimpan matriks tarif pengiriman per rute (Gudang Asal ke Alamat Tujuan Customer/Distributor) dilengkapi dengan **Approval Flag Atasan**:
+
+| Kolom | Tipe Data | Deskripsi |
+| :--- | :--- | :--- |
+| `id` | `bigint, PK` | Primary Key |
+| `expedition_id` | `foreignId` | Relasi ke `ekspedisi.expeditions.id` |
+| `warehouse_id` | `unsignedBigInteger` | Relasi ke `public.warehouses.id` (Gudang Asal) |
+| `destination_id` | `unsignedBigInteger` | Relasi ke `public.customer_shiptos.id` (Alamat Tujuan) |
+| `transport_mode` | `varchar(50)` | Moda Transportasi (Darat, Laut, Udara) |
+| `service_type` | `varchar(50)` | Layanan (Reguler, Express, Carter Full Truck, LTL) |
+| `min_tonnage` | `decimal(12,2)` | Tonase / Berat Minimal (Kg/Ton) |
+| `max_tonnage` | `decimal(12,2)` | Tonase / Berat Maksimal (Kg/Ton) |
+| `price` | `decimal(15,2)` | Harga / Tarif Pengiriman (Rp) |
+| `eta_days` | `integer` | Estimasi waktu sampai (Hari) |
+| `min_shipment_qty` | `decimal(12,2)` | Minimal kuantiti pengiriman |
+| `max_shipment_qty` | `decimal(12,2)` | Maksimal kuantiti pengiriman |
+| `valid_from` | `date` | Tanggal mulai berlaku tarif |
+| `valid_until` | `date` | Tanggal akhir berlaku tarif |
+| `status` | `varchar(20)` | Status Operasional (`ACTIVE`, `INACTIVE`) |
+| **`flag`** | `boolean` | **Flag Persetujuan Atasan (`false`: Pending/Draft, `true`: Approved/Aktif)** |
+| **`approval_status`**| `varchar(20)` | **Status Persetujuan: `PENDING`, `APPROVED`, `REJECTED`** |
+| **`approved_by`** | `unsignedBigInteger` | **ID Atasan / Manager Logistik yang menyetujui (`public.users.id`)** |
+| **`approved_at`** | `timestamp` | **Waktu persetujuan atasan** |
+| **`approval_notes`** | `text` | **Catatan review persetujuan / alasan penolakan** |
+| `remarks` | `text` | Catatan operasional tarif |
+| `upload_batch_id` | `varchar(100)` | ID Batch saat import data via Excel/CSV |
+| `created_by` | `unsignedBigInteger` | User yang menginput/upload tarif |
+| `updated_by` | `unsignedBigInteger` | User terakhir yang mengupdate |
+| `timestamps` | `timestamps` | `created_at` & `updated_at` |
 
 ---
 
-## 7. Sinkronisasi Data Lintas Skema (Cross-Schema Query)
+## 3. Alur Kerja & Persetujuan Tarif Ekspedisi (Workflow Approval)
 
-Di PostgreSQL, query lintas skema sangat efisien dan tidak memerlukan koneksi jaringan baru. Anda bisa langsung melakukan `JOIN` tabel antar-skema menggunakan relasi Eloquent biasa:
+Tarif ekspedisi baru tidak boleh langsung digunakan secara otomatis dalam kalkulasi biaya kirim sebelum disetujui (*review & approve*) oleh Atasan / Manager Logistik.
 
-```php
-// Di dalam Model Delivery (Skema ekspedisi)
-public function salesOrder()
-{
-    // Menghubungkan model Delivery (skema ekspedisi) dengan model SalesOrder (skema public)
-    return $this->belongsTo(SalesOrder::class, 'sales_order_id');
-}
+```mermaid
+flowchart TD
+    A[Staff Logistik / Vendor Ekspedisi] -->|1. Input Form / Upload Excel| B[Data Tarif Tersimpan]
+    B -->|Default Status| C["Status: PENDING <br> Flag: false (0)"]
+    
+    C --> D{Review oleh Atasan / Manager Logistik}
+    
+    D -->|Atasan OK / Setuju| E["Aksi: APPROVE <br> Flag: true (1) <br> Status: APPROVED <br> Catat approved_by & approved_at"]
+    D -->|Atasan Tolak / Harga Tidak Sesuai| F["Aksi: REJECT <br> Flag: false (0) <br> Status: REJECTED <br> Wajib isi approval_notes"]
+    
+    E --> G[Tarif AKTIF & Siap Digunakan]
+    G --> H["Masuk ke Engine Ranking Tarif Otomatis <br> (GET /rates/rank untuk Sales Order & Surat Jalan)"]
+    
+    F --> I[Staff Memperbaiki Nilai Tarif & Submit Ulang]
+    I --> C
 ```
-Laravel akan mengeksekusi SQL JOIN secara otomatis di background:
-```sql
-SELECT * FROM ekspedisi.deliveries 
-INNER JOIN public.sales_orders 
-ON public.sales_orders.id = ekspedisi.deliveries.sales_order_id
-```
-Ini sangat cepat dan efisien!
+
+### Tahapan Alur Kerja:
+
+1. **Pengajuan Tarif (Input / Upload Excel):**
+   * Staff Logistik memasukkan tarif baru secara satuan (`POST /rates`) atau massal lewat upload file Excel (`POST /rates/upload`).
+   * Seluruh tarif yang baru dibuat otomatis memiliki nilai awal:
+     * `flag = false`
+     * `approval_status = 'PENDING'`
+     * `approved_by = NULL`
+2. **Review oleh Atasan (Manager Logistik / Spv):**
+   * Atasan membuka menu daftar tarif dan dapat memfilter tarif yang butuh persetujuan (`GET /rates?flag=0&approval_status=PENDING`).
+   * Atasan memeriksa kesesuaian rute, tonase, harga dasar, dan masa berlaku tarif.
+3. **Persetujuan Atasan (Approve):**
+   * Atasan menekan tombol **Setujui / Approve** (`POST /rates/{id}/approve` atau `POST /rates/bulk-approve` untuk banyak baris sekaligus).
+   * Sistem otomatis mengubah:
+     * `flag = true`
+     * `approval_status = 'APPROVED'`
+     * `approved_by = ID Atasan`
+     * `approved_at = Waktu saat ini`
+4. **Kalkulasi & Ranking Otomatis (Production Ready):**
+   * Saat Sales Order atau Delivery Order mencari rekomendasi ekspedisi termurah (`GET /rates/rank`), sistem **hanya memilih tarif yang memiliki `flag = true` dan `approval_status = 'APPROVED'`**.
+   * Tarif yang masih `PENDING` atau `REJECTED` **tidak akan dimunculkan** dalam opsi pengiriman agar tidak terjadi salah bayar ke vendor ekspedisi.
+
+---
+
+## 4. Spesifikasi API Endpoint Ekspedisi
+
+Prefix: `/api/distributor-channel/v1/ekspedisi` (Wajib Header: `Authorization: Bearer <TOKEN>`)
+
+### A. Tarif Ekspedisi & Approval Endpoints
+
+#### 1. Daftar Tarif Ekspedisi
+* **Endpoint:** `GET /rates`
+* **Query Parameters:**
+  * `flag` *(boolean)*: `0` (Pending/Draft), `1` (Approved)
+  * `approval_status` *(string)*: `PENDING`, `APPROVED`, `REJECTED`
+  * `expedition_code`, `warehouse_code`, `destination_id`, `transport_mode`, `service_type`
+  * `search` *(string)*: Pencarian nama ekspedisi, customer, atau gudang
+  * `page`, `per_page`
+
+#### 2. Setujui Tarif oleh Atasan (Approve Rate)
+* **Endpoint:** `POST /rates/{id}/approve`
+* **Request Body (Opsional):**
+  ```json
+  {
+    "notes": "Tarif disetujui sesuai kontrak Q3 2026"
+  }
+  ```
+* **Response:**
+  ```json
+  {
+    "success": true,
+    "message": "Tarif ekspedisi berhasil disetujui (Flag Aktif).",
+    "data": {
+      "id": 45,
+      "flag": true,
+      "approval_status": "APPROVED",
+      "approved_by": 1,
+      "approved_at": "2026-08-18 11:15:00",
+      "approval_notes": "Tarif disetujui sesuai kontrak Q3 2026",
+      "approver": {
+        "id": 1,
+        "name": "Manager Logistik"
+      }
+    }
+  }
+  ```
+
+#### 3. Tolak Tarif oleh Atasan (Reject Rate)
+* **Endpoint:** `POST /rates/{id}/reject`
+* **Request Body:**
+  ```json
+  {
+    "notes": "Harga per kg terlalu mahal, mohon negosiasi ulang dengan vendor."
+  }
+  ```
+
+#### 4. Setujui Banyak Tarif Sekaligus (Bulk Approve)
+* **Endpoint:** `POST /rates/bulk-approve`
+* **Request Body:**
+  ```json
+  {
+    "rate_ids": [45, 46, 47, 48],
+    "notes": "Bulk approved batch import Agustus 2026"
+  }
+  ```
+
+#### 5. Ranking Rekomendasi Ekspedisi Termurah
+* **Endpoint:** `GET /rates/rank?origin=WHS-BLR&destination=C110003419&weight=5000`
+* **Keterangan:** Secara otomatis hanya mengambil tarif yang **`flag = true`** (*Approved*).
+
+---
+
+## 5. Ringkasan File Source Code
+
+| File | Keterangan |
+| :--- | :--- |
+| [2026_08_18_000008_add_flag_and_approval_to_expedition_rates_table.php](file:///c:/Project/PT%20SUSANTI/distributor_chnl/database/migrations/ekspedisi/2026_08_18_000008_add_flag_and_approval_to_expedition_rates_table.php) | Migration kolom `flag`, `approval_status`, `approved_by`, `approved_at`, `approval_notes` |
+| [ExpeditionRate.php](file:///c:/Project/PT%20SUSANTI/distributor_chnl/app/Models/ExpeditionRate.php) | Model Eloquent dengan cast boolean `flag` dan relasi `approver()` |
+| [ExpeditionRateController.php](file:///c:/Project/PT%20SUSANTI/distributor_chnl/app/Modules/Ekspedisi/Controllers/ExpeditionRateController.php) | Controller dengan method `approve()`, `reject()`, `bulkApprove()`, dan filter `flag` |
+| [ExpeditionUploadService.php](file:///c:/Project/PT%20SUSANTI/distributor_chnl/app/Modules/Ekspedisi/Services/ExpeditionUploadService.php) | Service upload Excel yang otomatis set `flag = false` (Pending) |
+| [api.php](file:///c:/Project/PT%20SUSANTI/distributor_chnl/app/Modules/Ekspedisi/Routes/api.php) | Route `/rates/{id}/approve`, `/rates/{id}/reject`, `/rates/bulk-approve` |
