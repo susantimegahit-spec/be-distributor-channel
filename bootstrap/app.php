@@ -78,6 +78,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'monitoringsm/*',
             'docs/*',
         ]);
+        $middleware->alias([
+            'check.permission' => \App\Http\Middleware\CheckPermission::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->render(function (\Illuminate\Validation\ValidationException $e, \Illuminate\Http\Request $request) {

@@ -152,4 +152,45 @@ class User extends Authenticatable
     {
         return $this->hasMany(UserDeviceToken::class);
     }
+
+    /**
+     * Check if user has permission to perform action on a specific menu.
+     */
+    public function hasPermission(string $menuKey, string $action = 'read'): bool
+    {
+        // 1. Superadmin / Administrator bypass
+        $roleName = strtolower(trim($this->role?->name ?? ''));
+        if (in_array($roleName, ['super admin', 'superadmin', 'admin', 'administrator'])) {
+            return true;
+        }
+
+        // 2. Check role menu permissions
+        $roleMenu = $this->role?->roleMenu;
+        if (!$roleMenu) {
+            return false;
+        }
+
+        return $roleMenu->hasAction($menuKey, $action);
+    }
+
+    /**
+     * Get all permissions matrix mapped for the user.
+     */
+    public function getPermissionsMap(): array
+    {
+        $roleName = strtolower(trim($this->role?->name ?? ''));
+        $isSuper = in_array($roleName, ['super admin', 'superadmin', 'admin', 'administrator']);
+
+        $roleMenu = $this->role?->roleMenu;
+        $permsMap = $roleMenu ? $roleMenu->normalized_permissions : [];
+        $permsList = $roleMenu ? $roleMenu->permissions_list : [];
+
+        return [
+            'is_super_admin' => $isSuper,
+            'role_id' => $this->role_id,
+            'role_name' => $this->role?->name,
+            'permissions' => $permsMap,
+            'permissions_list' => $permsList,
+        ];
+    }
 }

@@ -2276,12 +2276,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Tidak terautentikasi
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
  
     put:
       summary: Update menu configuration for a specific role
@@ -2362,6 +2356,147 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/roles/my-permissions:
+    get:
+      summary: Get Current Logged-in User Permissions Map
+      description: Mengambil seluruh matrix hak akses CRUD untuk user yang sedang login.
+      tags:
+        - Roles
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User permissions retrieved successfully
+          content:
+            application/json:
+              example:
+                success: true
+                message: User permissions retrieved successfully.
+                data:
+                  is_super_admin: false
+                  role_id: 2
+                  role_name: "Admin Sales"
+                  permissions:
+                    customer-portal.order:
+                      create: true
+                      read: true
+                      update: true
+                      delete: false
+                      approve: false
+                      export: true
+                    expedition.rates:
+                      create: false
+                      read: true
+                      update: false
+                      delete: true
+                      approve: false
+                      export: false
+
+  /v1/roles/{id}/permissions:
+    get:
+      summary: Get Role Granular Action Permissions
+      description: Mengambil detail matrix hak akses CRUD untuk role tertentu berdasarkan ID.
+      tags:
+        - Roles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 2
+      responses:
+        '200':
+          description: Hak akses role berhasil diambil
+          content:
+            application/json:
+              example:
+                success: true
+                message: Hak akses role berhasil diambil.
+                data:
+                  role_id: 2
+                  role_name: "Admin Sales"
+                  permissions:
+                    - menu_key: "sales-order"
+                      actions:
+                        create: true
+                        read: true
+                        update: true
+                        delete: false
+                        approve: false
+                        export: true
+                    - menu_key: "expedition-rate"
+                      actions:
+                        create: false
+                        read: true
+                        update: false
+                        delete: true
+                        approve: false
+                        export: false
+    post:
+      summary: Update Role Granular Action Permissions
+      description: Memperbarui matrix hak akses CRUD per menu untuk role tertentu.
+      tags:
+        - Roles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - permissions
+              properties:
+                approval_id:
+                  type: integer
+                  nullable: true
+                permissions:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - menu_key
+                      - actions
+                    properties:
+                      menu_key:
+                        type: string
+                        example: "sales-order"
+                      actions:
+                        type: object
+                        properties:
+                          create:
+                            type: boolean
+                            example: true
+                          read:
+                            type: boolean
+                            example: true
+                          update:
+                            type: boolean
+                            example: true
+                          delete:
+                            type: boolean
+                            example: false
+                          approve:
+                            type: boolean
+                            example: false
+                          export:
+                            type: boolean
+                            example: true
+      responses:
+        '200':
+          description: Hak akses role berhasil disimpan
 
   /v1/users:
     get:
