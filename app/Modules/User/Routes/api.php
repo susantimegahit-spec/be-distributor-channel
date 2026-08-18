@@ -9,4 +9,10 @@ Route::prefix('v1/users')->middleware('auth:sanctum')->group(function () {
     Route::post('/', [UserController::class, 'store']);
     Route::put('/{id}', [UserController::class, 'update']);
     Route::delete('/{id}', [UserController::class, 'destroy']);
+
+    // User-Level Custom Permissions Endpoints
+    Route::get('/{id}/custom-permissions', [UserController::class, 'getCustomPermissions']);
+    Route::put('/{id}/custom-permissions', [UserController::class, 'updateCustomPermissions']);
+    Route::post('/{id}/custom-permissions', [UserController::class, 'updateCustomPermissions']);
+    Route::delete('/{id}/custom-permissions', [UserController::class, 'resetCustomPermissions']);
 });

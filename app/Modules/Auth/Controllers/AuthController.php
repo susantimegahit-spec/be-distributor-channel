@@ -42,6 +42,7 @@ class AuthController extends Controller
 
         $user = $result['user'];
         $user->load(['role.roleMenu', 'distributor', 'expedition']);
+        $permsMap = $user->getPermissionsMap();
 
         return $this->successResponse([
             'user' => [
@@ -67,8 +68,12 @@ class AuthController extends Controller
                 'originator' => $user->originator,
                 'stage' => $user->stage,
                 'accessible_systems' => $user->accessible_systems,
+                'has_custom_override' => $permsMap['has_custom_override'],
+                'custom_permissions' => $user->custom_permissions_list,
             ],
             'menu' => $user->role?->roleMenu?->menu ?? [],
+            'permissions' => $permsMap['permissions_list'],
+            'permissions_map' => $permsMap['permissions'],
             'access_token' => $result['token'],
             'token_type' => 'Bearer',
         ], 'Login berhasil.');

@@ -100,6 +100,7 @@ class UpdateUserRequest extends FormRequest
             'stage' => 'sometimes|nullable|string|max:100',
             'accessible_systems' => 'nullable|array',
             'accessible_systems.*' => 'string',
+            'custom_permissions' => 'nullable|array',
         ];
     }
 }
