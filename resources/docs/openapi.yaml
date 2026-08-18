@@ -14,6 +14,215 @@ servers:
   - url: http://localhost:8000/api/distributor-channel
     description: Local Server
 paths:
+  /v1/document-approval/document-types:
+    get:
+      summary: Get List Master Document Types
+      description: Mengambil daftar master Document Types SAP B1 yang aktif (PR, PO, GRPO, AP Invoice, SO, dll) beserta relasi skema aktif.
+      tags:
+        - Dynamic Document Approval (SAP B1)
+      responses:
+        '200':
+          description: Berhasil mengambil daftar tipe dokumen
+          content:
+            application/json:
+              example:
+                success: true
+                data:
+                  - id: 1
+                    code: "PO"
+                    name: "Purchase Order"
+                    sap_object_type: 22
+                    module: "Purchasing"
+                    header_source: "OPOR"
+                    line_source: "POR1"
+                    is_active: true
+
+  /v1/document-approval/document-types/{code}:
+    get:
+      summary: Get Document Type Schema & Fields
+      description: Mengambil detail skema field dan alur workflow untuk tipe dokumen tertentu berdasarkan kodenya (misal PO atau PR).
+      tags:
+        - Dynamic Document Approval (SAP B1)
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "PO"
+      responses:
+        '200':
+          description: Berhasil mengambil detail tipe dokumen
+
+  /v1/document-approval/approvals:
+    get:
+      summary: Get List of Approval Transactions
+      description: Mengambil daftar transaksi persetujuan dokumen dengan filter status, tipe dokumen, dan pencarian nomor dokumen SAP / pemohon.
+      tags:
+        - Dynamic Document Approval (SAP B1)
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED, REVISED]
+          example: "PENDING"
+        - name: type_code
+          in: query
+          required: false
+          schema:
+            type: string
+          example: "PO"
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          example: "PO-50001"
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+          example: 1
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+          example: 15
+      responses:
+        '200':
+          description: Berhasil mengambil daftar persetujuan dokumen
+
+  /v1/document-approval/approvals/{id}:
+    get:
+      summary: Get Dynamic Approval Detail (Mobile & Web)
+      description: Mengambil detail dokumen approval lengkap yang telah dinormalisasi secara dinamis (Header, Line Items, Summary Totals, & Riwayat Approval Audit Trail).
+      tags:
+        - Dynamic Document Approval (SAP B1)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: Berhasil mengambil detail dinamis dokumen approval
+        '404':
+          description: Data approval tidak ditemukan
+
+  /v1/document-approval/approvals/{id}/approve:
+    post:
+      summary: Approve Document
+      description: Menyetujui dokumen ke stage/level persetujuan selanjutnya atau status akhir APPROVED.
+      tags:
+        - Dynamic Document Approval (SAP B1)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes:
+                  type: string
+                  example: "Disetujui sesuai kuota budget Q3"
+      responses:
+        '200':
+          description: Dokumen berhasil disetujui
+
+  /v1/document-approval/approvals/{id}/reject:
+    post:
+      summary: Reject Document
+      description: Menolak pengajuan dokumen persetujuan (wajib mencantumkan alasan penolakan).
+      tags:
+        - Dynamic Document Approval (SAP B1)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  example: "Harga satuan melebihi batas toleransi kontrak tahunan."
+      responses:
+        '200':
+          description: Dokumen ditolak
+
+  /v1/document-approval/approvals/{id}/revise:
+    post:
+      summary: Revise / Return Document
+      description: Mengembalikan dokumen ke pemohon (*requester*) untuk direvisi / diperbaiki.
+      tags:
+        - Dynamic Document Approval (SAP B1)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - notes
+              properties:
+                notes:
+                  type: string
+                  example: "Mohon lampirkan Certificate of Analysis (COA) terbaru."
+      responses:
+        '200':
+          description: Dokumen berhasil dikembalikan untuk revisi
+
+  /v1/document-approval/preview/{typeCode}/{docEntry}:
+    get:
+      summary: Live Preview SAP Document
+      description: Menampilkan preview tampilan dinamis dokumen mentah SAP Business One berdasarkan Tipe Dokumen dan DocEntry sebelum diajukan ke approval.
+      tags:
+        - Dynamic Document Approval (SAP B1)
+      parameters:
+        - name: typeCode
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "PO"
+        - name: docEntry
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 5001
+      responses:
+        '200':
+          description: Preview dokumen berhasil digenerate
+
   /v1/external/customer-monthly-orders:
     post:
       summary: Add Customer Monthly Order via External B2B API
