@@ -17,34 +17,102 @@ paths:
   /v1/document-approval/document-types:
     get:
       summary: Get List Master Document Types
-      description: Mengambil daftar master Document Types SAP B1 yang aktif (PR, PO, GRPO, AP Invoice, SO, dll) beserta relasi skema aktif.
+      description: Mengambil daftar master Document Types SAP B1 yang aktif beserta relasi skema aktif (mendukung search, filter module, is_active, dan pagination).
       tags:
-        - Dynamic Document Approval (SAP B1)
+        - Master Document Types
+      parameters:
+        - name: module
+          in: query
+          required: false
+          schema:
+            type: string
+          example: "Purchasing"
+        - name: is_active
+          in: query
+          required: false
+          schema:
+            type: boolean
+          example: true
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          example: "Purchase"
+        - name: all
+          in: query
+          required: false
+          schema:
+            type: boolean
+          example: true
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+          example: 15
       responses:
         '200':
           description: Berhasil mengambil daftar tipe dokumen
-          content:
-            application/json:
-              example:
-                success: true
-                data:
-                  - id: 1
-                    code: "PO"
-                    name: "Purchase Order"
-                    sap_object_type: 22
-                    module: "Purchasing"
-                    header_source: "OPOR"
-                    line_source: "POR1"
-                    is_active: true
-
-  /v1/document-approval/document-types/{code}:
-    get:
-      summary: Get Document Type Schema & Fields
-      description: Mengambil detail skema field dan alur workflow untuk tipe dokumen tertentu berdasarkan kodenya (misal PO atau PR).
+    post:
+      summary: Create New Document Type (With Upload)
+      description: Membuat tipe dokumen baru dengan dukungan upload icon (gambar) dan template attachment / file SOP panduan (PDF/DOCX/XLSX).
       tags:
-        - Dynamic Document Approval (SAP B1)
+        - Master Document Types
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - code
+                - name
+              properties:
+                code:
+                  type: string
+                  example: "AP_INV"
+                name:
+                  type: string
+                  example: "A/P Invoice"
+                sap_object_type:
+                  type: integer
+                  example: 18
+                module:
+                  type: string
+                  example: "Purchasing"
+                header_source:
+                  type: string
+                  example: "OPCH"
+                line_source:
+                  type: string
+                  example: "PCH1"
+                description:
+                  type: string
+                  example: "Faktur Pembelian Hutang Dagang"
+                is_active:
+                  type: boolean
+                  example: true
+                icon:
+                  type: string
+                  format: binary
+                  description: File icon dokumen (PNG, JPG, SVG - max 2MB)
+                attachment:
+                  type: string
+                  format: binary
+                  description: File template / SOP dokumen (PDF, DOCX, XLSX - max 10MB)
+      responses:
+        '201':
+          description: Document Type berhasil dibuat
+
+  /v1/document-approval/document-types/{idOrCode}:
+    get:
+      summary: Get Document Type Detail (by ID or Code)
+      description: Mengambil detail skema field dan alur workflow untuk tipe dokumen tertentu berdasarkan ID atau Kodenya (misal 1 atau PO).
+      tags:
+        - Master Document Types
       parameters:
-        - name: code
+        - name: idOrCode
           in: path
           required: true
           schema:
@@ -53,6 +121,107 @@ paths:
       responses:
         '200':
           description: Berhasil mengambil detail tipe dokumen
+        '404':
+          description: Tipe dokumen tidak ditemukan
+    put:
+      summary: Update Document Type
+      description: Memperbarui data tipe dokumen (bisa ganti icon dan file template lampiran).
+      tags:
+        - Master Document Types
+      parameters:
+        - name: idOrCode
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Purchase Order Update"
+                module:
+                  type: string
+                  example: "Purchasing"
+                description:
+                  type: string
+                icon:
+                  type: string
+                  format: binary
+                attachment:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Document Type berhasil diperbarui
+    delete:
+      summary: Delete Document Type
+      description: Menghapus tipe dokumen (akan ditolak jika tipe dokumen sudah memiliki transaksi approval).
+      tags:
+        - Master Document Types
+      parameters:
+        - name: idOrCode
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: Document Type berhasil dihapus
+        '422':
+          description: Gagal dihapus karena memiliki transaksi approval
+
+  /v1/document-approval/document-types/{id}/toggle-status:
+    patch:
+      summary: Toggle Document Type Active Status
+      description: Mengaktifkan atau menonaktifkan status dokumen.
+      tags:
+        - Master Document Types
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: Status berhasil diubah
+
+  /v1/document-approval/document-types/{id}/attachment:
+    post:
+      summary: Upload Document Type Attachment / Template SOP
+      description: Endpoint khusus untuk upload / update file lampiran template atau SOP (PDF, DOCX, XLSX, max 15MB).
+      tags:
+        - Master Document Types
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - attachment
+              properties:
+                attachment:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: File lampiran berhasil diupload
 
   /v1/document-approval/approvals:
     get:

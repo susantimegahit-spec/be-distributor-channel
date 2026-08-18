@@ -22,6 +22,9 @@ class DocumentType extends Model
         'line_source',
         'adapter_class',
         'description',
+        'icon_path',
+        'attachment_path',
+        'attachment_name',
         'is_active',
     ];
 
@@ -29,6 +32,27 @@ class DocumentType extends Model
         'sap_object_type' => 'integer',
         'is_active' => 'boolean',
     ];
+
+    protected $appends = [
+        'icon_url',
+        'attachment_url',
+    ];
+
+    public function getIconUrlAttribute(): ?string
+    {
+        if ($this->icon_path) {
+            return asset('storage/' . $this->icon_path);
+        }
+        return null;
+    }
+
+    public function getAttachmentUrlAttribute(): ?string
+    {
+        if ($this->attachment_path) {
+            return asset('storage/' . $this->attachment_path);
+        }
+        return null;
+    }
 
     public function schemas(): HasMany
     {

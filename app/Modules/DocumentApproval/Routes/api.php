@@ -5,11 +5,21 @@ use App\Modules\DocumentApproval\Controllers\DocumentTypeController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/document-approval')->group(function () {
-    // Master Document Types & Schemas
+    // -------------------------------------------------------------
+    // Master Document Types CRUD & Upload Endpoints
+    // -------------------------------------------------------------
     Route::get('/document-types', [DocumentTypeController::class, 'index']);
-    Route::get('/document-types/{code}', [DocumentTypeController::class, 'show']);
+    Route::post('/document-types', [DocumentTypeController::class, 'store']);
+    Route::get('/document-types/{idOrCode}', [DocumentTypeController::class, 'show']);
+    Route::put('/document-types/{id}', [DocumentTypeController::class, 'update']);
+    Route::post('/document-types/{id}', [DocumentTypeController::class, 'update']); // for multipart/form-data support
+    Route::delete('/document-types/{id}', [DocumentTypeController::class, 'destroy']);
+    Route::patch('/document-types/{id}/toggle-status', [DocumentTypeController::class, 'toggleStatus']);
+    Route::post('/document-types/{id}/attachment', [DocumentTypeController::class, 'uploadAttachment']);
 
+    // -------------------------------------------------------------
     // Approvals Management
+    // -------------------------------------------------------------
     Route::get('/approvals', [DocumentApprovalController::class, 'index']);
     Route::get('/approvals/{id}', [DocumentApprovalController::class, 'show']);
     Route::post('/approvals/{id}/approve', [DocumentApprovalController::class, 'approve']);
