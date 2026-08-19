@@ -2748,6 +2748,131 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /v1/users/{id}/custom-permissions:
+    get:
+      summary: Get User Custom Permissions & Effective Matrix
+      description: Mengambil data permission override khusus user beserta matrix izin efektifnya.
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 14
+      responses:
+        '200':
+          description: Custom permissions user berhasil diambil
+          content:
+            application/json:
+              example:
+                success: true
+                message: Custom permissions user berhasil diambil.
+                data:
+                  user_id: 14
+                  name: "Ani Sales"
+                  role_id: 3
+                  role_name: "Staff Sales"
+                  has_custom_override: true
+                  custom_permissions:
+                    - menu_key: "sales-order"
+                      actions:
+                        create: false
+                        read: true
+                        update: false
+                        delete: false
+                        approve: false
+                        export: true
+                  effective_permissions:
+                    - menu_key: "sales-order"
+                      actions:
+                        create: false
+                        read: true
+                        update: false
+                        delete: false
+                        approve: false
+                        export: true
+
+    put:
+      summary: Update User Custom Permissions Override
+      description: Meng-override izin aksi CRUD khusus user ini (menimpa default dari Role).
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 14
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - custom_permissions
+              properties:
+                custom_permissions:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - menu_key
+                      - actions
+                    properties:
+                      menu_key:
+                        type: string
+                        example: "sales-order"
+                      actions:
+                        type: object
+                        properties:
+                          create:
+                            type: boolean
+                            example: false
+                          read:
+                            type: boolean
+                            example: true
+                          update:
+                            type: boolean
+                            example: false
+                          delete:
+                            type: boolean
+                            example: false
+                          approve:
+                            type: boolean
+                            example: false
+                          export:
+                            type: boolean
+                            example: true
+      responses:
+        '200':
+          description: Custom permissions user berhasil diperbarui
+
+    delete:
+      summary: Reset User Custom Permissions Override
+      description: Menghapus custom permissions override pada user (mengembalikan user 100% mengikuti aturan default Role).
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 14
+      responses:
+        '200':
+          description: Custom permissions user berhasil di-reset ke default role
+
   /v1/discounts/sap:
     post:
       summary: Send UDO Discount to SAP
@@ -11525,34 +11650,52 @@ components:
                   items:
                     type: string
                   example: ["distributor", "ekspedisi"]
+                has_custom_override:
+                  type: boolean
+                  example: true
+                custom_permissions:
+                  type: array
+                  items:
+                    type: object
+                  example:
+                    - menu_key: "sales-order"
+                      actions:
+                        create: false
+                        read: true
+                        update: false
+                        delete: false
+                        approve: false
+                        export: true
             menu:
               type: array
               items:
                 type: object
               example:
-                - id: "charts-maps"
-                  title: "Charts-maps"
-                  type: "group"
-                  children:
-                    - id: "charts"
-                      title: "Charts"
-                      type: "collapse"
-                      icon: "ph ph-chart-donut"
-                      selected: true
-                      children:
-                        - id: "apex-chart"
-                          title: "Apex chart"
-                          type: "item"
-                          url: "/charts/apex-chart"
-                    - id: "map"
-                      title: "Map"
-                      type: "collapse"
-                      icon: "ph ph-map-trifold"
-                      children:
-                        - id: "google-map"
-                          title: "Google map"
-                          type: "item"
-                          url: "/map/google-map"
+                - id: "customer-portal.order"
+                  title: "Order"
+            permissions:
+              type: array
+              items:
+                type: object
+              example:
+                - menu_key: "sales-order"
+                  actions:
+                    create: false
+                    read: true
+                    update: false
+                    delete: false
+                    approve: false
+                    export: true
+            permissions_map:
+              type: object
+              example:
+                sales-order:
+                  create: false
+                  read: true
+                  update: false
+                  delete: false
+                  approve: false
+                  export: true
             access_token:
               type: string
               example: 1|laravel_sanctum_token_string_here
