@@ -37,6 +37,18 @@ class CreateUserRequest extends FormRequest
             }
         }
         
+        foreach (['actions', 'custom_permissions', 'permissions'] as $permField) {
+            if ($this->has($permField)) {
+                $val = $this->input($permField);
+                if (is_string($val)) {
+                    $decoded = json_decode($val, true);
+                    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                        $updates[$permField] = $decoded;
+                    }
+                }
+            }
+        }
+        
         if (!empty($updates)) {
             $this->merge($updates);
         }
@@ -98,9 +110,9 @@ class CreateUserRequest extends FormRequest
             'stage' => 'sometimes|nullable|string|max:100',
             'accessible_systems' => 'nullable|array',
             'accessible_systems.*' => 'string',
-            'actions' => 'nullable|array',
-            'custom_permissions' => 'nullable|array',
-            'permissions' => 'nullable|array',
+            'actions' => 'nullable',
+            'custom_permissions' => 'nullable',
+            'permissions' => 'nullable',
         ];
     }
 }

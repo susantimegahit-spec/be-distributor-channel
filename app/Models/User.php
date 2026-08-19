@@ -54,6 +54,8 @@ class User extends Authenticatable
      */
     protected $appends = [
         'accessible_systems',
+        'actions',
+        'has_custom_override',
     ];
 
     /**
@@ -163,7 +165,16 @@ class User extends Authenticatable
     public function getNormalizedCustomPermissionsAttribute(): array
     {
         $raw = $this->custom_permissions;
-        if (empty($raw) || !is_array($raw)) {
+        if (empty($raw)) {
+            return [];
+        }
+
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : [];
+        }
+
+        if (!is_array($raw)) {
             return [];
         }
 
@@ -298,9 +309,26 @@ class User extends Authenticatable
             'role_id' => $this->role_id,
             'role_name' => $this->role?->name,
             'has_custom_override' => !empty($customPerms),
+            'actions' => $this->custom_permissions_list,
             'custom_permissions' => $this->custom_permissions_list,
             'permissions' => $effectiveMap,
             'permissions_list' => $effectiveList,
         ];
+    }
+
+    /**
+     * Get actions accessor as alias for custom_permissions_list.
+     */
+    public function getActionsAttribute(): array
+    {
+        return $this->custom_permissions_list;
+    }
+
+    /**
+     * Get has_custom_override accessor.
+     */
+    public function getHasCustomOverrideAttribute(): bool
+    {
+        return !empty($this->normalized_custom_permissions);
     }
 }

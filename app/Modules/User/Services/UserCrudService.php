@@ -54,6 +54,15 @@ class UserCrudService
             return null;
         }
 
+        if (is_string($input)) {
+            $decoded = json_decode($input, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $input = $decoded;
+            } else {
+                return null;
+            }
+        }
+
         if (!is_array($input)) {
             return null;
         }
