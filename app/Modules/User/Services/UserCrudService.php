@@ -69,33 +69,67 @@ class UserCrudService
 
         $formatted = [];
         foreach ($input as $key => $val) {
+            $menuId = null;
+            $menuKey = null;
+            $actInput = [];
+
             if (is_string($key) && is_array($val)) {
-                $formatted[] = [
-                    'menu_key' => $key,
-                    'actions'  => [
-                        'create'  => (bool) ($val['create'] ?? false),
-                        'read'    => (bool) ($val['read'] ?? true),
-                        'update'  => (bool) ($val['update'] ?? false),
-                        'delete'  => (bool) ($val['delete'] ?? false),
-                        'approve' => (bool) ($val['approve'] ?? false),
-                        'export'  => (bool) ($val['export'] ?? false),
-                    ],
-                ];
-            } elseif (is_array($val) && (isset($val['menu_key']) || isset($val['id']))) {
-                $mKey = $val['menu_key'] ?? $val['id'];
-                $act = $val['actions'] ?? [];
-                $formatted[] = [
-                    'menu_key' => $mKey,
-                    'actions'  => [
-                        'create'  => (bool) ($act['create'] ?? false),
-                        'read'    => (bool) ($act['read'] ?? true),
-                        'update'  => (bool) ($act['update'] ?? false),
-                        'delete'  => (bool) ($act['delete'] ?? false),
-                        'approve' => (bool) ($act['approve'] ?? false),
-                        'export'  => (bool) ($act['export'] ?? false),
-                    ],
-                ];
+                $menuKey = $key;
+                $actInput = $val;
+            } elseif (is_array($val)) {
+                $menuId = $val['menu_id'] ?? $val['id'] ?? null;
+                $menuKey = $val['menu_key'] ?? $val['key'] ?? (string) ($menuId ?? '');
+                $actInput = $val['actions'] ?? [];
             }
+
+            if (empty($menuKey) && empty($menuId)) {
+                continue;
+            }
+
+            $create = false;
+            $read = false;
+            $update = false;
+            $delete = false;
+            $approve = false;
+            $export = false;
+
+            // Case A: FE sends array of action strings, e.g. ["view", "add", "edit", "delete", "approve", "download", "upload"]
+            if (is_array($actInput) && isset($actInput[0]) && is_string($actInput[0])) {
+                $lowered = array_map('strtolower', $actInput);
+                $create  = in_array('add', $lowered) || in_array('create', $lowered);
+                $read    = in_array('view', $lowered) || in_array('read', $lowered) || in_array('show', $lowered);
+                $update  = in_array('edit', $lowered) || in_array('update', $lowered);
+                $delete  = in_array('delete', $lowered) || in_array('destroy', $lowered);
+                $approve = in_array('approve', $lowered) || in_array('approval', $lowered);
+                $export  = in_array('download', $lowered) || in_array('upload', $lowered) || in_array('export', $lowered);
+            }
+            // Case B: FE sends object map, e.g. {"create": true, "read": true, ...} or {"view": true, "add": true, ...}
+            elseif (is_array($actInput)) {
+                $create  = (bool) ($actInput['create'] ?? $actInput['add'] ?? false);
+                $read    = (bool) ($actInput['read'] ?? $actInput['view'] ?? true);
+                $update  = (bool) ($actInput['update'] ?? $actInput['edit'] ?? false);
+                $delete  = (bool) ($actInput['delete'] ?? false);
+                $approve = (bool) ($actInput['approve'] ?? false);
+                $export  = (bool) ($actInput['export'] ?? $actInput['download'] ?? $actInput['upload'] ?? false);
+            }
+
+            $itemFormatted = [
+                'menu_key' => (string) ($menuKey ?: $menuId),
+                'actions'  => [
+                    'create'  => $create,
+                    'read'    => $read,
+                    'update'  => $update,
+                    'delete'  => $delete,
+                    'approve' => $approve,
+                    'export'  => $export,
+                ],
+            ];
+
+            if ($menuId !== null) {
+                $itemFormatted['menu_id'] = is_numeric($menuId) ? (int) $menuId : $menuId;
+            }
+
+            $formatted[] = $itemFormatted;
         }
 
         return $formatted;
@@ -109,16 +143,21 @@ class UserCrudService
      */
     public function createUser(array $data): User
     {
-        $data['password'] = Hash::make($data['password']);
+        if (isset($data['password']) && !empty($data['password'])) {
+            $data['password'] = Hash::make($data['password']);
+        } else {
+            $data['password'] = Hash::make('password123');
+        }
+
         $accessibleSystems = $data['accessible_systems'] ?? null;
-        unset($data['accessible_systems']);
+        unset($data['accessible_systems'], $data['id_distributor']);
 
         // Handle actions, custom_permissions or permissions alias
         if (isset($data['actions']) || isset($data['custom_permissions']) || isset($data['permissions'])) {
             $rawPerms = $data['actions'] ?? $data['custom_permissions'] ?? $data['permissions'];
             $data['custom_permissions'] = $this->normalizeCustomPermissions($rawPerms);
-            unset($data['actions'], $data['permissions']);
         }
+        unset($data['actions'], $data['permissions']);
 
         $isProductionUser = !empty($data['whs_code']) || 
                             !empty($data['ocr_code']) || 
@@ -156,14 +195,14 @@ class UserCrudService
         }
 
         $accessibleSystems = $data['accessible_systems'] ?? null;
-        unset($data['accessible_systems']);
+        unset($data['accessible_systems'], $data['id_distributor']);
 
         // Handle actions, custom_permissions or permissions alias
         if (array_key_exists('actions', $data) || array_key_exists('custom_permissions', $data) || array_key_exists('permissions', $data)) {
             $rawPerms = $data['actions'] ?? $data['custom_permissions'] ?? $data['permissions'] ?? null;
             $data['custom_permissions'] = $this->normalizeCustomPermissions($rawPerms);
-            unset($data['actions'], $data['permissions']);
         }
+        unset($data['actions'], $data['permissions']);
 
         $isProductionUser = !empty($data['whs_code']) || 
                             !empty($data['ocr_code']) || 

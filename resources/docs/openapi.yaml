@@ -11888,6 +11888,45 @@ components:
           items:
             type: string
           example: ["distributor", "ekspedisi"]
+        has_custom_override:
+          type: boolean
+          example: true
+        actions:
+          type: array
+          items:
+            type: object
+          example:
+            - menu_key: "sales-order"
+              actions:
+                create: false
+                read: true
+                update: false
+                delete: false
+                approve: false
+                export: true
+        permissions:
+          type: array
+          items:
+            type: object
+          example:
+            - menu_key: "sales-order"
+              actions:
+                create: false
+                read: true
+                update: false
+                delete: false
+                approve: false
+                export: true
+        permissions_map:
+          type: object
+          example:
+            sales-order:
+              create: false
+              read: true
+              update: false
+              delete: false
+              approve: false
+              export: true
         created_at:
           type: string
           format: date-time

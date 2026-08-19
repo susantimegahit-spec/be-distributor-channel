@@ -55,7 +55,6 @@ class User extends Authenticatable
     protected $appends = [
         'accessible_systems',
         'actions',
-        'has_custom_override',
     ];
 
     /**
@@ -180,26 +179,59 @@ class User extends Authenticatable
 
         $result = [];
         foreach ($raw as $key => $val) {
+            $menuId = null;
+            $menuKey = null;
+            $actInput = [];
+
             if (is_string($key) && is_array($val)) {
-                $result[$key] = [
-                    'create'  => (bool) ($val['create'] ?? false),
-                    'read'    => (bool) ($val['read'] ?? true),
-                    'update'  => (bool) ($val['update'] ?? false),
-                    'delete'  => (bool) ($val['delete'] ?? false),
-                    'approve' => (bool) ($val['approve'] ?? false),
-                    'export'  => (bool) ($val['export'] ?? false),
-                ];
-            } elseif (is_array($val) && (isset($val['menu_key']) || isset($val['id']))) {
-                $mKey = $val['menu_key'] ?? $val['id'];
-                $act = $val['actions'] ?? [];
-                $result[$mKey] = [
-                    'create'  => (bool) ($act['create'] ?? false),
-                    'read'    => (bool) ($act['read'] ?? true),
-                    'update'  => (bool) ($act['update'] ?? false),
-                    'delete'  => (bool) ($act['delete'] ?? false),
-                    'approve' => (bool) ($act['approve'] ?? false),
-                    'export'  => (bool) ($act['export'] ?? false),
-                ];
+                $menuKey = $key;
+                $actInput = $val;
+            } elseif (is_array($val)) {
+                $menuId = $val['menu_id'] ?? $val['id'] ?? null;
+                $menuKey = $val['menu_key'] ?? $val['key'] ?? (string) ($menuId ?? '');
+                $actInput = $val['actions'] ?? [];
+            }
+
+            if (empty($menuKey) && empty($menuId)) {
+                continue;
+            }
+
+            $create = false;
+            $read = false;
+            $update = false;
+            $delete = false;
+            $approve = false;
+            $export = false;
+
+            if (is_array($actInput) && isset($actInput[0]) && is_string($actInput[0])) {
+                $lowered = array_map('strtolower', $actInput);
+                $create  = in_array('add', $lowered) || in_array('create', $lowered);
+                $read    = in_array('view', $lowered) || in_array('read', $lowered) || in_array('show', $lowered);
+                $update  = in_array('edit', $lowered) || in_array('update', $lowered);
+                $delete  = in_array('delete', $lowered) || in_array('destroy', $lowered);
+                $approve = in_array('approve', $lowered) || in_array('approval', $lowered);
+                $export  = in_array('download', $lowered) || in_array('upload', $lowered) || in_array('export', $lowered);
+            } elseif (is_array($actInput)) {
+                $create  = (bool) ($actInput['create'] ?? $actInput['add'] ?? false);
+                $read    = (bool) ($actInput['read'] ?? $actInput['view'] ?? true);
+                $update  = (bool) ($actInput['update'] ?? $actInput['edit'] ?? false);
+                $delete  = (bool) ($actInput['delete'] ?? false);
+                $approve = (bool) ($actInput['approve'] ?? false);
+                $export  = (bool) ($actInput['export'] ?? $actInput['download'] ?? $actInput['upload'] ?? false);
+            }
+
+            $mKey = (string) ($menuKey ?: $menuId);
+            $result[$mKey] = [
+                'create'  => $create,
+                'read'    => $read,
+                'update'  => $update,
+                'delete'  => $delete,
+                'approve' => $approve,
+                'export'  => $export,
+            ];
+
+            if ($menuId !== null) {
+                $result[(string)$menuId] = $result[$mKey];
             }
         }
 
@@ -211,21 +243,80 @@ class User extends Authenticatable
      */
     public function getCustomPermissionsListAttribute(): array
     {
-        $map = $this->normalized_custom_permissions;
-        $list = [];
+        $raw = $this->custom_permissions;
+        if (empty($raw)) {
+            return [];
+        }
 
-        foreach ($map as $menuKey => $actions) {
-            $list[] = [
-                'menu_key' => $menuKey,
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : [];
+        }
+
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $list = [];
+        foreach ($raw as $key => $val) {
+            $menuId = null;
+            $menuKey = null;
+            $actInput = [];
+
+            if (is_string($key) && is_array($val)) {
+                $menuKey = $key;
+                $actInput = $val;
+            } elseif (is_array($val)) {
+                $menuId = $val['menu_id'] ?? $val['id'] ?? null;
+                $menuKey = $val['menu_key'] ?? $val['key'] ?? (string) ($menuId ?? '');
+                $actInput = $val['actions'] ?? [];
+            }
+
+            if (empty($menuKey) && empty($menuId)) {
+                continue;
+            }
+
+            $create = false;
+            $read = false;
+            $update = false;
+            $delete = false;
+            $approve = false;
+            $export = false;
+
+            if (is_array($actInput) && isset($actInput[0]) && is_string($actInput[0])) {
+                $lowered = array_map('strtolower', $actInput);
+                $create  = in_array('add', $lowered) || in_array('create', $lowered);
+                $read    = in_array('view', $lowered) || in_array('read', $lowered) || in_array('show', $lowered);
+                $update  = in_array('edit', $lowered) || in_array('update', $lowered);
+                $delete  = in_array('delete', $lowered) || in_array('destroy', $lowered);
+                $approve = in_array('approve', $lowered) || in_array('approval', $lowered);
+                $export  = in_array('download', $lowered) || in_array('upload', $lowered) || in_array('export', $lowered);
+            } elseif (is_array($actInput)) {
+                $create  = (bool) ($actInput['create'] ?? $actInput['add'] ?? false);
+                $read    = (bool) ($actInput['read'] ?? $actInput['view'] ?? true);
+                $update  = (bool) ($actInput['update'] ?? $actInput['edit'] ?? false);
+                $delete  = (bool) ($actInput['delete'] ?? false);
+                $approve = (bool) ($actInput['approve'] ?? false);
+                $export  = (bool) ($actInput['export'] ?? $actInput['download'] ?? $actInput['upload'] ?? false);
+            }
+
+            $item = [
+                'menu_key' => (string) ($menuKey ?: $menuId),
                 'actions'  => [
-                    'create'  => (bool) ($actions['create'] ?? false),
-                    'read'    => (bool) ($actions['read'] ?? true),
-                    'update'  => (bool) ($actions['update'] ?? false),
-                    'delete'  => (bool) ($actions['delete'] ?? false),
-                    'approve' => (bool) ($actions['approve'] ?? false),
-                    'export'  => (bool) ($actions['export'] ?? false),
+                    'create'  => $create,
+                    'read'    => $read,
+                    'update'  => $update,
+                    'delete'  => $delete,
+                    'approve' => $approve,
+                    'export'  => $export,
                 ],
             ];
+
+            if ($menuId !== null) {
+                $item['menu_id'] = is_numeric($menuId) ? (int)$menuId : $menuId;
+            }
+
+            $list[] = $item;
         }
 
         return $list;

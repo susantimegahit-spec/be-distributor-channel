@@ -14,7 +14,9 @@ return new class extends Migration
         if (Schema::hasTable('users')) {
             Schema::table('users', function (Blueprint $table) {
                 if (!Schema::hasColumn('users', 'custom_permissions')) {
-                    $table->longText('custom_permissions')->nullable()->after('stage')->comment('Custom User-Level Permission Overrides (JSON)');
+                    $table->longText('custom_permissions')->nullable()->after('stage')->comment('Custom User-Level Permission Overrides (JSON String / LongText)');
+                } else {
+                    $table->longText('custom_permissions')->nullable()->change();
                 }
             });
         }

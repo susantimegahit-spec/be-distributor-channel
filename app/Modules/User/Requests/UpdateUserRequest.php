@@ -37,6 +37,16 @@ class UpdateUserRequest extends FormRequest
             }
         }
         
+        $stringFields = ['code_customer', 'id_distributor', 'expedition_code', 'originator', 'stage'];
+        foreach ($stringFields as $field) {
+            if ($this->has($field)) {
+                $val = $this->input($field);
+                if (is_string($val) && trim($val) === '') {
+                    $updates[$field] = null;
+                }
+            }
+        }
+
         foreach (['actions', 'custom_permissions', 'permissions'] as $permField) {
             if ($this->has($permField)) {
                 $val = $this->input($permField);
@@ -67,12 +77,14 @@ class UpdateUserRequest extends FormRequest
             'name' => 'sometimes|string|max:255',
             'username' => 'sometimes|string|unique:users,username,' . $userId,
             'email' => 'sometimes|email|unique:users,email,' . $userId,
-            'password' => 'sometimes|string|min:6',
+            'password' => 'sometimes|nullable|string|min:4',
             'role_id' => 'sometimes|integer|exists:roles,id',
+            'id_distributor' => 'nullable',
             'code_customer' => [
                 'nullable',
                 'string',
                 function ($attribute, $value, $fail) {
+                    if (empty($value)) return;
                     $codes = array_map('trim', explode(',', $value));
                     foreach ($codes as $code) {
                         if (empty($code)) continue;

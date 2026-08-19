@@ -52,14 +52,8 @@ class UserController extends Controller
         }
 
         $user->load(['role.roleMenu', 'distributor', 'expedition']);
-        $permsMap = $user->getPermissionsMap();
-        $userData = $user->toArray();
-        $userData['actions'] = $user->custom_permissions_list;
-        $userData['has_custom_override'] = $permsMap['has_custom_override'];
-        $userData['permissions'] = $permsMap['permissions_list'];
-        $userData['permissions_map'] = $permsMap['permissions'];
 
-        return $this->successResponse($userData, 'Detail user berhasil diambil.');
+        return $this->successResponse($user, 'Detail user berhasil diambil.');
     }
 
     /**
@@ -70,16 +64,11 @@ class UserController extends Controller
      */
     public function store(CreateUserRequest $request): JsonResponse
     {
-        $user = $this->userService->createUser($request->validated());
+        $payload = array_merge($request->all(), $request->validated());
+        $user = $this->userService->createUser($payload);
         $user->load(['role.roleMenu', 'distributor', 'expedition']);
-        $permsMap = $user->getPermissionsMap();
-        $userData = $user->toArray();
-        $userData['actions'] = $user->custom_permissions_list;
-        $userData['has_custom_override'] = $permsMap['has_custom_override'];
-        $userData['permissions'] = $permsMap['permissions_list'];
-        $userData['permissions_map'] = $permsMap['permissions'];
 
-        return $this->successResponse($userData, 'User berhasil dibuat.', 200);
+        return $this->successResponse($user, 'User berhasil dibuat.', 200);
     }
 
     /**
@@ -91,21 +80,16 @@ class UserController extends Controller
      */
     public function update(UpdateUserRequest $request, int $id): JsonResponse
     {
-        $user = $this->userService->updateUser($id, $request->validated());
+        $payload = array_merge($request->all(), $request->validated());
+        $user = $this->userService->updateUser($id, $payload);
 
         if (!$user) {
             abort(404, 'User tidak ditemukan.');
         }
 
         $user->load(['role.roleMenu', 'distributor', 'expedition']);
-        $permsMap = $user->getPermissionsMap();
-        $userData = $user->toArray();
-        $userData['actions'] = $user->custom_permissions_list;
-        $userData['has_custom_override'] = $permsMap['has_custom_override'];
-        $userData['permissions'] = $permsMap['permissions_list'];
-        $userData['permissions_map'] = $permsMap['permissions'];
 
-        return $this->successResponse($userData, 'User berhasil diperbarui.');
+        return $this->successResponse($user, 'User berhasil diperbarui.');
     }
 
     /**

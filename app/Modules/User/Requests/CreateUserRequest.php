@@ -37,6 +37,20 @@ class CreateUserRequest extends FormRequest
             }
         }
         
+        $stringFields = ['code_customer', 'id_distributor', 'expedition_code', 'originator', 'stage'];
+        foreach ($stringFields as $field) {
+            if ($this->has($field)) {
+                $val = $this->input($field);
+                if (is_string($val) && trim($val) === '') {
+                    $updates[$field] = null;
+                }
+            }
+        }
+
+        if (!$this->has('password') || empty($this->input('password'))) {
+            $updates['password'] = 'password123';
+        }
+
         foreach (['actions', 'custom_permissions', 'permissions'] as $permField) {
             if ($this->has($permField)) {
                 $val = $this->input($permField);
@@ -65,12 +79,14 @@ class CreateUserRequest extends FormRequest
             'name' => 'required|string|max:255',
             'username' => 'required|string|unique:users,username',
             'email' => 'required|email|unique:users,email',
-            'password' => 'required|string|min:6',
+            'password' => 'sometimes|nullable|string|min:4',
             'role_id' => 'required|integer|exists:roles,id',
+            'id_distributor' => 'nullable',
             'code_customer' => [
                 'nullable',
                 'string',
                 function ($attribute, $value, $fail) {
+                    if (empty($value)) return;
                     $codes = array_map('trim', explode(',', $value));
                     foreach ($codes as $code) {
                         if (empty($code)) continue;
