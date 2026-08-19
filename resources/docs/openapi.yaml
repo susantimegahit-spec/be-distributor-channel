@@ -11680,6 +11680,19 @@ components:
                 has_custom_override:
                   type: boolean
                   example: true
+                actions:
+                  type: array
+                  items:
+                    type: object
+                  example:
+                    - menu_key: "sales-order"
+                      actions:
+                        create: false
+                        read: true
+                        update: false
+                        delete: false
+                        approve: false
+                        export: true
                 custom_permissions:
                   type: array
                   items:
@@ -11700,6 +11713,19 @@ components:
               example:
                 - id: "customer-portal.order"
                   title: "Order"
+            actions:
+              type: array
+              items:
+                type: object
+              example:
+                - menu_key: "sales-order"
+                  actions:
+                    create: false
+                    read: true
+                    update: false
+                    delete: false
+                    approve: false
+                    export: true
             permissions:
               type: array
               items:
