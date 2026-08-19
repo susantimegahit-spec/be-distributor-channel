@@ -43,6 +43,7 @@ CREATE TABLE reporting_tasks (
     task_id VARCHAR(100) NOT NULL,
     task_name VARCHAR(255) NULL,
 
+    space_id VARCHAR(100) NULL,
     space_name VARCHAR(255) NULL,
     folder_name VARCHAR(255) NULL,
     list_name VARCHAR(255) NULL,
@@ -77,6 +78,7 @@ CREATE TABLE reporting_tasks (
 | `id` | `BIGINT` (PK) | Auto increment identifier lokal |
 | `task_id` | `VARCHAR(100)` (Unique) | ID Task dari ClickUp (contoh: `8678abc123`) |
 | `task_name` | `VARCHAR(255)` | Judul / nama task di ClickUp |
+| `space_id` | `VARCHAR(100)` | ID Space di ClickUp (contoh: `901201928`) |
 | `space_name` | `VARCHAR(255)` | Nama Space di ClickUp (contoh: `Engineering`) |
 | `folder_name` | `VARCHAR(255)` | Nama Folder di ClickUp (contoh: `Backend Services`) |
 | `list_name` | `VARCHAR(255)` | Nama List di ClickUp (contoh: `Sprint 3 Backlog`) |
@@ -117,6 +119,7 @@ Menerima data task tunggal atau kumpulan task (*batch array*) dari n8n untuk dis
 {
   "task_id": "8678abc123",
   "task_name": "Develop Production Module & SAP Integration",
+  "space_id": "901201928",
   "space_name": "Engineering",
   "folder_name": "Backend Services",
   "list_name": "Sprint 3 Backlog",
@@ -139,6 +142,7 @@ Menerima data task tunggal atau kumpulan task (*batch array*) dari n8n untuk dis
     {
       "task_id": "8678abc123",
       "task_name": "Develop Production Module & SAP Integration",
+      "space_id": "901201928",
       "space_name": "Engineering",
       "folder_name": "Backend Services",
       "list_name": "Sprint 3 Backlog",
@@ -155,6 +159,7 @@ Menerima data task tunggal atau kumpulan task (*batch array*) dari n8n untuk dis
     {
       "task_id": "8678abc124",
       "task_name": "Fix RBAC Permission Matrix Bug",
+      "space_id": "901201928",
       "space_name": "Engineering",
       "folder_name": "Backend Services",
       "list_name": "Sprint 3 Backlog",
