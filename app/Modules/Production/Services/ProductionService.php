@@ -619,35 +619,75 @@ class ProductionService
             'ToWhsCode' => $toWhsCode,
         ];
 
-        $response = Http::timeout(30)->post("{$sapUrl}/api/getListPDO", $payload);
+        $items = [];
 
-        if (!$response->successful()) {
-            throw new \Exception('Gagal menghubungi API SAP getListPDO. HTTP Status: ' . $response->status());
+        try {
+            $response = Http::timeout(30)->post("{$sapUrl}/api/getListPDO", $payload);
+
+            if ($response->successful()) {
+                $body = $response->json();
+                if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
+                    $rawItems = $body['Result'] ?? [];
+                    if (is_array($rawItems)) {
+                        $items = array_values(array_filter($rawItems, function ($item) {
+                            if (!is_array($item)) return false;
+                            $docEntry = (string) ($item['DocEntry'] ?? '');
+                            $docNum = (string) ($item['DocNum'] ?? '');
+                            return !in_array($docEntry, ['0', '']) && !in_array($docNum, ['0', '']);
+                        }));
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            // Fallback: proceed to merge local orders
         }
 
-        $body = $response->json();
+        // Fetch and merge local PLANNED production orders (not yet synced to SAP)
+        try {
+            $localPlannedQuery = \App\Models\ProductionOrder::query()
+                ->with(['parentItem', 'details'])
+                ->where(function ($q) {
+                    $q->where('status', 'PLANNED')
+                      ->orWhereNull('doc_entry')
+                      ->orWhere('sap_status', '!=', 'SYNCED');
+                });
 
-        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
-            throw new \Exception('API SAP getListPDO error: ' . ($body['Message'] ?? 'Unknown SAP error'));
-        }
+            if (!empty($whsCode)) {
+                $localPlannedQuery->where('warehouse', $whsCode);
+            }
 
-        $items = $body['Result'] ?? [];
-        if (is_array($items)) {
-            $items = array_values(array_filter($items, function ($item) {
-                if (!is_array($item)) return false;
-                $docEntry = (string) ($item['DocEntry'] ?? '');
-                $docNum = (string) ($item['DocNum'] ?? '');
-                return !in_array($docEntry, ['0', '']) && !in_array($docNum, ['0', '']);
-            }));
-        } else {
-            $items = [];
+            $localOrders = $localPlannedQuery->orderBy('id', 'desc')->get();
+            $localItems = [];
+            foreach ($localOrders as $lOrder) {
+                $localItems[] = [
+                    'id'          => $lOrder->id,
+                    'DocEntry'    => (string) ($lOrder->doc_entry ?: $lOrder->id),
+                    'DocNum'      => (string) ($lOrder->doc_num ?: $lOrder->prod_order_no),
+                    'ItemCode'    => (string) $lOrder->item_code,
+                    'ProdName'    => (string) ($lOrder->parentItem?->item_name ?? $lOrder->item_code),
+                    'Status'      => (string) $lOrder->status,
+                    'Type'        => (string) $lOrder->type,
+                    'PlannedQty'  => floatval($lOrder->planned_qty),
+                    'CmpltQty'    => floatval($lOrder->cmplt_qty),
+                    'RjctQty'     => floatval($lOrder->rjct_qty),
+                    'PostDate'    => $lOrder->post_date ? date('Y-m-d\TH:i:s', strtotime($lOrder->post_date)) : null,
+                    'DueDate'     => $lOrder->due_date ? date('Y-m-d\TH:i:s', strtotime($lOrder->due_date)) : null,
+                    'WhsCode'     => (string) $lOrder->warehouse,
+                    'Remarks'     => (string) $lOrder->comments,
+                    'is_local'    => true,
+                ];
+            }
+
+            $items = array_merge($localItems, $items);
+        } catch (\Exception $e) {
+            // Ignore DB error if table not ready
         }
 
         if ($userId) {
             $this->auditLogService->log(
                 $userId,
                 'GET_LIST_PDO_SAP',
-                "Fetched Production Orders list from SAP (From: {$fromFormatted}, To: {$toFormatted})."
+                "Fetched Production Orders list (From: {$fromFormatted}, To: {$toFormatted})."
             );
         }
 
@@ -658,7 +698,7 @@ class ProductionService
     }
 
     /**
-     * Get detail of Production Order (PDO) from SAP API endpoint (/api/getPDObyId).
+     * Get detail of Production Order (PDO) from SAP API endpoint (/api/getPDObyId) or Local DB.
      *
      * @param string|int $customQuery
      * @param int|null $userId
@@ -666,6 +706,78 @@ class ProductionService
      */
     public function getPdoById(string|int $customQuery, ?int $userId = null): array
     {
+        // 1. Check local database first
+        try {
+            $localOrder = \App\Models\ProductionOrder::with([
+                'parentItem',
+                'details.item',
+                'details.resource',
+                'details.warehouseModel',
+                'details.ocr',
+                'details.ocr2',
+                'details.ocr3',
+                'ocr',
+                'ocr2',
+                'ocr3',
+                'warehouseModel'
+            ])->where('id', is_numeric($customQuery) ? (int)$customQuery : 0)
+              ->orWhere('prod_order_no', (string) $customQuery)
+              ->orWhere('doc_entry', is_numeric($customQuery) ? (int)$customQuery : 0)
+              ->orWhere('doc_num', (string) $customQuery)
+              ->first();
+
+            if ($localOrder && ($localOrder->status === 'PLANNED' || empty($localOrder->doc_entry))) {
+                $header = [
+                    'id'          => $localOrder->id,
+                    'DocEntry'    => (string) ($localOrder->doc_entry ?: $localOrder->id),
+                    'DocNum'      => (string) ($localOrder->doc_num ?: $localOrder->prod_order_no),
+                    'Series'      => $localOrder->series ?: 15,
+                    'ItemCode'    => (string) $localOrder->item_code,
+                    'ProdName'    => (string) ($localOrder->parentItem?->item_name ?? $localOrder->item_code),
+                    'Status'      => (string) $localOrder->status,
+                    'Type'        => (string) $localOrder->type,
+                    'PlannedQty'  => floatval($localOrder->planned_qty),
+                    'CmpltQty'    => floatval($localOrder->cmplt_qty),
+                    'RjctQty'     => floatval($localOrder->rjct_qty),
+                    'PostDate'    => $localOrder->post_date ? date('Y-m-d\TH:i:s', strtotime($localOrder->post_date)) : null,
+                    'DueDate'     => $localOrder->due_date ? date('Y-m-d\TH:i:s', strtotime($localOrder->due_date)) : null,
+                    'WhsCode'     => (string) $localOrder->warehouse,
+                    'Remarks'     => (string) $localOrder->comments,
+                    'Shift'       => (string) $localOrder->u_shift,
+                    'Unit'        => (string) $localOrder->u_unit,
+                    'Bomid'       => (string) $localOrder->production_bom_id,
+                    'is_local'    => true,
+                ];
+
+                $items = [];
+                foreach ($localOrder->details as $idx => $line) {
+                    $items[] = [
+                        'LineNum'     => $line->line_num ?? $idx,
+                        'ItemType'    => $line->type === 'Resource' ? 'R' : ($line->type === 'Text' ? 'T' : 'I'),
+                        'ItemCode'    => (string) $line->item_code,
+                        'ItemName'    => (string) ($line->item?->item_name ?? $line->item_code),
+                        'BaseQty'     => floatval($line->base_qty),
+                        'PlannedQty'  => floatval($line->planned_qty),
+                        'IssuedQty'   => floatval($line->issued_qty),
+                        'WhsCode'     => (string) $line->warehouse,
+                        'IssueMethod' => (string) ($line->issue_mthd ?: 'M'),
+                        'OcrCode'     => (string) $line->ocr_code,
+                        'OcrCode2'    => (string) $line->ocr_code2,
+                        'OcrCode3'    => (string) $line->ocr_code3,
+                    ];
+                }
+
+                return [
+                    'header' => $header,
+                    'items'  => $items,
+                    'order'  => $localOrder,
+                ];
+            }
+        } catch (\Exception $e) {
+            // Fallback to SAP query
+        }
+
+        // 2. Query SAP API getPDObyId
         $sapUrl = config('services.sap.url');
 
         $payload = [
