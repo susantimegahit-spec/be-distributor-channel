@@ -2576,6 +2576,19 @@ paths:
                   type: string
                   nullable: true
                   example: "OM"
+                custom_permissions:
+                  type: array
+                  items:
+                    type: object
+                  example:
+                    - menu_key: "sales-order"
+                      actions:
+                        create: false
+                        read: true
+                        update: false
+                        delete: false
+                        approve: false
+                        export: true
       responses:
         '200':
           description: User berhasil dibuat
@@ -2688,6 +2701,19 @@ paths:
                   type: string
                   nullable: true
                   example: "OM"
+                custom_permissions:
+                  type: array
+                  items:
+                    type: object
+                  example:
+                    - menu_key: "sales-order"
+                      actions:
+                        create: false
+                        read: true
+                        update: false
+                        delete: false
+                        approve: false
+                        export: true
       responses:
         '200':
           description: User berhasil diperbarui

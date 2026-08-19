@@ -43,7 +43,57 @@ class UserCrudService
     }
 
     /**
-     * Create a new user.
+     * Normalize custom permissions to guarantee 6 standard action keys.
+     *
+     * @param mixed $input
+     * @return array|null
+     */
+    protected function normalizeCustomPermissions(mixed $input): ?array
+    {
+        if ($input === null) {
+            return null;
+        }
+
+        if (!is_array($input)) {
+            return null;
+        }
+
+        $formatted = [];
+        foreach ($input as $key => $val) {
+            if (is_string($key) && is_array($val)) {
+                $formatted[] = [
+                    'menu_key' => $key,
+                    'actions'  => [
+                        'create'  => (bool) ($val['create'] ?? false),
+                        'read'    => (bool) ($val['read'] ?? true),
+                        'update'  => (bool) ($val['update'] ?? false),
+                        'delete'  => (bool) ($val['delete'] ?? false),
+                        'approve' => (bool) ($val['approve'] ?? false),
+                        'export'  => (bool) ($val['export'] ?? false),
+                    ],
+                ];
+            } elseif (is_array($val) && (isset($val['menu_key']) || isset($val['id']))) {
+                $mKey = $val['menu_key'] ?? $val['id'];
+                $act = $val['actions'] ?? [];
+                $formatted[] = [
+                    'menu_key' => $mKey,
+                    'actions'  => [
+                        'create'  => (bool) ($act['create'] ?? false),
+                        'read'    => (bool) ($act['read'] ?? true),
+                        'update'  => (bool) ($act['update'] ?? false),
+                        'delete'  => (bool) ($act['delete'] ?? false),
+                        'approve' => (bool) ($act['approve'] ?? false),
+                        'export'  => (bool) ($act['export'] ?? false),
+                    ],
+                ];
+            }
+        }
+
+        return $formatted;
+    }
+
+    /**
+     * Create a new user with optional custom permissions.
      *
      * @param array $data
      * @return User
@@ -53,6 +103,13 @@ class UserCrudService
         $data['password'] = Hash::make($data['password']);
         $accessibleSystems = $data['accessible_systems'] ?? null;
         unset($data['accessible_systems']);
+
+        // Handle custom_permissions or permissions alias
+        if (isset($data['custom_permissions']) || isset($data['permissions'])) {
+            $rawPerms = $data['custom_permissions'] ?? $data['permissions'];
+            $data['custom_permissions'] = $this->normalizeCustomPermissions($rawPerms);
+            unset($data['permissions']);
+        }
 
         $isProductionUser = !empty($data['whs_code']) || 
                             !empty($data['ocr_code']) || 
@@ -71,11 +128,11 @@ class UserCrudService
             ]);
         }
 
-        return $user->load(['role', 'distributor', 'expedition']);
+        return $user->load(['role.roleMenu', 'distributor', 'expedition']);
     }
 
     /**
-     * Update an existing user.
+     * Update an existing user with optional custom permissions.
      *
      * @param int $id
      * @param array $data
@@ -91,6 +148,13 @@ class UserCrudService
 
         $accessibleSystems = $data['accessible_systems'] ?? null;
         unset($data['accessible_systems']);
+
+        // Handle custom_permissions or permissions alias
+        if (array_key_exists('custom_permissions', $data) || array_key_exists('permissions', $data)) {
+            $rawPerms = $data['custom_permissions'] ?? $data['permissions'];
+            $data['custom_permissions'] = $this->normalizeCustomPermissions($rawPerms);
+            unset($data['permissions']);
+        }
 
         $isProductionUser = !empty($data['whs_code']) || 
                             !empty($data['ocr_code']) || 
@@ -112,7 +176,7 @@ class UserCrudService
             ]);
         }
 
-        return $user ? $user->load(['role', 'distributor', 'expedition']) : null;
+        return $user ? $user->load(['role.roleMenu', 'distributor', 'expedition']) : null;
     }
 
     /**
