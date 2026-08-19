@@ -262,7 +262,78 @@ class ProductionService
             throw new \Exception('Production Order tidak ditemukan.');
         }
 
+        $oldStatus = strtoupper(trim((string) $order->status));
+        $newStatus = isset($data['status']) ? strtoupper(trim((string) $data['status'])) : $oldStatus;
+
         $updatedOrder = $this->productionRepository->updateOrder($order, $data);
+
+        // If status changed to RELEASED and not yet synced to SAP, push to SAP
+        if ($newStatus === 'RELEASED' && empty($updatedOrder->doc_entry)) {
+            try {
+                $sapUrl = config('services.sap.url');
+                $mapShift = function ($shiftValue) {
+                    $val = trim((string) $shiftValue);
+                    $upper = strtoupper($val);
+                    if ($upper === 'ALL' || $upper === 'X') return 'X';
+                    if ($upper === 'SHIFT 1' || $upper === 'SHIFT1' || $upper === '1' || $upper === 'A') return 'A';
+                    if ($upper === 'SHIFT 2' || $upper === 'SHIFT2' || $upper === '2' || $upper === 'B') return 'B';
+                    if ($upper === 'SHIFT 3' || $upper === 'SHIFT3' || $upper === '3' || $upper === 'C') return 'C';
+                    return $val !== '' ? $val : 'X';
+                };
+
+                $lines = [];
+                foreach ($updatedOrder->details as $item) {
+                    $itemType = 'I';
+                    if ($item->type === 'Resource' || $item->type === '290' || $item->type === 'R') $itemType = 'R';
+                    elseif ($item->type === 'Text' || $item->type === 'T') $itemType = 'T';
+
+                    $lines[] = [
+                        'ItemType'    => $itemType,
+                        'ItemCode'    => (string) $item->item_code,
+                        'BaseQty'     => floatval($item->base_qty),
+                        'WhsCode'     => (string) $item->warehouse,
+                        'IssueMethod' => (string) ($item->issue_mthd ?: 'M'),
+                        'OcrCode'     => (string) $item->ocr_code,
+                        'OcrCode2'    => (string) $item->ocr_code2,
+                        'OcrCode3'    => (string) $item->ocr_code3,
+                    ];
+                }
+
+                $sapPayload = [
+                    'ItemCode'    => (string) $updatedOrder->item_code,
+                    'Series'      => is_numeric($updatedOrder->series) ? (int) $updatedOrder->series : 15,
+                    'PlannedQty'  => floatval($updatedOrder->planned_qty),
+                    'PostingDate' => $updatedOrder->post_date ? date('Y-m-d\TH:i:s', strtotime($updatedOrder->post_date)) : date('Y-m-d\TH:i:s'),
+                    'DueDate'     => $updatedOrder->due_date ? date('Y-m-d\TH:i:s', strtotime($updatedOrder->due_date)) : date('Y-m-d\TH:i:s'),
+                    'WhsCode'     => (string) $updatedOrder->warehouse,
+                    'Remarks'     => (string) $updatedOrder->comments,
+                    'Shift'       => $mapShift($updatedOrder->u_shift),
+                    'Unit'        => (string) $updatedOrder->u_unit,
+                    'Bomid'       => (string) $updatedOrder->production_bom_id,
+                    'UserId'      => (string) ($userId ? (string)$userId : '1'),
+                    'AddonId'     => '2',
+                    'Lines'       => $lines,
+                ];
+
+                $response = Http::timeout(30)->post("{$sapUrl}/api/addpdo", $sapPayload);
+                if ($response->successful()) {
+                    $body = $response->json();
+                    if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
+                        $updatedOrder->update([
+                            'doc_entry'     => $body['DocEntry'] ?? $body['doc_entry'] ?? null,
+                            'doc_num'       => $body['DocNum'] ?? $body['doc_num'] ?? null,
+                            'sap_status'    => 'SYNCED',
+                            'integrated_at' => now(),
+                        ]);
+                    }
+                }
+            } catch (\Exception $ex) {
+                $updatedOrder->update([
+                    'sap_status' => 'FAILED',
+                    'sap_error'  => $ex->getMessage(),
+                ]);
+            }
+        }
 
         if ($userId) {
             $this->auditLogService->log(
@@ -272,7 +343,19 @@ class ProductionService
             );
         }
 
-        return $updatedOrder;
+        return $updatedOrder->fresh([
+            'parentItem',
+            'details.item',
+            'details.resource',
+            'details.warehouseModel',
+            'details.ocr',
+            'details.ocr2',
+            'details.ocr3',
+            'ocr',
+            'ocr2',
+            'ocr3',
+            'warehouseModel'
+        ]);
     }
 
     /**
@@ -300,7 +383,7 @@ class ProductionService
     }
 
     /**
-     * Post/Add Production Order (PDO) to SAP via API endpoint /api/addpdo
+     * Post/Add Production Order (PDO) to SAP via API endpoint /api/addpdo or Save Locally
      *
      * @param array $data
      * @param int|null $userId
@@ -328,104 +411,181 @@ class ProductionService
             return $val !== '' ? $val : 'X';
         };
 
-        // Check if raw SAP payload keys are provided directly
-        if (isset($data['ItemCode']) && isset($data['Lines'])) {
-            $payload = [
-                'ItemCode'    => (string) ($data['ItemCode'] ?? ''),
-                'Series'      => is_numeric($data['Series'] ?? null) ? (int) $data['Series'] : ($data['Series'] ?? 15),
-                'PlannedQty'  => floatval($data['PlannedQty'] ?? 0),
-                'PostingDate' => isset($data['PostingDate']) ? date('Y-m-d\TH:i:s', strtotime($data['PostingDate'])) : date('Y-m-d\TH:i:s'),
-                'DueDate'     => isset($data['DueDate']) ? date('Y-m-d\TH:i:s', strtotime($data['DueDate'])) : date('Y-m-d\TH:i:s'),
-                'WhsCode'     => (string) ($data['WhsCode'] ?? ''),
-                'Remarks'     => (string) ($data['Remarks'] ?? ''),
-                'Shift'       => $mapShift($data['Shift'] ?? ''),
-                'Unit'        => (string) ($data['Unit'] ?? ''),
-                'Bomid'       => (string) ($data['Bomid'] ?? ''),
-                'UserId'      => (string) ($data['UserId'] ?? ($userId ? (string)$userId : '1')),
-                'AddonId'     => (string) ($data['AddonId'] ?? '2'),
-                'Lines'       => [],
+        // Determine status sent by FE (default to PLANNED)
+        $status = strtoupper(trim((string) ($data['status'] ?? $data['Status'] ?? 'PLANNED')));
+        if (empty($status)) {
+            $status = 'PLANNED';
+        }
+
+        // Format Lines & Details for both SAP payload and Local DB
+        $lines = [];
+        $localDetails = [];
+        $rawLines = $data['Lines'] ?? $data['lines'] ?? $data['details'] ?? [];
+
+        foreach ($rawLines as $detail) {
+            $type = $detail['type'] ?? $detail['ItemType'] ?? 'Item';
+            if ($type === 'Item' || $type === '4' || $type === 4 || $type === 'I') {
+                $itemType = 'I';
+                $localType = 'Item';
+            } elseif ($type === 'Resource' || $type === '290' || $type === 290 || $type === 'R') {
+                $itemType = 'R';
+                $localType = 'Resource';
+            } elseif ($type === 'Text' || $type === 'T') {
+                $itemType = 'T';
+                $localType = 'Text';
+            } else {
+                $itemType = 'I';
+                $localType = 'Item';
+            }
+
+            $compCode = (string) ($detail['item_code'] ?? $detail['ItemCode'] ?? $detail['code'] ?? '');
+            if (is_array($detail['item'] ?? null)) {
+                $compCode = $detail['item']['value'] ?? $compCode;
+            } elseif (is_string($detail['item'] ?? null)) {
+                $compCode = $detail['item'];
+            }
+
+            $baseQty = floatval($detail['base_qty'] ?? $detail['BaseQty'] ?? $detail['quantity'] ?? 1.0);
+            $pQty = floatval($detail['planned_qty'] ?? $detail['PlannedQty'] ?? ($baseQty * (floatval($data['planned_qty'] ?? $data['PlannedQty'] ?? 1) > 0 ? floatval($data['planned_qty'] ?? $data['PlannedQty'] ?? 1) : 1)));
+            $whsCode = (string) ($detail['warehouse'] ?? $detail['whs_code'] ?? $detail['WhsCode'] ?? '');
+            $issueMethod = (string) ($detail['issue_mthd'] ?? $detail['issueMethod'] ?? $detail['IssueMethod'] ?? 'M');
+            $ocrCode = (string) ($detail['ocr_code'] ?? $detail['OcrCode'] ?? '');
+            $ocrCode2 = (string) ($detail['ocr_code2'] ?? $detail['OcrCode2'] ?? '');
+            $ocrCode3 = (string) ($detail['ocr_code3'] ?? $detail['OcrCode3'] ?? '');
+            $comments = (string) ($detail['comments'] ?? $detail['Remarks'] ?? '');
+
+            $lines[] = [
+                'ItemType'    => $itemType,
+                'ItemCode'    => $compCode,
+                'BaseQty'     => $baseQty,
+                'WhsCode'     => $whsCode,
+                'IssueMethod' => $issueMethod,
+                'OcrCode'     => $ocrCode,
+                'OcrCode2'    => $ocrCode2,
+                'OcrCode3'    => $ocrCode3,
             ];
 
-            foreach ($data['Lines'] as $line) {
-                $payload['Lines'][] = [
-                    'ItemType'    => (string) ($line['ItemType'] ?? 'I'),
-                    'ItemCode'    => (string) ($line['ItemCode'] ?? ''),
-                    'BaseQty'     => floatval($line['BaseQty'] ?? 0),
-                    'WhsCode'     => (string) ($line['WhsCode'] ?? ''),
-                    'IssueMethod' => (string) ($line['IssueMethod'] ?? 'M'),
-                    'OcrCode'     => (string) ($line['OcrCode'] ?? ''),
-                    'OcrCode2'    => (string) ($line['OcrCode2'] ?? ''),
-                    'OcrCode3'    => (string) ($line['OcrCode3'] ?? ''),
-                ];
-            }
-        } else {
-            // Map from local Production Order request/model structure
-            $lines = [];
-            $rawDetails = $data['details'] ?? $data['lines'] ?? [];
-            foreach ($rawDetails as $detail) {
-                $type = $detail['type'] ?? $detail['ItemType'] ?? 'Item';
-                if ($type === 'Item' || $type === '4' || $type === 4 || $type === 'I') {
-                    $itemType = 'I';
-                } elseif ($type === 'Resource' || $type === '290' || $type === 290 || $type === 'R') {
-                    $itemType = 'R';
-                } elseif ($type === 'Text' || $type === 'T') {
-                    $itemType = 'T';
-                } else {
-                    $itemType = 'I';
-                }
+            $localDetails[] = [
+                'type'          => $localType,
+                'item_code'     => $compCode,
+                'base_qty'      => $baseQty,
+                'planned_qty'   => $pQty,
+                'issued_qty'    => floatval($detail['issued_qty'] ?? $detail['IssuedQty'] ?? 0),
+                'available_qty' => floatval($detail['available_qty'] ?? $detail['AvailableQty'] ?? 0),
+                'warehouse'     => $whsCode,
+                'issue_mthd'    => $issueMethod,
+                'ocr_code'      => $ocrCode,
+                'ocr_code2'     => $ocrCode2,
+                'ocr_code3'     => $ocrCode3,
+                'comments'      => $comments,
+            ];
+        }
 
-                $lines[] = [
-                    'ItemType'    => $itemType,
-                    'ItemCode'    => (string) ($detail['item_code'] ?? $detail['ItemCode'] ?? $detail['code'] ?? ''),
-                    'BaseQty'     => floatval($detail['base_qty'] ?? $detail['BaseQty'] ?? $detail['quantity'] ?? 0),
-                    'WhsCode'     => (string) ($detail['warehouse'] ?? $detail['whs_code'] ?? $detail['WhsCode'] ?? ''),
-                    'IssueMethod' => (string) ($detail['issue_mthd'] ?? $detail['issueMethod'] ?? $detail['IssueMethod'] ?? 'M'),
-                    'OcrCode'     => (string) ($detail['ocr_code'] ?? $detail['OcrCode'] ?? ''),
-                    'OcrCode2'    => (string) ($detail['ocr_code2'] ?? $detail['OcrCode2'] ?? ''),
-                    'OcrCode3'    => (string) ($detail['ocr_code3'] ?? $detail['OcrCode3'] ?? ''),
-                ];
-            }
+        $itemCode = (string) ($data['item_code'] ?? $data['product_code'] ?? $data['ItemCode'] ?? '');
+        if (is_array($data['product'] ?? null)) {
+            $itemCode = $data['product']['value'] ?? $itemCode;
+        } elseif (is_string($data['product'] ?? null)) {
+            $itemCode = $data['product'];
+        }
 
-            $payload = [
-                'ItemCode'    => (string) ($data['item_code'] ?? $data['product_code'] ?? $data['ItemCode'] ?? ''),
-                'Series'      => is_numeric($data['series'] ?? null) ? (int) $data['series'] : ($data['Series'] ?? 15),
-                'PlannedQty'  => floatval($data['planned_qty'] ?? $data['planned_quantity'] ?? $data['PlannedQty'] ?? 0),
-                'PostingDate' => isset($data['post_date']) ? date('Y-m-d\TH:i:s', strtotime($data['post_date'])) : (isset($data['PostingDate']) ? date('Y-m-d\TH:i:s', strtotime($data['PostingDate'])) : date('Y-m-d\TH:i:s')),
-                'DueDate'     => isset($data['due_date']) ? date('Y-m-d\TH:i:s', strtotime($data['due_date'])) : (isset($data['DueDate']) ? date('Y-m-d\TH:i:s', strtotime($data['DueDate'])) : date('Y-m-d\TH:i:s')),
-                'WhsCode'     => (string) ($data['warehouse'] ?? $data['whs_code'] ?? $data['to_whs'] ?? $data['WhsCode'] ?? ''),
-                'Remarks'     => (string) ($data['comments'] ?? $data['remarks'] ?? $data['Remarks'] ?? ''),
-                'Shift'       => $mapShift($data['u_shift'] ?? $data['shift'] ?? $data['Shift'] ?? ''),
-                'Unit'        => (string) ($data['u_unit'] ?? $data['unit'] ?? $data['Unit'] ?? ''),
-                'Bomid'       => (string) ($data['production_bom_id'] ?? $data['bom_id'] ?? $data['Bomid'] ?? ''),
+        $plannedQty = floatval($data['planned_qty'] ?? $data['planned_quantity'] ?? $data['PlannedQty'] ?? 0);
+        $whs = (string) ($data['warehouse'] ?? $data['whs_code'] ?? $data['to_whs'] ?? $data['WhsCode'] ?? '');
+        $postDate = isset($data['post_date']) ? date('Y-m-d\TH:i:s', strtotime($data['post_date'])) : (isset($data['PostingDate']) ? date('Y-m-d\TH:i:s', strtotime($data['PostingDate'])) : date('Y-m-d\TH:i:s'));
+        $dueDate = isset($data['due_date']) ? date('Y-m-d\TH:i:s', strtotime($data['due_date'])) : (isset($data['DueDate']) ? date('Y-m-d\TH:i:s', strtotime($data['DueDate'])) : date('Y-m-d\TH:i:s'));
+        $comments = (string) ($data['comments'] ?? $data['remarks'] ?? $data['Remarks'] ?? '');
+        $shift = $mapShift($data['u_shift'] ?? $data['shift'] ?? $data['Shift'] ?? '');
+        $unit = (string) ($data['u_unit'] ?? $data['unit'] ?? $data['Unit'] ?? '');
+        $bomId = (string) ($data['production_bom_id'] ?? $data['bom_id'] ?? $data['Bomid'] ?? '');
+
+        // 1. Simpan ke database lokal dengan status yang dikirimkan FE
+        $localData = [
+            'item_code'         => $itemCode,
+            'status'            => $status,
+            'type'              => $data['type'] ?? 'Standard',
+            'series'            => is_numeric($data['series'] ?? $data['Series'] ?? null) ? (int) ($data['series'] ?? $data['Series']) : 15,
+            'planned_qty'       => $plannedQty,
+            'warehouse'         => $whs,
+            'post_date'         => date('Y-m-d', strtotime($postDate)),
+            'start_date'        => isset($data['start_date']) ? date('Y-m-d', strtotime($data['start_date'])) : date('Y-m-d', strtotime($postDate)),
+            'due_date'          => date('Y-m-d', strtotime($dueDate)),
+            'comments'          => $comments,
+            'u_shift'           => $shift,
+            'u_unit'            => $unit,
+            'production_bom_id' => $bomId,
+            'ocr_code'          => $data['ocr_code'] ?? $data['OcrCode'] ?? null,
+            'ocr_code2'         => $data['ocr_code2'] ?? $data['OcrCode2'] ?? null,
+            'ocr_code3'         => $data['ocr_code3'] ?? $data['OcrCode3'] ?? null,
+            'sap_status'        => $status === 'RELEASED' ? 'PENDING' : 'PENDING',
+            'created_by'        => $userId,
+            'updated_by'        => $userId,
+            'details'           => $localDetails,
+        ];
+
+        $order = $this->createOrder($localData, $userId);
+
+        $sapResponse = null;
+
+        // 2. Jika status adalah RELEASED, tembak ke SAP /api/addpdo
+        if ($status === 'RELEASED') {
+            $sapPayload = [
+                'ItemCode'    => $itemCode,
+                'Series'      => $localData['series'],
+                'PlannedQty'  => $plannedQty,
+                'PostingDate' => $postDate,
+                'DueDate'     => $dueDate,
+                'WhsCode'     => $whs,
+                'Remarks'     => $comments,
+                'Shift'       => $shift,
+                'Unit'        => $unit,
+                'Bomid'       => $bomId,
                 'UserId'      => (string) ($data['user_id'] ?? $data['UserId'] ?? ($userId ? (string)$userId : '1')),
                 'AddonId'     => (string) ($data['addon_id'] ?? $data['AddonId'] ?? '2'),
                 'Lines'       => $lines,
             ];
-        }
 
-        $response = Http::timeout(30)->post("{$sapUrl}/api/addpdo", $payload);
-
-        if (!$response->successful()) {
-            throw new \Exception('Gagal menghubungi API SAP addpdo. HTTP Status: ' . $response->status());
-        }
-
-        $body = $response->json();
-
-        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
-            throw new \Exception('API SAP addpdo error: ' . ($body['Message'] ?? 'Unknown SAP error'));
-        }
-
-        if ($userId) {
-            $this->auditLogService->log(
-                $userId,
-                'ADD_PDO_SAP',
-                "Submitted Production Order (PDO) to SAP for ItemCode {$payload['ItemCode']}."
-            );
+            try {
+                $response = Http::timeout(30)->post("{$sapUrl}/api/addpdo", $sapPayload);
+                if ($response->successful()) {
+                    $body = $response->json();
+                    if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
+                        $order->update([
+                            'doc_entry'     => $body['DocEntry'] ?? $body['doc_entry'] ?? null,
+                            'doc_num'       => $body['DocNum'] ?? $body['doc_num'] ?? null,
+                            'sap_status'    => 'SYNCED',
+                            'integrated_at' => now(),
+                        ]);
+                        $sapResponse = $body;
+                    } else {
+                        $order->update([
+                            'sap_status' => 'FAILED',
+                            'sap_error'  => $body['Message'] ?? 'Unknown SAP error',
+                        ]);
+                    }
+                }
+            } catch (\Exception $ex) {
+                $order->update([
+                    'sap_status' => 'FAILED',
+                    'sap_error'  => $ex->getMessage(),
+                ]);
+            }
         }
 
         return [
-            'payload' => $payload,
-            'sap_response' => $body,
+            'order'        => $order->fresh([
+                'parentItem',
+                'details.item',
+                'details.resource',
+                'details.warehouseModel',
+                'details.ocr',
+                'details.ocr2',
+                'details.ocr3',
+                'ocr',
+                'ocr2',
+                'ocr3',
+                'warehouseModel'
+            ]),
+            'status'       => $order->status,
+            'sap_response' => $sapResponse,
         ];
     }
 

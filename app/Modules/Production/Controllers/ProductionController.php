@@ -636,9 +636,12 @@ class ProductionController extends Controller
 
         try {
             $result = $this->productionService->addPdoSap($input, $userId);
-            return $this->successResponse($result, 'Production Order (PDO) berhasil dikirim ke SAP.');
+            $msg = ($result['status'] ?? 'PLANNED') === 'RELEASED' 
+                ? 'Production Order (PDO) berhasil disimpan dan dirilis ke SAP.' 
+                : 'Production Order (PDO) berhasil disimpan dengan status PLANNED.';
+            return $this->successResponse($result, $msg);
         } catch (\Exception $e) {
-            return $this->errorResponse('Gagal mengirim Production Order (PDO) ke SAP: ' . $e->getMessage(), [], 500);
+            return $this->errorResponse('Gagal menyimpan Production Order (PDO): ' . $e->getMessage(), [], 500);
         }
     }
 

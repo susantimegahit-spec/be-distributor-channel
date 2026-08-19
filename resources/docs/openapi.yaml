@@ -8487,6 +8487,13 @@ paths:
                 WhsCode:
                   type: string
                   example: "01"
+                Status:
+                  type: string
+                  description: "Status PDO: PLANNED (hanya simpan lokal) atau RELEASED (simpan lokal & kirim ke SAP)"
+                  example: "PLANNED"
+                status:
+                  type: string
+                  example: "PLANNED"
                 Remarks:
                   type: string
                   example: "Pembuatan barang spesial via API"
