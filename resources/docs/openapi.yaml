@@ -11586,6 +11586,11 @@ paths:
             type: string
           description: Pencarian nama task, task ID, atau assignee
         - in: query
+          name: space_id
+          schema:
+            type: string
+          description: Filter ClickUp Space ID
+        - in: query
           name: status
           schema:
             type: string
@@ -14565,6 +14570,9 @@ components:
         task_name:
           type: string
           example: "Develop Production Module API"
+        space_id:
+          type: string
+          example: "901201928"
         space_name:
           type: string
           example: "Engineering"
@@ -14614,6 +14622,9 @@ components:
         task_name:
           type: string
           example: "Develop Production Module API"
+        space_id:
+          type: string
+          example: "901201928"
         space_name:
           type: string
           example: "Engineering"

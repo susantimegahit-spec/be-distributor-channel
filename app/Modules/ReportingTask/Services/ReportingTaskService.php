@@ -72,6 +72,7 @@ class ReportingTaskService
         $taskName = (string) ($data['task_name'] ?? $data['name'] ?? $data['taskName'] ?? '');
 
         // ClickUp Hierarchy Locations
+        $spaceId = is_array($data['space'] ?? null) ? ($data['space']['id'] ?? null) : ($data['space_id'] ?? $data['spaceId'] ?? null);
         $spaceName = is_array($data['space'] ?? null) ? ($data['space']['name'] ?? null) : ($data['space_name'] ?? $data['space'] ?? null);
         $folderName = is_array($data['folder'] ?? null) ? ($data['folder']['name'] ?? null) : ($data['folder_name'] ?? $data['folder'] ?? null);
         $listName = is_array($data['list'] ?? null) ? ($data['list']['name'] ?? null) : ($data['list_name'] ?? $data['list'] ?? null);
@@ -93,6 +94,7 @@ class ReportingTaskService
             ['task_id' => $taskId],
             [
                 'task_name'   => $taskName ?: null,
+                'space_id'    => $spaceId,
                 'space_name'  => $spaceName,
                 'folder_name' => $folderName,
                 'list_name'   => $listName,
@@ -154,12 +156,17 @@ class ReportingTaskService
             $query->where(function ($q) use ($search) {
                 $q->where('task_name', 'like', "%{$search}%")
                   ->orWhere('task_id', 'like', "%{$search}%")
+                  ->orWhere('space_id', 'like', "%{$search}%")
                   ->orWhere('space_name', 'like', "%{$search}%")
                   ->orWhere('folder_name', 'like', "%{$search}%")
                   ->orWhere('list_name', 'like', "%{$search}%")
                   ->orWhere('assignee', 'like', "%{$search}%")
                   ->orWhere('comment', 'like', "%{$search}%");
             });
+        }
+
+        if (!empty($filters['space_id'])) {
+            $query->where('space_id', $filters['space_id']);
         }
 
         if (!empty($filters['space_name'])) {

@@ -18,6 +18,7 @@ return new class extends Migration
                 $table->string('task_name', 255)->nullable()->comment('Task Name / Title');
 
                 // ClickUp Hierarchy Locations
+                $table->string('space_id', 100)->nullable()->comment('ClickUp Space ID');
                 $table->string('space_name', 255)->nullable()->comment('ClickUp Space Name');
                 $table->string('folder_name', 255)->nullable()->comment('ClickUp Folder Name');
                 $table->string('list_name', 255)->nullable()->comment('ClickUp List Name');

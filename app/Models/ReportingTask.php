@@ -14,6 +14,7 @@ class ReportingTask extends Model
     protected $fillable = [
         'task_id',
         'task_name',
+        'space_id',
         'space_name',
         'folder_name',
         'list_name',

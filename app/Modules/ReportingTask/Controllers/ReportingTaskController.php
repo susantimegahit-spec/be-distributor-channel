@@ -76,6 +76,7 @@ class ReportingTaskController extends Controller
     {
         $filters = $request->only([
             'search',
+            'space_id',
             'space_name',
             'folder_name',
             'list_name',
