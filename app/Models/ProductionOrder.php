@@ -24,6 +24,7 @@ class ProductionOrder extends Model
         'item_code',
         'planned_qty',
         'cmplt_qty',
+        'receipt_qty',
         'rjct_qty',
         'warehouse',
         'priority',
@@ -64,6 +65,7 @@ class ProductionOrder extends Model
         'doc_entry' => 'integer',
         'planned_qty' => 'decimal:4',
         'cmplt_qty' => 'decimal:4',
+        'receipt_qty' => 'decimal:4',
         'rjct_qty' => 'decimal:4',
         'priority' => 'integer',
         'post_date' => 'date',
@@ -92,6 +94,16 @@ class ProductionOrder extends Model
     public function details(): HasMany
     {
         return $this->hasMany(ProductionOrderItem::class, 'production_order_id');
+    }
+
+    public function issues(): HasMany
+    {
+        return $this->hasMany(ProductionIssue::class, 'production_order_id');
+    }
+
+    public function receipts(): HasMany
+    {
+        return $this->hasMany(ProductionReceipt::class, 'production_order_id');
     }
 
     public function parentItem(): BelongsTo

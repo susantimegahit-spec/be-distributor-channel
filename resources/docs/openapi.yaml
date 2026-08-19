@@ -11524,6 +11524,117 @@ paths:
         '500':
           description: Gagal menghubungi API SAP.
 
+  /v1/reporting/tasks/sync:
+    post:
+      summary: Sync ClickUp Tasks via n8n Webhook
+      description: Menerima data task tunggal atau batch dari n8n webhook untuk disimpan/diupdate (upsert) ke tabel `reporting_tasks`.
+      tags:
+        - Reporting & Analytics
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/ReportingTaskInput'
+                - type: array
+                  items:
+                    $ref: '#/components/schemas/ReportingTaskInput'
+                - type: object
+                  properties:
+                    tasks:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/ReportingTaskInput'
+      responses:
+        '200':
+          description: Data task ClickUp berhasil disinkronkan.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data task ClickUp berhasil disinkronkan ke database reporting.
+                  data:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 10
+                      success:
+                        type: integer
+                        example: 10
+                      failed:
+                        type: integer
+                        example: 0
+
+  /v1/reporting/tasks:
+    get:
+      summary: Get List of Reporting Tasks
+      description: Mengambil daftar task ClickUp yang tersimpan di database lokal untuk keperluan Data Studio / Looker Studio atau dashboard reporting.
+      tags:
+        - Reporting & Analytics
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Pencarian nama task, task ID, atau assignee
+        - in: query
+          name: status
+          schema:
+            type: string
+          description: Filter status task (e.g. to do, in progress, complete)
+        - in: query
+          name: assignee
+          schema:
+            type: string
+          description: Filter assignee
+        - in: query
+          name: priority
+          schema:
+            type: string
+          description: Filter priority (e.g. urgent, high, normal, low)
+        - in: query
+          name: all
+          schema:
+            type: boolean
+          description: Set true untuk mengambil semua baris tanpa paginasi (cocok untuk export Data Studio)
+      responses:
+        '200':
+          description: Daftar reporting tasks berhasil diambil.
+
+  /v1/reporting/tasks/summary:
+    get:
+      summary: Get Reporting Tasks Metric Summary
+      description: Mengambil ringkasan metrik statistik tasks (jumlah berdasarkan status, priority, assignee, overdue) untuk visualisasi dashboard.
+      tags:
+        - Reporting & Analytics
+      responses:
+        '200':
+          description: Summary metrik berhasil diambil.
+
+  /v1/reporting/tasks/{id}:
+    get:
+      summary: Get Reporting Task Detail
+      description: Mengambil detail satu task berdasarkan ID atau Task ID ClickUp.
+      tags:
+        - Reporting & Analytics
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Detail task berhasil diambil.
+
 components:
   securitySchemes:
     BearerAuth:
@@ -14442,6 +14553,115 @@ components:
         object_type:
           type: string
           example: "17"
+
+    ReportingTaskInput:
+      type: object
+      required:
+        - task_id
+      properties:
+        task_id:
+          type: string
+          example: "8678abc123"
+        task_name:
+          type: string
+          example: "Develop Production Module API"
+        space_name:
+          type: string
+          example: "Engineering"
+        folder_name:
+          type: string
+          example: "Backend Services"
+        list_name:
+          type: string
+          example: "Sprint 3 Backlog"
+        assignee:
+          type: string
+          example: "Sanjay Firmansyah"
+        timeline:
+          type: string
+          example: "Sprint 3"
+        start_date:
+          type: string
+          example: "2026-08-19 09:00:00"
+        due_date:
+          type: string
+          example: "2026-08-25 18:00:00"
+        priority:
+          type: string
+          example: "high"
+        task_type:
+          type: string
+          example: "Feature"
+        created_by:
+          type: string
+          example: "Manager"
+        comment:
+          type: string
+          example: "Integration with SAP B1 is in progress."
+        status:
+          type: string
+          example: "in progress"
+
+    ReportingTask:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        task_id:
+          type: string
+          example: "8678abc123"
+        task_name:
+          type: string
+          example: "Develop Production Module API"
+        space_name:
+          type: string
+          example: "Engineering"
+        folder_name:
+          type: string
+          example: "Backend Services"
+        list_name:
+          type: string
+          example: "Sprint 3 Backlog"
+        assignee:
+          type: string
+          example: "Sanjay Firmansyah"
+        timeline:
+          type: string
+          example: "Sprint 3"
+        start_date:
+          type: string
+          format: date-time
+          example: "2026-08-19T09:00:00.000000Z"
+        due_date:
+          type: string
+          format: date-time
+          example: "2026-08-25T18:00:00.000000Z"
+        priority:
+          type: string
+          example: "high"
+        task_type:
+          type: string
+          example: "Feature"
+        created_by:
+          type: string
+          example: "Manager"
+        comment:
+          type: string
+          example: "Integration with SAP B1 is in progress."
+        status:
+          type: string
+          example: "in progress"
+        synced_at:
+          type: string
+          format: date-time
+          example: "2026-08-19T11:40:00.000000Z"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
 
 
 

@@ -1201,7 +1201,7 @@ class ProductionService
     }
 
     /**
-     * Add Goods Issue for Production to SAP API (/api/addissueprod).
+     * Add Goods Issue for Production (Stores locally and syncs to SAP /api/addissueprod).
      *
      * @param array $data
      * @param int|null $userId
@@ -1210,37 +1210,126 @@ class ProductionService
      */
     public function addIssueProdSap(array $data, ?int $userId = null): array
     {
-        $sapUrl = config('services.sap.url');
         $payload = $this->prepareProdTransactionPayload($data, $userId, 'Issue for Production');
 
-        $response = Http::timeout(45)->post("{$sapUrl}/api/addissueprod", $payload);
+        // 1. Simpan ke database lokal (production_issues & production_issue_items)
+        $issueNo = 'ISS-' . date('Ymd') . '-' . strtoupper(substr(md5(uniqid()), 0, 6));
+        $firstBaseEntry = $payload['Lines'][0]['BaseEntry'] ?? null;
 
-        if (!$response->successful()) {
-            throw new \Exception('Gagal menghubungi API SAP addissueprod. HTTP Status: ' . $response->status());
+        $pdo = null;
+        if ($firstBaseEntry) {
+            $pdo = \App\Models\ProductionOrder::where('id', is_numeric($firstBaseEntry) ? (int)$firstBaseEntry : 0)
+                ->orWhere('doc_entry', is_numeric($firstBaseEntry) ? (int)$firstBaseEntry : 0)
+                ->orWhere('prod_order_no', (string)$firstBaseEntry)
+                ->first();
         }
 
-        $body = $response->json();
+        $localIssue = \App\Models\ProductionIssue::create([
+            'issue_no'            => $issueNo,
+            'production_order_id' => $pdo?->id,
+            'doc_date'            => $payload['DocDate'],
+            'doc_due_date'        => $payload['DocDueDate'],
+            'u_shift'             => $payload['Shift'],
+            'u_unit'              => $payload['Unit'],
+            'bom_id'              => $payload['Bomid'],
+            'comments'            => $payload['Comments'],
+            'status'              => 'POSTED',
+            'sap_status'          => 'PENDING',
+            'created_by'          => $userId,
+            'updated_by'          => $userId,
+        ]);
 
-        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
-            throw new \Exception('API SAP addissueprod error: ' . ($body['Message'] ?? 'Unknown SAP error'));
+        foreach ($payload['Lines'] as $idx => $line) {
+            $baseLine = $line['BaseLine'];
+            $qty = floatval($line['Quantity']);
+
+            // Find matching PDO item
+            $pdoItem = null;
+            if ($pdo) {
+                $pdoItem = $pdo->details()->where('line_num', is_numeric($baseLine) ? (int)$baseLine : 0)->first();
+                if (!$pdoItem && !empty($line['ItemCode'])) {
+                    $pdoItem = $pdo->details()->where('item_code', $line['ItemCode'])->first();
+                }
+            }
+
+            \App\Models\ProductionIssueItem::create([
+                'production_issue_id'      => $localIssue->id,
+                'production_order_id'      => $pdo?->id,
+                'production_order_item_id' => $pdoItem?->id,
+                'line_num'                 => $idx,
+                'base_type'                => $line['BaseType'] ?? 202,
+                'base_entry'               => (string)$line['BaseEntry'],
+                'base_line'                => (string)$line['BaseLine'],
+                'item_code'                => $line['ItemCode'] ?? $pdoItem?->item_code ?? null,
+                'quantity'                 => $qty,
+                'warehouse'                => $line['WhsCode'] ?? null,
+                'uom_entry'                => (string)($line['UoMEntry'] ?? 1),
+                'ocr_code'                 => $line['OcrCode'] ?? null,
+                'ocr_code2'                => $line['OcrCode2'] ?? null,
+                'ocr_code3'                => $line['OcrCode3'] ?? null,
+            ]);
+
+            // 2. Update issued_qty di baris bahan baku PDO
+            if ($pdoItem) {
+                $pdoItem->increment('issued_qty', $qty);
+            }
+        }
+
+        // Catat referensi nomor issue di tabel PDO Header
+        if ($pdo) {
+            $existingIssues = array_filter(array_map('trim', explode(',', (string)$pdo->issue_for_production)));
+            if (!in_array($issueNo, $existingIssues)) {
+                $existingIssues[] = $issueNo;
+                $pdo->update(['issue_for_production' => implode(', ', $existingIssues)]);
+            }
+        }
+
+        // 3. Tembakkan ke SAP B1 API
+        $sapUrl = config('services.sap.url');
+        $sapResponse = null;
+        try {
+            $response = Http::timeout(45)->post("{$sapUrl}/api/addissueprod", $payload);
+            if ($response->successful()) {
+                $body = $response->json();
+                if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
+                    $localIssue->update([
+                        'doc_entry'     => $body['DocEntry'] ?? $body['doc_entry'] ?? null,
+                        'doc_num'       => $body['DocNum'] ?? $body['doc_num'] ?? null,
+                        'sap_status'    => 'SYNCED',
+                        'integrated_at' => now(),
+                    ]);
+                    $sapResponse = $body;
+                } else {
+                    $localIssue->update([
+                        'sap_status' => 'FAILED',
+                        'sap_error'  => $body['Message'] ?? 'Unknown SAP error',
+                    ]);
+                }
+            }
+        } catch (\Exception $ex) {
+            $localIssue->update([
+                'sap_status' => 'FAILED',
+                'sap_error'  => $ex->getMessage(),
+            ]);
         }
 
         if ($userId) {
             $this->auditLogService->log(
                 $userId,
-                'ADD_ISSUE_PROD_SAP',
-                "Submitted Goods Issue for Production to SAP: " . ($body['Message'] ?? json_encode($body))
+                'ADD_ISSUE_PROD',
+                "Goods Issue for Production {$issueNo} recorded locally" . ($sapResponse ? " and synced to SAP." : ".")
             );
         }
 
         return [
+            'issue'        => $localIssue->fresh(['items', 'productionOrder']),
             'payload'      => $payload,
-            'sap_response' => $body,
+            'sap_response' => $sapResponse,
         ];
     }
 
     /**
-     * Add Receipt for Production to SAP API (/api/addreceiptprod).
+     * Add Receipt for Production (Stores locally and syncs to SAP /api/addreceiptprod).
      *
      * @param array $data
      * @param int|null $userId
@@ -1249,32 +1338,120 @@ class ProductionService
      */
     public function addReceiptProdSap(array $data, ?int $userId = null): array
     {
-        $sapUrl = config('services.sap.url');
         $payload = $this->prepareProdTransactionPayload($data, $userId, 'Receipt for Production');
 
-        $response = Http::timeout(45)->post("{$sapUrl}/api/addreceiptprod", $payload);
+        // 1. Simpan ke database lokal (production_receipts & production_receipt_items)
+        $receiptNo = 'RCP-' . date('Ymd') . '-' . strtoupper(substr(md5(uniqid()), 0, 6));
+        $firstBaseEntry = $payload['Lines'][0]['BaseEntry'] ?? null;
 
-        if (!$response->successful()) {
-            throw new \Exception('Gagal menghubungi API SAP addreceiptprod. HTTP Status: ' . $response->status());
+        $pdo = null;
+        if ($firstBaseEntry) {
+            $pdo = \App\Models\ProductionOrder::where('id', is_numeric($firstBaseEntry) ? (int)$firstBaseEntry : 0)
+                ->orWhere('doc_entry', is_numeric($firstBaseEntry) ? (int)$firstBaseEntry : 0)
+                ->orWhere('prod_order_no', (string)$firstBaseEntry)
+                ->first();
         }
 
-        $body = $response->json();
+        $localReceipt = \App\Models\ProductionReceipt::create([
+            'receipt_no'          => $receiptNo,
+            'production_order_id' => $pdo?->id,
+            'doc_date'            => $payload['DocDate'],
+            'doc_due_date'        => $payload['DocDueDate'],
+            'u_shift'             => $payload['Shift'],
+            'u_unit'              => $payload['Unit'],
+            'bom_id'              => $payload['Bomid'],
+            'comments'            => $payload['Comments'],
+            'status'              => 'POSTED',
+            'sap_status'          => 'PENDING',
+            'created_by'          => $userId,
+            'updated_by'          => $userId,
+        ]);
 
-        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
-            throw new \Exception('API SAP addreceiptprod error: ' . ($body['Message'] ?? 'Unknown SAP error'));
+        $totalReceivedQty = 0;
+        foreach ($payload['Lines'] as $idx => $line) {
+            $qty = floatval($line['Quantity']);
+            $totalReceivedQty += $qty;
+
+            \App\Models\ProductionReceiptItem::create([
+                'production_receipt_id' => $localReceipt->id,
+                'production_order_id'   => $pdo?->id,
+                'line_num'              => $idx,
+                'base_type'             => $line['BaseType'] ?? 202,
+                'base_entry'            => (string)$line['BaseEntry'],
+                'base_line'             => isset($line['BaseLine']) ? (string)$line['BaseLine'] : null,
+                'item_code'             => $line['ItemCode'] ?? $pdo?->item_code ?? null,
+                'quantity'              => $qty,
+                'warehouse'             => $line['WhsCode'] ?? null,
+                'uom_entry'             => (string)($line['UoMEntry'] ?? 1),
+                'ocr_code'              => $line['OcrCode'] ?? null,
+                'ocr_code2'             => $line['OcrCode2'] ?? null,
+                'ocr_code3'             => $line['OcrCode3'] ?? null,
+            ]);
+        }
+
+        // 2. Update cmplt_qty dan receipt_qty di PDO Header
+        if ($pdo) {
+            $newCmpltQty = floatval($pdo->cmplt_qty) + $totalReceivedQty;
+            $existingReceipts = array_filter(array_map('trim', explode(',', (string)$pdo->receipt_from_production)));
+            if (!in_array($receiptNo, $existingReceipts)) {
+                $existingReceipts[] = $receiptNo;
+            }
+
+            $updateData = [
+                'cmplt_qty'               => $newCmpltQty,
+                'receipt_qty'             => $newCmpltQty,
+                'receipt_from_production' => implode(', ', $existingReceipts),
+            ];
+
+            // Jika seluruh kuantitas rencana sudah tercapai
+            if ($newCmpltQty >= floatval($pdo->planned_qty) && floatval($pdo->planned_qty) > 0) {
+                $updateData['status'] = 'CLOSED';
+            }
+
+            $pdo->update($updateData);
+        }
+
+        // 3. Tembakkan ke SAP B1 API
+        $sapUrl = config('services.sap.url');
+        $sapResponse = null;
+        try {
+            $response = Http::timeout(45)->post("{$sapUrl}/api/addreceiptprod", $payload);
+            if ($response->successful()) {
+                $body = $response->json();
+                if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
+                    $localReceipt->update([
+                        'doc_entry'     => $body['DocEntry'] ?? $body['doc_entry'] ?? null,
+                        'doc_num'       => $body['DocNum'] ?? $body['doc_num'] ?? null,
+                        'sap_status'    => 'SYNCED',
+                        'integrated_at' => now(),
+                    ]);
+                    $sapResponse = $body;
+                } else {
+                    $localReceipt->update([
+                        'sap_status' => 'FAILED',
+                        'sap_error'  => $body['Message'] ?? 'Unknown SAP error',
+                    ]);
+                }
+            }
+        } catch (\Exception $ex) {
+            $localReceipt->update([
+                'sap_status' => 'FAILED',
+                'sap_error'  => $ex->getMessage(),
+            ]);
         }
 
         if ($userId) {
             $this->auditLogService->log(
                 $userId,
-                'ADD_RECEIPT_PROD_SAP',
-                "Submitted Receipt for Production to SAP: " . ($body['Message'] ?? json_encode($body))
+                'ADD_RECEIPT_PROD',
+                "Receipt from Production {$receiptNo} recorded locally" . ($sapResponse ? " and synced to SAP." : ".")
             );
         }
 
         return [
+            'receipt'      => $localReceipt->fresh(['items', 'productionOrder']),
             'payload'      => $payload,
-            'sap_response' => $body,
+            'sap_response' => $sapResponse,
         ];
     }
 

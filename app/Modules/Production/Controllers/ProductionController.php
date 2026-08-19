@@ -472,111 +472,103 @@ class ProductionController extends Controller
     }
 
     /**
-     * Update an existing production order.
+     * Update an existing production order and its detail items.
      */
-    public function updateOrder(Request $request, int $id): JsonResponse
+    public function updateOrder(Request $request, ?int $id = null): JsonResponse
     {
+        $orderId = $id ?? $request->input('id') ?? $request->input('DocEntry') ?? $request->input('doc_entry');
+        if (!$orderId) {
+            return $this->errorResponse('ID Production Order wajib disertakan.', [], 422);
+        }
+
         $userId = $request->user()?->id;
+        $input = $request->all();
 
-        $data = $request->only([
-            'doc_entry',
-            'doc_num',
-            'series',
-            'prod_order_no',
-            'status',
-            'type',
-            'item_code',
-            'planned_qty',
-            'cmplt_qty',
-            'rjct_qty',
-            'warehouse',
-            'priority',
-            'project',
-            'post_date',
-            'start_date',
-            'due_date',
-            'origin_type',
-            'origin_num',
-            'card_code',
-            'ocr_code',
-            'ocr_code2',
-            'ocr_code3',
-            'u_shift',
-            'u_unit',
-            'comments',
-            'issue_for_production',
-            'receipt_from_production',
-            'production_bom_id',
-            'act_item_cost',
-            'act_res_cost',
-            'act_add_cost',
-            'act_prod_cost',
-            'act_by_prod_cost',
-            'total_variance',
-            'jrnl_memo',
-            'ref_doc',
-            'act_close_date',
-            'overdue',
-            'sap_status',
-            'sap_error',
-        ]);
-
-        // Normalize header item_code if sent as product
-        if ($request->has('product')) {
-            if (is_array($request->input('product'))) {
-                $data['item_code'] = $request->input('product.value');
-            } else {
-                $data['item_code'] = $request->input('product');
-            }
+        // Header mapping
+        $itemCode = $input['item_code'] ?? $input['ItemCode'] ?? $input['product_code'] ?? null;
+        if (is_array($input['product'] ?? null)) {
+            $itemCode = $input['product']['value'] ?? $itemCode;
+        } elseif (is_string($input['product'] ?? null)) {
+            $itemCode = $input['product'];
         }
 
-        // Normalize header warehouse if sent as warehouse object
-        if ($request->has('warehouse') && is_array($request->input('warehouse'))) {
-            $data['warehouse'] = $request->input('warehouse.value');
+        $whs = $input['warehouse'] ?? $input['whs_code'] ?? $input['WhsCode'] ?? $input['to_whs'] ?? null;
+        if (is_array($whs)) {
+            $whs = $whs['value'] ?? null;
         }
 
-        // Normalize header ocr_code if sent as distributionRule object
-        if ($request->has('distributionRule')) {
-            if (is_array($request->input('distributionRule'))) {
-                $data['ocr_code'] = $request->input('distributionRule.value');
-            } else {
-                $data['ocr_code'] = $request->input('distributionRule');
-            }
+        $ocrCode = $input['ocr_code'] ?? $input['OcrCode'] ?? null;
+        if (is_array($input['distributionRule'] ?? null)) {
+            $ocrCode = $input['distributionRule']['value'] ?? $ocrCode;
+        } elseif (is_string($input['distributionRule'] ?? null)) {
+            $ocrCode = $input['distributionRule'];
         }
 
-        if ($request->has('details')) {
+        $postDate = $input['post_date'] ?? $input['PostingDate'] ?? null;
+        $dueDate = $input['due_date'] ?? $input['DueDate'] ?? null;
+        $plannedQty = $input['planned_qty'] ?? $input['PlannedQty'] ?? $input['quantity'] ?? $input['qty'] ?? null;
+        $status = $input['status'] ?? $input['Status'] ?? null;
+        $comments = $input['comments'] ?? $input['remarks'] ?? $input['Remarks'] ?? null;
+        $shift = $input['u_shift'] ?? $input['shift'] ?? $input['Shift'] ?? null;
+        $unit = $input['u_unit'] ?? $input['unit'] ?? $input['Unit'] ?? null;
+        $bomId = $input['production_bom_id'] ?? $input['bom_id'] ?? $input['Bomid'] ?? null;
+
+        $data = [];
+        if ($itemCode !== null) $data['item_code'] = $itemCode;
+        if ($whs !== null) $data['warehouse'] = $whs;
+        if ($ocrCode !== null) $data['ocr_code'] = $ocrCode;
+        if ($postDate !== null) $data['post_date'] = date('Y-m-d', strtotime($postDate));
+        if ($dueDate !== null) $data['due_date'] = date('Y-m-d', strtotime($dueDate));
+        if ($plannedQty !== null) $data['planned_qty'] = floatval($plannedQty);
+        if ($status !== null) $data['status'] = strtoupper(trim((string)$status));
+        if ($comments !== null) $data['comments'] = $comments;
+        if ($shift !== null) $data['u_shift'] = $shift;
+        if ($unit !== null) $data['u_unit'] = $unit;
+        if ($bomId !== null) $data['production_bom_id'] = $bomId;
+        if (isset($input['series']) || isset($input['Series'])) $data['series'] = $input['series'] ?? $input['Series'];
+        if (isset($input['ocr_code2']) || isset($input['OcrCode2'])) $data['ocr_code2'] = $input['ocr_code2'] ?? $input['OcrCode2'];
+        if (isset($input['ocr_code3']) || isset($input['OcrCode3'])) $data['ocr_code3'] = $input['ocr_code3'] ?? $input['OcrCode3'];
+
+        // Detail items mapping (supports Lines / lines / details / items)
+        $rawDetails = $input['details'] ?? $input['Lines'] ?? $input['lines'] ?? $input['items'] ?? null;
+        if ($rawDetails !== null && is_array($rawDetails)) {
             $details = [];
-            foreach ($request->input('details', []) as $raw) {
-                $type = $raw['type'] ?? 'Item';
-                if ($type === '4' || $type === 4) {
+            foreach ($rawDetails as $raw) {
+                $type = $raw['type'] ?? $raw['ItemType'] ?? 'Item';
+                if ($type === '4' || $type === 4 || $type === 'I') {
                     $type = 'Item';
-                } elseif ($type === '290' || $type === 290) {
+                } elseif ($type === '290' || $type === 290 || $type === 'R') {
                     $type = 'Resource';
+                } elseif ($type === 'T') {
+                    $type = 'Text';
                 }
 
-                $compCode = $raw['code'] ?? $raw['item_code'] ?? null;
+                $compCode = $raw['code'] ?? $raw['item_code'] ?? $raw['ItemCode'] ?? null;
                 if (is_array($raw['item'] ?? null)) {
-                    $compCode = $raw['item']['value'];
+                    $compCode = $raw['item']['value'] ?? $compCode;
                 } elseif (is_string($raw['item'] ?? null)) {
                     $compCode = $raw['item'];
                 }
 
+                $baseQty = floatval($raw['base_qty'] ?? $raw['baseQty'] ?? $raw['BaseQty'] ?? 1.0);
+                $pQty = floatval($raw['planned_qty'] ?? $raw['PlannedQty'] ?? $raw['quantity'] ?? $raw['qty'] ?? ($baseQty * (floatval($plannedQty ?? 1) > 0 ? floatval($plannedQty ?? 1) : 1)));
+
                 $details[] = [
-                    'type' => $type,
-                    'item_code' => $compCode,
-                    'base_qty' => $raw['base_qty'] ?? $raw['baseQty'] ?? 1.0,
-                    'planned_qty' => $raw['planned_qty'] ?? $raw['quantity'] ?? $raw['qty'] ?? 0.0,
-                    'issued_qty' => $raw['issued_qty'] ?? $raw['issued'] ?? 0.0,
-                    'available_qty' => $raw['available_qty'] ?? $raw['available'] ?? 0.0,
-                    'warehouse' => $raw['warehouse'] ?? $raw['whs_code'] ?? null,
-                    'issue_mthd' => $raw['issue_mthd'] ?? $raw['issueMethod'] ?? 'B',
-                    'ocr_code' => $raw['ocr_code'] ?? null,
-                    'ocr_code2' => $raw['ocr_code2'] ?? null,
-                    'ocr_code3' => $raw['ocr_code3'] ?? null,
-                    'comments' => $raw['comments'] ?? null,
-                    'base_entry' => $raw['base_entry'] ?? null,
-                    'base_type' => $raw['base_type'] ?? null,
-                    'base_line' => $raw['base_line'] ?? null,
+                    'type'          => $type,
+                    'item_code'     => $compCode,
+                    'base_qty'      => $baseQty,
+                    'planned_qty'   => $pQty,
+                    'issued_qty'    => floatval($raw['issued_qty'] ?? $raw['IssuedQty'] ?? $raw['issued'] ?? 0.0),
+                    'available_qty' => floatval($raw['available_qty'] ?? $raw['AvailableQty'] ?? $raw['available'] ?? 0.0),
+                    'warehouse'     => $raw['warehouse'] ?? $raw['whs_code'] ?? $raw['WhsCode'] ?? null,
+                    'issue_mthd'    => $raw['issue_mthd'] ?? $raw['issueMethod'] ?? $raw['IssueMethod'] ?? 'M',
+                    'ocr_code'      => $raw['ocr_code'] ?? $raw['OcrCode'] ?? null,
+                    'ocr_code2'     => $raw['ocr_code2'] ?? $raw['OcrCode2'] ?? null,
+                    'ocr_code3'     => $raw['ocr_code3'] ?? $raw['OcrCode3'] ?? null,
+                    'comments'      => $raw['comments'] ?? $raw['Remarks'] ?? null,
+                    'base_entry'    => $raw['base_entry'] ?? null,
+                    'base_type'     => $raw['base_type'] ?? null,
+                    'base_line'     => $raw['base_line'] ?? null,
                 ];
             }
             $data['details'] = $details;
@@ -585,8 +577,8 @@ class ProductionController extends Controller
         $data['updated_by'] = $userId;
 
         try {
-            $order = $this->productionService->updateOrder($id, $data, $userId);
-            return $this->successResponse($order, 'Production Order berhasil diperbarui.');
+            $order = $this->productionService->updateOrder((int)$orderId, $data, $userId);
+            return $this->successResponse($order, 'Production Order beserta detailnya berhasil diperbarui.');
         } catch (\Exception $e) {
             return $this->errorResponse('Gagal memperbarui Production Order: ' . $e->getMessage(), [], 500);
         }
