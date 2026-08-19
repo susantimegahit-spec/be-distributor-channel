@@ -104,11 +104,11 @@ class UserCrudService
         $accessibleSystems = $data['accessible_systems'] ?? null;
         unset($data['accessible_systems']);
 
-        // Handle custom_permissions or permissions alias
-        if (isset($data['custom_permissions']) || isset($data['permissions'])) {
-            $rawPerms = $data['custom_permissions'] ?? $data['permissions'];
+        // Handle actions, custom_permissions or permissions alias
+        if (isset($data['actions']) || isset($data['custom_permissions']) || isset($data['permissions'])) {
+            $rawPerms = $data['actions'] ?? $data['custom_permissions'] ?? $data['permissions'];
             $data['custom_permissions'] = $this->normalizeCustomPermissions($rawPerms);
-            unset($data['permissions']);
+            unset($data['actions'], $data['permissions']);
         }
 
         $isProductionUser = !empty($data['whs_code']) || 
@@ -149,11 +149,11 @@ class UserCrudService
         $accessibleSystems = $data['accessible_systems'] ?? null;
         unset($data['accessible_systems']);
 
-        // Handle custom_permissions or permissions alias
-        if (array_key_exists('custom_permissions', $data) || array_key_exists('permissions', $data)) {
-            $rawPerms = $data['custom_permissions'] ?? $data['permissions'];
+        // Handle actions, custom_permissions or permissions alias
+        if (array_key_exists('actions', $data) || array_key_exists('custom_permissions', $data) || array_key_exists('permissions', $data)) {
+            $rawPerms = $data['actions'] ?? $data['custom_permissions'] ?? $data['permissions'] ?? null;
             $data['custom_permissions'] = $this->normalizeCustomPermissions($rawPerms);
-            unset($data['permissions']);
+            unset($data['actions'], $data['permissions']);
         }
 
         $isProductionUser = !empty($data['whs_code']) || 

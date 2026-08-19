@@ -138,10 +138,12 @@ class UserController extends Controller
         }
 
         $request->validate([
-            'custom_permissions' => 'required|array',
+            'actions' => 'sometimes|array',
+            'custom_permissions' => 'sometimes|array',
+            'permissions' => 'sometimes|array',
         ]);
 
-        $permissionsInput = $request->input('custom_permissions');
+        $permissionsInput = $request->input('actions') ?? $request->input('custom_permissions') ?? $request->input('permissions') ?? [];
         $formatted = [];
 
         foreach ($permissionsInput as $key => $val) {

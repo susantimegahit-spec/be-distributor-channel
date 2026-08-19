@@ -2576,8 +2576,9 @@ paths:
                   type: string
                   nullable: true
                   example: "OM"
-                custom_permissions:
+                actions:
                   type: array
+                  description: Custom permissions override per menu
                   items:
                     type: object
                   example:
@@ -2701,7 +2702,7 @@ paths:
                   type: string
                   nullable: true
                   example: "OM"
-                custom_permissions:
+                actions:
                   type: array
                   items:
                     type: object
@@ -2803,7 +2804,7 @@ paths:
                   role_id: 3
                   role_name: "Staff Sales"
                   has_custom_override: true
-                  custom_permissions:
+                  actions:
                     - menu_key: "sales-order"
                       actions:
                         create: false
@@ -2843,9 +2844,9 @@ paths:
             schema:
               type: object
               required:
-                - custom_permissions
+                - actions
               properties:
-                custom_permissions:
+                actions:
                   type: array
                   items:
                     type: object
