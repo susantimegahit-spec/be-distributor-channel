@@ -295,6 +295,7 @@ Di n8n Workflow:
        json: {
          task_id: task.id,
          task_name: task.name,
+         space_id: task.space?.id || task.space_id || null,
          space_name: task.space?.name || task.space_name || null,
          folder_name: task.folder?.name || task.folder_name || null,
          list_name: task.list?.name || task.list_name || null,
