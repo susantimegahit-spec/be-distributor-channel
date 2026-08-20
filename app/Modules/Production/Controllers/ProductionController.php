@@ -528,10 +528,16 @@ class ProductionController extends Controller
         if ($shift !== null) $data['u_shift'] = $shift;
         if ($unit !== null) $data['u_unit'] = $unit;
         if ($bomId !== null) {
+            $data['Bomid'] = (string) $bomId;
             if ($bomId === '' || $bomId === '0' || $bomId === 0) {
                 $data['production_bom_id'] = null;
             } else {
-                $data['production_bom_id'] = is_numeric($bomId) ? (int) $bomId : null;
+                $localBomId = is_numeric($bomId) ? (int) $bomId : null;
+                if ($localBomId && \App\Models\ProductionBom::where('id', $localBomId)->exists()) {
+                    $data['production_bom_id'] = $localBomId;
+                } else {
+                    $data['production_bom_id'] = null;
+                }
             }
         }
         if (isset($input['series']) || isset($input['Series'])) $data['series'] = $input['series'] ?? $input['Series'];

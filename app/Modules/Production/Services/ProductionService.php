@@ -312,9 +312,9 @@ class ProductionService
                     'Remarks'     => (string) $updatedOrder->comments,
                     'Shift'       => $mapShift($updatedOrder->u_shift),
                     'Unit'        => (string) $updatedOrder->u_unit,
-                    'Bomid'       => (string) $updatedOrder->production_bom_id,
-                    'UserId'      => (string) ($userId ? (string)$userId : '1'),
-                    'AddonId'     => '2',
+                    'Bomid'       => (string) ($data['Bomid'] ?? $data['bom_id'] ?? $data['production_bom_id'] ?? $updatedOrder->production_bom_id ?? ''),
+                    'UserId'      => (string) ($data['UserId'] ?? $data['user_id'] ?? ($userId ? (string)$userId : '1')),
+                    'AddonId'     => (string) ($data['AddonId'] ?? $data['addon_id'] ?? '2'),
                     'Lines'       => $lines,
                 ];
 
@@ -539,7 +539,7 @@ class ProductionService
                 'Remarks'     => $comments,
                 'Shift'       => $shift,
                 'Unit'        => $unit,
-                'Bomid'       => $bomId,
+                'Bomid'       => (string) ($data['Bomid'] ?? $data['bom_id'] ?? $data['production_bom_id'] ?? $bomId ?? ''),
                 'UserId'      => (string) ($data['user_id'] ?? $data['UserId'] ?? ($userId ? (string)$userId : '1')),
                 'AddonId'     => (string) ($data['addon_id'] ?? $data['AddonId'] ?? '2'),
                 'Lines'       => $lines,

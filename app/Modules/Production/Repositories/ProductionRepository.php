@@ -260,6 +260,13 @@ class ProductionRepository implements ProductionRepositoryInterface
                 $data['prod_order_no'] = 'PO-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(4)));
             }
 
+            if (isset($data['production_bom_id']) && !empty($data['production_bom_id'])) {
+                $bomExists = \App\Models\ProductionBom::where('id', $data['production_bom_id'])->exists();
+                if (!$bomExists) {
+                    $data['production_bom_id'] = null;
+                }
+            }
+
             $order = \App\Models\ProductionOrder::create($data);
 
             foreach ($details as $index => $detail) {
@@ -291,6 +298,13 @@ class ProductionRepository implements ProductionRepositoryInterface
         return DB::connection('pgsql_production')->transaction(function () use ($order, $data) {
             $details = $data['details'] ?? null;
             unset($data['details']);
+
+            if (isset($data['production_bom_id']) && !empty($data['production_bom_id'])) {
+                $bomExists = \App\Models\ProductionBom::where('id', $data['production_bom_id'])->exists();
+                if (!$bomExists) {
+                    $data['production_bom_id'] = null;
+                }
+            }
 
             $order->update($data);
 
