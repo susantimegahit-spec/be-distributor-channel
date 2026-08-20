@@ -263,7 +263,10 @@ class ProductionService
         }
 
         $oldStatus = strtoupper(trim((string) $order->status));
+        if ($oldStatus === 'RELEASE') $oldStatus = 'RELEASED';
         $newStatus = isset($data['status']) ? strtoupper(trim((string) $data['status'])) : $oldStatus;
+        if ($newStatus === 'RELEASE') $newStatus = 'RELEASED';
+        $data['status'] = $newStatus;
 
         $updatedOrder = $this->productionRepository->updateOrder($order, $data);
 
@@ -412,10 +415,8 @@ class ProductionService
         };
 
         // Determine status sent by FE (default to PLANNED)
-        $status = strtoupper(trim((string) ($data['status'] ?? $data['Status'] ?? 'PLANNED')));
-        if (empty($status)) {
-            $status = 'PLANNED';
-        }
+        $rawStatus = strtoupper(trim((string) ($data['status'] ?? $data['Status'] ?? 'PLANNED')));
+        $status = ($rawStatus === 'RELEASE' || $rawStatus === 'RELEASED') ? 'RELEASED' : (empty($rawStatus) ? 'PLANNED' : $rawStatus);
 
         // Format Lines & Details for both SAP payload and Local DB
         $lines = [];
@@ -495,7 +496,8 @@ class ProductionService
         $comments = (string) ($data['comments'] ?? $data['remarks'] ?? $data['Remarks'] ?? '');
         $shift = $mapShift($data['u_shift'] ?? $data['shift'] ?? $data['Shift'] ?? '');
         $unit = (string) ($data['u_unit'] ?? $data['unit'] ?? $data['Unit'] ?? '');
-        $bomId = (string) ($data['production_bom_id'] ?? $data['bom_id'] ?? $data['Bomid'] ?? '');
+        $rawBomId = $data['production_bom_id'] ?? $data['bom_id'] ?? $data['Bomid'] ?? null;
+        $bomId = is_numeric($rawBomId) && (int)$rawBomId > 0 ? (int)$rawBomId : null;
 
         // 1. Simpan ke database lokal dengan status yang dikirimkan FE
         $localData = [

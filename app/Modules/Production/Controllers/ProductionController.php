@@ -520,11 +520,20 @@ class ProductionController extends Controller
         if ($postDate !== null) $data['post_date'] = date('Y-m-d', strtotime($postDate));
         if ($dueDate !== null) $data['due_date'] = date('Y-m-d', strtotime($dueDate));
         if ($plannedQty !== null) $data['planned_qty'] = floatval($plannedQty);
-        if ($status !== null) $data['status'] = strtoupper(trim((string)$status));
+        if ($status !== null) {
+            $statusStr = strtoupper(trim((string)$status));
+            $data['status'] = ($statusStr === 'RELEASE') ? 'RELEASED' : $statusStr;
+        }
         if ($comments !== null) $data['comments'] = $comments;
         if ($shift !== null) $data['u_shift'] = $shift;
         if ($unit !== null) $data['u_unit'] = $unit;
-        if ($bomId !== null) $data['production_bom_id'] = $bomId;
+        if ($bomId !== null) {
+            if ($bomId === '' || $bomId === '0' || $bomId === 0) {
+                $data['production_bom_id'] = null;
+            } else {
+                $data['production_bom_id'] = is_numeric($bomId) ? (int) $bomId : null;
+            }
+        }
         if (isset($input['series']) || isset($input['Series'])) $data['series'] = $input['series'] ?? $input['Series'];
         if (isset($input['ocr_code2']) || isset($input['OcrCode2'])) $data['ocr_code2'] = $input['ocr_code2'] ?? $input['OcrCode2'];
         if (isset($input['ocr_code3']) || isset($input['OcrCode3'])) $data['ocr_code3'] = $input['ocr_code3'] ?? $input['OcrCode3'];
