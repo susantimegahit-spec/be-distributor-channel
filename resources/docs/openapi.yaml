@@ -540,6 +540,9 @@ paths:
                         address:
                           type: string
                           example: "JL.KERTOPATEN NOMOR 16 SURABAYA"
+                        address_shipto:
+                          type: string
+                          example: "JL. SITUBONDO RAYA NO. 88"
         '401':
           description: API Key tidak valid atau dinonaktifkan.
   /v1/external/customer-monthly-orders/items:

@@ -137,8 +137,9 @@ class ExternalCustomerMonthlyOrderController extends Controller
             return [
                 'card_code'     => $distributor->code_customer,
                 'customer_name' => $distributor->name,
-                'depo'          => $distributor->depo,
-                'address'       => $distributor->address,
+                'depo'           => $distributor->depo,
+                'address'        => $distributor->address,
+                'address_shipto' => $distributor->mail_address,
             ];
         });
 

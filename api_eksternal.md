@@ -367,7 +367,8 @@ Distributor dapat menggunakan endpoint ini sebelum membuat CMO untuk memastikan 
       "card_code": "C110003419",
       "customer_name": "SAKTI SETIA SANTOSA, PT.",
       "depo": "SITUBONDO",
-      "address": "JL.KERTOPATEN NOMOR 16 SURABAYA"
+      "address": "JL.KERTOPATEN NOMOR 16 SURABAYA",
+      "address_shipto": "JL. SITUBONDO RAYA NO. 88"
     }
   ]
 }
