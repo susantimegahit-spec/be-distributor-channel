@@ -105,6 +105,40 @@ class ReportingTaskController extends Controller
     }
 
     /**
+     * Get ALL reporting tasks without pagination (Optimized for Apigee & Google Looker Studio).
+     */
+    public function getAll(Request $request): JsonResponse
+    {
+        $filters = $request->only([
+            'search',
+            'space_id',
+            'space_name',
+            'folder_name',
+            'list_name',
+            'status',
+            'assignee',
+            'priority',
+            'task_type',
+            'timeline',
+            'start_date_from',
+            'start_date_to',
+            'due_date_from',
+            'due_date_to',
+            'sort_by',
+            'sort_order',
+        ]);
+
+        $filters['all'] = true;
+
+        try {
+            $tasks = $this->reportingTaskService->getTasks($filters);
+            return $this->successResponse($tasks, 'Seluruh data reporting tasks berhasil diambil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal mengambil seluruh data tasks: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
      * Get summary metrics for Data Studio / Dashboard.
      */
     public function summary(): JsonResponse

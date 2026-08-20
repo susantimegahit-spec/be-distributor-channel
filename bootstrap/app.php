@@ -80,6 +80,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->alias([
             'check.permission' => \App\Http\Middleware\CheckPermission::class,
+            'auth.reporting'   => \App\Http\Middleware\AuthenticateReportingApiKey::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

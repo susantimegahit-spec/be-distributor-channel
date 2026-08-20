@@ -11617,6 +11617,74 @@ paths:
         '200':
           description: Daftar reporting tasks berhasil diambil.
 
+  /v1/reporting/tasks/all:
+    get:
+      summary: Get ALL Reporting Tasks (Optimized for Apigee & Google Looker Studio)
+      description: Mengambil seluruh data task ClickUp dari tabel `reporting_tasks` tanpa paginasi untuk kebutuhan konsumsi Apigee API Gateway dan Google Looker Studio. Mendukung filter space_id, status, assignee, priority, dan rentang tanggal.
+      tags:
+        - Reporting & Analytics
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Pencarian nama task, task ID, space ID, atau assignee
+        - in: query
+          name: space_id
+          schema:
+            type: string
+          description: Filter ClickUp Space ID
+        - in: query
+          name: status
+          schema:
+            type: string
+          description: Filter status task (e.g. to do, in progress, complete)
+        - in: query
+          name: assignee
+          schema:
+            type: string
+          description: Filter assignee
+        - in: query
+          name: priority
+          schema:
+            type: string
+          description: Filter priority (e.g. urgent, high, normal, low)
+        - in: query
+          name: start_date_from
+          schema:
+            type: string
+            format: date
+          description: Filter tanggal mulai dari (YYYY-MM-DD)
+        - in: query
+          name: due_date_to
+          schema:
+            type: string
+            format: date
+          description: Filter tanggal jatuh tempo sampai (YYYY-MM-DD)
+      responses:
+        '200':
+          description: Seluruh data reporting tasks berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Seluruh data reporting tasks berhasil diambil."
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ReportingTask'
+        '401':
+          description: Unauthorized - API Key / Token tidak valid.
+
   /v1/reporting/tasks/summary:
     get:
       summary: Get Reporting Tasks Metric Summary

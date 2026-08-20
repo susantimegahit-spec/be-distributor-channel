@@ -172,9 +172,21 @@ class ExpeditionUploadService
         $skipped = 0;
         $errors = [];
 
-        // Pre-fetch expeditions & warehouses for fast lookup
-        $expeditionMap = Expedition::pluck('id', 'expedition_code')->toArray();
-        $warehouseMap  = Warehouse::pluck('id', 'whs_code')->toArray();
+        // Pre-fetch all expeditions for fast case-insensitive, sanitized code, and name lookup
+        $allExpeditions = Expedition::all();
+        $expeditionMap = [];
+        foreach ($allExpeditions as $exp) {
+            $code = strtoupper(trim((string) $exp->expedition_code));
+            $cleanCode = preg_replace('/[^A-Z0-9]/', '', $code);
+            $name = strtoupper(trim((string) $exp->expedition_name));
+
+            if ($code !== '') $expeditionMap[$code] = $exp->id;
+            if ($cleanCode !== '') $expeditionMap[$cleanCode] = $exp->id;
+            if ($name !== '') $expeditionMap[$name] = $exp->id;
+            $expeditionMap[(string) $exp->id] = $exp->id;
+        }
+
+        $warehouseMap = Warehouse::pluck('id', 'whs_code')->toArray();
 
         DB::beginTransaction();
         try {
@@ -185,21 +197,37 @@ class ExpeditionUploadService
                     continue;
                 }
 
-                $expCode = trim((string) ($this->getValueByMap($row, $headerMap, 'expedition_code') ?? ''));
-                if (str_contains($expCode, '-')) {
-                    $expCode = trim(explode('-', $expCode)[0]);
-                }
+                $rawExpInput = trim((string) ($this->getValueByMap($row, $headerMap, 'expedition_code') ?? ''));
+                $expUpper = strtoupper($rawExpInput);
+                $expClean = preg_replace('/[^A-Z0-9]/', '', $expUpper);
+                $expCodePart = str_contains($rawExpInput, '-') ? trim(explode('-', $rawExpInput)[0]) : $rawExpInput;
+                $expCodePartUpper = strtoupper($expCodePart);
+                $expCodePartClean = preg_replace('/[^A-Z0-9]/', '', $expCodePartUpper);
 
-                // Find expedition ID either by code or numeric ID
-                $expeditionId = null;
-                if (isset($expeditionMap[$expCode])) {
-                    $expeditionId = $expeditionMap[$expCode];
-                } elseif (is_numeric($expCode)) {
-                    $expeditionId = (int) $expCode;
+                // Find expedition ID
+                $expeditionId = $expeditionMap[$rawExpInput]
+                    ?? $expeditionMap[$expUpper]
+                    ?? $expeditionMap[$expClean]
+                    ?? $expeditionMap[$expCodePartUpper]
+                    ?? $expeditionMap[$expCodePartClean]
+                    ?? null;
+
+                if (!$expeditionId) {
+                    // Fallback: direct database search with LIKE / ILIKE
+                    $expObj = Expedition::where('expedition_code', $rawExpInput)
+                        ->orWhere('expedition_code', 'ILIKE', $expCodePart)
+                        ->orWhere('expedition_name', 'ILIKE', $rawExpInput)
+                        ->orWhere('expedition_name', 'ILIKE', "%{$rawExpInput}%")
+                        ->first();
+
+                    if ($expObj) {
+                        $expeditionId = $expObj->id;
+                        $expeditionMap[$expUpper] = $expObj->id;
+                    }
                 }
 
                 if (!$expeditionId) {
-                    $errors[] = "Baris #{$rowNum}: Ekspedisi dengan kode '{$expCode}' tidak ditemukan.";
+                    $errors[] = "Baris #{$rowNum}: Ekspedisi dengan kode/nama '{$rawExpInput}' belum terdaftar di Master Ekspedisi. Harap daftarkan ekspedisi ini terlebih dahulu di menu Master Ekspedisi.";
                     continue;
                 }
 

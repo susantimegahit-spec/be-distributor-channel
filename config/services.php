@@ -51,4 +51,9 @@ return [
         'credentials_json' => env('FIREBASE_CREDENTIALS_JSON'),
     ],
 
+    'reporting' => [
+        'api_key' => env('REPORTING_API_KEY'),
+        'allowed_ips' => env('REPORTING_ALLOWED_IPS'),
+    ],
+
 ];
