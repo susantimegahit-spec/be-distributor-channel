@@ -329,4 +329,24 @@ Ada 2 cara menghubungkan Looker Studio ke tabel `reporting_tasks`:
    * Masukkan Host, Port, Database Name, Username, dan Password database Laravel.
    * Pilih tabel `reporting_tasks` atau buat Custom SQL Query.
 2. **Cara 2: REST API JSON Connector (Community Connector)**
-   * Masukkan URL endpoint: `http://<domain-backend>/api/distributor-channel/v1/reporting/tasks?all=true`.
+   * Masukkan URL endpoint: `http://<domain-backend>/api/distributor-channel/v1/reporting/tasks/all` (atau `?all=true`).
+
+---
+
+## 6. Laravel Web Monitoring Dashboard (Integrated with Admin Hub)
+
+Selain untuk konsumsi Google Looker Studio, sistem kini menyediakan **Interactive Web Monitoring Dashboard** bawaan di backend Laravel yang dapat diakses langsung oleh tim manajemen dan internal:
+
+* **URL Dashboard:** `https://api-dev.susantimegah.com/reporting/tasks`
+* **Navigasi Terpadu:** Dapat dibuka langsung melalui **Admin Control Hub** di `https://api-dev.susantimegah.com/monitoringsm/hub`.
+* **Fitur Utama Dashboard:**
+  1. **Live Header & Sync Status:** Menampilkan timestamp *Last Sync* dan tombol *Refresh*.
+  2. **Multi-Criteria Filters:** Filter berdasarkan Pencarian, Space, Folder, List, Assignee, Status, Priority, Start Date, dan Due Date.
+  3. **5 KPI Cards Real-Time:** Total Tasks, In Progress, Completed, Overdue, dan Due Soon (7 hari ke depan).
+  4. **4 Interactive Charts (ApexCharts):**
+     * Donut Chart: Distribusi Status Task.
+     * Horizontal Bar Chart: Task per Assignee (Top PIC).
+     * Vertical Bar Chart: Task per List / Modul.
+     * Horizontal Bar Chart: Breakdown Prioritas (Urgent / High / Normal / Low).
+  5. **Data Table Interaktif:** Dilengkapi sorting, pagination, badge status/priority, peringatan overdue merah, dan **Modal Detail Task** dengan tautan langsung membuka task di ClickUp (`https://app.clickup.com/t/{task_id}`).
+

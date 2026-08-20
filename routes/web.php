@@ -94,10 +94,19 @@ Route::middleware('web')->prefix('monitoringsm')->group(function () {
         Route::post('/api-keys/generate', [\App\Http\Controllers\ApiKeyWebController::class, 'store']);
         Route::post('/api-keys/{id}/toggle', [\App\Http\Controllers\ApiKeyWebController::class, 'toggleStatus']);
         Route::post('/api-keys/{id}/delete', [\App\Http\Controllers\ApiKeyWebController::class, 'destroy']);
+
+        // ClickUp Task Reporting Dashboard
+        Route::get('/reporting-tasks', [\App\Http\Controllers\ReportingTaskWebController::class, 'index']);
     });
 });
 
+// Standalone ClickUp Task Reporting Dashboard URL (/reporting/tasks)
+Route::middleware(['web', \App\Http\Middleware\PulseAuthSession::class])->group(function () {
+    Route::get('/reporting/tasks', [\App\Http\Controllers\ReportingTaskWebController::class, 'index']);
+});
+
 use App\Http\Controllers\ApiKeyWebController;
+use App\Http\Controllers\ReportingTaskWebController;
 
 
 // 4. Route Dokumentasi API yang Dilindungi Session & Timeout 1 Hari (86400 Detik)

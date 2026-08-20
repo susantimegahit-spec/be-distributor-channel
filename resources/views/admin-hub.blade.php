@@ -133,6 +133,16 @@
             border-color: rgba(34,197,94,0.6);
         }
 
+        .nav-card.card-reporting {
+            background: linear-gradient(145deg, #180d2b, #0f172a);
+            border-color: rgba(168,85,247,0.3);
+        }
+
+        .nav-card.card-reporting:hover {
+            box-shadow: 0 20px 40px rgba(168,85,247,0.2);
+            border-color: rgba(168,85,247,0.6);
+        }
+
         .card-icon {
             width: 48px;
             height: 48px;
@@ -147,6 +157,7 @@
         .card-pulse .card-icon { background: rgba(99,102,241,0.15); }
         .card-apikey .card-icon { background: rgba(245,158,11,0.15); }
         .card-docs .card-icon { background: rgba(34,197,94,0.15); }
+        .card-reporting .card-icon { background: rgba(168,85,247,0.15); }
 
         .card-title {
             font-size: 16px;
@@ -170,6 +181,7 @@
         .card-pulse .card-arrow { color: #818cf8; }
         .card-apikey .card-arrow { color: #fbbf24; }
         .card-docs .card-arrow { color: #4ade80; }
+        .card-reporting .card-arrow { color: #c084fc; }
 
         .logout-link {
             font-size: 13px;
@@ -192,6 +204,14 @@
         </div>
 
         <div class="cards-grid">
+            <!-- ClickUp Task Reporting Dashboard -->
+            <a href="{{ url('/reporting/tasks') }}" class="nav-card card-reporting" style="grid-column: 1 / -1;">
+                <div class="card-icon">📊</div>
+                <div class="card-title">ClickUp Task Reporting Dashboard</div>
+                <div class="card-desc">Monitoring progress pekerjaan tim, status task, assignee, timeline sprint, deadline overdue, dan visualisasi interaktif dari database ClickUp.</div>
+                <div class="card-arrow">Buka Task Reporting Dashboard →</div>
+            </a>
+
             <!-- Pulse System Monitoring -->
             <a href="{{ url('/monitoringsm') }}" class="nav-card card-pulse">
                 <div class="card-icon">📡</div>
