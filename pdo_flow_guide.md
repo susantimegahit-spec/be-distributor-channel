@@ -391,6 +391,67 @@ Membatalkan PDO baik yang ada di database lokal maupun di SAP B1.
 
 ---
 
+### F. Get Master Unit (SAP)
+
+Mengambil daftar Master Unit mesin/lokasi produksi langsung dari SAP Business One (`/api/GetUnit`).
+
+* **Method:** `GET` / `POST`
+* **URL:** `/api/distributor-channel/v1/production/units` *(Alias: `/api/distributor-channel/v1/production/get-unit`)*
+* **Headers:** `Authorization: Bearer <token>`
+* **Response Success (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Master Unit berhasil diambil dari SAP.",
+  "data": [
+    {
+      "code": "BLR-UNIT1",
+      "name": "BLR-UNIT1",
+      "Code": "BLR-UNIT1",
+      "Name": "BLR-UNIT1"
+    },
+    {
+      "code": "BLR-UNIT2",
+      "name": "BLR-UNIT2",
+      "Code": "BLR-UNIT2",
+      "Name": "BLR-UNIT2"
+    },
+    {
+      "code": "FORKLIFT",
+      "name": "FORKLIFT",
+      "Code": "FORKLIFT",
+      "Name": "FORKLIFT"
+    },
+    {
+      "code": "GRESIK",
+      "name": "GRESIK",
+      "Code": "GRESIK",
+      "Name": "GRESIK"
+    },
+    {
+      "code": "GSK-UNIT1A",
+      "name": "GSK-UNIT1A",
+      "Code": "GSK-UNIT1A",
+      "Name": "GSK-UNIT1A"
+    },
+    {
+      "code": "GSK-UNIT1B",
+      "name": "GSK-UNIT1B",
+      "Code": "GSK-UNIT1B",
+      "Name": "GSK-UNIT1B"
+    },
+    {
+      "code": "GSK-UNIT2",
+      "name": "GSK-UNIT2",
+      "Code": "GSK-UNIT2",
+      "Name": "GSK-UNIT2"
+    }
+  ]
+}
+```
+
+---
+
 ## 5. Ringkasan Mapping Parameter Frontend ➔ Backend
 
 | Parameter SAP / FE | Parameter Snake Case | Deskripsi |

@@ -1884,4 +1884,64 @@ class ProductionService
             'sap_response' => $body,
         ];
     }
+
+    /**
+     * Get list of Units from SAP API endpoint (/api/GetUnit).
+     *
+     * @param int|null $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function getUnits(?int $userId = null): array
+    {
+        $sapUrl = config('services.sap.url');
+
+        try {
+            $response = Http::timeout(30)->post("{$sapUrl}/api/GetUnit");
+            if (!$response->successful()) {
+                $response = Http::timeout(30)->get("{$sapUrl}/api/GetUnit");
+            }
+
+            if (!$response->successful()) {
+                throw new \Exception('Gagal menghubungi API SAP GetUnit. HTTP Status: ' . $response->status());
+            }
+
+            $body = $response->json();
+
+            if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
+                throw new \Exception('API SAP GetUnit error: ' . ($body['Message'] ?? 'Unknown SAP error'));
+            }
+
+            $rawUnits = $body['Result'] ?? [];
+            $units = [];
+            if (is_array($rawUnits)) {
+                foreach ($rawUnits as $u) {
+                    if (is_array($u)) {
+                        $code = (string) ($u['Code'] ?? $u['code'] ?? '');
+                        $name = (string) ($u['Name'] ?? $u['name'] ?? $code);
+                        if (!empty($code)) {
+                            $units[] = [
+                                'code' => $code,
+                                'name' => $name,
+                                'Code' => $code,
+                                'Name' => $name,
+                            ];
+                        }
+                    }
+                }
+            }
+
+            if ($userId) {
+                $this->auditLogService->log(
+                    $userId,
+                    'GET_UNITS_SAP',
+                    "Fetched Master Units list from SAP."
+                );
+            }
+
+            return $units;
+        } catch (\Exception $e) {
+            throw new \Exception('Gagal mengambil data Master Unit dari SAP: ' . $e->getMessage());
+        }
+    }
 }

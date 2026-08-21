@@ -848,4 +848,20 @@ class ProductionController extends Controller
             return $this->errorResponse('Gagal membatalkan Inventory Transfer di SAP: ' . $e->getMessage(), [], 500);
         }
     }
+
+    /**
+     * Get Master Units from SAP API (/api/GetUnit).
+     */
+    public function getUnitsSap(Request $request): JsonResponse
+    {
+        $userId = $request->user()?->id;
+
+        try {
+            $units = $this->productionService->getUnits($userId);
+            $message = empty($units) ? 'Data Unit tidak ditemukan.' : 'Master Unit berhasil diambil dari SAP.';
+            return $this->successResponse($units, $message);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal mengambil data Master Unit dari SAP: ' . $e->getMessage(), [], 500);
+        }
+    }
 }
