@@ -882,7 +882,7 @@ class ProductionService
         // Fetch and merge local Production Receipts from Database
         try {
             $localReceiptQuery = \App\Models\ProductionReceipt::query()
-                ->with(['items', 'productionOrder']);
+                ->with(['items.item', 'productionOrder.parentItem']);
 
             if (!empty($rawFrom) && !empty($rawTo)) {
                 $localReceiptQuery->whereBetween('doc_date', [$rawFrom, $rawTo]);
@@ -903,6 +903,11 @@ class ProductionService
 
                 $firstItem = $lReceipt->items->first();
                 $totalQty = $lReceipt->items->sum('quantity');
+                $itemCode = (string) ($firstItem?->item_code ?: $lReceipt->productionOrder?->item_code ?: '');
+                $itemName = (string) ($firstItem?->item?->item_name ?: $lReceipt->productionOrder?->parentItem?->item_name ?: '');
+                if (empty($itemName) && !empty($itemCode)) {
+                    $itemName = (string) (\App\Models\Item::where('item_code', $itemCode)->value('item_name') ?? $itemCode);
+                }
 
                 $localItems[] = [
                     'id'          => $lReceipt->id,
@@ -917,7 +922,9 @@ class ProductionService
                     'SapStatus'   => (string) $lReceipt->sap_status,
                     'BaseEntry'   => (string) ($lReceipt->productionOrder?->doc_entry ?: $lReceipt->productionOrder?->id ?: $firstItem?->base_entry ?: ''),
                     'BaseType'    => 202,
-                    'ItemCode'    => (string) ($firstItem?->item_code ?: $lReceipt->productionOrder?->item_code ?: ''),
+                    'ItemCode'    => $itemCode,
+                    'ItemName'    => $itemName,
+                    'ProdName'    => $itemName,
                     'Quantity'    => floatval($totalQty),
                     'WhsCode'     => (string) ($firstItem?->warehouse ?: ''),
                     'is_local'    => true,
@@ -927,6 +934,29 @@ class ProductionService
             $items = array_merge($localItems, $items);
         } catch (\Exception $e) {
             // Fallback
+        }
+
+        // Enrich any missing ItemName from Master Items table
+        if (!empty($items)) {
+            $itemCodesToLookup = [];
+            foreach ($items as $it) {
+                $c = $it['ItemCode'] ?? null;
+                $n = $it['ItemName'] ?? $it['ProdName'] ?? null;
+                if ($c && empty($n)) {
+                    $itemCodesToLookup[] = $c;
+                }
+            }
+            if (!empty($itemCodesToLookup)) {
+                $nameMap = \App\Models\Item::whereIn('item_code', array_unique($itemCodesToLookup))->pluck('item_name', 'item_code')->toArray();
+                foreach ($items as &$it) {
+                    $c = $it['ItemCode'] ?? null;
+                    if ($c && empty($it['ItemName']) && isset($nameMap[$c])) {
+                        $it['ItemName'] = $nameMap[$c];
+                        $it['ProdName'] = $nameMap[$c];
+                    }
+                }
+                unset($it);
+            }
         }
 
         if ($userId) {
@@ -957,7 +987,7 @@ class ProductionService
         // 1. Check local database first
         $localReceipt = null;
         try {
-            $localReceipt = \App\Models\ProductionReceipt::with(['items', 'productionOrder'])
+            $localReceipt = \App\Models\ProductionReceipt::with(['items.item', 'productionOrder.parentItem'])
                 ->where('id', is_numeric($customQuery) ? (int)$customQuery : 0)
                 ->orWhere('receipt_no', (string)$customQuery)
                 ->orWhere('doc_entry', is_numeric($customQuery) ? (int)$customQuery : 0)
@@ -1005,6 +1035,12 @@ class ProductionService
         // 3. If SAP did not return valid data, fallback to local DB record
         if ((empty($header) && empty($items)) && $localReceipt) {
             $firstItem = $localReceipt->items->first();
+            $itemCode = (string) ($firstItem?->item_code ?: $localReceipt->productionOrder?->item_code ?: '');
+            $itemName = (string) ($firstItem?->item?->item_name ?: $localReceipt->productionOrder?->parentItem?->item_name ?: '');
+            if (empty($itemName) && !empty($itemCode)) {
+                $itemName = (string) (\App\Models\Item::where('item_code', $itemCode)->value('item_name') ?? $itemCode);
+            }
+
             $header = [
                 'id'          => $localReceipt->id,
                 'DocEntry'    => (string) ($localReceipt->doc_entry ?: $localReceipt->id),
@@ -1018,7 +1054,9 @@ class ProductionService
                 'SapStatus'   => (string) $localReceipt->sap_status,
                 'BaseEntry'   => (string) ($localReceipt->productionOrder?->doc_entry ?: $localReceipt->productionOrder?->id ?: $firstItem?->base_entry ?: ''),
                 'BaseType'    => 202,
-                'ItemCode'    => (string) ($firstItem?->item_code ?: $localReceipt->productionOrder?->item_code ?: ''),
+                'ItemCode'    => $itemCode,
+                'ItemName'    => $itemName,
+                'ProdName'    => $itemName,
                 'Quantity'    => floatval($localReceipt->items->sum('quantity')),
                 'WhsCode'     => (string) ($firstItem?->warehouse ?: ''),
                 'is_local'    => true,
@@ -1026,19 +1064,62 @@ class ProductionService
 
             $items = [];
             foreach ($localReceipt->items as $idx => $line) {
+                $lCode = (string) $line->item_code;
+                $lName = (string) ($line->item?->item_name ?: '');
+                if (empty($lName) && !empty($lCode)) {
+                    $lName = (string) (\App\Models\Item::where('item_code', $lCode)->value('item_name') ?? $lCode);
+                }
+
                 $items[] = [
-                    'LineNum'   => $line->line_num ?? $idx,
-                    'BaseType'  => $line->base_type ?? 202,
-                    'BaseEntry' => (string) $line->base_entry,
-                    'BaseLine'  => (string) $line->base_line,
-                    'ItemCode'  => (string) $line->item_code,
-                    'Quantity'  => floatval($line->quantity),
-                    'WhsCode'   => (string) $line->warehouse,
-                    'UoMEntry'  => (string) $line->uom_entry,
-                    'OcrCode'   => (string) $line->ocr_code,
-                    'OcrCode2'  => (string) $line->ocr_code2,
-                    'OcrCode3'  => (string) $line->ocr_code3,
+                    'LineNum'         => $line->line_num ?? $idx,
+                    'BaseType'        => $line->base_type ?? 202,
+                    'BaseEntry'       => (string) $line->base_entry,
+                    'BaseLine'        => (string) $line->base_line,
+                    'ItemCode'        => $lCode,
+                    'ItemName'        => $lName,
+                    'ItemDescription' => $lName,
+                    'Dscription'      => $lName,
+                    'Quantity'        => floatval($line->quantity),
+                    'WhsCode'         => (string) $line->warehouse,
+                    'UoMEntry'        => (string) $line->uom_entry,
+                    'OcrCode'         => (string) $line->ocr_code,
+                    'OcrCode2'        => (string) $line->ocr_code2,
+                    'OcrCode3'        => (string) $line->ocr_code3,
                 ];
+            }
+        }
+
+        // Enrich missing ItemName in Header & Items
+        if ($header && is_array($header)) {
+            $hCode = $header['ItemCode'] ?? null;
+            if ($hCode && (empty($header['ItemName']) || empty($header['ProdName']))) {
+                $hName = \App\Models\Item::where('item_code', $hCode)->value('item_name');
+                if ($hName) {
+                    $header['ItemName'] = $hName;
+                    $header['ProdName'] = $hName;
+                }
+            }
+        }
+        if (!empty($items)) {
+            $itemCodes = [];
+            foreach ($items as $it) {
+                $c = $it['ItemCode'] ?? null;
+                $n = $it['ItemName'] ?? $it['ItemDescription'] ?? $it['Dscription'] ?? null;
+                if ($c && empty($n)) {
+                    $itemCodes[] = $c;
+                }
+            }
+            if (!empty($itemCodes)) {
+                $nameMap = \App\Models\Item::whereIn('item_code', array_unique($itemCodes))->pluck('item_name', 'item_code')->toArray();
+                foreach ($items as &$it) {
+                    $c = $it['ItemCode'] ?? null;
+                    if ($c && empty($it['ItemName']) && isset($nameMap[$c])) {
+                        $it['ItemName'] = $nameMap[$c];
+                        $it['ItemDescription'] = $nameMap[$c];
+                        $it['Dscription'] = $nameMap[$c];
+                    }
+                }
+                unset($it);
             }
         }
 
@@ -1112,7 +1193,7 @@ class ProductionService
         // Fetch and merge local Production Issues from Database
         try {
             $localIssueQuery = \App\Models\ProductionIssue::query()
-                ->with(['items', 'productionOrder']);
+                ->with(['items.item', 'productionOrder.parentItem']);
 
             if (!empty($rawFrom) && !empty($rawTo)) {
                 $localIssueQuery->whereBetween('doc_date', [$rawFrom, $rawTo]);
@@ -1133,6 +1214,11 @@ class ProductionService
 
                 $firstItem = $lIssue->items->first();
                 $totalQty = $lIssue->items->sum('quantity');
+                $itemCode = (string) ($firstItem?->item_code ?: $lIssue->productionOrder?->item_code ?: '');
+                $itemName = (string) ($firstItem?->item?->item_name ?: $lIssue->productionOrder?->parentItem?->item_name ?: '');
+                if (empty($itemName) && !empty($itemCode)) {
+                    $itemName = (string) (\App\Models\Item::where('item_code', $itemCode)->value('item_name') ?? $itemCode);
+                }
 
                 $localItems[] = [
                     'id'          => $lIssue->id,
@@ -1147,7 +1233,9 @@ class ProductionService
                     'SapStatus'   => (string) $lIssue->sap_status,
                     'BaseEntry'   => (string) ($lIssue->productionOrder?->doc_entry ?: $lIssue->productionOrder?->id ?: $firstItem?->base_entry ?: ''),
                     'BaseType'    => 202,
-                    'ItemCode'    => (string) ($firstItem?->item_code ?: $lIssue->productionOrder?->item_code ?: ''),
+                    'ItemCode'    => $itemCode,
+                    'ItemName'    => $itemName,
+                    'ProdName'    => $itemName,
                     'Quantity'    => floatval($totalQty),
                     'WhsCode'     => (string) ($firstItem?->warehouse ?: ''),
                     'is_local'    => true,
@@ -1157,6 +1245,29 @@ class ProductionService
             $items = array_merge($localItems, $items);
         } catch (\Exception $e) {
             // Fallback
+        }
+
+        // Enrich any missing ItemName from Master Items table
+        if (!empty($items)) {
+            $itemCodesToLookup = [];
+            foreach ($items as $it) {
+                $c = $it['ItemCode'] ?? null;
+                $n = $it['ItemName'] ?? $it['ProdName'] ?? null;
+                if ($c && empty($n)) {
+                    $itemCodesToLookup[] = $c;
+                }
+            }
+            if (!empty($itemCodesToLookup)) {
+                $nameMap = \App\Models\Item::whereIn('item_code', array_unique($itemCodesToLookup))->pluck('item_name', 'item_code')->toArray();
+                foreach ($items as &$it) {
+                    $c = $it['ItemCode'] ?? null;
+                    if ($c && empty($it['ItemName']) && isset($nameMap[$c])) {
+                        $it['ItemName'] = $nameMap[$c];
+                        $it['ProdName'] = $nameMap[$c];
+                    }
+                }
+                unset($it);
+            }
         }
 
         if ($userId) {
@@ -1187,7 +1298,7 @@ class ProductionService
         // 1. Check local database first
         $localIssue = null;
         try {
-            $localIssue = \App\Models\ProductionIssue::with(['items', 'productionOrder'])
+            $localIssue = \App\Models\ProductionIssue::with(['items.item', 'productionOrder.parentItem'])
                 ->where('id', is_numeric($customQuery) ? (int)$customQuery : 0)
                 ->orWhere('issue_no', (string)$customQuery)
                 ->orWhere('doc_entry', is_numeric($customQuery) ? (int)$customQuery : 0)
@@ -1235,6 +1346,12 @@ class ProductionService
         // 3. Fallback to local DB record if SAP data not found
         if ((empty($header) && empty($items)) && $localIssue) {
             $firstItem = $localIssue->items->first();
+            $itemCode = (string) ($firstItem?->item_code ?: $localIssue->productionOrder?->item_code ?: '');
+            $itemName = (string) ($firstItem?->item?->item_name ?: $localIssue->productionOrder?->parentItem?->item_name ?: '');
+            if (empty($itemName) && !empty($itemCode)) {
+                $itemName = (string) (\App\Models\Item::where('item_code', $itemCode)->value('item_name') ?? $itemCode);
+            }
+
             $header = [
                 'id'          => $localIssue->id,
                 'DocEntry'    => (string) ($localIssue->doc_entry ?: $localIssue->id),
@@ -1248,7 +1365,9 @@ class ProductionService
                 'SapStatus'   => (string) $localIssue->sap_status,
                 'BaseEntry'   => (string) ($localIssue->productionOrder?->doc_entry ?: $localIssue->productionOrder?->id ?: $firstItem?->base_entry ?: ''),
                 'BaseType'    => 202,
-                'ItemCode'    => (string) ($firstItem?->item_code ?: $localIssue->productionOrder?->item_code ?: ''),
+                'ItemCode'    => $itemCode,
+                'ItemName'    => $itemName,
+                'ProdName'    => $itemName,
                 'Quantity'    => floatval($localIssue->items->sum('quantity')),
                 'WhsCode'     => (string) ($firstItem?->warehouse ?: ''),
                 'is_local'    => true,
@@ -1256,19 +1375,62 @@ class ProductionService
 
             $items = [];
             foreach ($localIssue->items as $idx => $line) {
+                $lCode = (string) $line->item_code;
+                $lName = (string) ($line->item?->item_name ?: '');
+                if (empty($lName) && !empty($lCode)) {
+                    $lName = (string) (\App\Models\Item::where('item_code', $lCode)->value('item_name') ?? $lCode);
+                }
+
                 $items[] = [
-                    'LineNum'   => $line->line_num ?? $idx,
-                    'BaseType'  => $line->base_type ?? 202,
-                    'BaseEntry' => (string) $line->base_entry,
-                    'BaseLine'  => (string) $line->base_line,
-                    'ItemCode'  => (string) $line->item_code,
-                    'Quantity'  => floatval($line->quantity),
-                    'WhsCode'   => (string) $line->warehouse,
-                    'UoMEntry'  => (string) $line->uom_entry,
-                    'OcrCode'   => (string) $line->ocr_code,
-                    'OcrCode2'  => (string) $line->ocr_code2,
-                    'OcrCode3'  => (string) $line->ocr_code3,
+                    'LineNum'         => $line->line_num ?? $idx,
+                    'BaseType'        => $line->base_type ?? 202,
+                    'BaseEntry'       => (string) $line->base_entry,
+                    'BaseLine'        => (string) $line->base_line,
+                    'ItemCode'        => $lCode,
+                    'ItemName'        => $lName,
+                    'ItemDescription' => $lName,
+                    'Dscription'      => $lName,
+                    'Quantity'        => floatval($line->quantity),
+                    'WhsCode'         => (string) $line->warehouse,
+                    'UoMEntry'        => (string) $line->uom_entry,
+                    'OcrCode'         => (string) $line->ocr_code,
+                    'OcrCode2'        => (string) $line->ocr_code2,
+                    'OcrCode3'        => (string) $line->ocr_code3,
                 ];
+            }
+        }
+
+        // Enrich missing ItemName in Header & Items
+        if ($header && is_array($header)) {
+            $hCode = $header['ItemCode'] ?? null;
+            if ($hCode && (empty($header['ItemName']) || empty($header['ProdName']))) {
+                $hName = \App\Models\Item::where('item_code', $hCode)->value('item_name');
+                if ($hName) {
+                    $header['ItemName'] = $hName;
+                    $header['ProdName'] = $hName;
+                }
+            }
+        }
+        if (!empty($items)) {
+            $itemCodes = [];
+            foreach ($items as $it) {
+                $c = $it['ItemCode'] ?? null;
+                $n = $it['ItemName'] ?? $it['ItemDescription'] ?? $it['Dscription'] ?? null;
+                if ($c && empty($n)) {
+                    $itemCodes[] = $c;
+                }
+            }
+            if (!empty($itemCodes)) {
+                $nameMap = \App\Models\Item::whereIn('item_code', array_unique($itemCodes))->pluck('item_name', 'item_code')->toArray();
+                foreach ($items as &$it) {
+                    $c = $it['ItemCode'] ?? null;
+                    if ($c && empty($it['ItemName']) && isset($nameMap[$c])) {
+                        $it['ItemName'] = $nameMap[$c];
+                        $it['ItemDescription'] = $nameMap[$c];
+                        $it['Dscription'] = $nameMap[$c];
+                    }
+                }
+                unset($it);
             }
         }
 
