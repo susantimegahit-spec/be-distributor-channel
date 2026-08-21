@@ -857,35 +857,83 @@ class ProductionService
             'ToWhsCode' => $toWhsCode,
         ];
 
-        $response = Http::timeout(30)->post("{$sapUrl}/api/getListReceiptProd", $payload);
+        $items = [];
 
-        if (!$response->successful()) {
-            throw new \Exception('Gagal menghubungi API SAP getListReceiptProd. HTTP Status: ' . $response->status());
+        try {
+            $response = Http::timeout(30)->post("{$sapUrl}/api/getListReceiptProd", $payload);
+            if ($response->successful()) {
+                $body = $response->json();
+                if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
+                    $rawItems = $body['Result'] ?? [];
+                    if (is_array($rawItems)) {
+                        $items = array_values(array_filter($rawItems, function ($item) {
+                            if (!is_array($item)) return false;
+                            $docEntry = (string) ($item['DocEntry'] ?? '');
+                            $docNum = (string) ($item['DocNum'] ?? '');
+                            return !in_array($docEntry, ['0', '']) && !in_array($docNum, ['0', '']);
+                        }));
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            // Proceed to local merge
         }
 
-        $body = $response->json();
+        // Fetch and merge local Production Receipts from Database
+        try {
+            $localReceiptQuery = \App\Models\ProductionReceipt::query()
+                ->with(['items', 'productionOrder']);
 
-        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
-            throw new \Exception('API SAP getListReceiptProd error: ' . ($body['Message'] ?? 'Unknown SAP error'));
-        }
+            if (!empty($rawFrom) && !empty($rawTo)) {
+                $localReceiptQuery->whereBetween('doc_date', [$rawFrom, $rawTo]);
+            }
 
-        $items = $body['Result'] ?? [];
-        if (is_array($items)) {
-            $items = array_values(array_filter($items, function ($item) {
-                if (!is_array($item)) return false;
-                $docEntry = (string) ($item['DocEntry'] ?? '');
-                $docNum = (string) ($item['DocNum'] ?? '');
-                return !in_array($docEntry, ['0', '']) && !in_array($docNum, ['0', '']);
-            }));
-        } else {
-            $items = [];
+            $localReceipts = $localReceiptQuery->orderBy('id', 'desc')->get();
+            $existingDocEntries = array_column($items, 'DocEntry');
+            $existingDocNums = array_column($items, 'DocNum');
+
+            $localItems = [];
+            foreach ($localReceipts as $lReceipt) {
+                if ($lReceipt->doc_entry && in_array((string)$lReceipt->doc_entry, $existingDocEntries)) {
+                    continue;
+                }
+                if ($lReceipt->doc_num && in_array((string)$lReceipt->doc_num, $existingDocNums)) {
+                    continue;
+                }
+
+                $firstItem = $lReceipt->items->first();
+                $totalQty = $lReceipt->items->sum('quantity');
+
+                $localItems[] = [
+                    'id'          => $lReceipt->id,
+                    'DocEntry'    => (string) ($lReceipt->doc_entry ?: $lReceipt->id),
+                    'DocNum'      => (string) ($lReceipt->doc_num ?: $lReceipt->receipt_no),
+                    'DocDate'     => $lReceipt->doc_date ? date('Y-m-d\TH:i:s', strtotime($lReceipt->doc_date)) : null,
+                    'DocDueDate'  => $lReceipt->doc_due_date ? date('Y-m-d\TH:i:s', strtotime($lReceipt->doc_due_date)) : null,
+                    'Comments'    => (string) $lReceipt->comments,
+                    'Shift'       => (string) $lReceipt->u_shift,
+                    'Unit'        => (string) $lReceipt->u_unit,
+                    'Status'      => (string) $lReceipt->status,
+                    'SapStatus'   => (string) $lReceipt->sap_status,
+                    'BaseEntry'   => (string) ($lReceipt->productionOrder?->doc_entry ?: $lReceipt->productionOrder?->id ?: $firstItem?->base_entry ?: ''),
+                    'BaseType'    => 202,
+                    'ItemCode'    => (string) ($firstItem?->item_code ?: $lReceipt->productionOrder?->item_code ?: ''),
+                    'Quantity'    => floatval($totalQty),
+                    'WhsCode'     => (string) ($firstItem?->warehouse ?: ''),
+                    'is_local'    => true,
+                ];
+            }
+
+            $items = array_merge($localItems, $items);
+        } catch (\Exception $e) {
+            // Fallback
         }
 
         if ($userId) {
             $this->auditLogService->log(
                 $userId,
                 'GET_LIST_RECEIPT_PROD_SAP',
-                "Fetched Production Receipts list from SAP (From: {$fromFormatted}, To: {$toFormatted})."
+                "Fetched Production Receipts list from SAP & Local DB (From: {$fromFormatted}, To: {$toFormatted})."
             );
         }
 
@@ -923,18 +971,8 @@ class ProductionService
         }
 
         $result = $body['Result'] ?? [];
-        $header = $result['Table1'][0] ?? null;
-        $items = $result['Table2'] ?? [];
-
-        // Check if header is a dummy 0 record
-        if ($header && is_array($header)) {
-            $hDocEntry = (string) ($header['DocEntry'] ?? '');
-            $hDocNum = (string) ($header['DocNum'] ?? '');
-            if (in_array($hDocEntry, ['0', '']) && in_array($hDocNum, ['0', ''])) {
-                $header = null;
-                $items = [];
-            }
-        }
+        $header = $result['Header'] ?? null;
+        $items = $result['Item'] ?? [];
 
         if ($userId) {
             $this->auditLogService->log(
@@ -981,28 +1019,76 @@ class ProductionService
             'ToWhsCode' => $toWhsCode,
         ];
 
-        $response = Http::timeout(30)->post("{$sapUrl}/api/getListIssueProd", $payload);
+        $items = [];
 
-        if (!$response->successful()) {
-            throw new \Exception('Gagal menghubungi API SAP getListIssueProd. HTTP Status: ' . $response->status());
+        try {
+            $response = Http::timeout(30)->post("{$sapUrl}/api/getListIssueProd", $payload);
+            if ($response->successful()) {
+                $body = $response->json();
+                if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
+                    $rawItems = $body['Result'] ?? [];
+                    if (is_array($rawItems)) {
+                        $items = array_values(array_filter($rawItems, function ($item) {
+                            if (!is_array($item)) return false;
+                            $docEntry = (string) ($item['DocEntry'] ?? '');
+                            $docNum = (string) ($item['DocNum'] ?? '');
+                            return !in_array($docEntry, ['0', '']) && !in_array($docNum, ['0', '']);
+                        }));
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            // Proceed to local merge
         }
 
-        $body = $response->json();
+        // Fetch and merge local Production Issues from Database
+        try {
+            $localIssueQuery = \App\Models\ProductionIssue::query()
+                ->with(['items', 'productionOrder']);
 
-        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
-            throw new \Exception('API SAP getListIssueProd error: ' . ($body['Message'] ?? 'Unknown SAP error'));
-        }
+            if (!empty($rawFrom) && !empty($rawTo)) {
+                $localIssueQuery->whereBetween('doc_date', [$rawFrom, $rawTo]);
+            }
 
-        $items = $body['Result'] ?? [];
-        if (is_array($items)) {
-            $items = array_values(array_filter($items, function ($item) {
-                if (!is_array($item)) return false;
-                $docEntry = (string) ($item['DocEntry'] ?? '');
-                $docNum = (string) ($item['DocNum'] ?? '');
-                return !in_array($docEntry, ['0', '']) && !in_array($docNum, ['0', '']);
-            }));
-        } else {
-            $items = [];
+            $localIssues = $localIssueQuery->orderBy('id', 'desc')->get();
+            $existingDocEntries = array_column($items, 'DocEntry');
+            $existingDocNums = array_column($items, 'DocNum');
+
+            $localItems = [];
+            foreach ($localIssues as $lIssue) {
+                if ($lIssue->doc_entry && in_array((string)$lIssue->doc_entry, $existingDocEntries)) {
+                    continue;
+                }
+                if ($lIssue->doc_num && in_array((string)$lIssue->doc_num, $existingDocNums)) {
+                    continue;
+                }
+
+                $firstItem = $lIssue->items->first();
+                $totalQty = $lIssue->items->sum('quantity');
+
+                $localItems[] = [
+                    'id'          => $lIssue->id,
+                    'DocEntry'    => (string) ($lIssue->doc_entry ?: $lIssue->id),
+                    'DocNum'      => (string) ($lIssue->doc_num ?: $lIssue->issue_no),
+                    'DocDate'     => $lIssue->doc_date ? date('Y-m-d\TH:i:s', strtotime($lIssue->doc_date)) : null,
+                    'DocDueDate'  => $lIssue->doc_due_date ? date('Y-m-d\TH:i:s', strtotime($lIssue->doc_due_date)) : null,
+                    'Comments'    => (string) $lIssue->comments,
+                    'Shift'       => (string) $lIssue->u_shift,
+                    'Unit'        => (string) $lIssue->u_unit,
+                    'Status'      => (string) $lIssue->status,
+                    'SapStatus'   => (string) $lIssue->sap_status,
+                    'BaseEntry'   => (string) ($lIssue->productionOrder?->doc_entry ?: $lIssue->productionOrder?->id ?: $firstItem?->base_entry ?: ''),
+                    'BaseType'    => 202,
+                    'ItemCode'    => (string) ($firstItem?->item_code ?: $lIssue->productionOrder?->item_code ?: ''),
+                    'Quantity'    => floatval($totalQty),
+                    'WhsCode'     => (string) ($firstItem?->warehouse ?: ''),
+                    'is_local'    => true,
+                ];
+            }
+
+            $items = array_merge($localItems, $items);
+        } catch (\Exception $e) {
+            // Fallback
         }
 
         if ($userId) {
@@ -1289,8 +1375,11 @@ class ProductionService
         // 3. Tembakkan ke SAP B1 API
         $sapUrl = config('services.sap.url');
         $sapResponse = null;
+        $sapPayload = $payload;
+        unset($sapPayload['Bomid']); // SAP tidak menggunakan Bomid pada addissueprod
+
         try {
-            $response = Http::timeout(45)->post("{$sapUrl}/api/addissueprod", $payload);
+            $response = Http::timeout(45)->post("{$sapUrl}/api/addissueprod", $sapPayload);
             if ($response->successful()) {
                 $body = $response->json();
                 if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
@@ -1416,8 +1505,11 @@ class ProductionService
         // 3. Tembakkan ke SAP B1 API
         $sapUrl = config('services.sap.url');
         $sapResponse = null;
+        $sapPayload = $payload;
+        unset($sapPayload['Bomid']); // SAP tidak menggunakan Bomid pada addreceiptprod
+
         try {
-            $response = Http::timeout(45)->post("{$sapUrl}/api/addreceiptprod", $payload);
+            $response = Http::timeout(45)->post("{$sapUrl}/api/addreceiptprod", $sapPayload);
             if ($response->successful()) {
                 $body = $response->json();
                 if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
