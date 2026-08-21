@@ -41,27 +41,15 @@ class ReportingTaskWebController extends Controller
             'sort_order',
         ]);
 
+        $quickFilter = $request->input('quick_filter');
+        $filters['quick_filter'] = $quickFilter;
+
         $perPage = (int) $request->input('per_page', 15);
         if ($perPage < 5 || $perPage > 100) {
             $perPage = 15;
         }
 
-        // 1. Get filtered query for tasks list and KPIs
-        $query = $this->reportingTaskService->getFilteredQuery($filters);
-
-        // Sorting
-        $sortBy = $request->input('sort_by', 'updated_at');
-        $allowedSorts = ['task_name', 'status', 'priority', 'assignee', 'list_name', 'start_date', 'due_date', 'updated_at', 'created_at', 'synced_at'];
-        if (!in_array($sortBy, $allowedSorts)) {
-            $sortBy = 'updated_at';
-        }
-        $sortOrder = strtolower($request->input('sort_order', 'desc')) === 'asc' ? 'asc' : 'desc';
-        $query->orderBy($sortBy, $sortOrder);
-
-        // Paginate tasks
-        $tasks = $query->paginate($perPage)->withQueryString();
-
-        // 2. Compute KPI Metrics (using base filtered query clone)
+        // 1. Compute Base Query for KPIs and Charts
         $baseQuery = $this->reportingTaskService->getFilteredQuery($filters);
 
         $totalTasks = (clone $baseQuery)->count();
@@ -90,6 +78,45 @@ class ReportingTaskWebController extends Controller
             })->count();
 
         $completionRate = $totalTasks > 0 ? round(($completedCount / $totalTasks) * 100, 1) : 0;
+
+        // 2. Build Query for Task Table with quick_filter applied
+        $query = clone $baseQuery;
+        if ($quickFilter === 'in_progress') {
+            $query->where(function ($q) {
+                $q->whereRaw("LOWER(status) IN ('in progress', 'progress', 'doing', 'working', 'in review', 'review', 'active')");
+            });
+        } elseif ($quickFilter === 'completed') {
+            $query->where(function ($q) {
+                $q->whereRaw("LOWER(status) IN ('complete', 'completed', 'done', 'closed', 'resolved')");
+            });
+        } elseif ($quickFilter === 'overdue') {
+            $query->whereNotNull('due_date')
+                ->where('due_date', '<', now())
+                ->where(function ($q) {
+                    $q->whereNull('status')
+                      ->orWhereRaw("LOWER(status) NOT IN ('complete', 'completed', 'done', 'closed', 'resolved')");
+                });
+        } elseif ($quickFilter === 'due_soon') {
+            $query->whereNotNull('due_date')
+                ->where('due_date', '>=', now())
+                ->where('due_date', '<=', now()->addDays(7))
+                ->where(function ($q) {
+                    $q->whereNull('status')
+                      ->orWhereRaw("LOWER(status) NOT IN ('complete', 'completed', 'done', 'closed', 'resolved')");
+                });
+        }
+
+        // Sorting
+        $sortBy = $request->input('sort_by', 'updated_at');
+        $allowedSorts = ['task_name', 'status', 'priority', 'assignee', 'list_name', 'start_date', 'due_date', 'updated_at', 'created_at', 'synced_at'];
+        if (!in_array($sortBy, $allowedSorts)) {
+            $sortBy = 'updated_at';
+        }
+        $sortOrder = strtolower($request->input('sort_order', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $query->orderBy($sortBy, $sortOrder);
+
+        // Paginate tasks
+        $tasks = $query->paginate($perPage)->withQueryString();
 
         // 3. Aggregate Data for Charts
         // Status Distribution
@@ -166,6 +193,7 @@ class ReportingTaskWebController extends Controller
             'lastSyncedAt'    => $lastSyncedAt ? Carbon::parse($lastSyncedAt) : null,
             'sortBy'          => $sortBy,
             'sortOrder'       => $sortOrder,
+            'quickFilter'     => $quickFilter,
         ]);
     }
 }

@@ -73,15 +73,42 @@
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
         }
 
+        /* Interactive KPI Cards with Smooth 3D Elevation */
+        .kpi-card {
+            transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, background-color 0.2s ease;
+            cursor: pointer;
+            user-select: none;
+            text-decoration: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+        }
+        .kpi-card:hover {
+            transform: translateY(-8px) scale(1.025);
+            box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.14), 0 10px 18px -6px rgba(0, 0, 0, 0.08);
+            z-index: 20;
+        }
+        .dark .kpi-card:hover {
+            transform: translateY(-8px) scale(1.025);
+            box-shadow: 0 22px 38px -8px rgba(0, 0, 0, 0.7), 0 0 24px 2px rgba(99, 102, 241, 0.2);
+            z-index: 20;
+        }
+        .kpi-card:active {
+            transform: translateY(-2px) scale(0.99);
+        }
+
         /* Glow Accents */
         .dark .glow-indigo { box-shadow: 0 0 25px -5px rgba(99, 102, 241, 0.15); }
+        .dark .glow-sky { box-shadow: 0 0 25px -5px rgba(14, 165, 233, 0.15); }
         .dark .glow-emerald { box-shadow: 0 0 25px -5px rgba(16, 185, 129, 0.15); }
         .dark .glow-rose { box-shadow: 0 0 25px -5px rgba(244, 63, 94, 0.15); }
         .dark .glow-amber { box-shadow: 0 0 25px -5px rgba(245, 158, 11, 0.15); }
-        .glow-indigo { box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08); }
-        .glow-emerald { box-shadow: 0 4px 12px rgba(16, 185, 129, 0.08); }
-        .glow-rose { box-shadow: 0 4px 12px rgba(244, 63, 94, 0.08); }
-        .glow-amber { box-shadow: 0 4px 12px rgba(245, 158, 11, 0.08); }
+        .glow-indigo { box-shadow: 0 4px 14px rgba(99, 102, 241, 0.08); }
+        .glow-sky { box-shadow: 0 4px 14px rgba(14, 165, 233, 0.08); }
+        .glow-emerald { box-shadow: 0 4px 14px rgba(16, 185, 129, 0.08); }
+        .glow-rose { box-shadow: 0 4px 14px rgba(244, 63, 94, 0.08); }
+        .glow-amber { box-shadow: 0 4px 14px rgba(245, 158, 11, 0.08); }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen antialiased flex flex-col selection:bg-indigo-500 selection:text-white transition-colors duration-200">
@@ -92,7 +119,7 @@
             
             <!-- Branding & Title -->
             <div class="flex items-center gap-3.5">
-                <a href="{{ url('/monitoringsm/hub') }}" class="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-600 font-extrabold text-slate-950 text-base shadow-lg shadow-amber-500/20 hover:scale-105 transition-transform" title="Kembali ke Admin Hub">
+                <a href="{{ url('/monitoringsm/hub') }}" class="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-600 font-extrabold text-white text-base shadow-lg shadow-amber-500/20 hover:scale-105 transition-transform" title="Kembali ke Admin Hub">
                     SM
                 </a>
                 <div>
@@ -108,94 +135,68 @@
                 </div>
             </div>
 
-            <!-- Sync Info, Theme Switcher & Quick Navigation -->
-            <div class="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end">
+            <!-- Header Quick Actions -->
+            <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
                 
-                <!-- Last Sync Badge -->
-                <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 text-xs text-slate-700 dark:text-slate-300">
-                    <span class="relative flex h-2 w-2">
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                <!-- Last Synced At Status -->
+                <div class="text-right hidden md:block">
+                    <span class="text-[11px] text-slate-400 dark:text-slate-500 block">Terakhir Disinkronkan:</span>
+                    <span class="text-xs font-medium text-slate-700 dark:text-slate-300">
+                        {{ $lastSyncedAt ? $lastSyncedAt->format('d M Y, H:i') . ' WIB' : 'Belum pernah' }}
                     </span>
-                    <span>Last Sync: <strong class="text-slate-900 dark:text-white font-medium">{{ $lastSyncedAt ? $lastSyncedAt->format('d M Y H:i') : 'Belum Ada' }}</strong></span>
                 </div>
 
-                <!-- Theme Toggle Button (Light / Dark) -->
-                <button type="button" onclick="toggleTheme()" class="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition" title="Ganti Mode Light / Dark">
-                    <!-- Sun Icon (Shown in Dark Mode) -->
-                    <svg class="w-4 h-4 hidden dark:block text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                <!-- Theme Switcher Button -->
+                <button type="button" id="theme-toggle" class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition" title="Ganti Mode Tampilan (Light / Dark)">
+                    <!-- Sun Icon (for dark mode to switch to light) -->
+                    <svg id="theme-toggle-light-icon" class="w-4 h-4 hidden" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path>
                     </svg>
-                    <!-- Moon Icon (Shown in Light Mode) -->
-                    <svg class="w-4 h-4 block dark:hidden text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    <!-- Moon Icon (for light mode to switch to dark) -->
+                    <svg id="theme-toggle-dark-icon" class="w-4 h-4 hidden" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
                     </svg>
                 </button>
 
                 <!-- Refresh Button -->
-                <a href="{{ request()->fullUrl() }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white shadow-md shadow-indigo-600/20 transition active:scale-95">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <a href="{{ request()->fullUrl() }}" class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition" title="Muat Ulang Data">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
-                    Refresh
                 </a>
 
-                <!-- Hub Link -->
-                <a href="{{ url('/monitoringsm/hub') }}" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-300 transition">
-                    Admin Hub
-                </a>
-
-                <!-- API Keys Link -->
-                <a href="{{ url('/monitoringsm/api-keys') }}" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-300 transition hidden md:inline-block">
-                    API Keys
-                </a>
-
-                <!-- Pulse Link -->
-                <a href="{{ url('/monitoringsm') }}" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-300 transition hidden md:inline-block">
-                    Pulse
-                </a>
-
-                <!-- Logout Link -->
-                <a href="{{ url('/monitoringsm/logout') }}" class="px-3 py-1.5 rounded-lg bg-rose-100 hover:bg-rose-200 dark:bg-rose-950/40 dark:hover:bg-rose-900/50 border border-rose-300 dark:border-rose-800/40 text-xs font-medium text-rose-700 dark:text-rose-300 transition">
-                    Logout
+                <!-- Hub Navigation Button -->
+                <a href="{{ url('/monitoringsm/hub') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 dark:bg-slate-800 text-xs font-semibold text-white hover:bg-slate-800 dark:hover:bg-slate-700 transition">
+                    <span>Admin Hub</span>
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
                 </a>
             </div>
         </div>
     </header>
 
     <!-- Main Content Container -->
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
         <!-- ========================================== -->
-        <!-- 1. FILTER SECTION                          -->
+        <!-- 1. FILTER & SEARCH CONTROLS               -->
         <!-- ========================================== -->
         <section class="glass-panel rounded-2xl p-5 shadow-sm dark:shadow-xl">
-            <form action="{{ url('/reporting/tasks') }}" method="GET" class="space-y-4">
+            <form id="filter-form" action="{{ url('/reporting/tasks') }}" method="GET" class="space-y-4">
                 
-                <!-- Search & Quick Filters Header -->
-                <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
-                    <div class="flex items-center gap-2">
-                        <svg class="w-4 h-4 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                        </svg>
-                        <h2 class="text-sm font-semibold text-slate-800 dark:text-slate-200">Filter & Pencarian Task</h2>
-                    </div>
-                    @if(array_filter($filters))
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-amber-100 dark:bg-amber-500/10 text-amber-800 dark:text-amber-400 border border-amber-300 dark:border-amber-500/20">
-                            Filter Aktif ({{ count(array_filter($filters)) }})
-                        </span>
-                    @endif
-                </div>
+                @if(!empty($quickFilter))
+                    <input type="hidden" name="quick_filter" value="{{ $quickFilter }}">
+                @endif
 
-                <!-- Input Rows -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
                     
                     <!-- Search Input -->
                     <div class="lg:col-span-2">
-                        <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Cari Task Name / ID / PIC</label>
+                        <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Pencarian Bebas (Task / PIC / Komentar)</label>
                         <div class="relative">
-                            <input type="text" name="search" value="{{ $filters['search'] ?? '' }}" placeholder="Ketik kata kunci pencarian..." class="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700/80 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition">
-                            <svg class="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <input type="text" name="search" value="{{ $filters['search'] ?? '' }}" placeholder="Cari nama task, task ID ClickUp (#z8mx...), assignee..." class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700/80 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition">
+                            <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
                         </div>
@@ -305,16 +306,19 @@
         </section>
 
         <!-- ========================================== -->
-        <!-- 2. KPI CARDS                               -->
+        <!-- 2. KPI CARDS (INTERACTIVE & CLICKABLE)     -->
         <!-- ========================================== -->
         <section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             
-            <!-- Total Tasks -->
-            <div class="glass-panel glow-indigo rounded-2xl p-4 sm:p-5 flex flex-col justify-between relative overflow-hidden group">
-                <div class="absolute -right-2 -bottom-2 w-16 h-16 bg-indigo-500/10 rounded-full blur-xl group-hover:bg-indigo-500/20 transition"></div>
+            <!-- Total Tasks (Click to view all tasks) -->
+            @php
+                $isTotalActive = empty($quickFilter);
+                $totalUrl = request()->fullUrlWithQuery(['quick_filter' => null, 'page' => null]) . '#tasks-table';
+            @endphp
+            <a href="{{ $totalUrl }}" class="glass-panel glow-indigo rounded-2xl p-4 sm:p-5 kpi-card group {{ $isTotalActive ? 'ring-2 ring-indigo-500 border-indigo-500 bg-indigo-50/60 dark:bg-indigo-950/30' : '' }}" title="Klik untuk menampilkan semua task">
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Total Tasks</span>
-                    <span class="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                    <span class="text-xs font-semibold {{ $isTotalActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-600 dark:text-slate-400' }}">Total Tasks</span>
+                    <span class="p-2 rounded-xl {{ $isTotalActive ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/30' : 'bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' }} transition-colors">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                         </svg>
@@ -322,18 +326,26 @@
                 </div>
                 <div class="mt-3">
                     <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">{{ number_format($kpis['total']) }}</div>
-                    <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
+                    <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center justify-between">
                         <span>Completion Rate:</span>
                         <strong class="text-emerald-600 dark:text-emerald-400 font-semibold">{{ $kpis['completion_rate'] }}%</strong>
                     </div>
                 </div>
-            </div>
+                <div class="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 font-medium transition-colors">
+                    <span>{{ $isTotalActive ? '✓ Menampilkan Semua' : 'Klik untuk tampilkan semua' }}</span>
+                    <span>→</span>
+                </div>
+            </a>
 
             <!-- In Progress -->
-            <div class="glass-panel glow-indigo rounded-2xl p-4 sm:p-5 flex flex-col justify-between relative overflow-hidden group">
+            @php
+                $isInProgressActive = ($quickFilter === 'in_progress');
+                $inProgressUrl = request()->fullUrlWithQuery(['quick_filter' => ($isInProgressActive ? null : 'in_progress'), 'page' => null]) . '#tasks-table';
+            @endphp
+            <a href="{{ $inProgressUrl }}" class="glass-panel glow-sky rounded-2xl p-4 sm:p-5 kpi-card group {{ $isInProgressActive ? 'ring-2 ring-sky-500 border-sky-500 bg-sky-50/70 dark:bg-sky-950/40 shadow-lg shadow-sky-500/20 -translate-y-1' : '' }}" title="Klik untuk filter task In Progress">
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-medium text-slate-500 dark:text-slate-400">In Progress</span>
-                    <span class="p-2 rounded-xl bg-sky-100 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                    <span class="text-xs font-semibold {{ $isInProgressActive ? 'text-sky-600 dark:text-sky-400' : 'text-slate-600 dark:text-slate-400' }}">In Progress</span>
+                    <span class="p-2 rounded-xl {{ $isInProgressActive ? 'bg-sky-500 text-white shadow-md shadow-sky-500/30' : 'bg-sky-100 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400' }} transition-colors">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
@@ -343,13 +355,21 @@
                     <div class="text-2xl sm:text-3xl font-extrabold text-sky-600 dark:text-sky-400 tracking-tight">{{ number_format($kpis['in_progress']) }}</div>
                     <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Sedang dikerjakan tim</div>
                 </div>
-            </div>
+                <div class="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400 group-hover:text-sky-500 dark:group-hover:text-sky-400 font-medium transition-colors">
+                    <span>{{ $isInProgressActive ? '✓ Filter Aktif (Klik utk lepas)' : 'Klik untuk filter data' }}</span>
+                    <span>→</span>
+                </div>
+            </a>
 
             <!-- Completed -->
-            <div class="glass-panel glow-emerald rounded-2xl p-4 sm:p-5 flex flex-col justify-between relative overflow-hidden group">
+            @php
+                $isCompletedActive = ($quickFilter === 'completed');
+                $completedUrl = request()->fullUrlWithQuery(['quick_filter' => ($isCompletedActive ? null : 'completed'), 'page' => null]) . '#tasks-table';
+            @endphp
+            <a href="{{ $completedUrl }}" class="glass-panel glow-emerald rounded-2xl p-4 sm:p-5 kpi-card group {{ $isCompletedActive ? 'ring-2 ring-emerald-500 border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40 shadow-lg shadow-emerald-500/20 -translate-y-1' : '' }}" title="Klik untuk filter task Selesai">
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Completed</span>
-                    <span class="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                    <span class="text-xs font-semibold {{ $isCompletedActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-400' }}">Completed</span>
+                    <span class="p-2 rounded-xl {{ $isCompletedActive ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30' : 'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' }} transition-colors">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                         </svg>
@@ -359,13 +379,21 @@
                     <div class="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 tracking-tight">{{ number_format($kpis['completed']) }}</div>
                     <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Telah selesai / resolved</div>
                 </div>
-            </div>
+                <div class="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 font-medium transition-colors">
+                    <span>{{ $isCompletedActive ? '✓ Filter Aktif (Klik utk lepas)' : 'Klik untuk filter data' }}</span>
+                    <span>→</span>
+                </div>
+            </a>
 
             <!-- Overdue -->
-            <div class="glass-panel glow-rose rounded-2xl p-4 sm:p-5 flex flex-col justify-between relative overflow-hidden group">
+            @php
+                $isOverdueActive = ($quickFilter === 'overdue');
+                $overdueUrl = request()->fullUrlWithQuery(['quick_filter' => ($isOverdueActive ? null : 'overdue'), 'page' => null]) . '#tasks-table';
+            @endphp
+            <a href="{{ $overdueUrl }}" class="glass-panel glow-rose rounded-2xl p-4 sm:p-5 kpi-card group {{ $isOverdueActive ? 'ring-2 ring-rose-500 border-rose-500 bg-rose-50/70 dark:bg-rose-950/40 shadow-lg shadow-rose-500/20 -translate-y-1' : '' }}" title="Klik untuk filter task Terlambat">
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Overdue</span>
-                    <span class="p-2 rounded-xl bg-rose-100 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400">
+                    <span class="text-xs font-semibold {{ $isOverdueActive ? 'text-rose-600 dark:text-rose-400' : 'text-slate-600 dark:text-slate-400' }}">Overdue</span>
+                    <span class="p-2 rounded-xl {{ $isOverdueActive ? 'bg-rose-500 text-white shadow-md shadow-rose-500/30' : 'bg-rose-100 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400' }} transition-colors">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
@@ -375,13 +403,21 @@
                     <div class="text-2xl sm:text-3xl font-extrabold text-rose-600 dark:text-rose-400 tracking-tight">{{ number_format($kpis['overdue']) }}</div>
                     <div class="text-[11px] text-rose-600 dark:text-rose-400 mt-1 font-medium">Melewati deadline</div>
                 </div>
-            </div>
+                <div class="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400 group-hover:text-rose-500 dark:group-hover:text-rose-400 font-medium transition-colors">
+                    <span>{{ $isOverdueActive ? '✓ Filter Aktif (Klik utk lepas)' : 'Klik untuk filter data' }}</span>
+                    <span>→</span>
+                </div>
+            </a>
 
             <!-- Due Soon -->
-            <div class="glass-panel glow-amber rounded-2xl p-4 sm:p-5 flex flex-col justify-between relative overflow-hidden group col-span-2 sm:col-span-1">
+            @php
+                $isDueSoonActive = ($quickFilter === 'due_soon');
+                $dueSoonUrl = request()->fullUrlWithQuery(['quick_filter' => ($isDueSoonActive ? null : 'due_soon'), 'page' => null]) . '#tasks-table';
+            @endphp
+            <a href="{{ $dueSoonUrl }}" class="glass-panel glow-amber rounded-2xl p-4 sm:p-5 kpi-card group col-span-2 sm:col-span-1 {{ $isDueSoonActive ? 'ring-2 ring-amber-500 border-amber-500 bg-amber-50/70 dark:bg-amber-950/40 shadow-lg shadow-amber-500/20 -translate-y-1' : '' }}" title="Klik untuk filter task Jatuh Tempo 7 Hari">
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Due Soon</span>
-                    <span class="p-2 rounded-xl bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    <span class="text-xs font-semibold {{ $isDueSoonActive ? 'text-amber-600 dark:text-amber-400' : 'text-slate-600 dark:text-slate-400' }}">Due Soon</span>
+                    <span class="p-2 rounded-xl {{ $isDueSoonActive ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30' : 'bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400' }} transition-colors">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
@@ -391,7 +427,11 @@
                     <div class="text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400 tracking-tight">{{ number_format($kpis['due_soon']) }}</div>
                     <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Jatuh tempo 7 hari ke depan</div>
                 </div>
-            </div>
+                <div class="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400 group-hover:text-amber-500 dark:group-hover:text-amber-400 font-medium transition-colors">
+                    <span>{{ $isDueSoonActive ? '✓ Filter Aktif (Klik utk lepas)' : 'Klik untuk filter data' }}</span>
+                    <span>→</span>
+                </div>
+            </a>
         </section>
 
         <!-- ========================================== -->
@@ -451,8 +491,38 @@
         <!-- ========================================== -->
         <!-- 4. TASK DATA TABLE                         -->
         <!-- ========================================== -->
-        <section class="glass-panel rounded-2xl shadow-sm dark:shadow-xl overflow-hidden">
+        <section id="tasks-table" class="glass-panel rounded-2xl shadow-sm dark:shadow-xl overflow-hidden scroll-mt-24">
             
+            <!-- Active Quick Filter Notification Banner -->
+            @if(!empty($quickFilter))
+                <div class="px-5 py-3 bg-gradient-to-r from-indigo-500/10 via-sky-500/10 to-indigo-500/10 dark:from-indigo-950/40 dark:via-sky-950/30 dark:to-indigo-950/40 border-b border-indigo-200 dark:border-indigo-800/60 flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-2 text-xs">
+                        <span class="inline-flex items-center gap-1.5 font-bold text-indigo-700 dark:text-indigo-300">
+                            <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd"/>
+                            </svg>
+                            Filter Cepat Aktif:
+                        </span>
+                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold text-xs bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-700/80 text-slate-900 dark:text-white shadow-sm">
+                            @if($quickFilter === 'in_progress')
+                                <span class="w-2 h-2 rounded-full bg-sky-500"></span> In Progress ({{ $kpis['in_progress'] }} task)
+                            @elseif($quickFilter === 'completed')
+                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Completed ({{ $kpis['completed'] }} task)
+                            @elseif($quickFilter === 'overdue')
+                                <span class="w-2 h-2 rounded-full bg-rose-500"></span> Overdue ({{ $kpis['overdue'] }} task)
+                            @elseif($quickFilter === 'due_soon')
+                                <span class="w-2 h-2 rounded-full bg-amber-500"></span> Due Soon ({{ $kpis['due_soon'] }} task)
+                            @else
+                                {{ ucfirst($quickFilter) }}
+                            @endif
+                        </span>
+                    </div>
+                    <a href="{{ request()->fullUrlWithQuery(['quick_filter' => null, 'page' => null]) }}#tasks-table" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 shadow-sm transition">
+                        <span>✕ Hapus Filter Cepat</span>
+                    </a>
+                </div>
+            @endif
+
             <!-- Table Header Bar -->
             <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div>
