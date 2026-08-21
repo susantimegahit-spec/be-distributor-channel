@@ -395,8 +395,8 @@ Membatalkan PDO baik yang ada di database lokal maupun di SAP B1.
 
 Mengambil daftar Master Unit mesin/lokasi produksi langsung dari SAP Business One (`/api/GetUnit`).
 
-* **Method:** `GET` / `POST`
-* **URL:** `/api/distributor-channel/v1/production/units` *(Alias: `/api/distributor-channel/v1/production/get-unit`)*
+* **Method:** `GET`
+* **URL:** `/api/distributor-channel/v1/production/get-unit`
 * **Headers:** `Authorization: Bearer <token>`
 * **Response Success (200 OK):**
 ```json

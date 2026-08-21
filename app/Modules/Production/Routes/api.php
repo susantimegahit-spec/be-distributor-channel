@@ -61,7 +61,5 @@ Route::prefix('v1/production')->middleware('auth:sanctum')->group(function () {
     Route::post('/add-issue-prod-sap', [ProductionController::class, 'addIssueProdSap']);
 
     // Master Units from SAP
-    Route::get('/units', [ProductionController::class, 'getUnitsSap']);
     Route::get('/get-unit', [ProductionController::class, 'getUnitsSap']);
-    Route::post('/get-unit', [ProductionController::class, 'getUnitsSap']);
 });

@@ -11527,7 +11527,7 @@ paths:
         '500':
           description: Gagal menghubungi API SAP.
 
-  /v1/production/units:
+  /v1/production/get-unit:
     get:
       summary: Get Master Units from SAP
       description: Mengambil daftar Master Unit dari SAP API (/api/GetUnit).
@@ -11568,28 +11568,6 @@ paths:
                           example: "BLR-UNIT1"
         '500':
           description: Gagal mengambil data Master Unit dari SAP.
-
-  /v1/production/get-unit:
-    get:
-      summary: Get Master Units from SAP (Alias)
-      description: Mengambil daftar Master Unit dari SAP API (/api/GetUnit).
-      tags:
-        - Production Module
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Master Unit berhasil diambil dari SAP.
-    post:
-      summary: Get Master Units from SAP (Alias POST)
-      description: Mengambil daftar Master Unit dari SAP API (/api/GetUnit).
-      tags:
-        - Production Module
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Master Unit berhasil diambil dari SAP.
 
   /v1/reporting/tasks/sync:
     post:
