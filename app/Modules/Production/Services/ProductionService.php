@@ -944,7 +944,7 @@ class ProductionService
     }
 
     /**
-     * Get detail of Production Receipt from SAP API endpoint (/api/getReceiptProdbyId).
+     * Get detail of Production Receipt from SAP API endpoint (/api/getReceiptProdbyId) or Local DB.
      *
      * @param string|int $customQuery
      * @param int|null $userId
@@ -954,31 +954,99 @@ class ProductionService
     {
         $sapUrl = config('services.sap.url');
 
-        $payload = [
-            'CustomQuery' => (string) $customQuery,
-        ];
-
-        $response = Http::timeout(30)->post("{$sapUrl}/api/getReceiptProdbyId", $payload);
-
-        if (!$response->successful()) {
-            throw new \Exception('Gagal menghubungi API SAP getReceiptProdbyId. HTTP Status: ' . $response->status());
+        // 1. Check local database first
+        $localReceipt = null;
+        try {
+            $localReceipt = \App\Models\ProductionReceipt::with(['items', 'productionOrder'])
+                ->where('id', is_numeric($customQuery) ? (int)$customQuery : 0)
+                ->orWhere('receipt_no', (string)$customQuery)
+                ->orWhere('doc_entry', is_numeric($customQuery) ? (int)$customQuery : 0)
+                ->orWhere('doc_num', (string)$customQuery)
+                ->first();
+        } catch (\Exception $e) {
+            // DB fallback
         }
 
-        $body = $response->json();
+        $sapQuery = $localReceipt?->doc_entry ?: $customQuery;
+        $header = null;
+        $items = [];
+        $result = [];
 
-        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
-            throw new \Exception('API SAP getReceiptProdbyId error: ' . ($body['Message'] ?? 'Unknown SAP error'));
+        // 2. Try querying SAP if SAP query identifier is available
+        try {
+            $payload = [
+                'CustomQuery' => (string) $sapQuery,
+            ];
+
+            $response = Http::timeout(30)->post("{$sapUrl}/api/getReceiptProdbyId", $payload);
+
+            if ($response->successful()) {
+                $body = $response->json();
+                if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
+                    $result = $body['Result'] ?? [];
+                    $header = $result['Table1'][0] ?? $result['Header'] ?? null;
+                    $items = $result['Table2'] ?? $result['Item'] ?? [];
+
+                    // Check if header is a dummy 0 record
+                    if ($header && is_array($header)) {
+                        $hDocEntry = (string) ($header['DocEntry'] ?? '');
+                        $hDocNum = (string) ($header['DocNum'] ?? '');
+                        if (in_array($hDocEntry, ['0', '']) && in_array($hDocNum, ['0', ''])) {
+                            $header = null;
+                            $items = [];
+                        }
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            // Proceed to local fallback
         }
 
-        $result = $body['Result'] ?? [];
-        $header = $result['Header'] ?? null;
-        $items = $result['Item'] ?? [];
+        // 3. If SAP did not return valid data, fallback to local DB record
+        if ((empty($header) && empty($items)) && $localReceipt) {
+            $firstItem = $localReceipt->items->first();
+            $header = [
+                'id'          => $localReceipt->id,
+                'DocEntry'    => (string) ($localReceipt->doc_entry ?: $localReceipt->id),
+                'DocNum'      => (string) ($localReceipt->doc_num ?: $localReceipt->receipt_no),
+                'DocDate'     => $localReceipt->doc_date ? date('Y-m-d\TH:i:s', strtotime($localReceipt->doc_date)) : null,
+                'DocDueDate'  => $localReceipt->doc_due_date ? date('Y-m-d\TH:i:s', strtotime($localReceipt->doc_due_date)) : null,
+                'Comments'    => (string) $localReceipt->comments,
+                'Shift'       => (string) $localReceipt->u_shift,
+                'Unit'        => (string) $localReceipt->u_unit,
+                'Status'      => (string) $localReceipt->status,
+                'SapStatus'   => (string) $localReceipt->sap_status,
+                'BaseEntry'   => (string) ($localReceipt->productionOrder?->doc_entry ?: $localReceipt->productionOrder?->id ?: $firstItem?->base_entry ?: ''),
+                'BaseType'    => 202,
+                'ItemCode'    => (string) ($firstItem?->item_code ?: $localReceipt->productionOrder?->item_code ?: ''),
+                'Quantity'    => floatval($localReceipt->items->sum('quantity')),
+                'WhsCode'     => (string) ($firstItem?->warehouse ?: ''),
+                'is_local'    => true,
+            ];
+
+            $items = [];
+            foreach ($localReceipt->items as $idx => $line) {
+                $items[] = [
+                    'LineNum'   => $line->line_num ?? $idx,
+                    'BaseType'  => $line->base_type ?? 202,
+                    'BaseEntry' => (string) $line->base_entry,
+                    'BaseLine'  => (string) $line->base_line,
+                    'ItemCode'  => (string) $line->item_code,
+                    'Quantity'  => floatval($line->quantity),
+                    'WhsCode'   => (string) $line->warehouse,
+                    'UoMEntry'  => (string) $line->uom_entry,
+                    'OcrCode'   => (string) $line->ocr_code,
+                    'OcrCode2'  => (string) $line->ocr_code2,
+                    'OcrCode3'  => (string) $line->ocr_code3,
+                ];
+            }
+        }
 
         if ($userId) {
             $this->auditLogService->log(
                 $userId,
                 'GET_RECEIPT_PROD_DETAIL_SAP',
-                "Fetched Production Receipt detail from SAP for query: {$customQuery}."
+                "Fetched Production Receipt detail for query: {$customQuery}."
             );
         }
 
@@ -1106,7 +1174,7 @@ class ProductionService
     }
 
     /**
-     * Get detail of Issue for Production from SAP API endpoint (/api/getIssueProdbyId).
+     * Get detail of Issue for Production from SAP API endpoint (/api/getIssueProdbyId) or Local DB.
      *
      * @param string|int $customQuery
      * @param int|null $userId
@@ -1116,33 +1184,91 @@ class ProductionService
     {
         $sapUrl = config('services.sap.url');
 
-        $payload = [
-            'CustomQuery' => (string) $customQuery,
-        ];
-
-        $response = Http::timeout(30)->post("{$sapUrl}/api/getIssueProdbyId", $payload);
-
-        if (!$response->successful()) {
-            throw new \Exception('Gagal menghubungi API SAP getIssueProdbyId. HTTP Status: ' . $response->status());
+        // 1. Check local database first
+        $localIssue = null;
+        try {
+            $localIssue = \App\Models\ProductionIssue::with(['items', 'productionOrder'])
+                ->where('id', is_numeric($customQuery) ? (int)$customQuery : 0)
+                ->orWhere('issue_no', (string)$customQuery)
+                ->orWhere('doc_entry', is_numeric($customQuery) ? (int)$customQuery : 0)
+                ->orWhere('doc_num', (string)$customQuery)
+                ->first();
+        } catch (\Exception $e) {
+            // DB fallback
         }
 
-        $body = $response->json();
+        $sapQuery = $localIssue?->doc_entry ?: $customQuery;
+        $header = null;
+        $items = [];
+        $result = [];
 
-        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
-            throw new \Exception('API SAP getIssueProdbyId error: ' . ($body['Message'] ?? 'Unknown SAP error'));
+        // 2. Try querying SAP
+        try {
+            $payload = [
+                'CustomQuery' => (string) $sapQuery,
+            ];
+
+            $response = Http::timeout(30)->post("{$sapUrl}/api/getIssueProdbyId", $payload);
+
+            if ($response->successful()) {
+                $body = $response->json();
+                if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
+                    $result = $body['Result'] ?? [];
+                    $header = $result['Table1'][0] ?? $result['Header'] ?? null;
+                    $items = $result['Table2'] ?? $result['Item'] ?? [];
+
+                    // Check if header is a dummy 0 record
+                    if ($header && is_array($header)) {
+                        $hDocEntry = (string) ($header['DocEntry'] ?? '');
+                        $hDocNum = (string) ($header['DocNum'] ?? '');
+                        if (in_array($hDocEntry, ['0', '']) && in_array($hDocNum, ['0', ''])) {
+                            $header = null;
+                            $items = [];
+                        }
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            // Proceed to local fallback
         }
 
-        $result = $body['Result'] ?? [];
-        $header = $result['Table1'][0] ?? null;
-        $items = $result['Table2'] ?? [];
+        // 3. Fallback to local DB record if SAP data not found
+        if ((empty($header) && empty($items)) && $localIssue) {
+            $firstItem = $localIssue->items->first();
+            $header = [
+                'id'          => $localIssue->id,
+                'DocEntry'    => (string) ($localIssue->doc_entry ?: $localIssue->id),
+                'DocNum'      => (string) ($localIssue->doc_num ?: $localIssue->issue_no),
+                'DocDate'     => $localIssue->doc_date ? date('Y-m-d\TH:i:s', strtotime($localIssue->doc_date)) : null,
+                'DocDueDate'  => $localIssue->doc_due_date ? date('Y-m-d\TH:i:s', strtotime($localIssue->doc_due_date)) : null,
+                'Comments'    => (string) $localIssue->comments,
+                'Shift'       => (string) $localIssue->u_shift,
+                'Unit'        => (string) $localIssue->u_unit,
+                'Status'      => (string) $localIssue->status,
+                'SapStatus'   => (string) $localIssue->sap_status,
+                'BaseEntry'   => (string) ($localIssue->productionOrder?->doc_entry ?: $localIssue->productionOrder?->id ?: $firstItem?->base_entry ?: ''),
+                'BaseType'    => 202,
+                'ItemCode'    => (string) ($firstItem?->item_code ?: $localIssue->productionOrder?->item_code ?: ''),
+                'Quantity'    => floatval($localIssue->items->sum('quantity')),
+                'WhsCode'     => (string) ($firstItem?->warehouse ?: ''),
+                'is_local'    => true,
+            ];
 
-        // Check if header is a dummy 0 record
-        if ($header && is_array($header)) {
-            $hDocEntry = (string) ($header['DocEntry'] ?? '');
-            $hDocNum = (string) ($header['DocNum'] ?? '');
-            if (in_array($hDocEntry, ['0', '']) && in_array($hDocNum, ['0', ''])) {
-                $header = null;
-                $items = [];
+            $items = [];
+            foreach ($localIssue->items as $idx => $line) {
+                $items[] = [
+                    'LineNum'   => $line->line_num ?? $idx,
+                    'BaseType'  => $line->base_type ?? 202,
+                    'BaseEntry' => (string) $line->base_entry,
+                    'BaseLine'  => (string) $line->base_line,
+                    'ItemCode'  => (string) $line->item_code,
+                    'Quantity'  => floatval($line->quantity),
+                    'WhsCode'   => (string) $line->warehouse,
+                    'UoMEntry'  => (string) $line->uom_entry,
+                    'OcrCode'   => (string) $line->ocr_code,
+                    'OcrCode2'  => (string) $line->ocr_code2,
+                    'OcrCode3'  => (string) $line->ocr_code3,
+                ];
             }
         }
 
@@ -1150,7 +1276,7 @@ class ProductionService
             $this->auditLogService->log(
                 $userId,
                 'GET_ISSUE_PROD_DETAIL_SAP',
-                "Fetched Issue for Production detail from SAP for query: {$customQuery}."
+                "Fetched Issue for Production detail for query: {$customQuery}."
             );
         }
 
