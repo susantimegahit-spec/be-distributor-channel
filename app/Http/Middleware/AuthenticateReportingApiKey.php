@@ -20,6 +20,11 @@ class AuthenticateReportingApiKey
      */
     public function handle(Request $request, Closure $next): Response
     {
+        // 0. If user is authenticated via Sanctum Bearer token or session, allow request
+        if (auth('sanctum')->check() || $request->user()) {
+            return $next($request);
+        }
+
         $configuredKey = config('services.reporting.api_key') ?? env('REPORTING_API_KEY');
 
         // If no reporting key is configured in env, allow request by default

@@ -8,6 +8,12 @@ Route::prefix('v1/reporting')->middleware('auth.reporting')->group(function () {
     Route::post('/tasks/sync', [ReportingTaskController::class, 'sync']);
     Route::post('/clickup-tasks/sync', [ReportingTaskController::class, 'sync']);
 
+    // Frontend Dashboard & Analytics Endpoints
+    Route::get('/dashboard', [ReportingTaskController::class, 'dashboard']);
+    Route::get('/tasks/dashboard', [ReportingTaskController::class, 'dashboard']);
+    Route::get('/tasks/filters', [ReportingTaskController::class, 'filterOptions']);
+    Route::get('/filter-options', [ReportingTaskController::class, 'filterOptions']);
+
     // Reporting, Apigee & Google Looker Studio Endpoints
     Route::get('/tasks', [ReportingTaskController::class, 'index']);
     Route::get('/tasks/all', [ReportingTaskController::class, 'getAll']);

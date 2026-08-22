@@ -11737,6 +11737,115 @@ paths:
         '200':
           description: Summary metrik berhasil diambil.
 
+  /v1/reporting/dashboard:
+    get:
+      summary: Get Dashboard KPIs, Charts, and Filter Options for Frontend
+      description: Mengambil seluruh metrik KPI (total, in progress, completed, overdue, due soon, completion rate), data grafik (distribusi status, priority, assignee, list/folder, due date timeline), opsi dropdown filter, dan waktu sinkronisasi terakhir.
+      tags:
+        - Reporting & Analytics
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Pencarian task name, task ID, assignee, dll.
+        - in: query
+          name: space_id
+          schema:
+            type: string
+        - in: query
+          name: folder_name
+          schema:
+            type: string
+        - in: query
+          name: list_name
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: assignee
+          schema:
+            type: string
+        - in: query
+          name: priority
+          schema:
+            type: string
+        - in: query
+          name: start_date_from
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: due_date_to
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Data dashboard monitoring ClickUp berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Data dashboard monitoring ClickUp berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      kpis:
+                        type: object
+                        properties:
+                          total_tasks:
+                            type: integer
+                            example: 120
+                          in_progress:
+                            type: integer
+                            example: 45
+                          completed:
+                            type: integer
+                            example: 60
+                          overdue:
+                            type: integer
+                            example: 8
+                          due_soon:
+                            type: integer
+                            example: 7
+                          completion_rate:
+                            type: number
+                            example: 50.0
+                      charts:
+                        type: object
+                      filter_options:
+                        type: object
+                      last_synced_at:
+                        type: string
+                        example: "2026-08-22 09:15:00"
+
+  /v1/reporting/tasks/filters:
+    get:
+      summary: Get Distinct Filter Options for Frontend Select Dropdowns
+      description: Mengambil daftar unik dari spaces, folders, lists, assignees, statuses, dan priorities dari database tasks.
+      tags:
+        - Reporting & Analytics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Opsi filter berhasil diambil.
+
   /v1/reporting/tasks/{id}:
     get:
       summary: Get Reporting Task Detail

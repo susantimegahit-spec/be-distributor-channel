@@ -222,18 +222,51 @@ class ReportingTaskService
             $query->where('due_date', '<=', Carbon::parse($filters['due_date_to'])->endOfDay());
         }
 
+        // Quick Filter Preset Handling (KPI Click Filters)
+        if (!empty($filters['quick_filter'])) {
+            $quickFilter = $filters['quick_filter'];
+            if ($quickFilter === 'in_progress') {
+                $query->where(function ($q) {
+                    $q->whereRaw("LOWER(status) IN ('in progress', 'progress', 'doing', 'working', 'in review', 'review', 'active')");
+                });
+            } elseif ($quickFilter === 'completed') {
+                $query->where(function ($q) {
+                    $q->whereRaw("LOWER(status) IN ('complete', 'completed', 'done', 'closed', 'resolved')");
+                });
+            } elseif ($quickFilter === 'overdue') {
+                $query->whereNotNull('due_date')
+                    ->where('due_date', '<', now())
+                    ->where(function ($q) {
+                        $q->whereNull('status')
+                          ->orWhereRaw("LOWER(status) NOT IN ('complete', 'completed', 'done', 'closed', 'resolved')");
+                    });
+            } elseif ($quickFilter === 'due_soon') {
+                $query->whereNotNull('due_date')
+                    ->where('due_date', '>=', now())
+                    ->where('due_date', '<=', now()->addDays(7))
+                    ->where(function ($q) {
+                        $q->whereNull('status')
+                          ->orWhereRaw("LOWER(status) NOT IN ('complete', 'completed', 'done', 'closed', 'resolved')");
+                    });
+            }
+        }
+
         return $query;
     }
 
     /**
-     * Get paginated or all tasks (for Data Studio connector).
+     * Get paginated or all tasks (for Data Studio connector / FE list).
      */
     public function getTasks(array $filters = [], int $perPage = 50): LengthAwarePaginator|Collection
     {
         $query = $this->getFilteredQuery($filters);
 
         $sortBy = $filters['sort_by'] ?? 'updated_at';
-        $sortOrder = $filters['sort_order'] ?? 'desc';
+        $allowedSorts = ['task_name', 'status', 'priority', 'assignee', 'list_name', 'folder_name', 'space_name', 'start_date', 'due_date', 'updated_at', 'created_at', 'synced_at'];
+        if (!in_array($sortBy, $allowedSorts)) {
+            $sortBy = 'updated_at';
+        }
+        $sortOrder = strtolower($filters['sort_order'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
         $query->orderBy($sortBy, $sortOrder);
 
         // If pagination is explicitly disabled (e.g. for full BI export)
@@ -282,6 +315,106 @@ class ReportingTaskService
             'by_priority'    => $byPriority,
             'top_assignees'  => $byAssignee,
             'last_synced_at' => ReportingTask::max('synced_at'),
+        ];
+    }
+
+    /**
+     * Get full dashboard data (KPIs, Charts, Options) for API / SPA Frontend.
+     */
+    public function getDashboardMetrics(array $filters = []): array
+    {
+        $baseQuery = $this->getFilteredQuery(array_diff_key($filters, ['quick_filter' => '']));
+
+        $totalTasks = (clone $baseQuery)->count();
+
+        $inProgressCount = (clone $baseQuery)->where(function ($q) {
+            $q->whereRaw("LOWER(status) IN ('in progress', 'progress', 'doing', 'working', 'in review', 'review', 'active')");
+        })->count();
+
+        $completedCount = (clone $baseQuery)->where(function ($q) {
+            $q->whereRaw("LOWER(status) IN ('complete', 'completed', 'done', 'closed', 'resolved')");
+        })->count();
+
+        $overdueCount = (clone $baseQuery)->whereNotNull('due_date')
+            ->where('due_date', '<', now())
+            ->where(function ($q) {
+                $q->whereNull('status')
+                  ->orWhereRaw("LOWER(status) NOT IN ('complete', 'completed', 'done', 'closed', 'resolved')");
+            })->count();
+
+        $dueSoonCount = (clone $baseQuery)->whereNotNull('due_date')
+            ->where('due_date', '>=', now())
+            ->where('due_date', '<=', now()->addDays(7))
+            ->where(function ($q) {
+                $q->whereNull('status')
+                  ->orWhereRaw("LOWER(status) NOT IN ('complete', 'completed', 'done', 'closed', 'resolved')");
+            })->count();
+
+        $completionRate = $totalTasks > 0 ? round(($completedCount / $totalTasks) * 100, 1) : 0;
+
+        // Chart Aggregations
+        $statusData = (clone $baseQuery)->selectRaw("COALESCE(status, 'Unassigned') as label, count(*) as total")
+            ->groupBy('label')
+            ->orderBy('total', 'desc')
+            ->get();
+
+        $priorityData = (clone $baseQuery)->selectRaw("COALESCE(priority, 'None') as label, count(*) as total")
+            ->groupBy('label')
+            ->orderBy('total', 'desc')
+            ->get();
+
+        $assigneeData = (clone $baseQuery)->selectRaw("COALESCE(assignee, 'Unassigned') as label, count(*) as total")
+            ->groupBy('label')
+            ->orderBy('total', 'desc')
+            ->limit(10)
+            ->get();
+
+        $listData = (clone $baseQuery)->selectRaw("COALESCE(list_name, 'No List') as label, count(*) as total")
+            ->groupBy('label')
+            ->orderBy('total', 'desc')
+            ->limit(10)
+            ->get();
+
+        $timelineData = (clone $baseQuery)->whereNotNull('due_date')
+            ->selectRaw("TO_CHAR(due_date, 'YYYY-MM-DD') as label, count(*) as total")
+            ->groupBy('label')
+            ->orderBy('label', 'asc')
+            ->limit(14)
+            ->get();
+
+        return [
+            'kpis' => [
+                'total_tasks'     => $totalTasks,
+                'in_progress'     => $inProgressCount,
+                'completed'       => $completedCount,
+                'overdue'         => $overdueCount,
+                'due_soon'        => $dueSoonCount,
+                'completion_rate' => $completionRate,
+            ],
+            'charts' => [
+                'status_distribution'   => $statusData,
+                'priority_distribution' => $priorityData,
+                'top_assignees'         => $assigneeData,
+                'list_distribution'     => $listData,
+                'due_date_timeline'     => $timelineData,
+            ],
+            'filter_options' => $this->getFilterOptions(),
+            'last_synced_at' => ReportingTask::max('synced_at'),
+        ];
+    }
+
+    /**
+     * Get distinct filter options for Frontend select dropdowns.
+     */
+    public function getFilterOptions(): array
+    {
+        return [
+            'spaces'     => ReportingTask::whereNotNull('space_id')->select('space_id', 'space_name')->distinct()->orderBy('space_id')->get(),
+            'folders'    => ReportingTask::whereNotNull('folder_name')->distinct()->orderBy('folder_name')->pluck('folder_name')->toArray(),
+            'lists'      => ReportingTask::whereNotNull('list_name')->distinct()->orderBy('list_name')->pluck('list_name')->toArray(),
+            'assignees'  => ReportingTask::whereNotNull('assignee')->distinct()->orderBy('assignee')->pluck('assignee')->toArray(),
+            'statuses'   => ReportingTask::whereNotNull('status')->distinct()->orderBy('status')->pluck('status')->toArray(),
+            'priorities' => ReportingTask::whereNotNull('priority')->distinct()->orderBy('priority')->pluck('priority')->toArray(),
         ];
     }
 }

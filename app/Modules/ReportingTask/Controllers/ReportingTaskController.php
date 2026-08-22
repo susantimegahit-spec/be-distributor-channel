@@ -76,6 +76,7 @@ class ReportingTaskController extends Controller
     {
         $filters = $request->only([
             'search',
+            'quick_filter',
             'space_id',
             'space_name',
             'folder_name',
@@ -105,12 +106,56 @@ class ReportingTaskController extends Controller
     }
 
     /**
+     * Get full dashboard metrics (KPIs, Chart Distributions, Filter Options) for SPA/FE.
+     */
+    public function dashboard(Request $request): JsonResponse
+    {
+        $filters = $request->only([
+            'search',
+            'space_id',
+            'space_name',
+            'folder_name',
+            'list_name',
+            'status',
+            'assignee',
+            'priority',
+            'task_type',
+            'timeline',
+            'start_date_from',
+            'start_date_to',
+            'due_date_from',
+            'due_date_to',
+        ]);
+
+        try {
+            $data = $this->reportingTaskService->getDashboardMetrics($filters);
+            return $this->successResponse($data, 'Data dashboard monitoring ClickUp berhasil diambil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal mengambil data dashboard: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
+     * Get distinct filter options for Frontend select dropdowns.
+     */
+    public function filterOptions(): JsonResponse
+    {
+        try {
+            $options = $this->reportingTaskService->getFilterOptions();
+            return $this->successResponse($options, 'Daftar opsi filter reporting berhasil diambil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal mengambil opsi filter: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
      * Get ALL reporting tasks without pagination (Optimized for Apigee & Google Looker Studio).
      */
     public function getAll(Request $request): JsonResponse
     {
         $filters = $request->only([
             'search',
+            'quick_filter',
             'space_id',
             'space_name',
             'folder_name',
