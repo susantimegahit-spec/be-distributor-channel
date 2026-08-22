@@ -837,8 +837,8 @@ class ProductionController extends Controller
         $userId = $request->user()?->id;
         $input = $request->all();
 
-        if (empty($input['DocEntry']) && empty($input['doc_entry'])) {
-            return $this->errorResponse('DocEntry wajib diisi.', [], 422);
+        if (empty($input['DocEntry']) && empty($input['doc_entry']) && empty($input['BaseEntry']) && empty($input['base_entry']) && empty($input['id'])) {
+            return $this->errorResponse('DocEntry atau BaseEntry wajib diisi.', [], 422);
         }
 
         try {

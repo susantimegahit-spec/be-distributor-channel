@@ -679,6 +679,11 @@ class ProductionService
                 continue;
             }
 
+            // Provide BaseEntry alias for Frontend convenience
+            $docEntryVal = (string) ($item['DocEntry'] ?? $item['doc_entry'] ?? '');
+            $item['BaseEntry'] = $docEntryVal;
+            $item['base_entry'] = $docEntryVal;
+
             $normalizedItems[] = $item;
         }
         $items = $normalizedItems;
@@ -715,9 +720,12 @@ class ProductionService
                     continue;
                 }
 
+                $docEntryVal = (string) ($lOrder->doc_entry ?: $lOrder->id);
                 $localItems[] = [
                     'id'          => $lOrder->id,
-                    'DocEntry'    => (string) ($lOrder->doc_entry ?: $lOrder->id),
+                    'DocEntry'    => $docEntryVal,
+                    'BaseEntry'   => $docEntryVal,
+                    'base_entry'  => $docEntryVal,
                     'DocNum'      => (string) ($lOrder->doc_num ?: $lOrder->prod_order_no),
                     'ItemCode'    => (string) $lOrder->item_code,
                     'ProdName'    => (string) ($lOrder->parentItem?->item_name ?? $this->resolveItemName($lOrder->item_code)),
@@ -1748,9 +1756,18 @@ class ProductionService
         }
 
         try {
-            \App\Models\ProductionOrder::where('doc_entry', (int) $docEntry)
+            $order = \App\Models\ProductionOrder::where('doc_entry', is_numeric($docEntry) ? (int)$docEntry : 0)
                 ->orWhere('doc_num', (string) $docEntry)
-                ->update(['status' => 'CANCELLED']);
+                ->orWhere('prod_order_no', (string) $docEntry)
+                ->orWhere('id', is_numeric($docEntry) ? (int)$docEntry : 0)
+                ->first();
+
+            if ($order) {
+                $order->update([
+                    'status'     => 'CANCELLED',
+                    'updated_by' => $userId,
+                ]);
+            }
         } catch (\Exception $e) {
             // DB fallback
         }
@@ -1780,9 +1797,9 @@ class ProductionService
     {
         $sapUrl = config('services.sap.url');
 
-        $docEntry = (string) ($data['doc_entry'] ?? $data['DocEntry'] ?? '');
+        $docEntry = (string) ($data['doc_entry'] ?? $data['DocEntry'] ?? $data['base_entry'] ?? $data['BaseEntry'] ?? $data['id'] ?? '');
         if (empty($docEntry)) {
-            throw new \Exception('DocEntry wajib diisi untuk menutup PDO.');
+            throw new \Exception('DocEntry atau BaseEntry wajib diisi untuk menutup PDO.');
         }
 
         $payload = [
@@ -1803,10 +1820,21 @@ class ProductionService
             throw new \Exception('API SAP closepdo error: ' . ($body['Message'] ?? 'Unknown SAP error'));
         }
 
+        // Update status di database lokal (production.production_orders)
         try {
-            \App\Models\ProductionOrder::where('doc_entry', (int) $docEntry)
+            $order = \App\Models\ProductionOrder::where('doc_entry', is_numeric($docEntry) ? (int)$docEntry : 0)
                 ->orWhere('doc_num', (string) $docEntry)
-                ->update(['status' => 'CLOSED']);
+                ->orWhere('prod_order_no', (string) $docEntry)
+                ->orWhere('id', is_numeric($docEntry) ? (int)$docEntry : 0)
+                ->first();
+
+            if ($order) {
+                $order->update([
+                    'status'         => 'CLOSED',
+                    'act_close_date' => date('Y-m-d'),
+                    'updated_by'     => $userId,
+                ]);
+            }
         } catch (\Exception $e) {
             // DB fallback
         }
