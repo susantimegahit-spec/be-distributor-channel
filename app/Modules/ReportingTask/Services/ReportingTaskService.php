@@ -404,17 +404,260 @@ class ReportingTaskService
     }
 
     /**
-     * Get distinct filter options for Frontend select dropdowns.
+     * Get distinct filter options for Frontend select dropdowns (All in one).
      */
     public function getFilterOptions(): array
     {
         return [
-            'spaces'     => ReportingTask::whereNotNull('space_id')->select('space_id', 'space_name')->distinct()->orderBy('space_id')->get(),
-            'folders'    => ReportingTask::whereNotNull('folder_name')->distinct()->orderBy('folder_name')->pluck('folder_name')->toArray(),
-            'lists'      => ReportingTask::whereNotNull('list_name')->distinct()->orderBy('list_name')->pluck('list_name')->toArray(),
-            'assignees'  => ReportingTask::whereNotNull('assignee')->distinct()->orderBy('assignee')->pluck('assignee')->toArray(),
-            'statuses'   => ReportingTask::whereNotNull('status')->distinct()->orderBy('status')->pluck('status')->toArray(),
-            'priorities' => ReportingTask::whereNotNull('priority')->distinct()->orderBy('priority')->pluck('priority')->toArray(),
+            'spaces'     => $this->getSpacesFilter(),
+            'folders'    => $this->getFoldersFilter(),
+            'lists'      => $this->getListsFilter(),
+            'assignees'  => $this->getAssigneesFilter(),
+            'statuses'   => $this->getStatusesFilter(),
+            'priorities' => $this->getPrioritiesFilter(),
+            'task_types' => $this->getTaskTypesFilter(),
+            'timelines'  => $this->getTimelinesFilter(),
         ];
+    }
+
+    /**
+     * Get distinct spaces filter options.
+     */
+    public function getSpacesFilter(): array
+    {
+        $spaces = ReportingTask::whereNotNull('space_id')
+            ->selectRaw("space_id, COALESCE(space_name, space_id) as space_name, count(*) as total_tasks")
+            ->groupBy('space_id', 'space_name')
+            ->orderBy('space_name', 'asc')
+            ->get()
+            ->map(function ($s) {
+                return [
+                    'id'          => (string) $s->space_id,
+                    'name'        => (string) $s->space_name,
+                    'space_id'    => (string) $s->space_id,
+                    'space_name'  => (string) $s->space_name,
+                    'total_tasks' => (int) $s->total_tasks,
+                ];
+            })
+            ->toArray();
+
+        return array_values($spaces);
+    }
+
+    /**
+     * Get distinct folders filter options.
+     */
+    public function getFoldersFilter(?string $spaceId = null): array
+    {
+        $query = ReportingTask::whereNotNull('folder_name')
+            ->where('folder_name', '!=', '');
+
+        if (!empty($spaceId)) {
+            $query->where('space_id', $spaceId);
+        }
+
+        $folders = $query->selectRaw("folder_name, space_id, count(*) as total_tasks")
+            ->groupBy('folder_name', 'space_id')
+            ->orderBy('folder_name', 'asc')
+            ->get()
+            ->map(function ($f) {
+                return [
+                    'name'        => (string) $f->folder_name,
+                    'folder_name' => (string) $f->folder_name,
+                    'space_id'    => (string) $f->space_id,
+                    'total_tasks' => (int) $f->total_tasks,
+                ];
+            })
+            ->toArray();
+
+        return array_values($folders);
+    }
+
+    /**
+     * Get distinct lists filter options.
+     */
+    public function getListsFilter(?string $spaceId = null, ?string $folderName = null): array
+    {
+        $query = ReportingTask::whereNotNull('list_name')
+            ->where('list_name', '!=', '');
+
+        if (!empty($spaceId)) {
+            $query->where('space_id', $spaceId);
+        }
+
+        if (!empty($folderName)) {
+            $query->where('folder_name', $folderName);
+        }
+
+        $lists = $query->selectRaw("list_name, folder_name, space_id, count(*) as total_tasks")
+            ->groupBy('list_name', 'folder_name', 'space_id')
+            ->orderBy('list_name', 'asc')
+            ->get()
+            ->map(function ($l) {
+                return [
+                    'name'        => (string) $l->list_name,
+                    'list_name'   => (string) $l->list_name,
+                    'folder_name' => (string) $l->folder_name,
+                    'space_id'    => (string) $l->space_id,
+                    'total_tasks' => (int) $l->total_tasks,
+                ];
+            })
+            ->toArray();
+
+        return array_values($lists);
+    }
+
+    /**
+     * Get distinct assignees filter options (parsed individual names).
+     */
+    public function getAssigneesFilter(): array
+    {
+        $rawAssignees = ReportingTask::whereNotNull('assignee')
+            ->where('assignee', '!=', '')
+            ->pluck('assignee')
+            ->toArray();
+
+        $counts = [];
+        foreach ($rawAssignees as $raw) {
+            $parts = array_map('trim', explode(',', (string) $raw));
+            foreach ($parts as $p) {
+                if (!empty($p)) {
+                    $counts[$p] = ($counts[$p] ?? 0) + 1;
+                }
+            }
+        }
+
+        ksort($counts, SORT_NATURAL | SORT_FLAG_CASE);
+
+        $result = [];
+        foreach ($counts as $name => $total) {
+            $result[] = [
+                'name'        => $name,
+                'assignee'    => $name,
+                'total_tasks' => $total,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get distinct statuses filter options.
+     */
+    public function getStatusesFilter(): array
+    {
+        $statuses = ReportingTask::whereNotNull('status')
+            ->where('status', '!=', '')
+            ->selectRaw("status, count(*) as total_tasks")
+            ->groupBy('status')
+            ->orderBy('total_tasks', 'desc')
+            ->get()
+            ->map(function ($st) {
+                $statusLower = strtolower($st->status);
+                $category = 'open';
+                if (in_array($statusLower, ['complete', 'completed', 'done', 'closed', 'resolved'])) {
+                    $category = 'completed';
+                } elseif (in_array($statusLower, ['in progress', 'progress', 'doing', 'working', 'in review', 'review', 'active'])) {
+                    $category = 'in_progress';
+                }
+
+                return [
+                    'name'        => (string) $st->status,
+                    'status'      => (string) $st->status,
+                    'category'    => $category,
+                    'total_tasks' => (int) $st->total_tasks,
+                ];
+            })
+            ->toArray();
+
+        return array_values($statuses);
+    }
+
+    /**
+     * Get distinct priorities filter options with color coding.
+     */
+    public function getPrioritiesFilter(): array
+    {
+        $priorities = ReportingTask::whereNotNull('priority')
+            ->where('priority', '!=', '')
+            ->selectRaw("priority, count(*) as total_tasks")
+            ->groupBy('priority')
+            ->get()
+            ->map(function ($pr) {
+                $pLower = strtolower($pr->priority);
+                $color = match ($pLower) {
+                    'urgent' => '#ef4444',
+                    'high'   => '#f97316',
+                    'normal' => '#3b82f6',
+                    'low'    => '#64748b',
+                    default  => '#94a3b8',
+                };
+                $order = match ($pLower) {
+                    'urgent' => 1,
+                    'high'   => 2,
+                    'normal' => 3,
+                    'low'    => 4,
+                    default  => 5,
+                };
+
+                return [
+                    'name'        => (string) $pr->priority,
+                    'priority'    => (string) $pr->priority,
+                    'color'       => $color,
+                    'order'       => $order,
+                    'total_tasks' => (int) $pr->total_tasks,
+                ];
+            })
+            ->sortBy('order')
+            ->values()
+            ->toArray();
+
+        return $priorities;
+    }
+
+    /**
+     * Get distinct task types filter options.
+     */
+    public function getTaskTypesFilter(): array
+    {
+        $types = ReportingTask::whereNotNull('task_type')
+            ->where('task_type', '!=', '')
+            ->selectRaw("task_type, count(*) as total_tasks")
+            ->groupBy('task_type')
+            ->orderBy('total_tasks', 'desc')
+            ->get()
+            ->map(function ($t) {
+                return [
+                    'name'        => (string) $t->task_type,
+                    'task_type'   => (string) $t->task_type,
+                    'total_tasks' => (int) $t->total_tasks,
+                ];
+            })
+            ->toArray();
+
+        return array_values($types);
+    }
+
+    /**
+     * Get distinct timelines / sprints filter options.
+     */
+    public function getTimelinesFilter(): array
+    {
+        $timelines = ReportingTask::whereNotNull('timeline')
+            ->where('timeline', '!=', '')
+            ->selectRaw("timeline, count(*) as total_tasks")
+            ->groupBy('timeline')
+            ->orderBy('timeline', 'asc')
+            ->get()
+            ->map(function ($tl) {
+                return [
+                    'name'        => (string) $tl->timeline,
+                    'timeline'    => (string) $tl->timeline,
+                    'total_tasks' => (int) $tl->total_tasks,
+                ];
+            })
+            ->toArray();
+
+        return array_values($timelines);
     }
 }

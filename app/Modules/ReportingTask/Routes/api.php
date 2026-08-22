@@ -11,8 +11,19 @@ Route::prefix('v1/reporting')->middleware('auth.reporting')->group(function () {
     // Frontend Dashboard & Analytics Endpoints
     Route::get('/dashboard', [ReportingTaskController::class, 'dashboard']);
     Route::get('/tasks/dashboard', [ReportingTaskController::class, 'dashboard']);
-    Route::get('/tasks/filters', [ReportingTaskController::class, 'filterOptions']);
+
+    // Filter Endpoints for Dropdowns (All-in-one & Individual)
+    Route::get('/filters', [ReportingTaskController::class, 'filterOptions']);
     Route::get('/filter-options', [ReportingTaskController::class, 'filterOptions']);
+    Route::get('/tasks/filters', [ReportingTaskController::class, 'filterOptions']);
+    Route::get('/filters/spaces', [ReportingTaskController::class, 'getSpaces']);
+    Route::get('/filters/folders', [ReportingTaskController::class, 'getFolders']);
+    Route::get('/filters/lists', [ReportingTaskController::class, 'getLists']);
+    Route::get('/filters/assignees', [ReportingTaskController::class, 'getAssignees']);
+    Route::get('/filters/statuses', [ReportingTaskController::class, 'getStatuses']);
+    Route::get('/filters/priorities', [ReportingTaskController::class, 'getPriorities']);
+    Route::get('/filters/task-types', [ReportingTaskController::class, 'getTaskTypes']);
+    Route::get('/filters/timelines', [ReportingTaskController::class, 'getTimelines']);
 
     // Reporting, Apigee & Google Looker Studio Endpoints
     Route::get('/tasks', [ReportingTaskController::class, 'index']);

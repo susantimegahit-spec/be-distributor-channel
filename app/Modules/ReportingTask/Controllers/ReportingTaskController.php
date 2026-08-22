@@ -136,7 +136,7 @@ class ReportingTaskController extends Controller
     }
 
     /**
-     * Get distinct filter options for Frontend select dropdowns.
+     * Get distinct filter options for Frontend select dropdowns (all in one).
      */
     public function filterOptions(): JsonResponse
     {
@@ -145,6 +145,113 @@ class ReportingTaskController extends Controller
             return $this->successResponse($options, 'Daftar opsi filter reporting berhasil diambil.');
         } catch (\Exception $e) {
             return $this->errorResponse('Gagal mengambil opsi filter: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
+     * Get list of unique Spaces for dropdown.
+     */
+    public function getSpaces(): JsonResponse
+    {
+        try {
+            $spaces = $this->reportingTaskService->getSpacesFilter();
+            return $this->successResponse($spaces, 'Daftar space berhasil diambil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal mengambil daftar space: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
+     * Get list of unique Folders for dropdown (optional ?space_id=).
+     */
+    public function getFolders(Request $request): JsonResponse
+    {
+        $spaceId = $request->input('space_id') ?: $request->input('space');
+        try {
+            $folders = $this->reportingTaskService->getFoldersFilter($spaceId);
+            return $this->successResponse($folders, 'Daftar folder berhasil diambil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal mengambil daftar folder: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
+     * Get list of unique Lists for dropdown (optional ?space_id= & ?folder_name=).
+     */
+    public function getLists(Request $request): JsonResponse
+    {
+        $spaceId = $request->input('space_id') ?: $request->input('space');
+        $folderName = $request->input('folder_name') ?: $request->input('folder');
+        try {
+            $lists = $this->reportingTaskService->getListsFilter($spaceId, $folderName);
+            return $this->successResponse($lists, 'Daftar list berhasil diambil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal mengambil daftar list: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
+     * Get list of unique Assignees for dropdown.
+     */
+    public function getAssignees(): JsonResponse
+    {
+        try {
+            $assignees = $this->reportingTaskService->getAssigneesFilter();
+            return $this->successResponse($assignees, 'Daftar assignee berhasil diambil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal mengambil daftar assignee: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
+     * Get list of unique Statuses for dropdown.
+     */
+    public function getStatuses(): JsonResponse
+    {
+        try {
+            $statuses = $this->reportingTaskService->getStatusesFilter();
+            return $this->successResponse($statuses, 'Daftar status berhasil diambil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal mengambil daftar status: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
+     * Get list of unique Priorities for dropdown.
+     */
+    public function getPriorities(): JsonResponse
+    {
+        try {
+            $priorities = $this->reportingTaskService->getPrioritiesFilter();
+            return $this->successResponse($priorities, 'Daftar priority berhasil diambil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal mengambil daftar priority: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
+     * Get list of unique Task Types for dropdown.
+     */
+    public function getTaskTypes(): JsonResponse
+    {
+        try {
+            $types = $this->reportingTaskService->getTaskTypesFilter();
+            return $this->successResponse($types, 'Daftar task type berhasil diambil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal mengambil daftar task type: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
+     * Get list of unique Timelines / Sprints for dropdown.
+     */
+    public function getTimelines(): JsonResponse
+    {
+        try {
+            $timelines = $this->reportingTaskService->getTimelinesFilter();
+            return $this->successResponse($timelines, 'Daftar timeline/sprint berhasil diambil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal mengambil daftar timeline: ' . $e->getMessage(), [], 500);
         }
     }
 

@@ -11834,17 +11834,128 @@ paths:
                         type: string
                         example: "2026-08-22 09:15:00"
 
-  /v1/reporting/tasks/filters:
+  /v1/reporting/filters:
     get:
-      summary: Get Distinct Filter Options for Frontend Select Dropdowns
-      description: Mengambil daftar unik dari spaces, folders, lists, assignees, statuses, dan priorities dari database tasks.
+      summary: Get All Distinct Filter Options for Frontend Select Dropdowns
+      description: Mengambil seluruh opsi filter dropdown sekaligus (spaces, folders, lists, assignees, statuses, priorities, task_types, timelines).
       tags:
         - Reporting & Analytics
       security:
         - BearerAuth: []
       responses:
         '200':
-          description: Opsi filter berhasil diambil.
+          description: Seluruh opsi filter berhasil diambil.
+
+  /v1/reporting/filters/spaces:
+    get:
+      summary: Get Distinct Spaces for Dropdown
+      description: Mengambil daftar unik ClickUp Spaces beserta total tasks.
+      tags:
+        - Reporting & Analytics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar Space berhasil diambil.
+
+  /v1/reporting/filters/folders:
+    get:
+      summary: Get Distinct Folders for Dropdown
+      description: Mengambil daftar unik Folder (mendukung filter opsional `?space_id=`).
+      tags:
+        - Reporting & Analytics
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: space_id
+          schema:
+            type: string
+          description: Filter folders berdasarkan Space ID
+      responses:
+        '200':
+          description: Daftar Folder berhasil diambil.
+
+  /v1/reporting/filters/lists:
+    get:
+      summary: Get Distinct Lists for Dropdown
+      description: Mengambil daftar unik Lists (mendukung filter opsional `?space_id=` dan `?folder_name=`).
+      tags:
+        - Reporting & Analytics
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: space_id
+          schema:
+            type: string
+        - in: query
+          name: folder_name
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Daftar List berhasil diambil.
+
+  /v1/reporting/filters/assignees:
+    get:
+      summary: Get Distinct Assignees for Dropdown
+      description: Mengambil daftar unik individual Assignee beserta total tasks.
+      tags:
+        - Reporting & Analytics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar Assignee berhasil diambil.
+
+  /v1/reporting/filters/statuses:
+    get:
+      summary: Get Distinct Statuses for Dropdown
+      description: Mengambil daftar unik Status task beserta kategori (open, in_progress, completed) dan total tasks.
+      tags:
+        - Reporting & Analytics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar Status berhasil diambil.
+
+  /v1/reporting/filters/priorities:
+    get:
+      summary: Get Distinct Priorities for Dropdown
+      description: Mengambil daftar unik Priority task beserta urutan, badge color (#ef4444, #f97316, dll), dan total tasks.
+      tags:
+        - Reporting & Analytics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar Priority berhasil diambil.
+
+  /v1/reporting/filters/task-types:
+    get:
+      summary: Get Distinct Task Types for Dropdown
+      description: Mengambil daftar unik Task Types beserta total tasks.
+      tags:
+        - Reporting & Analytics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar Task Type berhasil diambil.
+
+  /v1/reporting/filters/timelines:
+    get:
+      summary: Get Distinct Timelines / Sprints for Dropdown
+      description: Mengambil daftar unik Timelines / Sprints beserta total tasks.
+      tags:
+        - Reporting & Analytics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar Timeline berhasil diambil.
 
   /v1/reporting/tasks/{id}:
     get:
