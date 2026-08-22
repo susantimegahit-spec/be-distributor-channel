@@ -11957,21 +11957,169 @@ paths:
         '200':
           description: Daftar Timeline berhasil diambil.
 
-  /v1/reporting/tasks/{id}:
+  /v1/production/orders/sap-list:
     get:
-      summary: Get Reporting Task Detail
-      description: Mengambil detail satu task berdasarkan ID atau Task ID ClickUp.
+      summary: Get Production Orders List (SAP & Local)
+      description: Mengambil daftar Production Order dari SAP B1 dan Local DB. Mendukung filter status (misal status=RELEASED untuk menyaring hanya PDO yang berstatus Released, mengecualikan PLANNED dan CLOSED).
       tags:
-        - Reporting & Analytics
+        - Production
+      security:
+        - BearerAuth: []
       parameters:
-        - in: path
-          name: id
-          required: true
+        - in: query
+          name: status
           schema:
             type: string
+            enum: [RELEASED, PLANNED, CLOSED, CANCELLED]
+          description: Filter status PDO (misal RELEASED untuk receipt from production)
+        - in: query
+          name: from
+          schema:
+            type: string
+          description: Tanggal awal (YYYY-MM-DD)
+        - in: query
+          name: to
+          schema:
+            type: string
+          description: Tanggal akhir (YYYY-MM-DD)
+        - in: query
+          name: whs_code
+          schema:
+            type: string
+          description: Filter kode gudang
       responses:
         '200':
-          description: Detail task berhasil diambil.
+          description: Daftar Production Orders berhasil diambil.
+
+  /v1/production/add-receipt-prod-sap:
+    post:
+      summary: Add Receipt from Production (Finished Goods)
+      description: Mencatat penerimaan produk jadi (Parent Product) dari Production Order ke database lokal dan melakukan sinkronisasi ke SAP B1 (/api/addreceiptprod).
+      tags:
+        - Production
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [DocDate, Lines]
+              properties:
+                DocDate:
+                  type: string
+                  example: "2026-08-22"
+                DocDueDate:
+                  type: string
+                  example: "2026-08-22"
+                Shift:
+                  type: string
+                  example: "Shift 1"
+                Unit:
+                  type: string
+                  example: "UNIT-01"
+                Comments:
+                  type: string
+                  example: "Penerimaan produk jadi hasil produksi"
+                Lines:
+                  type: array
+                  items:
+                    type: object
+                    required: [BaseEntry, Quantity]
+                    properties:
+                      BaseType:
+                        type: integer
+                        default: 202
+                      BaseEntry:
+                        type: integer
+                        example: 10025
+                      BaseLine:
+                        type: integer
+                        default: 0
+                      ItemCode:
+                        type: string
+                        example: "FG-001"
+                      Quantity:
+                        type: number
+                        example: 50.0
+                      WhsCode:
+                        type: string
+                        example: "WHS-FG"
+      responses:
+        '200':
+          description: Receipt for Production berhasil diproses.
+
+  /v1/production/add-issue-prod-sap:
+    post:
+      summary: Add Goods Issue for Production (Raw Materials)
+      description: Mencatat pengeluaran bahan baku (Components / Raw Materials) untuk Production Order ke database lokal dan melakukan sinkronisasi ke SAP B1 (/api/addissueprod).
+      tags:
+        - Production
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [DocDate, Lines]
+              properties:
+                DocDate:
+                  type: string
+                  example: "2026-08-22"
+                DocDueDate:
+                  type: string
+                  example: "2026-08-22"
+                Shift:
+                  type: string
+                  example: "Shift 1"
+                Unit:
+                  type: string
+                  example: "UNIT-01"
+                Comments:
+                  type: string
+                  example: "Pengeluaran bahan baku produksi"
+                Lines:
+                  type: array
+                  items:
+                    type: object
+                    required: [BaseEntry, BaseLine, Quantity]
+                    properties:
+                      BaseType:
+                        type: integer
+                        default: 202
+                      BaseEntry:
+                        type: integer
+                        example: 10025
+                      BaseLine:
+                        type: integer
+                        example: 0
+                      ItemCode:
+                        type: string
+                        example: "RAW-001"
+                      Quantity:
+                        type: number
+                        example: 10.0
+                      WhsCode:
+                        type: string
+                        example: "WHS-RAW"
+      responses:
+        '200':
+          description: Issue for Production berhasil diproses.
+
+  /v1/production/get-unit:
+    get:
+      summary: Get Master Units from SAP
+      description: Mengambil daftar Master Unit dari SAP API (/api/GetUnit).
+      tags:
+        - Production
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar Unit berhasil diambil.
 
 components:
   securitySchemes:

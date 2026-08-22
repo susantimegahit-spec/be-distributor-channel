@@ -614,6 +614,21 @@ class ProductionService
         $whsCode = (string) ($filters['whs_code'] ?? $filters['warehouse'] ?? $filters['WhsCode'] ?? '');
         $toWhsCode = (string) ($filters['to_whs_code'] ?? $filters['to_warehouse'] ?? $filters['ToWhsCode'] ?? '');
 
+        // Normalize status filter if provided (e.g. RELEASE or RELEASED)
+        $rawStatusFilter = strtoupper(trim((string) ($filters['status'] ?? $filters['Status'] ?? '')));
+        $statusFilter = null;
+        if ($rawStatusFilter === 'RELEASE' || $rawStatusFilter === 'RELEASED' || $rawStatusFilter === 'R') {
+            $statusFilter = 'RELEASED';
+        } elseif ($rawStatusFilter === 'PLAN' || $rawStatusFilter === 'PLANNED' || $rawStatusFilter === 'P') {
+            $statusFilter = 'PLANNED';
+        } elseif ($rawStatusFilter === 'CLOSE' || $rawStatusFilter === 'CLOSED' || $rawStatusFilter === 'C') {
+            $statusFilter = 'CLOSED';
+        } elseif ($rawStatusFilter === 'CANCEL' || $rawStatusFilter === 'CANCELLED' || $rawStatusFilter === 'L') {
+            $statusFilter = 'CANCELLED';
+        } elseif (!empty($rawStatusFilter) && $rawStatusFilter !== 'ALL') {
+            $statusFilter = $rawStatusFilter;
+        }
+
         $payload = [
             'From'      => $fromFormatted,
             'To'        => $toFormatted,
@@ -644,29 +659,68 @@ class ProductionService
             // Fallback: proceed to merge local orders
         }
 
-        // Fetch and merge local PLANNED production orders (not yet synced to SAP)
+        // Normalize Status on SAP items & apply status filter if present
+        $normalizedItems = [];
+        foreach ($items as $item) {
+            if (!is_array($item)) continue;
+            $s = strtoupper(trim((string) ($item['Status'] ?? '')));
+            if ($s === 'R' || $s === 'RELEASE' || $s === 'RELEASED') {
+                $item['Status'] = 'RELEASED';
+            } elseif ($s === 'P' || $s === 'PLAN' || $s === 'PLANNED') {
+                $item['Status'] = 'PLANNED';
+            } elseif ($s === 'C' || $s === 'CLOSE' || $s === 'CLOSED') {
+                $item['Status'] = 'CLOSED';
+            } elseif ($s === 'L' || $s === 'CANCEL' || $s === 'CANCELLED') {
+                $item['Status'] = 'CANCELLED';
+            }
+
+            // Filter if status filter is active
+            if ($statusFilter && $item['Status'] !== $statusFilter) {
+                continue;
+            }
+
+            $normalizedItems[] = $item;
+        }
+        $items = $normalizedItems;
+
+        // Fetch and merge local production orders matching the status filter
         try {
-            $localPlannedQuery = \App\Models\ProductionOrder::query()
-                ->with(['parentItem', 'details'])
-                ->where(function ($q) {
+            $localQuery = \App\Models\ProductionOrder::query()
+                ->with(['parentItem', 'details']);
+
+            if ($statusFilter) {
+                $localQuery->where('status', $statusFilter);
+            } else {
+                $localQuery->where(function ($q) {
                     $q->where('status', 'PLANNED')
                       ->orWhereNull('doc_entry')
                       ->orWhere('sap_status', '!=', 'SYNCED');
                 });
-
-            if (!empty($whsCode)) {
-                $localPlannedQuery->where('warehouse', $whsCode);
             }
 
-            $localOrders = $localPlannedQuery->orderBy('id', 'desc')->get();
+            if (!empty($whsCode)) {
+                $localQuery->where('warehouse', $whsCode);
+            }
+
+            $localOrders = $localQuery->orderBy('id', 'desc')->get();
+            $existingDocEntries = array_column($items, 'DocEntry');
+            $existingDocNums = array_column($items, 'DocNum');
+
             $localItems = [];
             foreach ($localOrders as $lOrder) {
+                if ($lOrder->doc_entry && in_array((string)$lOrder->doc_entry, $existingDocEntries)) {
+                    continue;
+                }
+                if ($lOrder->prod_order_no && in_array((string)$lOrder->prod_order_no, $existingDocNums)) {
+                    continue;
+                }
+
                 $localItems[] = [
                     'id'          => $lOrder->id,
                     'DocEntry'    => (string) ($lOrder->doc_entry ?: $lOrder->id),
                     'DocNum'      => (string) ($lOrder->doc_num ?: $lOrder->prod_order_no),
                     'ItemCode'    => (string) $lOrder->item_code,
-                    'ProdName'    => (string) ($lOrder->parentItem?->item_name ?? $lOrder->item_code),
+                    'ProdName'    => (string) ($lOrder->parentItem?->item_name ?? $this->resolveItemName($lOrder->item_code)),
                     'Status'      => (string) $lOrder->status,
                     'Type'        => (string) $lOrder->type,
                     'PlannedQty'  => floatval($lOrder->planned_qty),
@@ -701,6 +755,7 @@ class ProductionService
 
     /**
      * Get detail of Production Order (PDO) from SAP API endpoint (/api/getPDObyId) or Local DB.
+     * Always checks SAP to sync status (e.g. PLANNED -> RELEASED or CLOSED) if record exists on SAP.
      *
      * @param string|int $customQuery
      * @param int|null $userId
@@ -708,7 +763,10 @@ class ProductionService
      */
     public function getPdoById(string|int $customQuery, ?int $userId = null): array
     {
+        $sapUrl = config('services.sap.url');
+
         // 1. Check local database first
+        $localOrder = null;
         try {
             $localOrder = \App\Models\ProductionOrder::with([
                 'parentItem',
@@ -727,88 +785,161 @@ class ProductionService
               ->orWhere('doc_entry', is_numeric($customQuery) ? (int)$customQuery : 0)
               ->orWhere('doc_num', (string) $customQuery)
               ->first();
+        } catch (\Exception $e) {
+            // DB fallback
+        }
 
-            if ($localOrder && ($localOrder->status === 'PLANNED' || empty($localOrder->doc_entry))) {
-                $header = [
-                    'id'          => $localOrder->id,
-                    'DocEntry'    => (string) ($localOrder->doc_entry ?: $localOrder->id),
-                    'DocNum'      => (string) ($localOrder->doc_num ?: $localOrder->prod_order_no),
-                    'Series'      => $localOrder->series ?: 15,
-                    'ItemCode'    => (string) $localOrder->item_code,
-                    'ProdName'    => (string) ($localOrder->parentItem?->item_name ?? $localOrder->item_code),
-                    'Status'      => (string) $localOrder->status,
-                    'Type'        => (string) $localOrder->type,
-                    'PlannedQty'  => floatval($localOrder->planned_qty),
-                    'CmpltQty'    => floatval($localOrder->cmplt_qty),
-                    'RjctQty'     => floatval($localOrder->rjct_qty),
-                    'PostDate'    => $localOrder->post_date ? date('Y-m-d\TH:i:s', strtotime($localOrder->post_date)) : null,
-                    'DueDate'     => $localOrder->due_date ? date('Y-m-d\TH:i:s', strtotime($localOrder->due_date)) : null,
-                    'WhsCode'     => (string) $localOrder->warehouse,
-                    'Remarks'     => (string) $localOrder->comments,
-                    'Shift'       => (string) $localOrder->u_shift,
-                    'Unit'        => (string) $localOrder->u_unit,
-                    'Bomid'       => (string) $localOrder->production_bom_id,
-                    'is_local'    => true,
-                ];
+        $sapQuery = $localOrder?->doc_entry ?: ($localOrder?->doc_num ?: ($localOrder?->prod_order_no ?: $customQuery));
+        $header = null;
+        $items = [];
+        $result = [];
 
-                $items = [];
-                foreach ($localOrder->details as $idx => $line) {
-                    $items[] = [
-                        'LineNum'     => $line->line_num ?? $idx,
-                        'ItemType'    => $line->type === 'Resource' ? 'R' : ($line->type === 'Text' ? 'T' : 'I'),
-                        'ItemCode'    => (string) $line->item_code,
-                        'ItemName'    => (string) ($line->item?->item_name ?? $line->item_code),
-                        'BaseQty'     => floatval($line->base_qty),
-                        'PlannedQty'  => floatval($line->planned_qty),
-                        'IssuedQty'   => floatval($line->issued_qty),
-                        'WhsCode'     => (string) $line->warehouse,
-                        'IssueMethod' => (string) ($line->issue_mthd ?: 'M'),
-                        'OcrCode'     => (string) $line->ocr_code,
-                        'OcrCode2'    => (string) $line->ocr_code2,
-                        'OcrCode3'    => (string) $line->ocr_code3,
-                    ];
+        // 2. Query SAP API getPDObyId to get real-time status & details
+        try {
+            $payload = [
+                'CustomQuery' => (string) $sapQuery,
+            ];
+
+            $response = Http::timeout(25)->post("{$sapUrl}/api/getPDObyId", $payload);
+
+            if ($response->successful()) {
+                $body = $response->json();
+                if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
+                    $result = $body['Result'] ?? [];
+                    if (isset($result['Table1'])) {
+                        $header = $result['Table1'][0] ?? null;
+                        $items = $result['Table2'] ?? [];
+                    } elseif (isset($result['Header'])) {
+                        $header = $result['Header'];
+                        $items = $result['Item'] ?? $result['Items'] ?? $result['Lines'] ?? [];
+                    } elseif (isset($result['Lines'])) {
+                        $header = $result;
+                        $items = $result['Lines'];
+                    } elseif (is_array($result) && isset($result[0])) {
+                        $header = $result[0];
+                        $items = $result;
+                    }
+
+                    // Check if header is a dummy 0 record
+                    if ($header && is_array($header)) {
+                        $hDocEntry = (string) ($header['DocEntry'] ?? '');
+                        $hDocNum = (string) ($header['DocNum'] ?? '');
+                        if (in_array($hDocEntry, ['0', '']) && in_array($hDocNum, ['0', ''])) {
+                            $header = null;
+                            $items = [];
+                        }
+                    }
                 }
-
-                return [
-                    'header' => $header,
-                    'items'  => $items,
-                    'order'  => $localOrder,
-                ];
             }
         } catch (\Exception $e) {
-            // Fallback to SAP query
+            // Fallback to local DB
         }
 
-        // 2. Query SAP API getPDObyId
-        $sapUrl = config('services.sap.url');
-
-        $payload = [
-            'CustomQuery' => (string) $customQuery,
-        ];
-
-        $response = Http::timeout(30)->post("{$sapUrl}/api/getPDObyId", $payload);
-
-        if (!$response->successful()) {
-            throw new \Exception('Gagal menghubungi API SAP getPDObyId. HTTP Status: ' . $response->status());
-        }
-
-        $body = $response->json();
-
-        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
-            throw new \Exception('API SAP getPDObyId error: ' . ($body['Message'] ?? 'Unknown SAP error'));
-        }
-
-        $result = $body['Result'] ?? [];
-        $header = $result['Table1'][0] ?? (is_array($result) && !isset($result['Table1']) ? ($result[0] ?? $result) : null);
-        $items = $result['Table2'] ?? [];
-
-        // Check if header is a dummy 0 record
+        // If found in SAP, normalize status and update local DB if applicable
         if ($header && is_array($header)) {
-            $hDocEntry = (string) ($header['DocEntry'] ?? '');
-            $hDocNum = (string) ($header['DocNum'] ?? '');
-            if (in_array($hDocEntry, ['0', '']) && in_array($hDocNum, ['0', ''])) {
-                $header = null;
-                $items = [];
+            $rawStatus = strtoupper(trim((string) ($header['Status'] ?? '')));
+            if ($rawStatus === 'R' || $rawStatus === 'RELEASE' || $rawStatus === 'RELEASED') {
+                $normStatus = 'RELEASED';
+            } elseif ($rawStatus === 'P' || $rawStatus === 'PLAN' || $rawStatus === 'PLANNED') {
+                $normStatus = 'PLANNED';
+            } elseif ($rawStatus === 'C' || $rawStatus === 'CLOSE' || $rawStatus === 'CLOSED') {
+                $normStatus = 'CLOSED';
+            } elseif ($rawStatus === 'L' || $rawStatus === 'CANCEL' || $rawStatus === 'CANCELLED') {
+                $normStatus = 'CANCELLED';
+            } else {
+                $normStatus = $rawStatus ?: 'RELEASED';
+            }
+            $header['Status'] = $normStatus;
+
+            // Sync updated status to local database
+            if ($localOrder) {
+                try {
+                    $localOrder->update([
+                        'status'     => $normStatus,
+                        'doc_entry'  => $header['DocEntry'] ?? $localOrder->doc_entry,
+                        'doc_num'    => $header['DocNum'] ?? $localOrder->doc_num,
+                        'sap_status' => 'SYNCED',
+                        'cmplt_qty'  => floatval($header['CmpltQty'] ?? $localOrder->cmplt_qty),
+                        'rjct_qty'   => floatval($header['RjctQty'] ?? $localOrder->rjct_qty),
+                    ]);
+                } catch (\Exception $e) {
+                    // Ignore DB sync error
+                }
+            }
+
+            // Normalize header ItemCode & ProdName
+            $hCode = (string) ($header['ItemCode'] ?? $header['item_code'] ?? $header['item'] ?? $localOrder?->item_code ?? '');
+            $hName = (string) ($header['ProdName'] ?? $header['prod_name'] ?? $header['ItemName'] ?? $header['item_name'] ?? $localOrder?->parentItem?->item_name ?? '');
+            if ((empty($hName) || $hName === $hCode) && !empty($hCode)) {
+                $hName = $this->resolveItemName($hCode);
+            }
+            $header['ItemCode'] = $hCode;
+            $header['ProdName'] = $hName;
+            unset($header['item_code'], $header['item'], $header['prod_name'], $header['item_name'], $header['ItemName']);
+
+            // Normalize item lines
+            if (!empty($items) && is_array($items)) {
+                foreach ($items as &$it) {
+                    if (!is_array($it)) continue;
+                    $itCode = (string) ($it['ItemCode'] ?? $it['item_code'] ?? $it['item'] ?? '');
+                    $itName = (string) ($it['ItemName'] ?? $it['item_name'] ?? $it['ProdName'] ?? $it['prod_name'] ?? $it['Dscription'] ?? $it['dscription'] ?? '');
+                    if ((empty($itName) || $itName === $itCode) && !empty($itCode)) {
+                        $itName = $this->resolveItemName($itCode);
+                    }
+                    $it['ItemCode'] = $itCode;
+                    $it['ItemName'] = $itName;
+                    unset($it['item_code'], $it['item'], $it['item_name'], $it['prod_name'], $it['ProdName'], $it['Dscription'], $it['dscription']);
+                }
+                unset($it);
+            }
+        }
+
+        // 3. Fallback to local DB record if SAP data is not found or empty
+        if ((empty($header) && empty($items)) && $localOrder) {
+            $hCode = (string) $localOrder->item_code;
+            $hName = (string) ($localOrder->parentItem?->item_name ?? $this->resolveItemName($hCode));
+
+            $header = [
+                'id'          => $localOrder->id,
+                'DocEntry'    => (string) ($localOrder->doc_entry ?: $localOrder->id),
+                'DocNum'      => (string) ($localOrder->doc_num ?: $localOrder->prod_order_no),
+                'Series'      => $localOrder->series ?: 15,
+                'ItemCode'    => $hCode,
+                'ProdName'    => $hName,
+                'Status'      => (string) $localOrder->status,
+                'Type'        => (string) $localOrder->type,
+                'PlannedQty'  => floatval($localOrder->planned_qty),
+                'CmpltQty'    => floatval($localOrder->cmplt_qty),
+                'RjctQty'     => floatval($localOrder->rjct_qty),
+                'PostDate'    => $localOrder->post_date ? date('Y-m-d\TH:i:s', strtotime($localOrder->post_date)) : null,
+                'DueDate'     => $localOrder->due_date ? date('Y-m-d\TH:i:s', strtotime($localOrder->due_date)) : null,
+                'WhsCode'     => (string) $localOrder->warehouse,
+                'Remarks'     => (string) $localOrder->comments,
+                'Shift'       => (string) $localOrder->u_shift,
+                'Unit'        => (string) $localOrder->u_unit,
+                'Bomid'       => (string) $localOrder->production_bom_id,
+                'is_local'    => true,
+            ];
+
+            $items = [];
+            foreach ($localOrder->details as $idx => $line) {
+                $lCode = (string) $line->item_code;
+                $lName = (string) ($line->item?->item_name ?? $this->resolveItemName($lCode));
+
+                $items[] = [
+                    'LineNum'     => $line->line_num ?? $idx,
+                    'ItemType'    => $line->type === 'Resource' ? 'R' : ($line->type === 'Text' ? 'T' : 'I'),
+                    'ItemCode'    => $lCode,
+                    'ItemName'    => $lName,
+                    'BaseQty'     => floatval($line->base_qty),
+                    'PlannedQty'  => floatval($line->planned_qty),
+                    'IssuedQty'   => floatval($line->issued_qty),
+                    'WhsCode'     => (string) $line->warehouse,
+                    'IssueMethod' => (string) ($line->issue_mthd ?: 'M'),
+                    'OcrCode'     => (string) $line->ocr_code,
+                    'OcrCode2'    => (string) $line->ocr_code2,
+                    'OcrCode3'    => (string) $line->ocr_code3,
+                ];
             }
         }
 
@@ -816,7 +947,7 @@ class ProductionService
             $this->auditLogService->log(
                 $userId,
                 'GET_PDO_DETAIL_SAP',
-                "Fetched Production Order detail from SAP for query: {$customQuery}."
+                "Fetched Production Order detail for query: {$customQuery}."
             );
         }
 
@@ -824,6 +955,94 @@ class ProductionService
             'header' => $header,
             'items'  => $items,
             'raw'    => $result,
+        ];
+    }
+
+    /**
+     * Check and sync status for all local Production Orders that are currently PLANNED against SAP B1.
+     *
+     * @param int|null $userId
+     * @return array
+     */
+    public function syncPendingPdoStatus(?int $userId = null): array
+    {
+        $sapUrl = config('services.sap.url');
+        $plannedOrders = \App\Models\ProductionOrder::where('status', 'PLANNED')
+            ->orWhereNull('doc_entry')
+            ->orWhere('sap_status', '!=', 'SYNCED')
+            ->get();
+
+        $updatedCount = 0;
+        $updatedOrders = [];
+
+        foreach ($plannedOrders as $order) {
+            $queryKey = $order->doc_entry ?: ($order->doc_num ?: $order->prod_order_no);
+            if (empty($queryKey)) continue;
+
+            try {
+                $response = Http::timeout(15)->post("{$sapUrl}/api/getPDObyId", [
+                    'CustomQuery' => (string) $queryKey,
+                ]);
+
+                if ($response->successful()) {
+                    $body = $response->json();
+                    if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
+                        $result = $body['Result'] ?? [];
+                        $header = $result['Table1'][0] ?? (is_array($result) && !isset($result['Table1']) ? ($result[0] ?? null) : null);
+
+                        if ($header && is_array($header)) {
+                            $hDocEntry = (string) ($header['DocEntry'] ?? '');
+                            $hDocNum = (string) ($header['DocNum'] ?? '');
+                            if (!in_array($hDocEntry, ['0', '']) && !in_array($hDocNum, ['0', ''])) {
+                                $rawStatus = strtoupper(trim((string) ($header['Status'] ?? '')));
+                                if ($rawStatus === 'R' || $rawStatus === 'RELEASE' || $rawStatus === 'RELEASED') {
+                                    $normStatus = 'RELEASED';
+                                } elseif ($rawStatus === 'C' || $rawStatus === 'CLOSE' || $rawStatus === 'CLOSED') {
+                                    $normStatus = 'CLOSED';
+                                } elseif ($rawStatus === 'L' || $rawStatus === 'CANCEL' || $rawStatus === 'CANCELLED') {
+                                    $normStatus = 'CANCELLED';
+                                } else {
+                                    $normStatus = 'PLANNED';
+                                }
+
+                                $order->update([
+                                    'status'     => $normStatus,
+                                    'doc_entry'  => $header['DocEntry'] ?? $order->doc_entry,
+                                    'doc_num'    => $header['DocNum'] ?? $order->doc_num,
+                                    'sap_status' => 'SYNCED',
+                                    'cmplt_qty'  => floatval($header['CmpltQty'] ?? $order->cmplt_qty),
+                                    'rjct_qty'   => floatval($header['RjctQty'] ?? $order->rjct_qty),
+                                ]);
+
+                                $updatedCount++;
+                                $updatedOrders[] = [
+                                    'id'            => $order->id,
+                                    'prod_order_no' => $order->prod_order_no,
+                                    'doc_entry'     => $header['DocEntry'],
+                                    'status'        => $normStatus,
+                                ];
+                            }
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                // Continue to next order
+            }
+        }
+
+        if ($userId && $updatedCount > 0) {
+            $this->auditLogService->log(
+                $userId,
+                'SYNC_PENDING_PDO_STATUS',
+                "Synchronized status for {$updatedCount} pending Production Orders with SAP."
+            );
+        }
+
+        return [
+            'success'       => true,
+            'updated_count' => $updatedCount,
+            'orders'        => $updatedOrders,
+            'message'       => "Sinkronisasi status PDO selesai. {$updatedCount} order diperbarui.",
         ];
     }
 
@@ -1099,6 +1318,16 @@ class ProductionService
             foreach ($items as $idx => $it) {
                 if (!is_array($it)) continue;
                 $c = (string) ($it['ItemCode'] ?? $it['item_code'] ?? $it['item'] ?? $it['Code'] ?? $it['code'] ?? '');
+                if (empty($c) && !empty($it['BaseEntry'])) {
+                    try {
+                        $pdoDetail = $this->getPdoById($it['BaseEntry']);
+                        $c = (string) ($pdoDetail['header']['ItemCode'] ?? '');
+                    } catch (\Exception $e) {}
+                }
+                if (empty($c) && $header) {
+                    $c = (string) ($header['ItemCode'] ?? $header['item_code'] ?? '');
+                }
+
                 $n = (string) ($it['ItemName'] ?? $it['item_name'] ?? $it['ProdName'] ?? $it['prod_name'] ?? $it['Dscription'] ?? $it['dscription'] ?? $it['ItemDescription'] ?? $it['item_description'] ?? $it['Description'] ?? '');
 
                 if ((empty($n) || $n === $c) && !empty($c)) {
@@ -1421,6 +1650,19 @@ class ProductionService
             foreach ($items as $idx => $it) {
                 if (!is_array($it)) continue;
                 $c = (string) ($it['ItemCode'] ?? $it['item_code'] ?? $it['item'] ?? $it['Code'] ?? $it['code'] ?? '');
+                if (empty($c) && !empty($it['BaseEntry'])) {
+                    try {
+                        $pdoDetail = $this->getPdoById($it['BaseEntry']);
+                        $sapLines = $pdoDetail['items'] ?? [];
+                        foreach ($sapLines as $sLine) {
+                            if ((string)($sLine['LineNum'] ?? '') === (string)($it['BaseLine'] ?? ($it['line_num'] ?? ''))) {
+                                $c = (string) ($sLine['ItemCode'] ?? '');
+                                break;
+                            }
+                        }
+                    } catch (\Exception $e) {}
+                }
+
                 $n = (string) ($it['ItemName'] ?? $it['item_name'] ?? $it['ProdName'] ?? $it['prod_name'] ?? $it['Dscription'] ?? $it['dscription'] ?? $it['ItemDescription'] ?? $it['item_description'] ?? $it['Description'] ?? '');
 
                 if ((empty($n) || $n === $c) && !empty($c)) {
@@ -1537,7 +1779,7 @@ class ProductionService
             throw new \Exception("Field 'DocDate' wajib diisi (format YYYY-MM-DD).");
         }
         if (empty($rawDocDueDate)) {
-            throw new \Exception("Field 'DocDueDate' wajib diisi (format YYYY-MM-DD).");
+            $rawDocDueDate = $rawDocDate;
         }
 
         $docDate = date('Y-m-d', strtotime((string) $rawDocDate));
@@ -1555,23 +1797,26 @@ class ProductionService
             }
 
             $baseEntry = $line['base_entry'] ?? $line['BaseEntry'] ?? null;
-            $baseLine = $line['base_line'] ?? $line['BaseLine'] ?? null;
+            $baseLine = $line['base_line'] ?? $line['BaseLine'] ?? 0;
             $quantity = $line['quantity'] ?? $line['Quantity'] ?? null;
 
             if ($baseEntry === null || $baseEntry === '') {
                 throw new \Exception("Lines index [{$idx}]: 'BaseEntry' (DocEntry Production Order) wajib diisi.");
             }
-            if ($baseLine === null || $baseLine === '') {
-                throw new \Exception("Lines index [{$idx}]: 'BaseLine' (LineNum component/item) wajib diisi.");
-            }
             if ($quantity === null || !is_numeric($quantity) || floatval($quantity) <= 0) {
                 throw new \Exception("Lines index [{$idx}]: 'Quantity' wajib diisi dengan nilai lebih dari 0.");
+            }
+
+            $itemCode = (string) ($line['item_code'] ?? $line['ItemCode'] ?? $line['item'] ?? $line['product'] ?? $line['code'] ?? '');
+            if (is_array($line['item'] ?? null)) {
+                $itemCode = (string) ($line['item']['value'] ?? $line['item']['code'] ?? $line['item']['item_code'] ?? $itemCode);
             }
 
             $lines[] = [
                 'BaseType'  => is_numeric($line['base_type'] ?? $line['BaseType'] ?? null) ? (int) ($line['base_type'] ?? $line['BaseType']) : 202,
                 'BaseEntry' => is_numeric($baseEntry) ? (int) $baseEntry : (string) $baseEntry,
                 'BaseLine'  => is_numeric($baseLine) ? (int) $baseLine : (string) $baseLine,
+                'ItemCode'  => $itemCode,
                 'Quantity'  => floatval($quantity),
                 'WhsCode'   => (string) ($line['whs_code'] ?? $line['warehouse'] ?? $line['WhsCode'] ?? ''),
                 'UoMEntry'  => is_numeric($line['uom_entry'] ?? $line['UoMEntry'] ?? null) ? (int) ($line['uom_entry'] ?? $line['UoMEntry']) : ($line['uom_entry'] ?? $line['UoMEntry'] ?? 1),
@@ -1641,12 +1886,33 @@ class ProductionService
             $baseLine = $line['BaseLine'];
             $qty = floatval($line['Quantity']);
 
-            // Find matching PDO item
+            // Find matching PDO raw material component item
             $pdoItem = null;
+            $itemCode = (string) ($line['ItemCode'] ?? '');
+
             if ($pdo) {
                 $pdoItem = $pdo->details()->where('line_num', is_numeric($baseLine) ? (int)$baseLine : 0)->first();
-                if (!$pdoItem && !empty($line['ItemCode'])) {
-                    $pdoItem = $pdo->details()->where('item_code', $line['ItemCode'])->first();
+                if (!$pdoItem && !empty($itemCode)) {
+                    $pdoItem = $pdo->details()->where('item_code', $itemCode)->first();
+                }
+                if (empty($itemCode) && $pdoItem) {
+                    $itemCode = (string) $pdoItem->item_code;
+                }
+            }
+
+            // If still empty and PDO is in SAP, resolve from getPdoById
+            if (empty($itemCode) && !empty($line['BaseEntry'])) {
+                try {
+                    $pdoDetail = $this->getPdoById($line['BaseEntry']);
+                    $sapLines = $pdoDetail['items'] ?? [];
+                    foreach ($sapLines as $sLine) {
+                        if ((string)($sLine['LineNum'] ?? '') === (string)$baseLine) {
+                            $itemCode = (string) ($sLine['ItemCode'] ?? $sLine['item_code'] ?? '');
+                            break;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // ignore
                 }
             }
 
@@ -1658,7 +1924,7 @@ class ProductionService
                 'base_type'                => $line['BaseType'] ?? 202,
                 'base_entry'               => (string)$line['BaseEntry'],
                 'base_line'                => (string)$line['BaseLine'],
-                'item_code'                => $line['ItemCode'] ?? $pdoItem?->item_code ?? null,
+                'item_code'                => $itemCode ?: ($pdoItem?->item_code ?? null),
                 'quantity'                 => $qty,
                 'warehouse'                => $line['WhsCode'] ?? null,
                 'uom_entry'                => (string)($line['UoMEntry'] ?? 1),
@@ -1685,8 +1951,29 @@ class ProductionService
         // 3. Tembakkan ke SAP B1 API
         $sapUrl = config('services.sap.url');
         $sapResponse = null;
-        $sapPayload = $payload;
-        unset($sapPayload['Bomid']); // SAP tidak menggunakan Bomid pada addissueprod
+        $sapPayload = [
+            'DocDate'    => $payload['DocDate'],
+            'DocDueDate' => $payload['DocDueDate'],
+            'Comments'   => $payload['Comments'],
+            'Shift'      => $payload['Shift'],
+            'Unit'       => $payload['Unit'],
+            'AddonId'    => $payload['AddonId'],
+            'UserId'     => $payload['UserId'],
+            'Lines'      => array_map(function ($l) {
+                return [
+                    'BaseType'  => (int) ($l['BaseType'] ?? 202),
+                    'BaseEntry' => is_numeric($l['BaseEntry']) ? (int)$l['BaseEntry'] : $l['BaseEntry'],
+                    'BaseLine'  => is_numeric($l['BaseLine']) ? (int)$l['BaseLine'] : 0,
+                    'ItemCode'  => (string) ($l['ItemCode'] ?? ''),
+                    'Quantity'  => floatval($l['Quantity']),
+                    'WhsCode'   => (string) ($l['WhsCode'] ?? ''),
+                    'UoMEntry'  => is_numeric($l['UoMEntry'] ?? 1) ? (int)($l['UoMEntry'] ?? 1) : 1,
+                    'OcrCode'   => (string) ($l['OcrCode'] ?? ''),
+                    'OcrCode2'  => (string) ($l['OcrCode2'] ?? ''),
+                    'OcrCode3'  => (string) ($l['OcrCode3'] ?? ''),
+                ];
+            }, $payload['Lines']),
+        ];
 
         try {
             $response = Http::timeout(45)->post("{$sapUrl}/api/addissueprod", $sapPayload);
@@ -1773,14 +2060,28 @@ class ProductionService
             $qty = floatval($line['Quantity']);
             $totalReceivedQty += $qty;
 
+            // Resolve Item Code: For Receipt from Production, it is the Product (Finished Good) of the PDO
+            $itemCode = (string) ($line['ItemCode'] ?? '');
+            if (empty($itemCode)) {
+                $itemCode = (string) ($pdo?->item_code ?? '');
+            }
+            if (empty($itemCode) && !empty($line['BaseEntry'])) {
+                try {
+                    $pdoDetail = $this->getPdoById($line['BaseEntry']);
+                    $itemCode = (string) ($pdoDetail['header']['ItemCode'] ?? $pdoDetail['header']['item_code'] ?? '');
+                } catch (\Exception $e) {
+                    // ignore
+                }
+            }
+
             \App\Models\ProductionReceiptItem::create([
                 'production_receipt_id' => $localReceipt->id,
                 'production_order_id'   => $pdo?->id,
                 'line_num'              => $idx,
                 'base_type'             => $line['BaseType'] ?? 202,
                 'base_entry'            => (string)$line['BaseEntry'],
-                'base_line'             => isset($line['BaseLine']) ? (string)$line['BaseLine'] : null,
-                'item_code'             => $line['ItemCode'] ?? $pdo?->item_code ?? null,
+                'base_line'             => isset($line['BaseLine']) ? (string)$line['BaseLine'] : '0',
+                'item_code'             => $itemCode ?: ($pdo?->item_code ?? null),
                 'quantity'              => $qty,
                 'warehouse'             => $line['WhsCode'] ?? null,
                 'uom_entry'             => (string)($line['UoMEntry'] ?? 1),
@@ -1815,8 +2116,29 @@ class ProductionService
         // 3. Tembakkan ke SAP B1 API
         $sapUrl = config('services.sap.url');
         $sapResponse = null;
-        $sapPayload = $payload;
-        unset($sapPayload['Bomid']); // SAP tidak menggunakan Bomid pada addreceiptprod
+        $sapPayload = [
+            'DocDate'    => $payload['DocDate'],
+            'DocDueDate' => $payload['DocDueDate'],
+            'Comments'   => $payload['Comments'],
+            'Shift'      => $payload['Shift'],
+            'Unit'       => $payload['Unit'],
+            'AddonId'    => $payload['AddonId'],
+            'UserId'     => $payload['UserId'],
+            'Lines'      => array_map(function ($l) {
+                return [
+                    'BaseType'  => (int) ($l['BaseType'] ?? 202),
+                    'BaseEntry' => is_numeric($l['BaseEntry']) ? (int)$l['BaseEntry'] : $l['BaseEntry'],
+                    'BaseLine'  => is_numeric($l['BaseLine']) ? (int)$l['BaseLine'] : 0,
+                    'ItemCode'  => (string) ($l['ItemCode'] ?? ''),
+                    'Quantity'  => floatval($l['Quantity']),
+                    'WhsCode'   => (string) ($l['WhsCode'] ?? ''),
+                    'UoMEntry'  => is_numeric($l['UoMEntry'] ?? 1) ? (int)($l['UoMEntry'] ?? 1) : 1,
+                    'OcrCode'   => (string) ($l['OcrCode'] ?? ''),
+                    'OcrCode2'  => (string) ($l['OcrCode2'] ?? ''),
+                    'OcrCode3'  => (string) ($l['OcrCode3'] ?? ''),
+                ];
+            }, $payload['Lines']),
+        ];
 
         try {
             $response = Http::timeout(45)->post("{$sapUrl}/api/addreceiptprod", $sapPayload);
