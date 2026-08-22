@@ -1747,11 +1747,75 @@ class ProductionService
             throw new \Exception('API SAP cancelpdo error: ' . ($body['Message'] ?? 'Unknown SAP error'));
         }
 
+        try {
+            \App\Models\ProductionOrder::where('doc_entry', (int) $docEntry)
+                ->orWhere('doc_num', (string) $docEntry)
+                ->update(['status' => 'CANCELLED']);
+        } catch (\Exception $e) {
+            // DB fallback
+        }
+
         if ($userId) {
             $this->auditLogService->log(
                 $userId,
                 'CANCEL_PDO_SAP',
                 "Cancelled Production Order (PDO) on SAP for DocEntry {$docEntry}."
+            );
+        }
+
+        return [
+            'payload' => $payload,
+            'sap_response' => $body,
+        ];
+    }
+
+    /**
+     * Close Production Order (PDO) on SAP (/api/closepdo).
+     *
+     * @param array $data
+     * @param int|null $userId
+     * @return array
+     */
+    public function closePdoSap(array $data, ?int $userId = null): array
+    {
+        $sapUrl = config('services.sap.url');
+
+        $docEntry = (string) ($data['doc_entry'] ?? $data['DocEntry'] ?? '');
+        if (empty($docEntry)) {
+            throw new \Exception('DocEntry wajib diisi untuk menutup PDO.');
+        }
+
+        $payload = [
+            'DocEntry' => $docEntry,
+            'UserId'   => $userId ?? 1,
+            'AddonId'  => 2,
+        ];
+
+        $response = Http::timeout(30)->post("{$sapUrl}/api/closepdo", $payload);
+
+        if (!$response->successful()) {
+            throw new \Exception('Gagal menghubungi API SAP closepdo. HTTP Status: ' . $response->status());
+        }
+
+        $body = $response->json();
+
+        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
+            throw new \Exception('API SAP closepdo error: ' . ($body['Message'] ?? 'Unknown SAP error'));
+        }
+
+        try {
+            \App\Models\ProductionOrder::where('doc_entry', (int) $docEntry)
+                ->orWhere('doc_num', (string) $docEntry)
+                ->update(['status' => 'CLOSED']);
+        } catch (\Exception $e) {
+            // DB fallback
+        }
+
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'CLOSE_PDO_SAP',
+                "Closed Production Order (PDO) on SAP for DocEntry {$docEntry}."
             );
         }
 

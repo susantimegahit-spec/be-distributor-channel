@@ -33,6 +33,7 @@ Route::prefix('v1/production')->middleware('auth:sanctum')->group(function () {
     Route::post('/orders/sap/cancel', [ProductionController::class, 'cancelPdoSap']);
     Route::post('/cancel-pdo-sap', [ProductionController::class, 'cancelPdoSap']);
     Route::post('/cancelpdo', [ProductionController::class, 'cancelPdoSap']);
+    Route::post('/close-pdo-sap', [ProductionController::class, 'closePdoSap']);
     Route::post('/inventory-transfer/sap/cancel', [ProductionController::class, 'cancelItSap']);
     Route::post('/cancel-it-sap', [ProductionController::class, 'cancelItSap']);
     Route::put('/orders/{id}', [ProductionController::class, 'updateOrder']);

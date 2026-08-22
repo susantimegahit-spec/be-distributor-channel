@@ -830,6 +830,26 @@ class ProductionController extends Controller
     }
 
     /**
+     * Close Production Order (PDO) on SAP (/api/closepdo).
+     */
+    public function closePdoSap(Request $request): JsonResponse
+    {
+        $userId = $request->user()?->id;
+        $input = $request->all();
+
+        if (empty($input['DocEntry']) && empty($input['doc_entry'])) {
+            return $this->errorResponse('DocEntry wajib diisi.', [], 422);
+        }
+
+        try {
+            $result = $this->productionService->closePdoSap($input, $userId);
+            return $this->successResponse($result['sap_response'], 'Production Order (PDO) berhasil di-close di SAP.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal meng-close Production Order di SAP: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
      * Cancel Inventory Transfer (IT) on SAP (/api/CancelIT).
      */
     public function cancelItSap(Request $request): JsonResponse

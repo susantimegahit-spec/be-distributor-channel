@@ -11478,6 +11478,111 @@ paths:
         '500':
           description: Gagal menghubungi API SAP.
 
+  /v1/production/orders/sap/close:
+    post:
+      summary: Close Production Order (PDO) on SAP
+      description: Menutup (Close) Production Order (PDO) di SAP API (/api/closepdo).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocEntry
+              properties:
+                DocEntry:
+                  type: string
+                  example: "123123"
+                  description: "DocEntry dari PDO yang ingin di-close (UserId diambil otomatis dari session auth, AddonId hardcoded = 2)"
+      responses:
+        '200':
+          description: Production Order (PDO) berhasil di-close di SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Production Order (PDO) berhasil di-close di SAP.
+                  data:
+                    type: object
+                    properties:
+                      ErrorCode:
+                        type: integer
+                        example: 0
+                      Message:
+                        type: string
+                        example: "Success close PDO"
+        '422':
+          description: DocEntry tidak valid.
+        '500':
+          description: Gagal menghubungi API SAP.
+
+  /v1/production/close-pdo-sap:
+    post:
+      summary: Close Production Order (PDO) on SAP (Alias)
+      description: Alias untuk /v1/production/orders/sap/close.
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocEntry
+              properties:
+                DocEntry:
+                  type: string
+                  example: "123123"
+      responses:
+        '200':
+          description: Production Order (PDO) berhasil di-close di SAP.
+        '422':
+          description: DocEntry tidak valid.
+        '500':
+          description: Gagal menghubungi API SAP.
+
+  /v1/production/closepdo:
+    post:
+      summary: Close Production Order (PDO) on SAP (Direct Alias)
+      description: Alias langsung untuk /v1/production/orders/sap/close.
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocEntry
+              properties:
+                DocEntry:
+                  type: string
+                  example: "123123"
+      responses:
+        '200':
+          description: Production Order (PDO) berhasil di-close di SAP.
+        '422':
+          description: DocEntry tidak valid.
+        '500':
+          description: Gagal menghubungi API SAP.
+
   /v1/production/inventory-transfer/sap/cancel:
     post:
       summary: Cancel Inventory Transfer (IT) on SAP
@@ -11956,170 +12061,6 @@ paths:
       responses:
         '200':
           description: Daftar Timeline berhasil diambil.
-
-  /v1/production/orders/sap-list:
-    get:
-      summary: Get Production Orders List (SAP & Local)
-      description: Mengambil daftar Production Order dari SAP B1 dan Local DB. Mendukung filter status (misal status=RELEASED untuk menyaring hanya PDO yang berstatus Released, mengecualikan PLANNED dan CLOSED).
-      tags:
-        - Production
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: query
-          name: status
-          schema:
-            type: string
-            enum: [RELEASED, PLANNED, CLOSED, CANCELLED]
-          description: Filter status PDO (misal RELEASED untuk receipt from production)
-        - in: query
-          name: from
-          schema:
-            type: string
-          description: Tanggal awal (YYYY-MM-DD)
-        - in: query
-          name: to
-          schema:
-            type: string
-          description: Tanggal akhir (YYYY-MM-DD)
-        - in: query
-          name: whs_code
-          schema:
-            type: string
-          description: Filter kode gudang
-      responses:
-        '200':
-          description: Daftar Production Orders berhasil diambil.
-
-  /v1/production/add-receipt-prod-sap:
-    post:
-      summary: Add Receipt from Production (Finished Goods)
-      description: Mencatat penerimaan produk jadi (Parent Product) dari Production Order ke database lokal dan melakukan sinkronisasi ke SAP B1 (/api/addreceiptprod).
-      tags:
-        - Production
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [DocDate, Lines]
-              properties:
-                DocDate:
-                  type: string
-                  example: "2026-08-22"
-                DocDueDate:
-                  type: string
-                  example: "2026-08-22"
-                Shift:
-                  type: string
-                  example: "Shift 1"
-                Unit:
-                  type: string
-                  example: "UNIT-01"
-                Comments:
-                  type: string
-                  example: "Penerimaan produk jadi hasil produksi"
-                Lines:
-                  type: array
-                  items:
-                    type: object
-                    required: [BaseEntry, Quantity]
-                    properties:
-                      BaseType:
-                        type: integer
-                        default: 202
-                      BaseEntry:
-                        type: integer
-                        example: 10025
-                      BaseLine:
-                        type: integer
-                        default: 0
-                      ItemCode:
-                        type: string
-                        example: "FG-001"
-                      Quantity:
-                        type: number
-                        example: 50.0
-                      WhsCode:
-                        type: string
-                        example: "WHS-FG"
-      responses:
-        '200':
-          description: Receipt for Production berhasil diproses.
-
-  /v1/production/add-issue-prod-sap:
-    post:
-      summary: Add Goods Issue for Production (Raw Materials)
-      description: Mencatat pengeluaran bahan baku (Components / Raw Materials) untuk Production Order ke database lokal dan melakukan sinkronisasi ke SAP B1 (/api/addissueprod).
-      tags:
-        - Production
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [DocDate, Lines]
-              properties:
-                DocDate:
-                  type: string
-                  example: "2026-08-22"
-                DocDueDate:
-                  type: string
-                  example: "2026-08-22"
-                Shift:
-                  type: string
-                  example: "Shift 1"
-                Unit:
-                  type: string
-                  example: "UNIT-01"
-                Comments:
-                  type: string
-                  example: "Pengeluaran bahan baku produksi"
-                Lines:
-                  type: array
-                  items:
-                    type: object
-                    required: [BaseEntry, BaseLine, Quantity]
-                    properties:
-                      BaseType:
-                        type: integer
-                        default: 202
-                      BaseEntry:
-                        type: integer
-                        example: 10025
-                      BaseLine:
-                        type: integer
-                        example: 0
-                      ItemCode:
-                        type: string
-                        example: "RAW-001"
-                      Quantity:
-                        type: number
-                        example: 10.0
-                      WhsCode:
-                        type: string
-                        example: "WHS-RAW"
-      responses:
-        '200':
-          description: Issue for Production berhasil diproses.
-
-  /v1/production/get-unit:
-    get:
-      summary: Get Master Units from SAP
-      description: Mengambil daftar Master Unit dari SAP API (/api/GetUnit).
-      tags:
-        - Production
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Daftar Unit berhasil diambil.
 
 components:
   securitySchemes:

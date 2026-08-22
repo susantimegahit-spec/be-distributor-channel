@@ -139,7 +139,8 @@ Route::middleware([DocsAuthSession::class])->group(function () {
             abort(404);
         }
         return response()->file($path, [
-            'Content-Type' => 'text/yaml',
+            'Content-Type' => 'text/yaml; charset=utf-8',
+            'Access-Control-Allow-Origin' => '*',
             'Cache-Control' => 'no-cache, no-store, must-revalidate',
             'Pragma' => 'no-cache',
             'Expires' => '0',
@@ -163,7 +164,8 @@ Route::middleware([DocsAuthSession::class])->group(function () {
             abort(404);
         }
         return response()->file($path, [
-            'Content-Type' => 'text/yaml',
+            'Content-Type' => 'text/yaml; charset=utf-8',
+            'Access-Control-Allow-Origin' => '*',
             'Cache-Control' => 'no-cache, no-store, must-revalidate',
             'Pragma' => 'no-cache',
             'Expires' => '0',
