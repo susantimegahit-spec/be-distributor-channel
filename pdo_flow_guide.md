@@ -452,6 +452,48 @@ Mengambil daftar Master Unit mesin/lokasi produksi langsung dari SAP Business On
 
 ---
 
+### G. Get Detail Receipt from Production (SAP / Local)
+
+Mengambil detail header dan line item Receipt from Production dari SAP B1 atau Database Lokal.
+
+* **Method:** `GET` atau `POST`
+* **URL:** `/api/distributor-channel/v1/production/receipts/sap/{id}` *(atau `/get-receipt-prod-by-id?custom_query={id}`)*
+* **Headers:** `Authorization: Bearer <token>`
+* **Response Success (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Production Receipt detail retrieved successfully from SAP.",
+  "data": {
+    "header": {
+      "DocEntry": 10,
+      "DocNum": 10,
+      "DocDate": "2026-08-15T00:00:00",
+      "DocDueDate": "2026-08-15T00:00:00",
+      "Comments": "Receipt from Production Order #10025",
+      "Shift": "Shift 1",
+      "Unit": "UNIT-01",
+      "ItemCode": "FG-001",
+      "ItemName": "Garam Halus 250gr"
+    },
+    "items": [
+      {
+        "LineNum": 0,
+        "BaseType": 202,
+        "BaseEntry": "10025",
+        "BaseLine": "0",
+        "ItemCode": "FG-001",
+        "ItemName": "Garam Halus 250gr",
+        "Quantity": 50,
+        "WhsCode": "FG-01"
+      }
+    ]
+  }
+}
+```
+
+---
+
 ## 5. Ringkasan Mapping Parameter Frontend ➔ Backend
 
 | Parameter SAP / FE | Parameter Snake Case | Deskripsi |

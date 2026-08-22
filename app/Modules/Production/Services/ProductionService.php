@@ -905,8 +905,8 @@ class ProductionService
                 $totalQty = $lReceipt->items->sum('quantity');
                 $itemCode = (string) ($firstItem?->item_code ?: $lReceipt->productionOrder?->item_code ?: '');
                 $itemName = (string) ($firstItem?->item?->item_name ?: $lReceipt->productionOrder?->parentItem?->item_name ?: '');
-                if (empty($itemName) && !empty($itemCode)) {
-                    $itemName = (string) (\App\Models\Item::where('item_code', $itemCode)->value('item_name') ?? $itemCode);
+                if (empty($itemName) || $itemName === $itemCode) {
+                    $itemName = $this->resolveItemName($itemCode);
                 }
 
                 $localItems[] = [
@@ -924,7 +924,6 @@ class ProductionService
                     'BaseType'    => 202,
                     'ItemCode'    => $itemCode,
                     'ItemName'    => $itemName,
-                    'ProdName'    => $itemName,
                     'Quantity'    => floatval($totalQty),
                     'WhsCode'     => (string) ($firstItem?->warehouse ?: ''),
                     'is_local'    => true,
@@ -936,27 +935,24 @@ class ProductionService
             // Fallback
         }
 
-        // Enrich any missing ItemName from Master Items table
+        // Enrich any missing ItemCode/ItemName in list items
         if (!empty($items)) {
-            $itemCodesToLookup = [];
-            foreach ($items as $it) {
-                $c = $it['ItemCode'] ?? null;
-                $n = $it['ItemName'] ?? $it['ProdName'] ?? null;
-                if ($c && empty($n)) {
-                    $itemCodesToLookup[] = $c;
+            foreach ($items as &$it) {
+                if (!is_array($it)) continue;
+                $c = (string) ($it['ItemCode'] ?? $it['item_code'] ?? $it['item'] ?? $it['Code'] ?? $it['code'] ?? '');
+                $n = (string) ($it['ItemName'] ?? $it['item_name'] ?? $it['ProdName'] ?? $it['prod_name'] ?? $it['Dscription'] ?? $it['dscription'] ?? $it['ItemDescription'] ?? $it['item_description'] ?? $it['Description'] ?? '');
+                
+                if ((empty($n) || $n === $c) && !empty($c)) {
+                    $n = $this->resolveItemName($c);
                 }
+
+                $it['ItemCode'] = $c;
+                $it['ItemName'] = $n;
+
+                // Clean duplicate keys
+                unset($it['item_code'], $it['item'], $it['code'], $it['item_name'], $it['prod_name'], $it['ProdName'], $it['Dscription'], $it['dscription'], $it['ItemDescription'], $it['item_description'], $it['quantity'], $it['whs_code'], $it['warehouse']);
             }
-            if (!empty($itemCodesToLookup)) {
-                $nameMap = \App\Models\Item::whereIn('item_code', array_unique($itemCodesToLookup))->pluck('item_name', 'item_code')->toArray();
-                foreach ($items as &$it) {
-                    $c = $it['ItemCode'] ?? null;
-                    if ($c && empty($it['ItemName']) && isset($nameMap[$c])) {
-                        $it['ItemName'] = $nameMap[$c];
-                        $it['ProdName'] = $nameMap[$c];
-                    }
-                }
-                unset($it);
-            }
+            unset($it);
         }
 
         if ($userId) {
@@ -1014,8 +1010,19 @@ class ProductionService
                 $body = $response->json();
                 if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
                     $result = $body['Result'] ?? [];
-                    $header = $result['Table1'][0] ?? $result['Header'] ?? null;
-                    $items = $result['Table2'] ?? $result['Item'] ?? [];
+                    if (isset($result['Table1'])) {
+                        $header = $result['Table1'][0] ?? null;
+                        $items = $result['Table2'] ?? [];
+                    } elseif (isset($result['Header'])) {
+                        $header = $result['Header'];
+                        $items = $result['Item'] ?? $result['Items'] ?? $result['Lines'] ?? [];
+                    } elseif (isset($result['Lines'])) {
+                        $header = $result;
+                        $items = $result['Lines'];
+                    } elseif (is_array($result) && isset($result[0])) {
+                        $header = $result[0];
+                        $items = $result;
+                    }
 
                     // Check if header is a dummy 0 record
                     if ($header && is_array($header)) {
@@ -1037,8 +1044,8 @@ class ProductionService
             $firstItem = $localReceipt->items->first();
             $itemCode = (string) ($firstItem?->item_code ?: $localReceipt->productionOrder?->item_code ?: '');
             $itemName = (string) ($firstItem?->item?->item_name ?: $localReceipt->productionOrder?->parentItem?->item_name ?: '');
-            if (empty($itemName) && !empty($itemCode)) {
-                $itemName = (string) (\App\Models\Item::where('item_code', $itemCode)->value('item_name') ?? $itemCode);
+            if (empty($itemName) || $itemName === $itemCode) {
+                $itemName = $this->resolveItemName($itemCode);
             }
 
             $header = [
@@ -1056,7 +1063,6 @@ class ProductionService
                 'BaseType'    => 202,
                 'ItemCode'    => $itemCode,
                 'ItemName'    => $itemName,
-                'ProdName'    => $itemName,
                 'Quantity'    => floatval($localReceipt->items->sum('quantity')),
                 'WhsCode'     => (string) ($firstItem?->warehouse ?: ''),
                 'is_local'    => true,
@@ -1066,61 +1072,66 @@ class ProductionService
             foreach ($localReceipt->items as $idx => $line) {
                 $lCode = (string) $line->item_code;
                 $lName = (string) ($line->item?->item_name ?: '');
-                if (empty($lName) && !empty($lCode)) {
-                    $lName = (string) (\App\Models\Item::where('item_code', $lCode)->value('item_name') ?? $lCode);
+                if (empty($lName) || $lName === $lCode) {
+                    $lName = $this->resolveItemName($lCode);
                 }
 
                 $items[] = [
-                    'LineNum'         => $line->line_num ?? $idx,
-                    'BaseType'        => $line->base_type ?? 202,
-                    'BaseEntry'       => (string) $line->base_entry,
-                    'BaseLine'        => (string) $line->base_line,
-                    'ItemCode'        => $lCode,
-                    'ItemName'        => $lName,
-                    'ItemDescription' => $lName,
-                    'Dscription'      => $lName,
-                    'Quantity'        => floatval($line->quantity),
-                    'WhsCode'         => (string) $line->warehouse,
-                    'UoMEntry'        => (string) $line->uom_entry,
-                    'OcrCode'         => (string) $line->ocr_code,
-                    'OcrCode2'        => (string) $line->ocr_code2,
-                    'OcrCode3'        => (string) $line->ocr_code3,
+                    'LineNum'   => $line->line_num ?? $idx,
+                    'BaseType'  => $line->base_type ?? 202,
+                    'BaseEntry' => (string) $line->base_entry,
+                    'BaseLine'  => (string) $line->base_line,
+                    'ItemCode'  => $lCode,
+                    'ItemName'  => $lName,
+                    'Quantity'  => floatval($line->quantity),
+                    'WhsCode'   => (string) $line->warehouse,
+                    'UoMEntry'  => (string) $line->uom_entry,
+                    'OcrCode'   => (string) $line->ocr_code,
+                    'OcrCode2'  => (string) $line->ocr_code2,
+                    'OcrCode3'  => (string) $line->ocr_code3,
                 ];
             }
         }
 
-        // Enrich missing ItemName in Header & Items
-        if ($header && is_array($header)) {
-            $hCode = $header['ItemCode'] ?? null;
-            if ($hCode && (empty($header['ItemName']) || empty($header['ProdName']))) {
-                $hName = \App\Models\Item::where('item_code', $hCode)->value('item_name');
-                if ($hName) {
-                    $header['ItemName'] = $hName;
-                    $header['ProdName'] = $hName;
+        // Normalize and enrich Items
+        if (!empty($items) && is_array($items)) {
+            $normalizedItems = [];
+            foreach ($items as $idx => $it) {
+                if (!is_array($it)) continue;
+                $c = (string) ($it['ItemCode'] ?? $it['item_code'] ?? $it['item'] ?? $it['Code'] ?? $it['code'] ?? '');
+                $n = (string) ($it['ItemName'] ?? $it['item_name'] ?? $it['ProdName'] ?? $it['prod_name'] ?? $it['Dscription'] ?? $it['dscription'] ?? $it['ItemDescription'] ?? $it['item_description'] ?? $it['Description'] ?? '');
+
+                if ((empty($n) || $n === $c) && !empty($c)) {
+                    $n = $this->resolveItemName($c);
                 }
+
+                $it['ItemCode'] = $c;
+                $it['ItemName'] = $n;
+                $it['Quantity'] = isset($it['Quantity']) ? floatval($it['Quantity']) : (isset($it['quantity']) ? floatval($it['quantity']) : 0.0);
+                $it['WhsCode'] = (string) ($it['WhsCode'] ?? $it['whs_code'] ?? $it['warehouse'] ?? '');
+
+                // Clean duplicate keys
+                unset($it['item_code'], $it['item'], $it['code'], $it['item_name'], $it['prod_name'], $it['ProdName'], $it['Dscription'], $it['dscription'], $it['ItemDescription'], $it['item_description'], $it['quantity'], $it['whs_code'], $it['warehouse']);
+
+                $normalizedItems[] = $it;
             }
+            $items = $normalizedItems;
         }
-        if (!empty($items)) {
-            $itemCodes = [];
-            foreach ($items as $it) {
-                $c = $it['ItemCode'] ?? null;
-                $n = $it['ItemName'] ?? $it['ItemDescription'] ?? $it['Dscription'] ?? null;
-                if ($c && empty($n)) {
-                    $itemCodes[] = $c;
-                }
+
+        // Normalize and enrich Header
+        if ($header && is_array($header)) {
+            $hCode = (string) ($header['ItemCode'] ?? $header['item_code'] ?? $header['item'] ?? ($items[0]['ItemCode'] ?? ''));
+            $hName = (string) ($header['ItemName'] ?? $header['item_name'] ?? $header['ProdName'] ?? ($items[0]['ItemName'] ?? ''));
+
+            if ((empty($hName) || $hName === $hCode) && !empty($hCode)) {
+                $hName = $this->resolveItemName($hCode);
             }
-            if (!empty($itemCodes)) {
-                $nameMap = \App\Models\Item::whereIn('item_code', array_unique($itemCodes))->pluck('item_name', 'item_code')->toArray();
-                foreach ($items as &$it) {
-                    $c = $it['ItemCode'] ?? null;
-                    if ($c && empty($it['ItemName']) && isset($nameMap[$c])) {
-                        $it['ItemName'] = $nameMap[$c];
-                        $it['ItemDescription'] = $nameMap[$c];
-                        $it['Dscription'] = $nameMap[$c];
-                    }
-                }
-                unset($it);
-            }
+
+            $header['ItemCode'] = $hCode;
+            $header['ItemName'] = $hName;
+
+            // Clean duplicate keys
+            unset($header['item_code'], $header['item'], $header['code'], $header['item_name'], $header['prod_name'], $header['ProdName'], $header['Dscription'], $header['dscription'], $header['ItemDescription'], $header['item_description'], $header['quantity'], $header['whs_code'], $header['warehouse']);
         }
 
         if ($userId) {
@@ -1216,8 +1227,8 @@ class ProductionService
                 $totalQty = $lIssue->items->sum('quantity');
                 $itemCode = (string) ($firstItem?->item_code ?: $lIssue->productionOrder?->item_code ?: '');
                 $itemName = (string) ($firstItem?->item?->item_name ?: $lIssue->productionOrder?->parentItem?->item_name ?: '');
-                if (empty($itemName) && !empty($itemCode)) {
-                    $itemName = (string) (\App\Models\Item::where('item_code', $itemCode)->value('item_name') ?? $itemCode);
+                if (empty($itemName) || $itemName === $itemCode) {
+                    $itemName = $this->resolveItemName($itemCode);
                 }
 
                 $localItems[] = [
@@ -1235,7 +1246,6 @@ class ProductionService
                     'BaseType'    => 202,
                     'ItemCode'    => $itemCode,
                     'ItemName'    => $itemName,
-                    'ProdName'    => $itemName,
                     'Quantity'    => floatval($totalQty),
                     'WhsCode'     => (string) ($firstItem?->warehouse ?: ''),
                     'is_local'    => true,
@@ -1247,27 +1257,24 @@ class ProductionService
             // Fallback
         }
 
-        // Enrich any missing ItemName from Master Items table
+        // Enrich any missing ItemCode/ItemName in list items
         if (!empty($items)) {
-            $itemCodesToLookup = [];
-            foreach ($items as $it) {
-                $c = $it['ItemCode'] ?? null;
-                $n = $it['ItemName'] ?? $it['ProdName'] ?? null;
-                if ($c && empty($n)) {
-                    $itemCodesToLookup[] = $c;
+            foreach ($items as &$it) {
+                if (!is_array($it)) continue;
+                $c = (string) ($it['ItemCode'] ?? $it['item_code'] ?? $it['item'] ?? $it['Code'] ?? $it['code'] ?? '');
+                $n = (string) ($it['ItemName'] ?? $it['item_name'] ?? $it['ProdName'] ?? $it['prod_name'] ?? $it['Dscription'] ?? $it['dscription'] ?? $it['ItemDescription'] ?? $it['item_description'] ?? $it['Description'] ?? '');
+
+                if ((empty($n) || $n === $c) && !empty($c)) {
+                    $n = $this->resolveItemName($c);
                 }
+
+                $it['ItemCode'] = $c;
+                $it['ItemName'] = $n;
+
+                // Clean duplicate keys
+                unset($it['item_code'], $it['item'], $it['code'], $it['item_name'], $it['prod_name'], $it['ProdName'], $it['Dscription'], $it['dscription'], $it['ItemDescription'], $it['item_description'], $it['quantity'], $it['whs_code'], $it['warehouse']);
             }
-            if (!empty($itemCodesToLookup)) {
-                $nameMap = \App\Models\Item::whereIn('item_code', array_unique($itemCodesToLookup))->pluck('item_name', 'item_code')->toArray();
-                foreach ($items as &$it) {
-                    $c = $it['ItemCode'] ?? null;
-                    if ($c && empty($it['ItemName']) && isset($nameMap[$c])) {
-                        $it['ItemName'] = $nameMap[$c];
-                        $it['ProdName'] = $nameMap[$c];
-                    }
-                }
-                unset($it);
-            }
+            unset($it);
         }
 
         if ($userId) {
@@ -1325,8 +1332,19 @@ class ProductionService
                 $body = $response->json();
                 if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
                     $result = $body['Result'] ?? [];
-                    $header = $result['Table1'][0] ?? $result['Header'] ?? null;
-                    $items = $result['Table2'] ?? $result['Item'] ?? [];
+                    if (isset($result['Table1'])) {
+                        $header = $result['Table1'][0] ?? null;
+                        $items = $result['Table2'] ?? [];
+                    } elseif (isset($result['Header'])) {
+                        $header = $result['Header'];
+                        $items = $result['Item'] ?? $result['Items'] ?? $result['Lines'] ?? [];
+                    } elseif (isset($result['Lines'])) {
+                        $header = $result;
+                        $items = $result['Lines'];
+                    } elseif (is_array($result) && isset($result[0])) {
+                        $header = $result[0];
+                        $items = $result;
+                    }
 
                     // Check if header is a dummy 0 record
                     if ($header && is_array($header)) {
@@ -1348,8 +1366,8 @@ class ProductionService
             $firstItem = $localIssue->items->first();
             $itemCode = (string) ($firstItem?->item_code ?: $localIssue->productionOrder?->item_code ?: '');
             $itemName = (string) ($firstItem?->item?->item_name ?: $localIssue->productionOrder?->parentItem?->item_name ?: '');
-            if (empty($itemName) && !empty($itemCode)) {
-                $itemName = (string) (\App\Models\Item::where('item_code', $itemCode)->value('item_name') ?? $itemCode);
+            if (empty($itemName) || $itemName === $itemCode) {
+                $itemName = $this->resolveItemName($itemCode);
             }
 
             $header = [
@@ -1367,7 +1385,6 @@ class ProductionService
                 'BaseType'    => 202,
                 'ItemCode'    => $itemCode,
                 'ItemName'    => $itemName,
-                'ProdName'    => $itemName,
                 'Quantity'    => floatval($localIssue->items->sum('quantity')),
                 'WhsCode'     => (string) ($firstItem?->warehouse ?: ''),
                 'is_local'    => true,
@@ -1377,61 +1394,66 @@ class ProductionService
             foreach ($localIssue->items as $idx => $line) {
                 $lCode = (string) $line->item_code;
                 $lName = (string) ($line->item?->item_name ?: '');
-                if (empty($lName) && !empty($lCode)) {
-                    $lName = (string) (\App\Models\Item::where('item_code', $lCode)->value('item_name') ?? $lCode);
+                if (empty($lName) || $lName === $lCode) {
+                    $lName = $this->resolveItemName($lCode);
                 }
 
                 $items[] = [
-                    'LineNum'         => $line->line_num ?? $idx,
-                    'BaseType'        => $line->base_type ?? 202,
-                    'BaseEntry'       => (string) $line->base_entry,
-                    'BaseLine'        => (string) $line->base_line,
-                    'ItemCode'        => $lCode,
-                    'ItemName'        => $lName,
-                    'ItemDescription' => $lName,
-                    'Dscription'      => $lName,
-                    'Quantity'        => floatval($line->quantity),
-                    'WhsCode'         => (string) $line->warehouse,
-                    'UoMEntry'        => (string) $line->uom_entry,
-                    'OcrCode'         => (string) $line->ocr_code,
-                    'OcrCode2'        => (string) $line->ocr_code2,
-                    'OcrCode3'        => (string) $line->ocr_code3,
+                    'LineNum'   => $line->line_num ?? $idx,
+                    'BaseType'  => $line->base_type ?? 202,
+                    'BaseEntry' => (string) $line->base_entry,
+                    'BaseLine'  => (string) $line->base_line,
+                    'ItemCode'  => $lCode,
+                    'ItemName'  => $lName,
+                    'Quantity'  => floatval($line->quantity),
+                    'WhsCode'   => (string) $line->warehouse,
+                    'UoMEntry'  => (string) $line->uom_entry,
+                    'OcrCode'   => (string) $line->ocr_code,
+                    'OcrCode2'  => (string) $line->ocr_code2,
+                    'OcrCode3'  => (string) $line->ocr_code3,
                 ];
             }
         }
 
-        // Enrich missing ItemName in Header & Items
-        if ($header && is_array($header)) {
-            $hCode = $header['ItemCode'] ?? null;
-            if ($hCode && (empty($header['ItemName']) || empty($header['ProdName']))) {
-                $hName = \App\Models\Item::where('item_code', $hCode)->value('item_name');
-                if ($hName) {
-                    $header['ItemName'] = $hName;
-                    $header['ProdName'] = $hName;
+        // Normalize and enrich Items
+        if (!empty($items) && is_array($items)) {
+            $normalizedItems = [];
+            foreach ($items as $idx => $it) {
+                if (!is_array($it)) continue;
+                $c = (string) ($it['ItemCode'] ?? $it['item_code'] ?? $it['item'] ?? $it['Code'] ?? $it['code'] ?? '');
+                $n = (string) ($it['ItemName'] ?? $it['item_name'] ?? $it['ProdName'] ?? $it['prod_name'] ?? $it['Dscription'] ?? $it['dscription'] ?? $it['ItemDescription'] ?? $it['item_description'] ?? $it['Description'] ?? '');
+
+                if ((empty($n) || $n === $c) && !empty($c)) {
+                    $n = $this->resolveItemName($c);
                 }
+
+                $it['ItemCode'] = $c;
+                $it['ItemName'] = $n;
+                $it['Quantity'] = isset($it['Quantity']) ? floatval($it['Quantity']) : (isset($it['quantity']) ? floatval($it['quantity']) : 0.0);
+                $it['WhsCode'] = (string) ($it['WhsCode'] ?? $it['whs_code'] ?? $it['warehouse'] ?? '');
+
+                // Clean duplicate keys
+                unset($it['item_code'], $it['item'], $it['code'], $it['item_name'], $it['prod_name'], $it['ProdName'], $it['Dscription'], $it['dscription'], $it['ItemDescription'], $it['item_description'], $it['quantity'], $it['whs_code'], $it['warehouse']);
+
+                $normalizedItems[] = $it;
             }
+            $items = $normalizedItems;
         }
-        if (!empty($items)) {
-            $itemCodes = [];
-            foreach ($items as $it) {
-                $c = $it['ItemCode'] ?? null;
-                $n = $it['ItemName'] ?? $it['ItemDescription'] ?? $it['Dscription'] ?? null;
-                if ($c && empty($n)) {
-                    $itemCodes[] = $c;
-                }
+
+        // Normalize and enrich Header
+        if ($header && is_array($header)) {
+            $hCode = (string) ($header['ItemCode'] ?? $header['item_code'] ?? $header['item'] ?? ($items[0]['ItemCode'] ?? ''));
+            $hName = (string) ($header['ItemName'] ?? $header['item_name'] ?? $header['ProdName'] ?? ($items[0]['ItemName'] ?? ''));
+
+            if ((empty($hName) || $hName === $hCode) && !empty($hCode)) {
+                $hName = $this->resolveItemName($hCode);
             }
-            if (!empty($itemCodes)) {
-                $nameMap = \App\Models\Item::whereIn('item_code', array_unique($itemCodes))->pluck('item_name', 'item_code')->toArray();
-                foreach ($items as &$it) {
-                    $c = $it['ItemCode'] ?? null;
-                    if ($c && empty($it['ItemName']) && isset($nameMap[$c])) {
-                        $it['ItemName'] = $nameMap[$c];
-                        $it['ItemDescription'] = $nameMap[$c];
-                        $it['Dscription'] = $nameMap[$c];
-                    }
-                }
-                unset($it);
-            }
+
+            $header['ItemCode'] = $hCode;
+            $header['ItemName'] = $hName;
+
+            // Clean duplicate keys
+            unset($header['item_code'], $header['item'], $header['code'], $header['item_name'], $header['prod_name'], $header['ProdName'], $header['Dscription'], $header['dscription'], $header['ItemDescription'], $header['item_description'], $header['quantity'], $header['whs_code'], $header['warehouse']);
         }
 
         if ($userId) {
@@ -1943,5 +1965,38 @@ class ProductionService
         } catch (\Exception $e) {
             throw new \Exception('Gagal mengambil data Master Unit dari SAP: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Helper to resolve item name from Master Items or Production Items tables.
+     *
+     * @param string|null $itemCode
+     * @return string
+     */
+    public function resolveItemName(?string $itemCode): string
+    {
+        if (empty($itemCode)) {
+            return '';
+        }
+
+        try {
+            $name = \App\Models\Item::where('item_code', $itemCode)->value('item_name');
+            if (!empty($name)) {
+                return (string) $name;
+            }
+        } catch (\Exception $e) {
+            // ignore
+        }
+
+        try {
+            $name = \App\Models\ProductionItem::where('item_code', $itemCode)->value('item_name');
+            if (!empty($name)) {
+                return (string) $name;
+            }
+        } catch (\Exception $e) {
+            // ignore
+        }
+
+        return (string) $itemCode;
     }
 }
