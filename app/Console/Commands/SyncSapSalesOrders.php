@@ -33,7 +33,19 @@ class SyncSapSalesOrders extends Command
         $this->info('Starting Sales Orders synchronization from SAP...');
 
         try {
-            $cardCodes = (array) $this->option('card_code');
+            $rawCardCodes = (array) $this->option('card_code');
+            $cardCodes = [];
+            foreach ($rawCardCodes as $raw) {
+                $parts = explode(',', (string) $raw);
+                foreach ($parts as $part) {
+                    $trimmed = trim($part);
+                    if ($trimmed !== '') {
+                        $cardCodes[] = $trimmed;
+                    }
+                }
+            }
+            $cardCodes = array_values(array_unique($cardCodes));
+
             $result = $salesOrderService->syncSalesOrdersFromSap($cardCodes);
 
             $this->info($result['message']);
