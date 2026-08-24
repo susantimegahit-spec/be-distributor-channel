@@ -1770,10 +1770,10 @@ class SalesOrderService
                     $status = 'CANCELLED';
                     $sapStatus = 'CANCELED';
                 } elseif ($docStatus === 'C') {
-                    $status = 'DELIVERY';
+                    $status = 'APPROVE_FINANCE';
                     $sapStatus = 'CLOSED';
                 } else {
-                    $status = 'SUCCESS';
+                    $status = 'APPROVE_FINANCE';
                     $sapStatus = 'OPEN';
                 }
 
@@ -1858,11 +1858,15 @@ class SalesOrderService
             );
         }
 
+        $totalItems = count($allSoItems);
+
         return [
             'total_synced' => $createdCount + $updatedCount,
+            'total_orders' => $createdCount + $updatedCount,
+            'total_items' => $totalItems,
             'total_created' => $createdCount,
             'total_updated' => $updatedCount,
-            'message' => "Berhasil sinkronisasi " . ($createdCount + $updatedCount) . " Sales Order dari SAP (Baru: {$createdCount}, Diperbarui: {$updatedCount}).",
+            'message' => "Berhasil sinkronisasi " . ($createdCount + $updatedCount) . " Sales Order ({$totalItems} item barang) dari SAP (Baru: {$createdCount}, Diperbarui: {$updatedCount}).",
         ];
     }
 }
