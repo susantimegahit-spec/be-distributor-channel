@@ -1770,7 +1770,7 @@ class SalesOrderService
                     $status = 'CANCELLED';
                     $sapStatus = 'CANCELED';
                 } elseif ($docStatus === 'C') {
-                    $status = 'SUCCESS';
+                    $status = 'DELIVERY';
                     $sapStatus = 'CLOSED';
                 } else {
                     $status = 'SUCCESS';
