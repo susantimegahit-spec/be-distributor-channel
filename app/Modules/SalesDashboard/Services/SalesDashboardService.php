@@ -332,7 +332,7 @@ class SalesDashboardService
                             if ($noso) {
                                 // If SAP returned DO or OINV status, update local status to DELIVERY/ARRIVED
                                 $updateData = [];
-                                if (strcasecmp($docType, 'DO') === 0 && strcasecmp($sapStatus, 'open') === 0) {
+                                if ((strcasecmp($docType, 'DO') === 0 && strcasecmp($sapStatus, 'open') === 0) || strcasecmp($docType, 'AR') === 0) {
                                     $updateData['status'] = 'DELIVERY';
                                 }
                                 if (!empty($updateData)) {

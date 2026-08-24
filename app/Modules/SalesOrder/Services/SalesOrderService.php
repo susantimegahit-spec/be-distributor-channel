@@ -1348,8 +1348,8 @@ class SalesOrderService
                 'sap_last_synced_at' => now(),
             ];
 
-            // Local status mapping logic
-            if (strcasecmp($docType, 'DO') === 0 && strcasecmp($sapStatus, 'open') === 0) {
+            // Local status mapping logic (DO: Surat Jalan or AR: Faktur/Invoice)
+            if ((strcasecmp($docType, 'DO') === 0 && strcasecmp($sapStatus, 'open') === 0) || strcasecmp($docType, 'AR') === 0) {
                 $updateData['status'] = 'DELIVERY';
                 if (empty($salesOrder->delivery_date)) {
                     $updateData['delivery_date'] = $parsedDate;
@@ -1445,8 +1445,8 @@ class SalesOrderService
                         'sap_last_synced_at' => now(),
                     ];
 
-                    // Local status mapping logic
-                    if (strcasecmp($docType, 'DO') === 0 && strcasecmp($sapStatus, 'open') === 0) {
+                    // Local status mapping logic (DO: Surat Jalan or AR: Faktur/Invoice)
+                    if ((strcasecmp($docType, 'DO') === 0 && strcasecmp($sapStatus, 'open') === 0) || strcasecmp($docType, 'AR') === 0) {
                         $updateData['status'] = 'DELIVERY';
                         if (empty($order->delivery_date)) {
                             $updateData['delivery_date'] = $parsedDate;

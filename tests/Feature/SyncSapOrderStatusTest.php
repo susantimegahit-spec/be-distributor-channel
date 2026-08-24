@@ -187,9 +187,9 @@ class SyncSapOrderStatusTest extends TestCase
         $order2->refresh();
         $this->assertEquals('Closed', $order2->sap_status);
         $this->assertEquals('AR', $order2->sap_last_doc_type);
-        $this->assertEquals('INV-8888', $order2->sap_last_doc_num);
-        // Should remain ORDER_APPROVED because AR is no longer mapped to ARRIVED
-        $this->assertEquals('ORDER_APPROVED', $order2->status);
+        // AR is mapped to DELIVERY with delivery_date
+        $this->assertEquals('DELIVERY', $order2->status);
+        $this->assertEquals('2026-01-15 00:00:00', $order2->delivery_date->format('Y-m-d H:i:s'));
         $this->assertNull($order2->arrived_date);
     }
 
