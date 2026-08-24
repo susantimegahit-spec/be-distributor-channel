@@ -1770,10 +1770,10 @@ class SalesOrderService
                     $status = 'CANCELLED';
                     $sapStatus = 'CANCELED';
                 } elseif ($docStatus === 'C') {
-                    $status = 'DELIVERY';
+                    $status = 'APPROVE_FINANCE';
                     $sapStatus = 'CLOSED';
                 } else {
-                    $status = 'SUCCESS';
+                    $status = 'APPROVE_FINANCE';
                     $sapStatus = 'OPEN';
                 }
 
