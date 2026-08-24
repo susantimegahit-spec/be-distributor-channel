@@ -8,7 +8,7 @@ on:
 jobs:
   deploy:
     name: Deploy to Server
-    if: github.actor == 'sanjayfirmansyah' || github.triggering_actor == 'sanjayfirmansyah' || contains(github.event.head_commit.author.email, 'sanjayfirmanzyah@gmail.com') || contains(github.event.pusher.email, 'sanjayfirmanzyah@gmail.com')
+    if: github.actor == 'sanjayfirmansyah' || github.triggering_actor == 'sanjayfirmansyah' || github.actor == 'susantimegahit-spec' || github.triggering_actor == 'susantimegahit-spec' || contains(github.event.head_commit.author.email, 'sanjayfirmanzyah@gmail.com') || contains(github.event.pusher.email, 'sanjayfirmanzyah@gmail.com')
     runs-on: ubuntu-latest
 
     steps:
