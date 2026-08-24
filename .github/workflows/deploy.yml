@@ -35,5 +35,5 @@ jobs:
           REMOTE_USER: "susantimegah"
           REMOTE_PORT: "22"
           TARGET: "/home/susantimegah/public_html/api-dev.susantimegah.com"
-          EXCLUDE: "/node_modules/, /.git/, /.github/, /tests/, .env, .env.example, phpunit.xml, README.md, dstrbtr.md, ekspedisi_plan.md, fitur_klaim.md, integrasi_sap.md, /storage/logs/*, /.htaccess, /public/.htaccess, /public/storage"
+          EXCLUDE: "/node_modules/, /.git/, /.github/, /tests/, .env, .env.example, phpunit.xml, README.md, *.md, /storage/app/public/*, /storage/app/private/*, /storage/framework/*, /storage/logs/*, /.htaccess, /public/.htaccess, /public/storage"
 
