@@ -3,11 +3,17 @@
 namespace App\Modules\SalesOrder\Services;
 
 use App\Models\SalesOrder;
+use App\Models\Distributor;
+use App\Models\SalesOrderDetail;
+use App\Models\SapDiscountHeader;
+use App\Models\SapDiscountDetail;
 use App\Modules\SalesOrder\Repositories\SalesOrderRepositoryInterface;
 use App\Modules\AuditLog\Services\AuditLogService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Exception;
 
 class SalesOrderService
@@ -1609,5 +1615,254 @@ class SalesOrderService
         }
 
         return $salesOrder;
+    }
+
+    /**
+     * Synchronize sales orders and discounts from SAP using GetDataSO and getDiscountSO.
+     *
+     * @param  array  $cardCodes
+     * @param  int|null  $userId
+     * @return array
+     * @throws Exception
+     */
+    public function syncSalesOrdersFromSap(array $cardCodes = [], ?int $userId = null): array
+    {
+        if (empty($cardCodes)) {
+            $cardCodes = Distributor::whereNotNull('code_customer')
+                ->where('code_customer', '!=', '')
+                ->pluck('code_customer')
+                ->unique()
+                ->values()
+                ->toArray();
+        }
+
+        if (empty($cardCodes)) {
+            return [
+                'total_synced' => 0,
+                'total_created' => 0,
+                'total_updated' => 0,
+                'message' => 'Tidak ada card code distributor yang disinkronisasi.',
+            ];
+        }
+
+        $sapUrl = config('services.sap.url', 'http://103.18.133.187:3100');
+
+        // Chunk card codes to prevent oversized query payloads
+        $chunks = array_chunk($cardCodes, 50);
+        $allSoItems = [];
+
+        foreach ($chunks as $chunk) {
+            $quotedCodes = implode(',', array_map(function ($code) {
+                return "'" . trim($code) . "'";
+            }, $chunk));
+
+            $response = Http::timeout(30)->post("{$sapUrl}/api/GetDataSO", [
+                'CustomQuery' => $quotedCodes,
+            ]);
+
+            if (!$response->successful()) {
+                throw new Exception('Gagal menghubungi API SAP GetDataSO.');
+            }
+
+            $body = $response->json();
+            if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
+                throw new Exception('API SAP GetDataSO mengembalikan error: ' . ($body['Message'] ?? 'Unknown error'));
+            }
+
+            $result = $body['Result'] ?? [];
+            if (!empty($result)) {
+                $allSoItems = array_merge($allSoItems, $result);
+            }
+        }
+
+        if (empty($allSoItems)) {
+            return [
+                'total_synced' => 0,
+                'total_created' => 0,
+                'total_updated' => 0,
+                'message' => 'Tidak ada data Sales Order yang ditemukan dari SAP untuk periode ini.',
+            ];
+        }
+
+        // Group rows by sap_doc_num / sap_doc_entry
+        $groupedOrders = [];
+        $uniqueDiscountIds = [];
+
+        foreach ($allSoItems as $item) {
+            $docKey = (string) ($item['sap_doc_num'] ?? $item['sap_doc_entry']);
+            if (!isset($groupedOrders[$docKey])) {
+                $groupedOrders[$docKey] = [
+                    'header' => $item,
+                    'lines' => [],
+                ];
+            }
+            $groupedOrders[$docKey]['lines'][] = $item;
+
+            if (!empty($item['id_discount'])) {
+                $uniqueDiscountIds[$item['id_discount']] = true;
+            }
+        }
+
+        // Sync Discounts from SAP
+        foreach (array_keys($uniqueDiscountIds) as $idDiscount) {
+            try {
+                $discResponse = Http::timeout(15)->post("{$sapUrl}/api/getDiscountSO", [
+                    'CustomQuery' => "'{$idDiscount}'",
+                ]);
+
+                if ($discResponse->successful()) {
+                    $discBody = $discResponse->json();
+                    if (($discBody['ErrorCode'] ?? 0) === 0 && !empty($discBody['Result'])) {
+                        $discResult = $discBody['Result'];
+                        $firstDisc = $discResult[0];
+
+                        $header = SapDiscountHeader::updateOrCreate(
+                            ['discount_code' => $idDiscount],
+                            [
+                                'card_code' => $firstDisc['U_IDCustomer'] ?? '',
+                                'card_name' => $firstDisc['U_NamaCustomer'] ?? '',
+                                'total_so' => (float) ($firstDisc['U_TotalDocument'] ?? 0),
+                                'user_id' => $userId,
+                            ]
+                        );
+
+                        // Sync details
+                        SapDiscountDetail::where('sap_discount_header_id', $header->id)->delete();
+                        foreach ($discResult as $discRow) {
+                            SapDiscountDetail::create([
+                                'sap_discount_header_id' => $header->id,
+                                'type_discount' => $discRow['U_TypeDiscount'] ?? '',
+                                'percentage' => (float) ($discRow['U_Persentase'] ?? 0),
+                                'total_discount' => (float) ($discRow['U_TotalDiskon'] ?? 0),
+                                'remarks' => $discRow['U_Remarks'] ?? '',
+                            ]);
+                        }
+                    }
+                }
+            } catch (Exception $e) {
+                Log::warning("Failed to sync discount {$idDiscount}: " . $e->getMessage());
+            }
+        }
+
+        // Preload distributors by card_code
+        $distributorMap = Distributor::whereIn('code_customer', array_column($allSoItems, 'card_code'))
+            ->get()
+            ->keyBy('code_customer');
+
+        $createdCount = 0;
+        $updatedCount = 0;
+
+        DB::transaction(function () use ($groupedOrders, $distributorMap, &$createdCount, &$updatedCount) {
+            foreach ($groupedOrders as $docKey => $orderData) {
+                $h = $orderData['header'];
+                $cardCode = $h['card_code'] ?? '';
+                $distributor = $distributorMap->get($cardCode);
+                $distributorId = $distributor?->id ?? 0;
+
+                $sapDocEntry = !empty($h['sap_doc_entry']) ? (int) $h['sap_doc_entry'] : null;
+                $sapDocNum = (string) ($h['sap_doc_num'] ?? '');
+
+                // Status mapping
+                $cancelStatus = strtoupper(trim((string) ($h['Cancel_status'] ?? 'N')));
+                $docStatus = strtoupper(trim((string) ($h['document_status'] ?? 'O')));
+
+                if ($cancelStatus === 'Y') {
+                    $status = 'CANCELLED';
+                    $sapStatus = 'CANCELED';
+                } elseif ($docStatus === 'C') {
+                    $status = 'SUCCESS';
+                    $sapStatus = 'CLOSED';
+                } else {
+                    $status = 'SUCCESS';
+                    $sapStatus = 'OPEN';
+                }
+
+                // Check existing SO
+                $salesOrder = SalesOrder::where('sap_doc_num', $sapDocNum)
+                    ->orWhere(function ($q) use ($sapDocEntry) {
+                        if ($sapDocEntry) {
+                            $q->where('sap_doc_entry', $sapDocEntry);
+                        }
+                    })
+                    ->first();
+
+                $isNew = false;
+                if (!$salesOrder) {
+                    $isNew = true;
+                    $salesOrder = new SalesOrder();
+                    $salesOrder->order_no = $sapDocNum ?: ('SO-SAP-' . ($sapDocEntry ?: uniqid()));
+                }
+
+                $salesOrder->distributor_id = $distributorId;
+                $salesOrder->card_code = $cardCode;
+                $salesOrder->customer_name = $h['customer_name'] ?? ($distributor?->name ?? $cardCode);
+                $salesOrder->po_number = $h['po_number'] ?? null;
+                $salesOrder->doc_date = $h['doc_date'] ?? now()->toDateString();
+                $salesOrder->doc_due_date = $h['doc_due_date'] ?? null;
+                $salesOrder->slp_code = !empty($h['slp_code']) ? (int) $h['slp_code'] : null;
+                $salesOrder->cntct_code = isset($h['cntct_code']) ? (int) $h['cntct_code'] : -1;
+                $salesOrder->pay_to_code = $h['pay_to_code'] ?? null;
+                $salesOrder->address = $h['address'] ?? null;
+                $salesOrder->ship_to_code = $h['ship_to_code'] ?? null;
+                $salesOrder->address2 = $h['address2'] ?? null;
+                $salesOrder->disc_percent = (float) ($h['disc_percent'] ?? 0);
+                $salesOrder->doc_total = (float) ($h['doc_total'] ?? 0);
+                $salesOrder->comments = $h['comments'] ?? null;
+                $salesOrder->id_discount = $h['id_discount'] ?? null;
+                $salesOrder->sap_discount_code = $h['id_discount'] ?? null;
+                $salesOrder->series = !empty($h['series']) ? (int) $h['series'] : null;
+                $salesOrder->status = $status;
+                $salesOrder->sap_doc_entry = $sapDocEntry;
+                $salesOrder->sap_doc_num = $sapDocNum;
+                $salesOrder->sap_status = $sapStatus;
+                $salesOrder->sap_last_synced_at = now();
+                $salesOrder->integrated_at = $salesOrder->integrated_at ?? now();
+
+                $salesOrder->save();
+
+                if ($isNew) {
+                    $createdCount++;
+                } else {
+                    $updatedCount++;
+                }
+
+                // Sync line items
+                SalesOrderDetail::where('sales_order_id', $salesOrder->id)->delete();
+
+                foreach ($orderData['lines'] as $line) {
+                    SalesOrderDetail::create([
+                        'sales_order_id' => $salesOrder->id,
+                        'item_code' => $line['item_code'] ?? '',
+                        'quantity' => (float) ($line['quantity'] ?? 0),
+                        'unit_msr' => $line['unit_msr'] ?? null,
+                        'uom_entry' => !empty($line['uom_entry']) ? (int) $line['uom_entry'] : null,
+                        'whs_code' => $line['whs_code'] ?? null,
+                        'unit_price' => (float) ($line['unit_price'] ?? 0),
+                        'disc_percent' => (float) ($line['line_disc_percent'] ?? 0),
+                        'vat_group' => $line['vat_group'] ?? null,
+                        'line_total' => (float) ($line['line_total'] ?? 0),
+                        'free_text' => $line['free_text'] ?? null,
+                        'ocr_code' => $line['ocr_code'] ?? null,
+                        'ocr_code2' => $line['ocr_code2'] ?? null,
+                        'ocr_code3' => $line['ocr_code3'] ?? null,
+                    ]);
+                }
+            }
+        });
+
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'SYNC_SALES_ORDERS_FROM_SAP',
+                "Synchronized {$createdCount} new and updated {$updatedCount} Sales Orders from SAP."
+            );
+        }
+
+        return [
+            'total_synced' => $createdCount + $updatedCount,
+            'total_created' => $createdCount,
+            'total_updated' => $updatedCount,
+            'message' => "Berhasil sinkronisasi " . ($createdCount + $updatedCount) . " Sales Order dari SAP (Baru: {$createdCount}, Diperbarui: {$updatedCount}).",
+        ];
     }
 }

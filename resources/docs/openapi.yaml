@@ -14,6 +14,68 @@ servers:
   - url: http://localhost:8000/api/distributor-channel
     description: Local Server
 paths:
+  /v1/sales-orders/sync-from-sap:
+    post:
+      summary: Sync Sales Orders & Discounts From SAP B1
+      description: Menyinkronkan data Sales Order yang sudah terbentuk di SAP B1 beserta detail diskonnya ke database lokal menggunakan API GetDataSO dan getDiscountSO.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                card_codes:
+                  type: array
+                  items:
+                    type: string
+                  description: Daftar Card Code customer/distributor spesifik yang ingin disinkronisasi. Jika kosong, akan menyinkronkan seluruh distributor aktif.
+                  example: ["C110003419", "C110001240"]
+                card_code:
+                  type: string
+                  description: Card code tunggal atau comma-separated.
+                  example: "C110003419"
+      responses:
+        '200':
+          description: Berhasil melakukan sinkronisasi Sales Order dari SAP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        example: 200
+                      status:
+                        type: string
+                        example: "success"
+                      message:
+                        type: string
+                        example: "Berhasil sinkronisasi 15 Sales Order dari SAP (Baru: 5, Diperbarui: 10)."
+                  data:
+                    type: object
+                    properties:
+                      total_synced:
+                        type: integer
+                        example: 15
+                      total_created:
+                        type: integer
+                        example: 5
+                      total_updated:
+                        type: integer
+                        example: 10
+                      message:
+                        type: string
+                        example: "Berhasil sinkronisasi 15 Sales Order dari SAP (Baru: 5, Diperbarui: 10)."
+        '500':
+          description: Gagal menghubungi API SAP atau terjadi kesalahan database
   /v1/document-approval/document-types:
     get:
       summary: Get List Master Document Types
