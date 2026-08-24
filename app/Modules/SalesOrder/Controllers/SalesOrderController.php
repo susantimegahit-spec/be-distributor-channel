@@ -799,4 +799,38 @@ class SalesOrderController extends Controller
             return $this->errorResponse($e->getMessage(), [], 500);
         }
     }
+
+    /**
+     * Synchronize sales orders and discounts from SAP.
+     *
+     * @param  Request  $request
+     * @return JsonResponse
+     */
+    public function syncFromSap(Request $request): JsonResponse
+    {
+        $cardCodes = [];
+        if ($request->has('card_codes')) {
+            $cardCodes = (array) $request->input('card_codes');
+        } elseif ($request->has('card_code')) {
+            $cardCodes = array_filter(array_map('trim', explode(',', (string) $request->input('card_code'))));
+        }
+
+        // If user is distributor user, limit to own code_customer
+        $user = $request->user();
+        if ($user && $user->code_customer) {
+            $userCodes = array_filter(array_map('trim', explode(',', $user->code_customer)));
+            if (empty($cardCodes)) {
+                $cardCodes = $userCodes;
+            } else {
+                $cardCodes = array_values(array_intersect($cardCodes, $userCodes));
+            }
+        }
+
+        try {
+            $result = $this->salesOrderService->syncSalesOrdersFromSap($cardCodes, $user?->id);
+            return $this->successResponse($result, $result['message']);
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), [], 500);
+        }
+    }
 }

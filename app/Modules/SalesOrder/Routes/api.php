@@ -13,6 +13,7 @@ Route::prefix('v1/sales-orders')->middleware('auth:sanctum')->group(function () 
     Route::get('/credit-limit', [SalesOrderController::class, 'getCreditLimit']);
     Route::get('/dashboard', [SalesOrderController::class, 'dashboard']);
     Route::get('/check-eta', [SalesOrderController::class, 'checkEta']);
+    Route::post('/sync-from-sap', [SalesOrderController::class, 'syncFromSap']);
     Route::post('/', [SalesOrderController::class, 'store']);
     Route::get('/{id}', [SalesOrderController::class, 'show']);
     Route::put('/{id}', [SalesOrderController::class, 'update']);
