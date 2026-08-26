@@ -14,125 +14,6 @@ servers:
   - url: http://localhost:8000/api/distributor-channel
     description: Local Server
 paths:
-  /v1/master-approvals/stages:
-    get:
-      summary: Get Approval Stages from SAP API
-      description: Mengambil data daftar tahapan approval (approval stages) langsung dari API SAP (`/api/getstages`).
-      tags:
-        - Master Approvals
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Data approval stages berhasil diambil dari SAP
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Data approval stages berhasil diambil dari SAP.
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        WstCode:
-                          type: string
-                          example: "1"
-                        Name:
-                          type: string
-                          example: "Purchasing Manager"
-                        Remarks:
-                          type: string
-                          example: "Purchasing Manager"
-                        Flex:
-                          type: string
-                          example: "0"
-    post:
-      summary: Get Approval Stages from SAP API (POST with Payload)
-      description: Mengambil data daftar tahapan approval (approval stages) dari SAP dengan filter/payload kustom (`/api/getstages`).
-      tags:
-        - Master Approvals
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        '200':
-          description: Data approval stages berhasil diambil dari SAP
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Data approval stages berhasil diambil dari SAP.
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        WstCode:
-                          type: string
-                          example: "1"
-                        Name:
-                          type: string
-                          example: "Purchasing Manager"
-                        Remarks:
-                          type: string
-                          example: "Purchasing Manager"
-                        Flex:
-                          type: string
-                          example: "0"
-  /v1/master-approvals:
-    get:
-      summary: Get Master Approvals List
-      description: Mengambil daftar master approval internal dari database lokal.
-      tags:
-        - Master Approvals
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Daftar master approval berhasil diambil
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Daftar master approval berhasil diambil.
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id:
-                          type: integer
-                          example: 1
-                        name:
-                          type: string
-                          example: DRAFT
-                        label:
-                          type: string
-                          example: Draft
   /v1/sales-orders/sync-from-sap:
     post:
       summary: Sync Sales Orders & Discounts From SAP B1
@@ -2193,6 +2074,102 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/MasterApproval'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/master-approvals/stages:
+    get:
+      summary: Get Approval Stages from SAP API
+      description: Mengambil data daftar tahapan approval (approval stages) langsung dari API SAP (`/api/getstages`).
+      tags:
+        - Master Approvals
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Data approval stages berhasil diambil dari SAP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data approval stages berhasil diambil dari SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        WstCode:
+                          type: string
+                          example: "1"
+                        Name:
+                          type: string
+                          example: "Purchasing Manager"
+                        Remarks:
+                          type: string
+                          example: "Purchasing Manager"
+                        Flex:
+                          type: string
+                          example: "0"
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Get Approval Stages from SAP API (POST with Payload)
+      description: Mengambil data daftar tahapan approval (approval stages) dari SAP dengan filter/payload kustom (`/api/getstages`).
+      tags:
+        - Master Approvals
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Data approval stages berhasil diambil dari SAP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data approval stages berhasil diambil dari SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        WstCode:
+                          type: string
+                          example: "1"
+                        Name:
+                          type: string
+                          example: "Purchasing Manager"
+                        Remarks:
+                          type: string
+                          example: "Purchasing Manager"
+                        Flex:
+                          type: string
+                          example: "0"
         '401':
           description: Tidak terautentikasi
           content:
