@@ -102,7 +102,7 @@ class RoleMenu extends Model
                 }
 
                 $actions = $item['actions'] ?? [];
-                $permissions[$key] = [
+                $actMap = [
                     'create'  => (bool) ($actions['create'] ?? false),
                     'read'    => (bool) ($actions['read'] ?? true),
                     'update'  => (bool) ($actions['update'] ?? false),
@@ -110,6 +110,16 @@ class RoleMenu extends Model
                     'approve' => (bool) ($actions['approve'] ?? false),
                     'export'  => (bool) ($actions['export'] ?? false),
                 ];
+
+                if (is_array($actions)) {
+                    foreach ($actions as $actKey => $actVal) {
+                        if (is_string($actKey)) {
+                            $actMap[$actKey] = (bool) $actVal;
+                        }
+                    }
+                }
+
+                $permissions[$key] = $actMap;
             }
         }
 
@@ -117,7 +127,7 @@ class RoleMenu extends Model
     }
 
     /**
-     * Get standardized permissions list array where all 6 keys are always guaranteed.
+     * Get standardized permissions list array.
      */
     public function getPermissionsListAttribute(): array
     {
@@ -125,16 +135,15 @@ class RoleMenu extends Model
         $list = [];
 
         foreach ($map as $menuKey => $actions) {
+            $actList = [];
+            if (is_array($actions)) {
+                foreach ($actions as $actKey => $actVal) {
+                    $actList[$actKey] = (bool) $actVal;
+                }
+            }
             $list[] = [
                 'menu_key' => $menuKey,
-                'actions'  => [
-                    'create'  => (bool) ($actions['create'] ?? false),
-                    'read'    => (bool) ($actions['read'] ?? true),
-                    'update'  => (bool) ($actions['update'] ?? false),
-                    'delete'  => (bool) ($actions['delete'] ?? false),
-                    'approve' => (bool) ($actions['approve'] ?? false),
-                    'export'  => (bool) ($actions['export'] ?? false),
-                ],
+                'actions'  => $actList,
             ];
         }
 

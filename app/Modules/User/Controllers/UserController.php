@@ -151,37 +151,7 @@ class UserController extends Controller
         ]);
 
         $permissionsInput = $request->input('actions') ?? $request->input('custom_permissions') ?? $request->input('permissions') ?? [];
-        $formatted = [];
-
-        foreach ($permissionsInput as $key => $val) {
-            if (is_string($key) && is_array($val)) {
-                $formatted[] = [
-                    'menu_key' => $key,
-                    'actions'  => [
-                        'create'  => (bool) ($val['create'] ?? false),
-                        'read'    => (bool) ($val['read'] ?? true),
-                        'update'  => (bool) ($val['update'] ?? false),
-                        'delete'  => (bool) ($val['delete'] ?? false),
-                        'approve' => (bool) ($val['approve'] ?? false),
-                        'export'  => (bool) ($val['export'] ?? false),
-                    ],
-                ];
-            } elseif (is_array($val) && (isset($val['menu_key']) || isset($val['id']))) {
-                $mKey = $val['menu_key'] ?? $val['id'];
-                $act = $val['actions'] ?? [];
-                $formatted[] = [
-                    'menu_key' => $mKey,
-                    'actions'  => [
-                        'create'  => (bool) ($act['create'] ?? false),
-                        'read'    => (bool) ($act['read'] ?? true),
-                        'update'  => (bool) ($act['update'] ?? false),
-                        'delete'  => (bool) ($act['delete'] ?? false),
-                        'approve' => (bool) ($act['approve'] ?? false),
-                        'export'  => (bool) ($act['export'] ?? false),
-                    ],
-                ];
-            }
-        }
+        $formatted = $this->userService->normalizeCustomPermissions($permissionsInput);
 
         $user->update(['custom_permissions' => $formatted]);
         $user->load('role.roleMenu');

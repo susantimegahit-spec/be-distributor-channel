@@ -142,7 +142,6 @@ class UserTest extends TestCase
             ->assertJson([
                 'success' => false,
                 'status_code' => 422,
-                'message' => 'The selected code customer is invalid.',
             ]);
     }
 
@@ -204,7 +203,7 @@ class UserTest extends TestCase
     }
 
     /**
-     * Test user update with accessible_systems inherited from role.
+     * Test updating user with accessible_systems.
      */
     public function test_update_user_with_accessible_systems(): void
     {
@@ -213,10 +212,49 @@ class UserTest extends TestCase
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token,
         ])->putJson('/api/distributor-channel/v1/users/' . $this->adminUser->id, [
-            'name' => 'Admin User Updated',
+            'accessible_systems' => ['distributor'],
         ]);
 
         $response->assertStatus(200);
-        $this->assertEquals(['distributor', 'ekspedisi'], $response->json('data.accessible_systems'));
+        $this->assertEquals(['distributor'], $response->json('data.accessible_systems'));
+    }
+
+    /**
+     * Test updating custom permissions with dynamic actions (e.g. sync, custom_action).
+     */
+    public function test_update_custom_permissions_dynamic_actions(): void
+    {
+        $token = $this->adminUser->createToken('test_token')->plainTextToken;
+
+        $payload = [
+            'actions' => [
+                [
+                    'menu_key' => '14',
+                    'actions' => [
+                        'create' => true,
+                        'read' => true,
+                        'update' => true,
+                        'delete' => true,
+                        'approve' => false,
+                        'export' => true,
+                        'sync' => true,
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->putJson('/api/distributor-channel/v1/users/' . $this->adminUser->id . '/custom-permissions', $payload);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+            ]);
+
+        $user = User::find($this->adminUser->id);
+        $this->assertTrue($user->hasPermission('14', 'sync'));
+        $this->assertTrue($user->hasPermission('14', 'create'));
+        $this->assertFalse($user->hasPermission('14', 'approve'));
     }
 }

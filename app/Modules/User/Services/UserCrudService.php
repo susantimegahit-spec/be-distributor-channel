@@ -47,8 +47,27 @@ class UserCrudService
      *
      * @param mixed $input
      * @return array|null
+    /**
+     * Normalize custom permissions input from various FE formats into a standard array format:
+     * [
+     *   {
+     *     "menu_key": "sales-order",
+     *     "actions": {
+     *       "create": false,
+     *       "read": true,
+     *       "update": false,
+     *       "delete": false,
+     *       "approve": false,
+     *       "export": false,
+     *       "sync": true, ... (dynamic actions)
+     *     }
+     *   }
+     * ]
+     *
+     * @param mixed $input
+     * @return array|null
      */
-    protected function normalizeCustomPermissions(mixed $input): ?array
+    public function normalizeCustomPermissions(mixed $input): ?array
     {
         if ($input === null) {
             return null;
@@ -86,43 +105,60 @@ class UserCrudService
                 continue;
             }
 
-            $create = false;
-            $read = false;
-            $update = false;
-            $delete = false;
-            $approve = false;
-            $export = false;
+            $actions = [
+                'create'  => false,
+                'read'    => true,
+                'update'  => false,
+                'delete'  => false,
+                'approve' => false,
+                'export'  => false,
+            ];
 
-            // Case A: FE sends array of action strings, e.g. ["view", "add", "edit", "delete", "approve", "download", "upload"]
+            // Case A: FE sends array of action strings, e.g. ["view", "add", "edit", "delete", "approve", "download", "upload", "sync"]
             if (is_array($actInput) && isset($actInput[0]) && is_string($actInput[0])) {
                 $lowered = array_map('strtolower', $actInput);
-                $create  = in_array('add', $lowered) || in_array('create', $lowered);
-                $read    = in_array('view', $lowered) || in_array('read', $lowered) || in_array('show', $lowered);
-                $update  = in_array('edit', $lowered) || in_array('update', $lowered);
-                $delete  = in_array('delete', $lowered) || in_array('destroy', $lowered);
-                $approve = in_array('approve', $lowered) || in_array('approval', $lowered);
-                $export  = in_array('download', $lowered) || in_array('upload', $lowered) || in_array('export', $lowered);
+                $actions['create']  = in_array('add', $lowered) || in_array('create', $lowered);
+                $actions['read']    = in_array('view', $lowered) || in_array('read', $lowered) || in_array('show', $lowered);
+                $actions['update']  = in_array('edit', $lowered) || in_array('update', $lowered);
+                $actions['delete']  = in_array('delete', $lowered) || in_array('destroy', $lowered);
+                $actions['approve'] = in_array('approve', $lowered) || in_array('approval', $lowered);
+                $actions['export']  = in_array('download', $lowered) || in_array('upload', $lowered) || in_array('export', $lowered);
+
+                // Dynamically preserve any other action strings
+                foreach ($lowered as $actStr) {
+                    $cleaned = trim($actStr);
+                    if ($cleaned !== '' && !isset($actions[$cleaned])) {
+                        $actions[$cleaned] = true;
+                    }
+                }
             }
-            // Case B: FE sends object map, e.g. {"create": true, "read": true, ...} or {"view": true, "add": true, ...}
+            // Case B: FE sends object/associative map, e.g. {"create": true, "read": true, "sync": true, ...}
             elseif (is_array($actInput)) {
-                $create  = (bool) ($actInput['create'] ?? $actInput['add'] ?? false);
-                $read    = (bool) ($actInput['read'] ?? $actInput['view'] ?? true);
-                $update  = (bool) ($actInput['update'] ?? $actInput['edit'] ?? false);
-                $delete  = (bool) ($actInput['delete'] ?? false);
-                $approve = (bool) ($actInput['approve'] ?? false);
-                $export  = (bool) ($actInput['export'] ?? $actInput['download'] ?? $actInput['upload'] ?? false);
+                // Check aliases
+                if (isset($actInput['add'])) {
+                    $actions['create'] = (bool) $actInput['add'];
+                }
+                if (isset($actInput['view'])) {
+                    $actions['read'] = (bool) $actInput['view'];
+                }
+                if (isset($actInput['edit'])) {
+                    $actions['update'] = (bool) $actInput['edit'];
+                }
+                if (isset($actInput['download']) || isset($actInput['upload'])) {
+                    $actions['export'] = (bool) ($actInput['export'] ?? $actInput['download'] ?? $actInput['upload'] ?? false);
+                }
+
+                // Dynamically include all keys passed by FE
+                foreach ($actInput as $actKey => $actVal) {
+                    if (is_string($actKey) && !in_array($actKey, ['add', 'view', 'edit', 'download', 'upload'])) {
+                        $actions[$actKey] = (bool) $actVal;
+                    }
+                }
             }
 
             $itemFormatted = [
                 'menu_key' => (string) ($menuKey ?: $menuId),
-                'actions'  => [
-                    'create'  => $create,
-                    'read'    => $read,
-                    'update'  => $update,
-                    'delete'  => $delete,
-                    'approve' => $approve,
-                    'export'  => $export,
-                ],
+                'actions'  => $actions,
             ];
 
             if ($menuId !== null) {
