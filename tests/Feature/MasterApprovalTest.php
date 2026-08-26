@@ -94,4 +94,53 @@ class MasterApprovalTest extends TestCase
         $this->assertEquals(6, $data[5]['id']);
         $this->assertEquals('ORDER_APPROVED', $data[5]['name']);
     }
+
+    /**
+     * Test getting approval stages from SAP API successfully.
+     */
+    public function test_get_approval_stages_from_sap_success(): void
+    {
+        \Illuminate\Support\Facades\Http::fake([
+            '*/api/getstages' => \Illuminate\Support\Facades\Http::response([
+                'ErrorCode' => 0,
+                'Message' => '',
+                'Result' => [
+                    [
+                        'WstCode' => '1',
+                        'Name' => 'Purchasing Manager',
+                        'Remarks' => 'Purchasing Manager',
+                        'Flex' => '0',
+                    ],
+                    [
+                        'WstCode' => '2',
+                        'Name' => 'Director',
+                        'Remarks' => 'Director',
+                        'Flex' => '0',
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/distributor-channel/v1/master-approvals/stages');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Data approval stages berhasil diambil dari SAP.',
+                'data' => [
+                    [
+                        'WstCode' => '1',
+                        'Name' => 'Purchasing Manager',
+                    ],
+                    [
+                        'WstCode' => '2',
+                        'Name' => 'Director',
+                    ],
+                ],
+            ]);
+    }
 }
