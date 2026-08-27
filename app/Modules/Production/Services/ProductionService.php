@@ -2423,4 +2423,289 @@ class ProductionService
 
         return (string) $itemCode;
     }
+
+    /**
+     * Parse spreadsheet file (.xlsx, .xls, .csv) into structured array of row objects.
+     *
+     * @param \Illuminate\Http\UploadedFile $file
+     * @return array
+     * @throws \Exception
+     */
+    public function parseBomsFromUploadedFile(\Illuminate\Http\UploadedFile $file): array
+    {
+        try {
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getRealPath());
+            $sheet = $spreadsheet->getActiveSheet();
+            $rows = $sheet->toArray(null, true, true, true);
+
+            if (empty($rows)) {
+                return [];
+            }
+
+            // Extract header columns from row 1
+            $headerRow = array_shift($rows);
+            $headerMap = [];
+            foreach ($headerRow as $colKey => $headerName) {
+                if ($headerName !== null && trim((string) $headerName) !== '') {
+                    $headerMap[$colKey] = trim((string) $headerName);
+                }
+            }
+
+            $parsedRows = [];
+            foreach ($rows as $r) {
+                $rowObj = [];
+                $hasData = false;
+                foreach ($headerMap as $colKey => $headerName) {
+                    $val = $r[$colKey] ?? null;
+                    if ($val !== null && trim((string) $val) !== '') {
+                        $hasData = true;
+                    }
+                    $rowObj[$headerName] = $val !== null ? trim((string) $val) : '';
+                }
+                if ($hasData) {
+                    $parsedRows[] = $rowObj;
+                }
+            }
+
+            return $parsedRows;
+        } catch (\Exception $e) {
+            throw new \Exception('Gagal membaca file Excel/CSV: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Clean and sanitize field value from Excel / JSON rows.
+     * Treats '?', '0 ?', '0?', '-', 'null', 'NULL', 'n/a', '#N/A', etc. as null.
+     */
+    protected function cleanFieldValue(mixed $val): ?string
+    {
+        if ($val === null) {
+            return null;
+        }
+
+        $str = trim((string) $val);
+
+        if ($str === '') {
+            return null;
+        }
+
+        $lower = strtolower($str);
+        $nullPlaceholders = ['?', '0 ?', '0?', '-', '--', 'null', 'n/a', 'na', '#n/a', '#value!', '#ref!', 'undefined'];
+        if (in_array($lower, $nullPlaceholders, true)) {
+            return null;
+        }
+
+        return $str;
+    }
+
+    /**
+     * Helper to extract a value from multiple possible case-insensitive key variants.
+     */
+    protected function extractField(array $row, array $keys, mixed $default = null): mixed
+    {
+        foreach ($keys as $k) {
+            if (array_key_exists($k, $row)) {
+                $cleaned = $this->cleanFieldValue($row[$k]);
+                if ($cleaned !== null) {
+                    return $cleaned;
+                }
+            }
+        }
+
+        // Case-insensitive fallback
+        $lowerKeys = array_map('strtolower', $keys);
+        foreach ($row as $rowKey => $rowVal) {
+            $cleanKey = strtolower(str_replace([' ', '_', '-'], '', (string) $rowKey));
+            foreach ($lowerKeys as $targetKey) {
+                $cleanTarget = str_replace([' ', '_', '-'], '', $targetKey);
+                if ($cleanKey === $cleanTarget) {
+                    $cleaned = $this->cleanFieldValue($rowVal);
+                    if ($cleaned !== null) {
+                        return $cleaned;
+                    }
+                }
+            }
+        }
+
+        return $default;
+    }
+
+    /**
+     * Import BOMs from flat tabular rows (Excel / JSON Array), grouping rows by BOM ID / Prod ItemCode into Header & Detail.
+     *
+     * @param array $rows
+     * @param int|null $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function importBomsFromFlatArray(array $rows, ?int $userId = null): array
+    {
+        if (empty($rows)) {
+            throw new \Exception('Data rows Excel kosong, tidak ada data yang dapat diimpor.');
+        }
+
+        $groupedBoms = [];
+
+        foreach ($rows as $index => $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            // Extract Header fields
+            $bomId = $this->extractField($row, ['BOM ID', 'bom_id', 'BOMID', 'bomid', 'BomId', 'id_bom']);
+            $prodItemCode = $this->extractField($row, ['Prod ItemCode', 'prod_itemcode', 'product_code', 'code', 'ItemCode', 'item_code', 'Father', 'Parent ItemCode']);
+            $prodItemName = $this->extractField($row, ['Prod ItemName', 'prod_itemname', 'product_name', 'ItemName', 'item_name']);
+            $alternate = (int) ($this->extractField($row, ['Alternative BOM', 'alternative_bom', 'alternate', 'Alternate', 'version', 'AlternativeBOM'], 1));
+            $headerQty = (float) ($this->extractField($row, ['BOM Header Qty', 'bom_header_qty', 'qty', 'Quantity', 'Header Qty', 'BOM Qty'], 1.0));
+            $prodUom = $this->extractField($row, ['Prod UoM', 'prod_uom', 'uom', 'UoM', 'Header UoM', 'unit', 'u_unit']);
+            $prodWhs = $this->extractField($row, ['Prod Warehouse', 'prod_warehouse', 'to_whs', 'ToWhs', 'whs_code', 'Warehouse']);
+            $bomRemarks = $this->extractField($row, ['BOM Remarks', 'bom_remarks', 'comments', 'Comments', 'remarks', 'Remarks']);
+            $headerCabang = $this->extractField($row, ['Header Cabang', 'header_cabang', 'ocr_code', 'OcrCode', 'Cabang']);
+            $headerBusinessUnit = $this->extractField($row, ['Header Business Unit', 'header_business_unit', 'ocr_code2', 'OcrCode2', 'Business Unit']);
+            $headerDepartment = $this->extractField($row, ['Header Department', 'header_department', 'ocr_code3', 'OcrCode3', 'Department']);
+
+            if (empty($prodItemCode)) {
+                // If row has no parent item code, skip or check if we can group by previous BOM ID
+                continue;
+            }
+
+            // Define grouping key: Priority on BOM ID, then combination of Prod ItemCode + Alternate
+            $groupKey = !empty($bomId) ? 'BOM_' . $bomId : $prodItemCode . '_ALT_' . $alternate;
+
+            if (!isset($groupedBoms[$groupKey])) {
+                $groupedBoms[$groupKey] = [
+                    'header' => [
+                        'code' => $prodItemCode,
+                        'qty' => $headerQty > 0 ? $headerQty : 1.0000,
+                        'to_whs' => $prodWhs ?: null,
+                        'type' => 'P',
+                        'alternate' => $alternate > 0 ? $alternate : 1,
+                        'u_unit' => $prodUom ?: null,
+                        'ocr_code' => $headerCabang ?: null,
+                        'ocr_code2' => $headerBusinessUnit ?: null,
+                        'ocr_code3' => $headerDepartment ?: null,
+                        'comments' => $bomRemarks ?: null,
+                        'sap_doc_num' => !empty($bomId) ? (string) $bomId : null,
+                        'is_active' => true,
+                        'created_by' => $userId,
+                        'updated_by' => $userId,
+                    ],
+                    'prod_item_name' => $prodItemName,
+                    'details' => [],
+                ];
+            }
+
+            // Extract Detail (Component) fields
+            $lineNo = (int) ($this->extractField($row, ['Line No', 'line_no', 'LineNo', 'child_num', 'ChildNum', 'No', 'Line'], count($groupedBoms[$groupKey]['details']) + 1));
+            $compTypeRaw = $this->extractField($row, ['Component Type', 'component_type', 'type', 'Type', 'Component Type Code'], 'Item');
+            $compType = (in_array(strtolower((string) $compTypeRaw), ['resource', '290', 'res', 'r']) ? 'Resource' : 'Item');
+            $compItemCode = $this->extractField($row, ['Component ItemCode', 'component_itemcode', 'comp_code', 'Component Code', 'Child Code']);
+            $compQty = (float) ($this->extractField($row, ['Component Qty BOM', 'component_qty_bom', 'quantity', 'Quantity', 'Component Qty', 'Qty BOM', 'Qty BOM per 1 FG'], 1.0));
+            $compWhs = $this->extractField($row, ['Component Warehouse', 'component_warehouse', 'warehouse', 'WhsCode', 'Comp Whs']);
+            $issueMethodRaw = $this->extractField($row, ['Issue Method', 'issue_method', 'issue_mthd', 'IssueMthd'], 'B');
+            $issueMethod = (strtoupper(substr((string) $issueMethodRaw, 0, 1)) === 'M' ? 'M' : 'B');
+            $compCabang = $this->extractField($row, ['Component Cabang', 'component_cabang', 'comp_ocr_code', 'Component Distribution Rule 1']);
+            $compBusinessUnit = $this->extractField($row, ['Component Business Unit', 'component_business_unit', 'comp_ocr_code2', 'Component Distribution Rule 2']);
+            $compDepartment = $this->extractField($row, ['Component Department', 'component_department', 'comp_ocr_code3', 'Component Distribution Rule 3']);
+            $compComments = $this->extractField($row, ['Component Remarks', 'component_remarks', 'comp_comments', 'Line Remarks']);
+
+            if (!empty($compItemCode)) {
+                $groupedBoms[$groupKey]['details'][] = [
+                    'father' => $prodItemCode,
+                    'child_num' => $lineNo > 0 ? $lineNo : (count($groupedBoms[$groupKey]['details']) + 1),
+                    'type' => $compType,
+                    'code' => $compItemCode,
+                    'quantity' => $compQty,
+                    'warehouse' => $compWhs ?: null,
+                    'issue_mthd' => $issueMethod,
+                    'ocr_code' => $compCabang ?: null,
+                    'ocr_code2' => $compBusinessUnit ?: null,
+                    'ocr_code3' => $compDepartment ?: null,
+                    'comments' => $compComments ?: null,
+                ];
+            }
+        }
+
+        if (empty($groupedBoms)) {
+            throw new \Exception('Tidak ada data BOM valid yang dapat diekstrak dari baris data yang diberikan.');
+        }
+
+        $createdBoms = [];
+        $updatedBoms = [];
+        $totalItemsCreated = 0;
+
+        // Perform Database Transaction
+        \Illuminate\Support\Facades\DB::connection('pgsql_production')->transaction(function () use (
+            &$createdBoms,
+            &$updatedBoms,
+            &$totalItemsCreated,
+            $groupedBoms,
+            $userId
+        ) {
+            foreach ($groupedBoms as $groupKey => $group) {
+                $headerData = $group['header'];
+                $detailsData = $group['details'];
+
+                // Check existing BOM by code and alternate
+                $bom = \App\Models\ProductionBom::where('code', $headerData['code'])
+                    ->where('alternate', $headerData['alternate'])
+                    ->first();
+
+                if ($bom) {
+                    $bom->update(array_merge($headerData, ['updated_by' => $userId]));
+                    // Replace existing details with newly uploaded details
+                    $bom->details()->delete();
+                    $updatedBoms[] = $bom;
+                } else {
+                    $bom = \App\Models\ProductionBom::create($headerData);
+                    $createdBoms[] = $bom;
+                }
+
+                // Insert detail items
+                foreach ($detailsData as $detail) {
+                    $detail['production_bom_id'] = $bom->id;
+                    \App\Models\ProductionBomItem::create($detail);
+                    $totalItemsCreated++;
+                }
+            }
+        });
+
+        // Audit Log
+        if ($userId && $this->auditLogService) {
+            try {
+                $this->auditLogService->log(
+                    $userId,
+                    'IMPORT_BOM_EXCEL',
+                    sprintf(
+                        'Imported %d BOM headers (%d created, %d updated) with %d components.',
+                        count($createdBoms) + count($updatedBoms),
+                        count($createdBoms),
+                        count($updatedBoms),
+                        $totalItemsCreated
+                    )
+                );
+            } catch (\Throwable $e) {
+                // Ignore audit log error
+            }
+        }
+
+        return [
+            'total_boms' => count($createdBoms) + count($updatedBoms),
+            'total_boms_created' => count($createdBoms),
+            'total_boms_updated' => count($updatedBoms),
+            'total_items_created' => $totalItemsCreated,
+            'boms' => array_map(function ($b) {
+                return [
+                    'id' => $b->id,
+                    'code' => $b->code,
+                    'alternate' => $b->alternate,
+                    'qty' => (float) $b->qty,
+                    'to_whs' => $b->to_whs,
+                    'sap_doc_num' => $b->sap_doc_num,
+                    'details_count' => $b->details()->count(),
+                ];
+            }, array_merge($createdBoms, $updatedBoms)),
+        ];
+    }
 }
+

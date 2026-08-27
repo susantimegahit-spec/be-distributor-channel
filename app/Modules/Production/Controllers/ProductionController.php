@@ -206,6 +206,55 @@ class ProductionController extends Controller
     }
 
     /**
+     * Import multiple BOMs from flat Excel / CSV file or JSON rows array.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function importBoms(Request $request): JsonResponse
+    {
+        $userId = $request->user()?->id;
+
+        try {
+            $rows = [];
+
+            if ($request->hasFile('file')) {
+                $request->validate([
+                    'file' => 'required|file|mimes:xlsx,xls,csv,txt|max:10240',
+                ]);
+                $rows = $this->productionService->parseBomsFromUploadedFile($request->file('file'));
+            } elseif ($request->has('rows') && is_array($request->input('rows'))) {
+                $rows = $request->input('rows');
+            } elseif ($request->has('data') && is_array($request->input('data'))) {
+                $rows = $request->input('data');
+            } elseif (is_array($request->all()) && !empty($request->all()) && isset($request->all()[0])) {
+                // Direct array payload [ {...}, {...} ]
+                $rows = $request->all();
+            } else {
+                return $this->errorResponse('Payload tidak valid. Kirimkan file spreadsheet (.xlsx, .xls, .csv) atau JSON array pada field "rows" / "data".', [], 422);
+            }
+
+            if (empty($rows)) {
+                return $this->errorResponse('Data baris Excel/JSON kosong atau tidak dapat diparse.', [], 422);
+            }
+
+            $result = $this->productionService->importBomsFromFlatArray($rows, $userId);
+
+            $message = sprintf(
+                'Berhasil memproses %d BOM (%d dibuat, %d diperbarui) dengan %d detail komponen.',
+                $result['total_boms'],
+                $result['total_boms_created'],
+                $result['total_boms_updated'],
+                $result['total_items_created']
+            );
+
+            return $this->successResponse($result, $message, 200);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal mengimpor data BOM: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
      * Update an existing production BOM.
      */
     public function updateBom(Request $request, int $id): JsonResponse

@@ -9,8 +9,11 @@ Route::prefix('v1/production')->middleware('auth:sanctum')->group(function () {
     Route::get('/items', [ProductionController::class, 'indexItems']);
     Route::post('/items/sync', [ProductionController::class, 'syncItems']);
 
-    // Bill of Material CRUD
+    // Bill of Material CRUD & Import
     Route::get('/boms', [ProductionController::class, 'indexBoms']);
+    Route::post('/boms/import', [ProductionController::class, 'importBoms']);
+    Route::post('/boms/upload-excel', [ProductionController::class, 'importBoms']);
+    Route::post('/boms/import-excel', [ProductionController::class, 'importBoms']);
     Route::get('/boms/{id}', [ProductionController::class, 'showBom']);
     Route::post('/boms', [ProductionController::class, 'storeBom']);
     Route::put('/boms/{id}', [ProductionController::class, 'updateBom']);

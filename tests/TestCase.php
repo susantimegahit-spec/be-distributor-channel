@@ -22,6 +22,7 @@ abstract class TestCase extends BaseTestCase
             $ekspedisiDb = database_path('testing_ekspedisi.sqlite');
             $productionDb = database_path('testing_production.sqlite');
 
+            $needsMigration = false;
             if (! static::$databasesInitialized) {
                 @unlink($defaultDb);
                 @unlink($ekspedisiDb);
@@ -30,6 +31,7 @@ abstract class TestCase extends BaseTestCase
                 @touch($ekspedisiDb);
                 @touch($productionDb);
                 static::$databasesInitialized = true;
+                $needsMigration = true;
             }
 
             config([
@@ -68,5 +70,12 @@ abstract class TestCase extends BaseTestCase
         }
 
         parent::setUp();
+
+        if (config('database.default') === 'sqlite' && !empty($needsMigration)) {
+            $this->artisan('migrate', [
+                '--path' => 'database/migrations/production',
+                '--database' => 'pgsql_production',
+            ]);
+        }
     }
 }

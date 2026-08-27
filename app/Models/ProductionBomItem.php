@@ -13,6 +13,15 @@ class ProductionBomItem extends Model
     protected $connection = 'pgsql_production';
     protected $table = 'production.production_bom_items';
 
+    public function getTable()
+    {
+        $conn = config('database.connections.' . ($this->connection ?: config('database.default')));
+        if (($conn['driver'] ?? '') === 'sqlite' || config('database.default') === 'sqlite') {
+            return 'production_bom_items';
+        }
+        return parent::getTable();
+    }
+
     protected $fillable = [
         'production_bom_id',
         'father',

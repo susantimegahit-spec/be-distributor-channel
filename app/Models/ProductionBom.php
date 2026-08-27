@@ -14,6 +14,15 @@ class ProductionBom extends Model
     protected $connection = 'pgsql_production';
     protected $table = 'production.production_boms';
 
+    public function getTable()
+    {
+        $conn = config('database.connections.' . ($this->connection ?: config('database.default')));
+        if (($conn['driver'] ?? '') === 'sqlite' || config('database.default') === 'sqlite') {
+            return 'production_boms';
+        }
+        return parent::getTable();
+    }
+
     protected $fillable = [
         'code',
         'qty',
@@ -42,6 +51,7 @@ class ProductionBom extends Model
 
     protected $appends = [
         'product_name',
+        'uom',
     ];
 
     /**
@@ -50,6 +60,14 @@ class ProductionBom extends Model
     public function getProductNameAttribute(): ?string
     {
         return $this->parentItem?->item_name;
+    }
+
+    /**
+     * Accessor for product Unit of Measure (UOM).
+     */
+    public function getUomAttribute(): ?string
+    {
+        return $this->parentItem?->invntry_uom ?? $this->u_unit;
     }
 
     public function details(): HasMany

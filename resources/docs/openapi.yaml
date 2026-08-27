@@ -2325,6 +2325,133 @@ paths:
         '500':
           description: Gagal terhubung ke SAP B1 middleware atau error dari SAP
 
+  /v1/production/boms/import:
+    post:
+      summary: Import BOMs from Flat JSON Rows Array
+      description: Mengimpor data master Bill of Material (BOM) dari format array objek flat Excel (1 baris per komponen) yang dikirim oleh Frontend. Backend secara otomatis mengelompokkan baris berdasarkan 'BOM ID' atau 'Prod ItemCode' ke dalam Header BOM (`production_boms`) dan Detail Komponen (`production_bom_items`).
+      tags:
+        - Production BOM
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rows
+              properties:
+                rows:
+                  type: array
+                  description: Array of flat Excel row objects
+                  items:
+                    type: object
+                    properties:
+                      BOM ID:
+                        type: string
+                        example: "1"
+                      Prod ItemCode:
+                        type: string
+                        example: "A07"
+                      Prod ItemName:
+                        type: string
+                        example: "GARAMI 200 M @ 4 KG/BAL"
+                      Alternative BOM:
+                        type: integer
+                        example: 1
+                      BOM Header Qty:
+                        type: number
+                        example: 1
+                      Prod Warehouse:
+                        type: string
+                        example: "PRD01-05"
+                      Line No:
+                        type: integer
+                        example: 1
+                      Component Type:
+                        type: string
+                        enum: [Item, Resource]
+                        example: "Item"
+                      Component ItemCode:
+                        type: string
+                        example: "RAW-SALT-01"
+                      Component ItemName:
+                        type: string
+                        example: "Garam Curah Halus"
+                      Component Qty BOM:
+                        type: number
+                        example: 4.05
+                      Component Warehouse:
+                        type: string
+                        example: "RAW-01"
+                      Issue Method:
+                        type: string
+                        enum: [B, M]
+                        example: "B"
+      responses:
+        '200':
+          description: Data BOM berhasil diimpor
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Berhasil memproses 1 BOM (1 dibuat, 0 diperbarui) dengan 7 detail komponen."
+                  data:
+                    type: object
+                    properties:
+                      total_boms:
+                        type: integer
+                        example: 1
+                      total_boms_created:
+                        type: integer
+                        example: 1
+                      total_boms_updated:
+                        type: integer
+                        example: 0
+                      total_items_created:
+                        type: integer
+                        example: 7
+        '422':
+          description: Payload kosong atau tidak valid
+        '500':
+          description: Gagal mengimpor data ke database
+
+  /v1/production/boms/upload-excel:
+    post:
+      summary: Upload & Import BOMs from Excel / CSV File
+      description: Mengunggah file spreadsheet Excel (.xlsx, .xls, .csv) untuk diimpor ke dalam master Header BOM dan Detail Komponen.
+      tags:
+        - Production BOM
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File Excel (.xlsx, .xls, .csv) max 10MB.
+      responses:
+        '200':
+          description: File Excel berhasil diparse dan data BOM berhasil disimpan
+        '422':
+          description: File tidak valid atau kosong
+        '500':
+          description: Gagal membaca file atau error database
+
   /v1/roles:
     get:
       summary: List all roles
