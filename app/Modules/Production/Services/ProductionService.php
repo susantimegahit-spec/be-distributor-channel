@@ -5,6 +5,7 @@ namespace App\Modules\Production\Services;
 use App\Modules\Production\Repositories\ProductionRepositoryInterface;
 use App\Modules\AuditLog\Services\AuditLogService;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 class ProductionService
@@ -2328,57 +2329,66 @@ class ProductionService
      * @return array
      * @throws \Exception
      */
-    public function getUnits(?int $userId = null): array
+    public function getUnits(?int $userId = null, bool $forceRefresh = false): array
     {
-        $sapUrl = config('services.sap.url');
+        $cacheKey = 'sap_production_units';
+        $cacheTtl = (int) config('services.sap.cache_ttl', 1800); // 30 minutes default
 
-        try {
-            $response = Http::timeout(30)->post("{$sapUrl}/api/GetUnit");
-            if (!$response->successful()) {
-                $response = Http::timeout(30)->get("{$sapUrl}/api/GetUnit");
-            }
+        if ($forceRefresh) {
+            Cache::forget($cacheKey);
+        }
 
-            if (!$response->successful()) {
-                throw new \Exception('Gagal menghubungi API SAP GetUnit. HTTP Status: ' . $response->status());
-            }
+        return Cache::remember($cacheKey, $cacheTtl, function () use ($userId) {
+            $sapUrl = config('services.sap.url');
 
-            $body = $response->json();
+            try {
+                $response = Http::timeout(30)->post("{$sapUrl}/api/GetUnit");
+                if (!$response->successful()) {
+                    $response = Http::timeout(30)->get("{$sapUrl}/api/GetUnit");
+                }
 
-            if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
-                throw new \Exception('API SAP GetUnit error: ' . ($body['Message'] ?? 'Unknown SAP error'));
-            }
+                if (!$response->successful()) {
+                    throw new \Exception('Gagal menghubungi API SAP GetUnit. HTTP Status: ' . $response->status());
+                }
 
-            $rawUnits = $body['Result'] ?? [];
-            $units = [];
-            if (is_array($rawUnits)) {
-                foreach ($rawUnits as $u) {
-                    if (is_array($u)) {
-                        $code = (string) ($u['Code'] ?? $u['code'] ?? '');
-                        $name = (string) ($u['Name'] ?? $u['name'] ?? $code);
-                        if (!empty($code)) {
-                            $units[] = [
-                                'code' => $code,
-                                'name' => $name,
-                                'Code' => $code,
-                                'Name' => $name,
-                            ];
+                $body = $response->json();
+
+                if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
+                    throw new \Exception('API SAP GetUnit error: ' . ($body['Message'] ?? 'Unknown SAP error'));
+                }
+
+                $rawUnits = $body['Result'] ?? [];
+                $units = [];
+                if (is_array($rawUnits)) {
+                    foreach ($rawUnits as $u) {
+                        if (is_array($u)) {
+                            $code = (string) ($u['Code'] ?? $u['code'] ?? '');
+                            $name = (string) ($u['Name'] ?? $u['name'] ?? $code);
+                            if (!empty($code)) {
+                                $units[] = [
+                                    'code' => $code,
+                                    'name' => $name,
+                                    'Code' => $code,
+                                    'Name' => $name,
+                                ];
+                            }
                         }
                     }
                 }
-            }
 
-            if ($userId) {
-                $this->auditLogService->log(
-                    $userId,
-                    'GET_UNITS_SAP',
-                    "Fetched Master Units list from SAP."
-                );
-            }
+                if ($userId) {
+                    $this->auditLogService->log(
+                        $userId,
+                        'GET_UNITS_SAP',
+                        "Fetched Master Units list from SAP."
+                    );
+                }
 
-            return $units;
-        } catch (\Exception $e) {
-            throw new \Exception('Gagal mengambil data Master Unit dari SAP: ' . $e->getMessage());
-        }
+                return $units;
+            } catch (\Exception $e) {
+                throw new \Exception('Gagal mengambil data Master Unit dari SAP: ' . $e->getMessage());
+            }
+        });
     }
 
     /**

@@ -14,6 +14,180 @@ servers:
   - url: http://localhost:8000/api/distributor-channel
     description: Local Server
 paths:
+  /v1/master-approvals/approvals:
+    get:
+      summary: Get Approval List from SAP
+      description: Mengambil daftar antrean persetujuan dokumen dari SAP B1 middleware (/api/getapproval). Status 'W' otomatis dikonversi menjadi 'Pending' untuk kemudahan konsumsi Frontend.
+      tags:
+        - Master Approval & SAP Stages
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: CustomQuery
+          in: query
+          required: false
+          schema:
+            type: integer
+          example: 2
+        - name: refresh
+          in: query
+          required: false
+          schema:
+            type: boolean
+          example: true
+      responses:
+        '200':
+          description: Data approval berhasil diambil dari SAP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        example: 200
+                      status:
+                        type: string
+                        example: "success"
+                      message:
+                        type: string
+                        example: "Data approval berhasil diambil dari SAP."
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        WddCode:
+                          type: string
+                          example: "7702"
+                        DocEntry:
+                          type: string
+                          example: "0"
+                        ObjType:
+                          type: string
+                          example: "22"
+                        DocDate:
+                          type: string
+                          example: "20260810"
+                        CurrStep:
+                          type: string
+                          example: "2"
+                        Status:
+                          type: string
+                          example: "Pending"
+                        Remarks:
+                          type: string
+                          example: ""
+        '500':
+          description: Gagal terhubung ke SAP B1 middleware
+    post:
+      summary: Get Approval List from SAP (POST)
+      description: Mengambil daftar antrean persetujuan dokumen dari SAP B1 middleware (/api/getapproval) dengan payload POST.
+      tags:
+        - Master Approval & SAP Stages
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                CustomQuery:
+                  type: integer
+                  example: 2
+      responses:
+        '200':
+          description: Data approval berhasil diambil dari SAP
+  /v1/master-approvals/stages:
+    get:
+      summary: Get Approval Stages from SAP
+      description: Mengambil daftar master tahapan approval (OWST) dari SAP B1 middleware (/api/getstages).
+      tags:
+        - Master Approval & SAP Stages
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: refresh
+          in: query
+          required: false
+          schema:
+            type: boolean
+          example: true
+      responses:
+        '200':
+          description: Data approval stages berhasil diambil dari SAP
+  /v1/master-approvals/approve-sap:
+    post:
+      summary: Approve / Reject SAP Approval Request
+      description: Memproses persetujuan (Approve) atau penolakan (Reject) dokumen approval di SAP B1 middleware (/api/ApproveSAP). Jika Status bernilai 'N' (Reject), maka parameter Remarks wajib diisi.
+      tags:
+        - Master Approval & SAP Stages
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - approvalRequestCode
+                - Username
+                - Password
+                - Status
+              properties:
+                approvalRequestCode:
+                  type: string
+                  description: Kode approval request (WddCode) dari list approval SAP.
+                  example: "7702"
+                Username:
+                  type: string
+                  description: Username akun SAP untuk otorisasi approval.
+                  example: "manager01"
+                Password:
+                  type: string
+                  description: Password akun SAP.
+                  example: "secret123"
+                Status:
+                  type: string
+                  enum: [Y, N]
+                  description: "Status keputusan approval: 'Y' = Approve / Setujui, 'N' = Reject / Tolak."
+                  example: "Y"
+                Remarks:
+                  type: string
+                  description: Catatan / alasan approval. Wajib diisi jika Status bernilai 'N'.
+                  example: "Disetujui untuk proses pengadaan"
+      responses:
+        '200':
+          description: Dokumen approval berhasil diproses di SAP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        example: 200
+                      status:
+                        type: string
+                        example: "success"
+                      message:
+                        type: string
+                        example: "Dokumen approval berhasil disetujui (Approve) di SAP."
+                  data:
+                    type: object
+        '422':
+          description: Validasi gagal (misal Status 'N' tanpa Remarks, atau field wajib kosong)
+        '500':
+          description: Gagal terhubung ke SAP B1 middleware atau error dari SAP
   /v1/sales-orders/sync-from-sap:
     post:
       summary: Sync Sales Orders & Discounts From SAP B1

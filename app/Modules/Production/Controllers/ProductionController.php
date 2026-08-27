@@ -875,9 +875,10 @@ class ProductionController extends Controller
     public function getUnitsSap(Request $request): JsonResponse
     {
         $userId = $request->user()?->id;
+        $forceRefresh = $request->boolean('refresh') || $request->boolean('force_refresh');
 
         try {
-            $units = $this->productionService->getUnits($userId);
+            $units = $this->productionService->getUnits($userId, $forceRefresh);
             $message = empty($units) ? 'Data Unit tidak ditemukan.' : 'Master Unit berhasil diambil dari SAP.';
             return $this->successResponse($units, $message);
         } catch (\Exception $e) {
