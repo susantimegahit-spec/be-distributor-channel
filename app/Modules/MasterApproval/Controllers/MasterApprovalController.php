@@ -47,7 +47,7 @@ class MasterApprovalController extends Controller
     {
         $userId = $request->user()?->id;
         $payload = $request->except(['refresh', 'force_refresh']);
-        $forceRefresh = $request->boolean('refresh') || $request->boolean('force_refresh');
+        $forceRefresh = $request->has('refresh') ? $request->boolean('refresh') : true;
 
         try {
             $stages = $this->masterApprovalService->getStagesFromSap($payload, $userId, $forceRefresh);
@@ -69,7 +69,7 @@ class MasterApprovalController extends Controller
     {
         $userId = $request->user()?->id;
         $payload = $request->except(['refresh', 'force_refresh']);
-        $forceRefresh = $request->boolean('refresh') || $request->boolean('force_refresh');
+        $forceRefresh = $request->has('refresh') ? $request->boolean('refresh') : true;
 
         try {
             $approvals = $this->masterApprovalService->getApprovalsFromSap($payload, $userId, $forceRefresh);

@@ -30,7 +30,7 @@ class MasterApprovalService
      * @return array
      * @throws \Exception
      */
-    public function getStagesFromSap(array $payload = [], ?int $userId = null, bool $forceRefresh = false): array
+    public function getStagesFromSap(array $payload = [], ?int $userId = null, bool $forceRefresh = true): array
     {
         $cacheKey = empty($payload)
             ? 'sap_approval_stages_all'
@@ -99,7 +99,7 @@ class MasterApprovalService
      * @return array
      * @throws \Exception
      */
-    public function getApprovalsFromSap(array $payload = [], ?int $userId = null, bool $forceRefresh = false): array
+    public function getApprovalsFromSap(array $payload = [], ?int $userId = null, bool $forceRefresh = true): array
     {
         // Default CustomQuery to 2 if not explicitly provided
         if (!isset($payload['CustomQuery'])) {

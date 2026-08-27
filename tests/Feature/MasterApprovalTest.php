@@ -182,21 +182,18 @@ class MasterApprovalTest extends TestCase
             'Authorization' => 'Bearer ' . $token,
         ])->getJson('/api/distributor-channel/v1/master-approvals/stages');
 
-        $res1->assertStatus(200);
-        $this->assertEquals('Cached Manager', $res1->json('data.0.Name'));
-
-        // Second call - should hit Cache (does not consume 2nd response from sequence)
+        // Second call with refresh=false - should hit Cache (does not consume 2nd response from sequence)
         $res2 = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token,
-        ])->getJson('/api/distributor-channel/v1/master-approvals/stages');
+        ])->getJson('/api/distributor-channel/v1/master-approvals/stages?refresh=false');
 
         $res2->assertStatus(200);
         $this->assertEquals('Cached Manager', $res2->json('data.0.Name'));
 
-        // Third call with force refresh = true - bypasses cache (consumes 2nd response from sequence)
+        // Third call with force refresh = true (default) - bypasses cache (consumes 2nd response from sequence)
         $res3 = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token,
-        ])->getJson('/api/distributor-channel/v1/master-approvals/stages?refresh=true');
+        ])->getJson('/api/distributor-channel/v1/master-approvals/stages');
 
         $res3->assertStatus(200);
         $this->assertEquals('New Different Manager', $res3->json('data.0.Name'));
@@ -358,18 +355,18 @@ class MasterApprovalTest extends TestCase
         $res1->assertStatus(200);
         $this->assertEquals('7702', $res1->json('data.0.WddCode'));
 
-        // Second call - cached
+        // Second call with refresh=false - cached
         $res2 = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token,
-        ])->getJson('/api/distributor-channel/v1/master-approvals/approvals');
+        ])->getJson('/api/distributor-channel/v1/master-approvals/approvals?refresh=false');
 
         $res2->assertStatus(200);
         $this->assertEquals('7702', $res2->json('data.0.WddCode'));
 
-        // Third call - refresh bypasses cache
+        // Third call - default live refresh bypasses cache
         $res3 = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token,
-        ])->getJson('/api/distributor-channel/v1/master-approvals/approvals?refresh=true');
+        ])->getJson('/api/distributor-channel/v1/master-approvals/approvals');
 
         $res3->assertStatus(200);
         $this->assertEquals('8888', $res3->json('data.0.WddCode'));

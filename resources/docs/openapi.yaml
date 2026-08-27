@@ -2194,9 +2194,11 @@ paths:
           example: 2
         - name: refresh
           in: query
+          description: Parameter refresh cache SAP. Default adalah true (selalu mengambil data live real-time terbaru dari SAP). Kirim false jika ingin menggunakan cache.
           required: false
           schema:
             type: boolean
+            default: true
           example: true
       responses:
         '200':
