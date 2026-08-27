@@ -401,6 +401,47 @@ class MasterApprovalTest extends TestCase
     }
 
     /**
+     * Test getting approvals with empty dummy placeholder from SAP returns 'Data not found.'
+     */
+    public function test_get_approvals_empty_dummy_returns_data_not_found(): void
+    {
+        \Illuminate\Support\Facades\Cache::flush();
+
+        \Illuminate\Support\Facades\Http::fake([
+            '*/api/getapproval' => \Illuminate\Support\Facades\Http::response([
+                'ErrorCode' => 0,
+                'Message' => '',
+                'Result' => [
+                    [
+                        'WddCode' => '0',
+                        'DocEntry' => '0',
+                        'ObjType' => '',
+                        'DocDate' => '',
+                        'CurrStep' => '0',
+                        'Status' => '',
+                        'Remarks' => '',
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/distributor-channel/v1/master-approvals/approvals');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Data not found.',
+                'data' => [],
+            ]);
+
+        $this->assertCount(0, $response->json('data'));
+    }
+
+    /**
      * Test approving SAP request without authentication.
      */
     public function test_approve_sap_unauthenticated(): void

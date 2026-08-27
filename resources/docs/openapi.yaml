@@ -2180,7 +2180,7 @@ paths:
   /v1/master-approvals/approvals:
     get:
       summary: Get Approval List from SAP API
-      description: Mengambil daftar antrean persetujuan dokumen dari SAP B1 middleware (/api/getapproval). Status 'W' otomatis dikonversi menjadi 'Pending' untuk kemudahan konsumsi Frontend.
+      description: Mengambil daftar antrean persetujuan dokumen dari SAP B1 middleware (/api/getapproval). Status 'W' otomatis dikonversi menjadi 'Pending'. Jika data kosong atau SAP mengembalikan placeholder dummy (WddCode 0), backend mengembalikan pesan 'Data not found.' dengan data array kosong [].
       tags:
         - Master Approvals
       security:

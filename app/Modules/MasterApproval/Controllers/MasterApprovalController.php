@@ -73,7 +73,7 @@ class MasterApprovalController extends Controller
 
         try {
             $approvals = $this->masterApprovalService->getApprovalsFromSap($payload, $userId, $forceRefresh);
-            $message = empty($approvals) ? 'Data approval SAP tidak ditemukan.' : 'Data approval berhasil diambil dari SAP.';
+            $message = empty($approvals) ? 'Data not found.' : 'Data approval berhasil diambil dari SAP.';
 
             return $this->successResponse($approvals, $message);
         } catch (\Exception $e) {

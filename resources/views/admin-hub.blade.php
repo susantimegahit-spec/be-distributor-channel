@@ -679,7 +679,7 @@
             <div class="brand-logo">SM</div>
             <div class="brand-info">
                 <span class="brand-name">SUSANTI MEGAH</span>
-                <span class="brand-sub">Monitoring Hub</span>
+                <span class="brand-sub">SMESTA Hub</span>
             </div>
         </div>
 
@@ -805,8 +805,8 @@
             <!-- Welcome Hero Banner -->
             <div class="welcome-banner">
                 <div class="welcome-text">
-                    <h1>Selamat Datang di Portal Pengawasan Sistem</h1>
-                    <p>Pusat integrasi telemetri performa server, monitoring progres task ClickUp, otorisasi API Key B2B, serta dokumentasi API Distributor Channel PT Susanti Megah.</p>
+                    <h1>Selamat Datang di Portal Pengawasan SMESTA</h1>
+                    <p>Pusat integrasi telemetri performa server, monitoring progres task ClickUp, otorisasi API Key B2B, serta dokumentasi API SMESTA Architecture PT Susanti Megah.</p>
                 </div>
                 <div class="quick-meta-pill">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -968,7 +968,7 @@
                                 <span class="nav-badge badge-green">OpenAPI 3.0</span>
                             </div>
                             <h2 class="card-title">Dokumentasi API (Swagger UI)</h2>
-                            <p class="card-desc">Spesifikasi OpenAPI interaktif lengkap seluruh endpoint backend Distributor Channel, skema request/response JSON, dan parameter otentikasi.</p>
+                            <p class="card-desc">Spesifikasi OpenAPI interaktif lengkap seluruh endpoint backend SMESTA, skema request/response JSON, dan parameter otentikasi.</p>
                         </div>
                         <div class="card-bottom-action">
                             <span class="action-link-text card-emerald-action">
@@ -998,7 +998,7 @@
                     </div>
                 </div>
                 <div>
-                    <span>Versi Sistem: <strong>v1.2.0-corporate</strong></span>
+                    <span>Versi Sistem: <strong>v1.2.0-smesta</strong></span>
                 </div>
             </div>
 

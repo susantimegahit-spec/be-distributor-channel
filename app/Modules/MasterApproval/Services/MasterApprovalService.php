@@ -146,6 +146,23 @@ class MasterApprovalService
 
             $rawResult = $body['Result'] ?? [];
 
+            // Filter out dummy/empty placeholder record from SAP (e.g. WddCode === "0" or empty)
+            $filteredResult = array_values(array_filter($rawResult, function ($item) {
+                if (!is_array($item)) {
+                    return false;
+                }
+                $wddCode = trim((string) ($item['WddCode'] ?? ''));
+                $status = trim((string) ($item['Status'] ?? ''));
+                $docDate = trim((string) ($item['DocDate'] ?? ''));
+
+                // SAP returns dummy row with WddCode 0 when no approval data exists
+                if ($wddCode === '0' || $wddCode === '') {
+                    return false;
+                }
+
+                return true;
+            }));
+
             // Map SAP status code to human-readable status
             // Specifically map 'W' (Waiting / Pending) to 'Pending'
             $statusMap = [
@@ -161,7 +178,7 @@ class MasterApprovalService
                     $item['Status'] = $statusMap[$rawStatus] ?? ($rawStatus === 'W' ? 'Pending' : $item['Status']);
                 }
                 return $item;
-            }, $rawResult);
+            }, $filteredResult);
 
             // Log audit if user is authenticated
             if ($userId && $this->auditLogService) {

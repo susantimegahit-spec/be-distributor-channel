@@ -93,8 +93,8 @@
 
         .brand-subtitle {
             font-size: 12px;
-            font-weight: 500;
-            color: var(--slate-600);
+            font-weight: 600;
+            color: var(--primary);
             letter-spacing: 0.2px;
         }
 
@@ -348,7 +348,7 @@
         <div class="brand-logo-icon">SM</div>
         <div class="brand-text">
             <div class="brand-title">PT SUSANTI MEGAH</div>
-            <div class="brand-subtitle">Distributor Channel Architecture</div>
+            <div class="brand-subtitle">SMESTA Architecture</div>
         </div>
     </div>
 
