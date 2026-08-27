@@ -37,7 +37,7 @@ class ApiKeyWebDashboardTest extends TestCase
     {
         $response = $this->withSession(['pulse_authenticated' => true])
             ->post('/monitoringsm/api-keys/generate', [
-                'distributor_id' => $this->distributor->id,
+                'distributor_ids' => [$this->distributor->id],
                 'name' => 'ERP Surabaya System',
                 'allowed_ips' => '203.0.113.195, 198.51.100.22',
             ]);
@@ -46,7 +46,6 @@ class ApiKeyWebDashboardTest extends TestCase
         $response->assertSessionHas('generated_key');
 
         $this->assertDatabaseHas('distributor_api_keys', [
-            'distributor_id' => $this->distributor->id,
             'name' => 'ERP Surabaya System',
             'is_active' => true,
         ]);

@@ -85,10 +85,12 @@
                     <p class="text-xs text-slate-400 mt-1">PT Susanti Megah Distributor Channel</p>
                 </div>
             </div>
-
             <div class="flex items-center space-x-3">
+                <a href="/monitoringsm/hub" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 transition">
+                    ← Admin Hub
+                </a>
                 <a href="/monitoringsm" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 transition">
-                    ← System Pulse Monitoring
+                    System Pulse
                 </a>
                 <a href="/docs" target="_blank" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 transition">
                     📖 API Docs
