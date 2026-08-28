@@ -323,9 +323,12 @@ class ProductionService
                 if ($response->successful()) {
                     $body = $response->json();
                     if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
+                        $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? null;
+                        $sapDocNum   = $body['DocNum'] ?? $body['doc_num'] ?? null;
                         $updatedOrder->update([
-                            'doc_entry'     => $body['DocEntry'] ?? $body['doc_entry'] ?? null,
-                            'doc_num'       => $body['DocNum'] ?? $body['doc_num'] ?? null,
+                            'doc_entry'     => $sapDocEntry,
+                            'doc_num'       => $sapDocNum,
+                            'prod_order_no' => $sapDocNum ?? $updatedOrder->prod_order_no,
                             'sap_status'    => 'SYNCED',
                             'integrated_at' => now(),
                         ]);
@@ -555,9 +558,12 @@ class ProductionService
                 if ($response->successful()) {
                     $body = $response->json();
                     if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
+                        $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? null;
+                        $sapDocNum   = $body['DocNum'] ?? $body['doc_num'] ?? null;
                         $order->update([
-                            'doc_entry'     => $body['DocEntry'] ?? $body['doc_entry'] ?? null,
-                            'doc_num'       => $body['DocNum'] ?? $body['doc_num'] ?? null,
+                            'doc_entry'     => $sapDocEntry,
+                            'doc_num'       => $sapDocNum,
+                            'prod_order_no' => $sapDocNum ?? $order->prod_order_no,
                             'sap_status'    => 'SYNCED',
                             'integrated_at' => now(),
                         ]);
@@ -618,6 +624,7 @@ class ProductionService
 
         $whsCode = (string) ($filters['whs_code'] ?? $filters['warehouse'] ?? $filters['WhsCode'] ?? '');
         $toWhsCode = (string) ($filters['to_whs_code'] ?? $filters['to_warehouse'] ?? $filters['ToWhsCode'] ?? '');
+        $unitFilter = trim((string) ($filters['unit'] ?? $filters['u_unit'] ?? $filters['Unit'] ?? $filters['U_Unit'] ?? ''));
 
         // Normalize status filter if provided (e.g. RELEASE or RELEASED)
         $rawStatusFilter = strtoupper(trim((string) ($filters['status'] ?? $filters['Status'] ?? '')));
@@ -640,6 +647,10 @@ class ProductionService
             'WhsCode'   => $whsCode,
             'ToWhsCode' => $toWhsCode,
         ];
+        if ($unitFilter !== '') {
+            $payload['Unit'] = $unitFilter;
+            $payload['U_Unit'] = $unitFilter;
+        }
 
         $items = [];
 
@@ -664,7 +675,7 @@ class ProductionService
             // Fallback: proceed to merge local orders
         }
 
-        // Normalize Status on SAP items & apply status filter if present
+        // Normalize Status on SAP items & apply status and unit filter if present
         $normalizedItems = [];
         foreach ($items as $item) {
             if (!is_array($item)) continue;
@@ -684,7 +695,15 @@ class ProductionService
                 continue;
             }
 
-            // Provide BaseEntry, SeriesName, and StartDate aliases for Frontend convenience
+            // Filter if unit filter is active
+            if ($unitFilter !== '') {
+                $itemUnit = trim((string) ($item['U_Unit'] ?? $item['Unit'] ?? $item['u_unit'] ?? ''));
+                if (strcasecmp($itemUnit, $unitFilter) !== 0) {
+                    continue;
+                }
+            }
+
+            // Provide BaseEntry, SeriesName, StartDate, and Unit aliases for Frontend convenience
             $docEntryVal = (string) ($item['DocEntry'] ?? $item['doc_entry'] ?? '');
             $item['BaseEntry'] = $docEntryVal;
             $item['base_entry'] = $docEntryVal;
@@ -695,11 +714,16 @@ class ProductionService
             $item['StartDate'] = $startDate;
             $item['start_date'] = $startDate;
 
+            $unitVal = (string) ($item['U_Unit'] ?? $item['Unit'] ?? $item['u_unit'] ?? '');
+            $item['Unit'] = $unitVal;
+            $item['U_Unit'] = $unitVal;
+            $item['u_unit'] = $unitVal;
+
             $normalizedItems[] = $item;
         }
         $items = $normalizedItems;
 
-        // Fetch and merge local production orders matching the status filter
+        // Fetch and merge local production orders matching the status & unit filter
         try {
             $localQuery = \App\Models\ProductionOrder::query()
                 ->with(['parentItem', 'details']);
@@ -716,6 +740,13 @@ class ProductionService
 
             if (!empty($whsCode)) {
                 $localQuery->where('warehouse', $whsCode);
+            }
+
+            if ($unitFilter !== '') {
+                $localQuery->where(function ($q) use ($unitFilter) {
+                    $q->where('u_unit', $unitFilter)
+                        ->orWhere('u_unit', 'ILIKE', $unitFilter);
+                });
             }
 
             $localOrders = $localQuery->orderBy('id', 'desc')->get();
@@ -739,8 +770,8 @@ class ProductionService
                     'base_entry'  => $docEntryVal,
                     'DocNum'      => (string) ($lOrder->doc_num ?: $lOrder->prod_order_no),
                     'Series'      => $lOrder->series ?: 15,
-                    'SeriesName'  => (string) $lOrder->series_name,
-                    'series_name' => (string) $lOrder->series_name,
+                    'SeriesName'  => (string) ($lOrder->series_name ?? ''),
+                    'series_name' => (string) ($lOrder->series_name ?? ''),
                     'ItemCode'    => (string) $lOrder->item_code,
                     'ProdName'    => (string) ($lOrder->parentItem?->item_name ?? $this->resolveItemName($lOrder->item_code)),
                     'Status'      => (string) $lOrder->status,
@@ -753,6 +784,12 @@ class ProductionService
                     'PostDate'    => $lOrder->post_date ? date('Y-m-d\TH:i:s', strtotime($lOrder->post_date)) : null,
                     'DueDate'     => $lOrder->due_date ? date('Y-m-d\TH:i:s', strtotime($lOrder->due_date)) : null,
                     'WhsCode'     => (string) $lOrder->warehouse,
+                    'Unit'        => (string) ($lOrder->u_unit ?? ''),
+                    'U_Unit'      => (string) ($lOrder->u_unit ?? ''),
+                    'u_unit'      => (string) ($lOrder->u_unit ?? ''),
+                    'Shift'       => (string) ($lOrder->u_shift ?? ''),
+                    'U_Shift'     => (string) ($lOrder->u_shift ?? ''),
+                    'u_shift'     => (string) ($lOrder->u_shift ?? ''),
                     'Remarks'     => (string) $lOrder->comments,
                     'is_local'    => true,
                 ];
@@ -2135,13 +2172,25 @@ class ProductionService
             if ($response->successful()) {
                 $body = $response->json();
                 if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
+                    $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? null;
+                    $sapDocNum   = $body['DocNum'] ?? $body['doc_num'] ?? null;
                     $localIssue->update([
-                        'doc_entry'     => $body['DocEntry'] ?? $body['doc_entry'] ?? null,
-                        'doc_num'       => $body['DocNum'] ?? $body['doc_num'] ?? null,
+                        'doc_entry'     => $sapDocEntry,
+                        'doc_num'       => $sapDocNum,
+                        'issue_no'      => $sapDocNum ?? $localIssue->issue_no,
                         'sap_status'    => 'SYNCED',
                         'integrated_at' => now(),
                     ]);
                     $sapResponse = $body;
+
+                    // Update referensi nomor issue di tabel PDO Header
+                    if ($pdo && $sapDocNum) {
+                        $existingIssues = array_filter(array_map('trim', explode(',', (string)$pdo->issue_for_production)));
+                        $existingIssues = array_map(function ($val) use ($issueNo, $sapDocNum) {
+                            return $val === $issueNo ? $sapDocNum : $val;
+                        }, $existingIssues);
+                        $pdo->update(['issue_for_production' => implode(', ', array_unique($existingIssues))]);
+                    }
                 } else {
                     $localIssue->update([
                         'sap_status' => 'FAILED',
@@ -2300,13 +2349,25 @@ class ProductionService
             if ($response->successful()) {
                 $body = $response->json();
                 if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
+                    $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? null;
+                    $sapDocNum   = $body['DocNum'] ?? $body['doc_num'] ?? null;
                     $localReceipt->update([
-                        'doc_entry'     => $body['DocEntry'] ?? $body['doc_entry'] ?? null,
-                        'doc_num'       => $body['DocNum'] ?? $body['doc_num'] ?? null,
+                        'doc_entry'     => $sapDocEntry,
+                        'doc_num'       => $sapDocNum,
+                        'receipt_no'    => $sapDocNum ?? $localReceipt->receipt_no,
                         'sap_status'    => 'SYNCED',
                         'integrated_at' => now(),
                     ]);
                     $sapResponse = $body;
+
+                    // Update referensi nomor receipt di tabel PDO Header
+                    if ($pdo && $sapDocNum) {
+                        $existingReceipts = array_filter(array_map('trim', explode(',', (string)$pdo->receipt_from_production)));
+                        $existingReceipts = array_map(function ($val) use ($receiptNo, $sapDocNum) {
+                            return $val === $receiptNo ? $sapDocNum : $val;
+                        }, $existingReceipts);
+                        $pdo->update(['receipt_from_production' => implode(', ', array_unique($existingReceipts))]);
+                    }
                 } else {
                     $localReceipt->update([
                         'sap_status' => 'FAILED',

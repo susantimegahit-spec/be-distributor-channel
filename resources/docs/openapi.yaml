@@ -11167,6 +11167,20 @@ paths:
             type: string
             example: "FG01"
           description: Kode gudang tujuan (opsional)
+        - name: unit
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "SBY-UNIT7"
+          description: Kode unit produksi (opsional)
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "RELEASED"
+          description: Status filter (PLANNED, RELEASED, CLOSED, CANCELLED, opsional)
       responses:
         '200':
           description: Daftar Production Order (PDO) dari SAP berhasil diambil.
