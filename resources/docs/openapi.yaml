@@ -3012,6 +3012,40 @@ paths:
                   type: string
                   nullable: true
                   example: "OM"
+                organization_assignment:
+                  type: object
+                  description: Assignment organisasi / distribution rules
+                  properties:
+                    warehouses:
+                      type: array
+                      items:
+                        type: string
+                      example: ["PRD01-01", "PRD01-05"]
+                    branches:
+                      type: array
+                      items:
+                        type: string
+                      example: ["SBY"]
+                    business_units:
+                      type: array
+                      items:
+                        type: string
+                      example: ["UNIT5"]
+                    departments:
+                      type: array
+                      items:
+                        type: string
+                      example: ["PROD"]
+                    expeditions:
+                      type: array
+                      items:
+                        type: string
+                      example: ["EXP-001"]
+                    distributors:
+                      type: array
+                      items:
+                        type: string
+                      example: ["CUST-001"]
                 actions:
                   type: array
                   description: Custom permissions override per menu
@@ -3138,6 +3172,40 @@ paths:
                   type: string
                   nullable: true
                   example: "OM"
+                organization_assignment:
+                  type: object
+                  description: Assignment organisasi / distribution rules
+                  properties:
+                    warehouses:
+                      type: array
+                      items:
+                        type: string
+                      example: ["PRD01-01", "PRD01-05"]
+                    branches:
+                      type: array
+                      items:
+                        type: string
+                      example: ["SBY"]
+                    business_units:
+                      type: array
+                      items:
+                        type: string
+                      example: ["UNIT5"]
+                    departments:
+                      type: array
+                      items:
+                        type: string
+                      example: ["PROD"]
+                    expeditions:
+                      type: array
+                      items:
+                        type: string
+                      example: ["EXP-001"]
+                    distributors:
+                      type: array
+                      items:
+                        type: string
+                      example: ["CUST-001"]
                 actions:
                   type: array
                   items:

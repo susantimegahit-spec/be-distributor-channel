@@ -189,7 +189,7 @@ class ProductionController extends Controller
             'ocr_code2' => $request->input('ocr_code2'),
             'ocr_code3' => $request->input('ocr_code3'),
             'u_shift' => $request->input('u_shift'),
-            'u_unit' => $request->input('u_unit'),
+            'u_unit' => $request->input('uom') ?? $request->input('u_unit') ?? $request->input('unit'),
             'comments' => $request->input('comments'),
             'is_active' => $request->input('is_active', true),
             'details' => $details,
@@ -268,10 +268,17 @@ class ProductionController extends Controller
         $data = $request->only([
             'qty', 'quantity', 'to_whs', 'warehouse', 'type', 'alternate', 
             'ocr_code', 'distributionRule', 'ocr_code2', 'ocr_code3', 
-            'u_shift', 'u_unit', 'comments', 'is_active'
+            'u_shift', 'u_unit', 'uom', 'unit', 'comments', 'is_active'
         ]);
 
         // Normalize parameters if present
+        if (isset($data['uom'])) {
+            $data['u_unit'] = $data['uom'];
+            unset($data['uom']);
+        } elseif (isset($data['unit'])) {
+            $data['u_unit'] = $data['unit'];
+            unset($data['unit']);
+        }
         if (isset($data['quantity'])) {
             $data['qty'] = $data['quantity'];
             unset($data['quantity']);

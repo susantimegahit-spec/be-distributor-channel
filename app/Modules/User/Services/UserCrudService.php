@@ -195,6 +195,33 @@ class UserCrudService
         }
         unset($data['actions'], $data['permissions']);
 
+        $orgInput = $data['organization_assignment'] ?? $data['organizational_assignment'] ?? $data['distribution_rule'] ?? $data['distribution_rules'] ?? null;
+        if ($orgInput === null) {
+            $hasOrgKeys = false;
+            $tempOrg = [];
+            foreach (['warehouses', 'warehouse', 'branches', 'branch', 'business_units', 'business_unit', 'departments', 'department', 'expeditions', 'expedition', 'distributors', 'distributor'] as $k) {
+                if (array_key_exists($k, $data)) {
+                    $tempOrg[$k] = $data[$k];
+                    $hasOrgKeys = true;
+                }
+            }
+            if ($hasOrgKeys) {
+                $orgInput = $tempOrg;
+            }
+        }
+        unset(
+            $data['organization_assignment'], 
+            $data['organizational_assignment'], 
+            $data['distribution_rule'], 
+            $data['distribution_rules'],
+            $data['warehouses'],
+            $data['branches'],
+            $data['business_units'],
+            $data['departments'],
+            $data['expeditions'],
+            $data['distributors']
+        );
+
         $isProductionUser = !empty($data['whs_code']) || 
                             !empty($data['ocr_code']) || 
                             !empty($data['ocr_code2']) || 
@@ -206,13 +233,17 @@ class UserCrudService
 
         $user = $this->userRepository->create($data);
 
+        if ($orgInput !== null) {
+            $this->syncOrganizationAssignments($user, $orgInput);
+        }
+
         if ($accessibleSystems !== null && $user->role) {
             $user->role->update([
                 'accessible_systems' => $accessibleSystems
             ]);
         }
 
-        return $user->load(['role.roleMenu', 'distributor', 'expedition']);
+        return $user->load(['role.roleMenu', 'distributor', 'expedition', 'organizationAssignments']);
     }
 
     /**
@@ -240,6 +271,33 @@ class UserCrudService
         }
         unset($data['actions'], $data['permissions']);
 
+        $orgInput = $data['organization_assignment'] ?? $data['organizational_assignment'] ?? $data['distribution_rule'] ?? $data['distribution_rules'] ?? null;
+        if ($orgInput === null) {
+            $hasOrgKeys = false;
+            $tempOrg = [];
+            foreach (['warehouses', 'warehouse', 'branches', 'branch', 'business_units', 'business_unit', 'departments', 'department', 'expeditions', 'expedition', 'distributors', 'distributor'] as $k) {
+                if (array_key_exists($k, $data)) {
+                    $tempOrg[$k] = $data[$k];
+                    $hasOrgKeys = true;
+                }
+            }
+            if ($hasOrgKeys) {
+                $orgInput = $tempOrg;
+            }
+        }
+        unset(
+            $data['organization_assignment'], 
+            $data['organizational_assignment'], 
+            $data['distribution_rule'], 
+            $data['distribution_rules'],
+            $data['warehouses'],
+            $data['branches'],
+            $data['business_units'],
+            $data['departments'],
+            $data['expeditions'],
+            $data['distributors']
+        );
+
         $isProductionUser = !empty($data['whs_code']) || 
                             !empty($data['ocr_code']) || 
                             !empty($data['ocr_code2']) || 
@@ -254,13 +312,110 @@ class UserCrudService
 
         $user = $this->userRepository->update($id, $data);
 
+        if ($user && $orgInput !== null) {
+            $this->syncOrganizationAssignments($user, $orgInput);
+        }
+
         if ($user && $accessibleSystems !== null && $user->role) {
             $user->role->update([
                 'accessible_systems' => $accessibleSystems
             ]);
         }
 
-        return $user ? $user->load(['role.roleMenu', 'distributor', 'expedition']) : null;
+        return $user ? $user->load(['role.roleMenu', 'distributor', 'expedition', 'organizationAssignments']) : null;
+    }
+
+    /**
+     * Synchronize user organization assignments (distribution rules) to user_organization_assignments table.
+     *
+     * @param User $user
+     * @param mixed $orgData
+     * @return void
+     */
+    public function syncOrganizationAssignments(User $user, mixed $orgData): void
+    {
+        if ($orgData === null) {
+            return;
+        }
+
+        if (is_string($orgData)) {
+            $decoded = json_decode($orgData, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $orgData = $decoded;
+            }
+        }
+
+        if (!is_array($orgData)) {
+            return;
+        }
+
+        // Map of standard category types to possible aliases in FE payload
+        $categoryMap = [
+            'warehouse' => ['warehouses', 'warehouse', 'whs_code', 'whs_codes', 'whs'],
+            'branch' => ['branches', 'branch', 'cabang', 'ocr_code', 'ocr_codes'],
+            'business_unit' => ['business_units', 'business_unit', 'bisnis_unit', 'ocr_code2'],
+            'department' => ['departments', 'department', 'departemen', 'ocr_code3'],
+            'expedition' => ['expeditions', 'expedition', 'ekspedisi', 'expedition_code'],
+            'distributor' => ['distributors', 'distributor', 'customer', 'code_customer'],
+        ];
+
+        // Delete existing assignments for this user
+        \App\Models\UserOrganizationAssignment::where('user_id', $user->id)->delete();
+
+        $recordsToInsert = [];
+
+        foreach ($categoryMap as $type => $aliases) {
+            $rawValues = null;
+
+            foreach ($aliases as $alias) {
+                if (isset($orgData[$alias])) {
+                    $rawValues = $orgData[$alias];
+                    break;
+                }
+            }
+
+            if ($rawValues === null) {
+                continue;
+            }
+
+            if (!is_array($rawValues)) {
+                $rawValues = [$rawValues];
+            }
+
+            foreach ($rawValues as $val) {
+                $itemVal = null;
+                $itemName = null;
+
+                if (is_array($val)) {
+                    $itemVal = $val['value'] ?? $val['code'] ?? $val['id'] ?? null;
+                    $itemName = $val['label'] ?? $val['name'] ?? null;
+                } elseif (is_scalar($val)) {
+                    $itemVal = (string) $val;
+                }
+
+                if ($itemVal !== null && trim((string) $itemVal) !== '' && trim((string) $itemVal) !== '?') {
+                    $cleanVal = trim((string) $itemVal);
+                    $recordsToInsert[] = [
+                        'user_id' => $user->id,
+                        'type' => $type,
+                        'value' => $cleanVal,
+                        'name' => $itemName ? trim((string) $itemName) : null,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                }
+            }
+        }
+
+        if (!empty($recordsToInsert)) {
+            // Deduplicate by user_id + type + value
+            $uniqueRecords = [];
+            foreach ($recordsToInsert as $rec) {
+                $key = $rec['type'] . '_' . $rec['value'];
+                $uniqueRecords[$key] = $rec;
+            }
+            \App\Models\UserOrganizationAssignment::insert(array_values($uniqueRecords));
+        }
     }
 
     /**

@@ -51,7 +51,7 @@ class UserController extends Controller
             abort(404, 'User tidak ditemukan.');
         }
 
-        $user->load(['role.roleMenu', 'distributor', 'expedition']);
+        $user->load(['role.roleMenu', 'distributor', 'expedition', 'organizationAssignments']);
 
         return $this->successResponse($user, 'Detail user berhasil diambil.');
     }
@@ -66,7 +66,7 @@ class UserController extends Controller
     {
         $payload = array_merge($request->all(), $request->validated());
         $user = $this->userService->createUser($payload);
-        $user->load(['role.roleMenu', 'distributor', 'expedition']);
+        $user->load(['role.roleMenu', 'distributor', 'expedition', 'organizationAssignments']);
 
         return $this->successResponse($user, 'User berhasil dibuat.', 200);
     }
@@ -87,7 +87,7 @@ class UserController extends Controller
             abort(404, 'User tidak ditemukan.');
         }
 
-        $user->load(['role.roleMenu', 'distributor', 'expedition']);
+        $user->load(['role.roleMenu', 'distributor', 'expedition', 'organizationAssignments']);
 
         return $this->successResponse($user, 'User berhasil diperbarui.');
     }

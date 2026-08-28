@@ -129,6 +129,16 @@ class CreateUserRequest extends FormRequest
             'actions' => 'nullable',
             'custom_permissions' => 'nullable',
             'permissions' => 'nullable',
+            'organization_assignment' => 'nullable',
+            'organizational_assignment' => 'nullable',
+            'distribution_rules' => 'nullable',
+            'distribution_rule' => 'nullable',
+            'warehouses' => 'nullable',
+            'branches' => 'nullable',
+            'business_units' => 'nullable',
+            'departments' => 'nullable',
+            'expeditions' => 'nullable',
+            'distributors' => 'nullable',
         ];
     }
 }

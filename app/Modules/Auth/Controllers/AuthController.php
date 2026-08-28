@@ -41,7 +41,7 @@ class AuthController extends Controller
         );
 
         $user = $result['user'];
-        $user->load(['role.roleMenu', 'distributor', 'expedition']);
+        $user->load(['role.roleMenu', 'distributor', 'expedition', 'organizationAssignments']);
         $permsMap = $user->getPermissionsMap();
 
         return $this->successResponse([
@@ -71,7 +71,10 @@ class AuthController extends Controller
                 'has_custom_override' => $permsMap['has_custom_override'],
                 'actions' => $user->custom_permissions_list,
                 'custom_permissions' => $user->custom_permissions_list,
+                'organization_assignment' => $user->organization_assignment,
+                'organization_assignments' => $user->organizationAssignments,
             ],
+            'organization_assignment' => $user->organization_assignment,
             'menu' => $user->role?->roleMenu?->menu ?? [],
             'actions' => $user->custom_permissions_list,
             'permissions' => $permsMap['permissions_list'],

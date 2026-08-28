@@ -55,6 +55,7 @@ class User extends Authenticatable
     protected $appends = [
         'accessible_systems',
         'actions',
+        'organization_assignment',
     ];
 
     /**
@@ -94,6 +95,78 @@ class User extends Authenticatable
     public function expedition(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Expedition::class, 'expedition_code', 'expedition_code');
+    }
+
+    /**
+     * Get the organization assignments (distribution rules) associated with the user.
+     */
+    public function organizationAssignments(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(UserOrganizationAssignment::class, 'user_id');
+    }
+
+    /**
+     * Accessor for structured organizational assignments grouped by category.
+     *
+     * @return array
+     */
+    public function getOrganizationAssignmentAttribute(): array
+    {
+        $assignments = $this->relationLoaded('organizationAssignments')
+            ? $this->organizationAssignments
+            : $this->organizationAssignments()->get();
+
+        $grouped = [
+            'warehouses' => [],
+            'branches' => [],
+            'business_units' => [],
+            'departments' => [],
+            'expeditions' => [],
+            'distributors' => [],
+        ];
+
+        foreach ($assignments as $a) {
+            $type = strtolower((string) $a->type);
+            $val = (string) $a->value;
+
+            if (in_array($type, ['warehouse', 'warehouses', 'whs'])) {
+                $grouped['warehouses'][] = $val;
+            } elseif (in_array($type, ['branch', 'branches', 'cabang', 'ocr_code', 'ocr'])) {
+                $grouped['branches'][] = $val;
+            } elseif (in_array($type, ['business_unit', 'business_units', 'bisnis_unit', 'bu', 'ocr_code2'])) {
+                $grouped['business_units'][] = $val;
+            } elseif (in_array($type, ['department', 'departments', 'dept', 'ocr_code3'])) {
+                $grouped['departments'][] = $val;
+            } elseif (in_array($type, ['expedition', 'expeditions', 'ekspedisi'])) {
+                $grouped['expeditions'][] = $val;
+            } elseif (in_array($type, ['distributor', 'distributors', 'customer', 'code_customer'])) {
+                $grouped['distributors'][] = $val;
+            }
+        }
+
+        // Fallback to legacy single fields if organizationAssignments table is empty for this user
+        if (empty($assignments) || $assignments->isEmpty()) {
+            if (!empty($this->whs_code)) {
+                $grouped['warehouses'][] = (string) $this->whs_code;
+            }
+            if (!empty($this->ocr_code)) {
+                $grouped['branches'][] = (string) $this->ocr_code;
+            }
+            if (!empty($this->ocr_code2)) {
+                $grouped['business_units'][] = (string) $this->ocr_code2;
+            }
+            if (!empty($this->ocr_code3)) {
+                $grouped['departments'][] = (string) $this->ocr_code3;
+            }
+            if (!empty($this->expedition_code)) {
+                $grouped['expeditions'][] = (string) $this->expedition_code;
+            }
+            if (!empty($this->code_customer)) {
+                $grouped['distributors'][] = (string) $this->code_customer;
+            }
+        }
+
+        return $grouped;
     }
 
     /**
