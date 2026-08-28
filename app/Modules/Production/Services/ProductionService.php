@@ -709,8 +709,8 @@ class ProductionService
             } else {
                 $localQuery->where(function ($q) {
                     $q->where('status', 'PLANNED')
-                      ->orWhereNull('doc_entry')
-                      ->orWhere('sap_status', '!=', 'SYNCED');
+                        ->orWhereNull('doc_entry')
+                        ->orWhere('sap_status', '!=', 'SYNCED');
                 });
             }
 
@@ -805,10 +805,10 @@ class ProductionService
                 'ocr3',
                 'warehouseModel'
             ])->where('id', is_numeric($customQuery) ? (int)$customQuery : 0)
-              ->orWhere('prod_order_no', (string) $customQuery)
-              ->orWhere('doc_entry', is_numeric($customQuery) ? (int)$customQuery : 0)
-              ->orWhere('doc_num', (string) $customQuery)
-              ->first();
+                ->orWhere('prod_order_no', (string) $customQuery)
+                ->orWhere('doc_entry', is_numeric($customQuery) ? (int)$customQuery : 0)
+                ->orWhere('doc_num', (string) $customQuery)
+                ->first();
         } catch (\Exception $e) {
             // DB fallback
         }
@@ -966,7 +966,7 @@ class ProductionService
                 'uom'         => $hUom,
                 'UOM'         => $hUom,
                 'SalUnitMsr'  => $hUom,
-                'sal_unit_msr'=> $hUom,
+                'sal_unit_msr' => $hUom,
                 'Status'      => (string) $localOrder->status,
                 'Type'        => (string) $localOrder->type,
                 'PlannedQty'  => floatval($localOrder->planned_qty),
@@ -1229,7 +1229,7 @@ class ProductionService
                 if (!is_array($it)) continue;
                 $c = (string) ($it['ItemCode'] ?? $it['item_code'] ?? $it['item'] ?? $it['Code'] ?? $it['code'] ?? '');
                 $n = (string) ($it['ItemName'] ?? $it['item_name'] ?? $it['ProdName'] ?? $it['prod_name'] ?? $it['Dscription'] ?? $it['dscription'] ?? $it['ItemDescription'] ?? $it['item_description'] ?? $it['Description'] ?? '');
-                
+
                 if ((empty($n) || $n === $c) && !empty($c)) {
                     $n = $this->resolveItemName($c);
                 }
@@ -1391,7 +1391,8 @@ class ProductionService
                     try {
                         $pdoDetail = $this->getPdoById($it['BaseEntry']);
                         $c = (string) ($pdoDetail['header']['ItemCode'] ?? '');
-                    } catch (\Exception $e) {}
+                    } catch (\Exception $e) {
+                    }
                 }
                 if (empty($c) && $header) {
                     $c = (string) ($header['ItemCode'] ?? $header['item_code'] ?? '');
@@ -1729,7 +1730,8 @@ class ProductionService
                                 break;
                             }
                         }
-                    } catch (\Exception $e) {}
+                    } catch (\Exception $e) {
+                    }
                 }
 
                 $n = (string) ($it['ItemName'] ?? $it['item_name'] ?? $it['ProdName'] ?? $it['prod_name'] ?? $it['Dscription'] ?? $it['dscription'] ?? $it['ItemDescription'] ?? $it['item_description'] ?? $it['Description'] ?? '');
@@ -2821,4 +2823,3 @@ class ProductionService
         ];
     }
 }
-
