@@ -232,7 +232,7 @@ class ProductionRepository implements ProductionRepositoryInterface
      */
     public function getOrderById(int $id): ?\App\Models\ProductionOrder
     {
-        return \App\Models\ProductionOrder::with([
+        $order = \App\Models\ProductionOrder::with([
             'parentItem',
             'details.item',
             'details.resource',
@@ -245,6 +245,24 @@ class ProductionRepository implements ProductionRepositoryInterface
             'ocr3',
             'warehouseModel'
         ])->find($id);
+
+        if (!$order) {
+            $order = \App\Models\ProductionOrder::with([
+                'parentItem',
+                'details.item',
+                'details.resource',
+                'details.warehouseModel',
+                'details.ocr',
+                'details.ocr2',
+                'details.ocr3',
+                'ocr',
+                'ocr2',
+                'ocr3',
+                'warehouseModel'
+            ])->where('doc_entry', $id)->first();
+        }
+
+        return $order;
     }
 
     /**

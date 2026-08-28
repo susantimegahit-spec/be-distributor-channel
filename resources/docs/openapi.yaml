@@ -8898,8 +8898,16 @@ paths:
                   type: string
                   example: "Special"
                 series:
+                  type: integer
+                  example: 5638
+                series_name:
                   type: string
-                  example: "SBY26-02"
+                  description: "Nama Series penomoran dokumen (e.g. SBY26-08)"
+                  example: "SBY26-08"
+                uom:
+                  type: string
+                  description: "Satuan Unit of Measure (UoM) produk header"
+                  example: "BAL"
                 priority:
                   type: integer
                   example: 100
@@ -8929,6 +8937,9 @@ paths:
                       item_code:
                         type: string
                         example: "RM-001"
+                      uom:
+                        type: string
+                        example: "KG"
                       base_qty:
                         type: number
                         example: 1.0
@@ -8957,7 +8968,7 @@ paths:
   /v1/production/orders/sap:
     post:
       summary: Submit Production Order (PDO) to SAP
-      description: Mengirim data Production Order (PDO) secara langsung ke API SAP (`http://103.18.133.187:3100/api/addpdo`).
+      description: Mengirim data Production Order (PDO) secara langsung ke API SAP (`http://103.18.133.187:3100/api/addpdo`) dan menyimpan series_name serta UOM ke DB lokal.
       tags:
         - Production Order
       security:
@@ -8979,6 +8990,21 @@ paths:
                 Series:
                   type: integer
                   example: 15
+                series:
+                  type: integer
+                  example: 15
+                SeriesName:
+                  type: string
+                  example: "SBY26-08"
+                series_name:
+                  type: string
+                  example: "SBY26-08"
+                Uom:
+                  type: string
+                  example: "BAL"
+                uom:
+                  type: string
+                  example: "BAL"
                 PlannedQty:
                   type: number
                   example: 100.0
@@ -9032,6 +9058,12 @@ paths:
                       ItemCode:
                         type: string
                         example: "RM001"
+                      Uom:
+                        type: string
+                        example: "KG"
+                      uom:
+                        type: string
+                        example: "KG"
                       BaseQty:
                         type: number
                         example: 2.5
@@ -9114,7 +9146,7 @@ paths:
 
     put:
       summary: Update a production order
-      description: Memperbarui Production Order dan komponennya.
+      description: Memperbarui data header Production Order (item, qty, status, series, series_name, uom, dll.) beserta daftar komponen detailnya.
       tags:
         - Production Order
       security:
@@ -9124,7 +9156,9 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
+            type: string
+          description: ID lokal Production Order atau SAP DocEntry
+          example: "6697"
       requestBody:
         required: true
         content:
@@ -9132,12 +9166,85 @@ paths:
             schema:
               type: object
               properties:
+                item_code:
+                  type: string
+                  example: "A07"
+                planned_qty:
+                  type: number
+                  example: 120.0
+                warehouse:
+                  type: string
+                  example: "PRD01-05"
+                series:
+                  type: integer
+                  example: 5638
+                series_name:
+                  type: string
+                  example: "SBY26-08"
+                uom:
+                  type: string
+                  example: "BAL"
                 status:
                   type: string
-                  example: "Closed"
+                  example: "RELEASED"
+                post_date:
+                  type: string
+                  format: date
+                  example: "2026-08-28"
+                due_date:
+                  type: string
+                  format: date
+                  example: "2026-08-30"
+                u_shift:
+                  type: string
+                  example: "C"
+                u_unit:
+                  type: string
+                  example: "SBY-UNIT7"
                 comments:
                   type: string
-                  example: "Catatan diperbarui"
+                  example: "Perubahan jadwal produksi"
+                production_bom_id:
+                  type: integer
+                  example: 12
+                ocr_code:
+                  type: string
+                  example: "SBY"
+                ocr_code2:
+                  type: string
+                  example: "GRM"
+                ocr_code3:
+                  type: string
+                  example: "PRO"
+                details:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        example: "Item"
+                      item_code:
+                        type: string
+                        example: "RM-001"
+                      uom:
+                        type: string
+                        example: "KG"
+                      base_qty:
+                        type: number
+                        example: 6.06
+                      planned_qty:
+                        type: number
+                        example: 727.2
+                      warehouse:
+                        type: string
+                        example: "PRD01-05"
+                      issue_mthd:
+                        type: string
+                        example: "M"
+                      ocr_code:
+                        type: string
+                        example: "SBY"
       responses:
         '200':
           description: Production Order berhasil diperbarui.
@@ -11085,12 +11192,24 @@ paths:
                         DocNum:
                           type: string
                           example: "260810254"
+                        StartDate:
+                          type: string
+                          example: "20260813"
+                        start_date:
+                          type: string
+                          example: "20260813"
                         PostDate:
                           type: string
                           example: "20260813"
                         DueDate:
                           type: string
                           example: "20260813"
+                        SeriesName:
+                          type: string
+                          example: "SBY26-08"
+                        series_name:
+                          type: string
+                          example: "SBY26-08"
                         ItemCode:
                           type: string
                           example: "B26"

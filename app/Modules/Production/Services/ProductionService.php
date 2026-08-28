@@ -509,6 +509,7 @@ class ProductionService
             'status'            => $status,
             'type'              => $data['type'] ?? 'Standard',
             'series'            => is_numeric($data['series'] ?? $data['Series'] ?? null) ? (int) ($data['series'] ?? $data['Series']) : 15,
+            'series_name'       => $data['series_name'] ?? $data['SeriesName'] ?? null,
             'planned_qty'       => $plannedQty,
             'warehouse'         => $whs,
             'post_date'         => date('Y-m-d', strtotime($postDate)),
@@ -683,10 +684,16 @@ class ProductionService
                 continue;
             }
 
-            // Provide BaseEntry alias for Frontend convenience
+            // Provide BaseEntry, SeriesName, and StartDate aliases for Frontend convenience
             $docEntryVal = (string) ($item['DocEntry'] ?? $item['doc_entry'] ?? '');
             $item['BaseEntry'] = $docEntryVal;
             $item['base_entry'] = $docEntryVal;
+            $sName = (string) ($item['SeriesName'] ?? $item['series_name'] ?? '');
+            $item['SeriesName'] = $sName;
+            $item['series_name'] = $sName;
+            $startDate = $item['StartDate'] ?? $item['start_date'] ?? $item['PostDate'] ?? $item['post_date'] ?? null;
+            $item['StartDate'] = $startDate;
+            $item['start_date'] = $startDate;
 
             $normalizedItems[] = $item;
         }
@@ -731,6 +738,9 @@ class ProductionService
                     'BaseEntry'   => $docEntryVal,
                     'base_entry'  => $docEntryVal,
                     'DocNum'      => (string) ($lOrder->doc_num ?: $lOrder->prod_order_no),
+                    'Series'      => $lOrder->series ?: 15,
+                    'SeriesName'  => (string) $lOrder->series_name,
+                    'series_name' => (string) $lOrder->series_name,
                     'ItemCode'    => (string) $lOrder->item_code,
                     'ProdName'    => (string) ($lOrder->parentItem?->item_name ?? $this->resolveItemName($lOrder->item_code)),
                     'Status'      => (string) $lOrder->status,
@@ -738,6 +748,8 @@ class ProductionService
                     'PlannedQty'  => floatval($lOrder->planned_qty),
                     'CmpltQty'    => floatval($lOrder->cmplt_qty),
                     'RjctQty'     => floatval($lOrder->rjct_qty),
+                    'StartDate'   => $lOrder->start_date ? date('Y-m-d\TH:i:s', strtotime($lOrder->start_date)) : ($lOrder->post_date ? date('Y-m-d\TH:i:s', strtotime($lOrder->post_date)) : null),
+                    'start_date'  => $lOrder->start_date ? date('Y-m-d\TH:i:s', strtotime($lOrder->start_date)) : ($lOrder->post_date ? date('Y-m-d\TH:i:s', strtotime($lOrder->post_date)) : null),
                     'PostDate'    => $lOrder->post_date ? date('Y-m-d\TH:i:s', strtotime($lOrder->post_date)) : null,
                     'DueDate'     => $lOrder->due_date ? date('Y-m-d\TH:i:s', strtotime($lOrder->due_date)) : null,
                     'WhsCode'     => (string) $lOrder->warehouse,
@@ -867,19 +879,20 @@ class ProductionService
             if ($localOrder) {
                 try {
                     $localOrder->update([
-                        'status'     => $normStatus,
-                        'doc_entry'  => $header['DocEntry'] ?? $localOrder->doc_entry,
-                        'doc_num'    => $header['DocNum'] ?? $localOrder->doc_num,
-                        'sap_status' => 'SYNCED',
-                        'cmplt_qty'  => floatval($header['CmpltQty'] ?? $localOrder->cmplt_qty),
-                        'rjct_qty'   => floatval($header['RjctQty'] ?? $localOrder->rjct_qty),
+                        'status'      => $normStatus,
+                        'doc_entry'   => $header['DocEntry'] ?? $localOrder->doc_entry,
+                        'doc_num'     => $header['DocNum'] ?? $localOrder->doc_num,
+                        'series_name' => $header['SeriesName'] ?? $header['series_name'] ?? $localOrder->series_name,
+                        'sap_status'  => 'SYNCED',
+                        'cmplt_qty'   => floatval($header['CmpltQty'] ?? $localOrder->cmplt_qty),
+                        'rjct_qty'    => floatval($header['RjctQty'] ?? $localOrder->rjct_qty),
                     ]);
                 } catch (\Exception $e) {
                     // Ignore DB sync error
                 }
             }
 
-            // Normalize header ItemCode, ProdName & UOM
+            // Normalize header ItemCode, ProdName, SeriesName & UOM
             $hCode = (string) ($header['ItemCode'] ?? $header['item_code'] ?? $header['item'] ?? $localOrder?->item_code ?? '');
             $hName = (string) ($header['ProdName'] ?? $header['prod_name'] ?? $header['ItemName'] ?? $header['item_name'] ?? $localOrder?->parentItem?->item_name ?? '');
             if ((empty($hName) || $hName === $hCode) && !empty($hCode)) {
@@ -889,9 +902,15 @@ class ProductionService
             if (empty($hUom) && !empty($hCode)) {
                 $hUom = $this->resolveItemUom($hCode);
             }
+            $sName = (string) ($header['SeriesName'] ?? $header['series_name'] ?? $localOrder?->series_name ?? '');
+            $startDate = $header['StartDate'] ?? $header['start_date'] ?? $header['PostDate'] ?? $header['post_date'] ?? null;
 
             $header['ItemCode'] = $hCode;
             $header['ProdName'] = $hName;
+            $header['SeriesName'] = $sName;
+            $header['series_name'] = $sName;
+            $header['StartDate'] = $startDate;
+            $header['start_date'] = $startDate;
             $header['Uom'] = $hUom;
             $header['uom'] = $hUom;
             $header['UOM'] = $hUom;
@@ -939,6 +958,8 @@ class ProductionService
                 'DocEntry'    => (string) ($localOrder->doc_entry ?: $localOrder->id),
                 'DocNum'      => (string) ($localOrder->doc_num ?: $localOrder->prod_order_no),
                 'Series'      => $localOrder->series ?: 15,
+                'SeriesName'  => (string) $localOrder->series_name,
+                'series_name' => (string) $localOrder->series_name,
                 'ItemCode'    => $hCode,
                 'ProdName'    => $hName,
                 'Uom'         => $hUom,
@@ -951,6 +972,8 @@ class ProductionService
                 'PlannedQty'  => floatval($localOrder->planned_qty),
                 'CmpltQty'    => floatval($localOrder->cmplt_qty),
                 'RjctQty'     => floatval($localOrder->rjct_qty),
+                'StartDate'   => $localOrder->start_date ? date('Y-m-d\TH:i:s', strtotime($localOrder->start_date)) : ($localOrder->post_date ? date('Y-m-d\TH:i:s', strtotime($localOrder->post_date)) : null),
+                'start_date'  => $localOrder->start_date ? date('Y-m-d\TH:i:s', strtotime($localOrder->start_date)) : ($localOrder->post_date ? date('Y-m-d\TH:i:s', strtotime($localOrder->post_date)) : null),
                 'PostDate'    => $localOrder->post_date ? date('Y-m-d\TH:i:s', strtotime($localOrder->post_date)) : null,
                 'DueDate'     => $localOrder->due_date ? date('Y-m-d\TH:i:s', strtotime($localOrder->due_date)) : null,
                 'WhsCode'     => (string) $localOrder->warehouse,

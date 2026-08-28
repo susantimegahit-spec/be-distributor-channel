@@ -18,6 +18,7 @@ class ProductionOrder extends Model
         'doc_entry',
         'doc_num',
         'series',
+        'series_name',
         'prod_order_no',
         'status',
         'type',

@@ -476,7 +476,8 @@ class ProductionController extends Controller
         $data = [
             'doc_entry' => $request->input('doc_entry'),
             'doc_num' => $request->input('doc_num'),
-            'series' => $request->input('series'),
+            'series' => $request->input('series') ?? $request->input('Series'),
+            'series_name' => $request->input('series_name') ?? $request->input('SeriesName'),
             'prod_order_no' => $request->input('prod_order_no'),
             'status' => $request->input('status', 'PLANNED'),
             'type' => $request->input('type', 'Standard'),
@@ -597,6 +598,7 @@ class ProductionController extends Controller
             }
         }
         if (isset($input['series']) || isset($input['Series'])) $data['series'] = $input['series'] ?? $input['Series'];
+        if (isset($input['series_name']) || isset($input['SeriesName'])) $data['series_name'] = $input['series_name'] ?? $input['SeriesName'];
         if (isset($input['ocr_code2']) || isset($input['OcrCode2'])) $data['ocr_code2'] = $input['ocr_code2'] ?? $input['OcrCode2'];
         if (isset($input['ocr_code3']) || isset($input['OcrCode3'])) $data['ocr_code3'] = $input['ocr_code3'] ?? $input['OcrCode3'];
 
