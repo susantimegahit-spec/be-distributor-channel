@@ -144,28 +144,6 @@ class User extends Authenticatable
             }
         }
 
-        // Fallback to legacy single fields if organizationAssignments table is empty for this user
-        if (empty($assignments) || $assignments->isEmpty()) {
-            if (!empty($this->whs_code)) {
-                $grouped['warehouses'][] = (string) $this->whs_code;
-            }
-            if (!empty($this->ocr_code)) {
-                $grouped['branches'][] = (string) $this->ocr_code;
-            }
-            if (!empty($this->ocr_code2)) {
-                $grouped['business_units'][] = (string) $this->ocr_code2;
-            }
-            if (!empty($this->ocr_code3)) {
-                $grouped['departments'][] = (string) $this->ocr_code3;
-            }
-            if (!empty($this->expedition_code)) {
-                $grouped['expeditions'][] = (string) $this->expedition_code;
-            }
-            if (!empty($this->code_customer)) {
-                $grouped['distributors'][] = (string) $this->code_customer;
-            }
-        }
-
         return $grouped;
     }
 
