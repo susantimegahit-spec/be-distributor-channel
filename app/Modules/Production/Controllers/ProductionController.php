@@ -497,7 +497,7 @@ class ProductionController extends Controller
             'ocr_code2' => $request->input('ocr_code2'),
             'ocr_code3' => $request->input('ocr_code3'),
             'u_shift' => $request->input('u_shift'),
-            'u_unit' => $request->input('u_unit'),
+            'u_unit' => $request->input('u_unit') ?? $request->input('uom') ?? $request->input('unit') ?? $request->input('Uom') ?? $request->input('UOM'),
             'comments' => $request->input('comments'),
             'issue_for_production' => $request->input('issue_for_production'),
             'receipt_from_production' => $request->input('receipt_from_production'),
@@ -566,7 +566,7 @@ class ProductionController extends Controller
         $status = $input['status'] ?? $input['Status'] ?? null;
         $comments = $input['comments'] ?? $input['remarks'] ?? $input['Remarks'] ?? null;
         $shift = $input['u_shift'] ?? $input['shift'] ?? $input['Shift'] ?? null;
-        $unit = $input['u_unit'] ?? $input['unit'] ?? $input['Unit'] ?? null;
+        $unit = $input['u_unit'] ?? $input['unit'] ?? $input['Unit'] ?? $input['uom'] ?? $input['Uom'] ?? $input['UOM'] ?? null;
         $bomId = $input['production_bom_id'] ?? $input['bom_id'] ?? $input['Bomid'] ?? null;
 
         $data = [];

@@ -99,10 +99,34 @@ class ProductionOrderItem extends Model
 
     public function getUomAttribute(): ?string
     {
-        if ($this->type === 'Resource' || $this->type === '290') {
+        if ($this->type === 'Resource' || $this->type === '290' || $this->type === 'R') {
             return $this->resource?->unit_of_msr;
         }
-        return $this->item?->invntry_uom;
+        if (!empty($this->item?->invntry_uom)) {
+            return $this->item->invntry_uom;
+        }
+        try {
+            $prodUom = \App\Models\ProductionItem::where('item_code', $this->item_code)->value('invntry_uom');
+            if (!empty($prodUom)) {
+                return (string) $prodUom;
+            }
+        } catch (\Exception $e) {}
+
+        try {
+            $itemUom = \App\Models\Item::where('item_code', $this->item_code)->value('sal_unit_msr');
+            if (!empty($itemUom)) {
+                return (string) $itemUom;
+            }
+        } catch (\Exception $e) {}
+
+        try {
+            $bomUom = \App\Models\ProductionBomItem::where('item_code', $this->item_code)->value('uom');
+            if (!empty($bomUom)) {
+                return (string) $bomUom;
+            }
+        } catch (\Exception $e) {}
+
+        return null;
     }
 
     public function getWarehouseNameAttribute(): ?string

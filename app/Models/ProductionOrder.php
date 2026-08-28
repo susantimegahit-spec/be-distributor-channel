@@ -85,6 +85,7 @@ class ProductionOrder extends Model
 
     protected $appends = [
         'product_name',
+        'uom',
         'warehouse_name',
         'ocr_name',
         'ocr_name2',
@@ -144,6 +145,31 @@ class ProductionOrder extends Model
     public function getProductNameAttribute(): ?string
     {
         return $this->parentItem?->item_name;
+    }
+
+    public function getUomAttribute(): ?string
+    {
+        if (!empty($this->parentItem?->sal_unit_msr)) {
+            return $this->parentItem->sal_unit_msr;
+        }
+        if (!empty($this->bom?->u_unit)) {
+            return $this->bom->u_unit;
+        }
+        try {
+            $prodUom = \App\Models\ProductionItem::where('item_code', $this->item_code)->value('invntry_uom');
+            if (!empty($prodUom)) {
+                return (string) $prodUom;
+            }
+        } catch (\Exception $e) {}
+
+        try {
+            $itemUom = \App\Models\Item::where('item_code', $this->item_code)->value('sal_unit_msr');
+            if (!empty($itemUom)) {
+                return (string) $itemUom;
+            }
+        } catch (\Exception $e) {}
+
+        return null;
     }
 
     public function getWarehouseNameAttribute(): ?string

@@ -496,7 +496,10 @@ class ProductionService
         $dueDate = isset($data['due_date']) ? date('Y-m-d\TH:i:s', strtotime($data['due_date'])) : (isset($data['DueDate']) ? date('Y-m-d\TH:i:s', strtotime($data['DueDate'])) : date('Y-m-d\TH:i:s'));
         $comments = (string) ($data['comments'] ?? $data['remarks'] ?? $data['Remarks'] ?? '');
         $shift = $mapShift($data['u_shift'] ?? $data['shift'] ?? $data['Shift'] ?? '');
-        $unit = (string) ($data['u_unit'] ?? $data['unit'] ?? $data['Unit'] ?? '');
+        $unit = (string) ($data['u_unit'] ?? $data['unit'] ?? $data['Unit'] ?? $data['uom'] ?? $data['Uom'] ?? $data['UOM'] ?? '');
+        if (empty($unit) && !empty($itemCode)) {
+            $unit = $this->resolveItemUom($itemCode);
+        }
         $rawBomId = $data['production_bom_id'] ?? $data['bom_id'] ?? $data['Bomid'] ?? null;
         $bomId = is_numeric($rawBomId) && (int)$rawBomId > 0 ? (int)$rawBomId : null;
 
@@ -876,14 +879,24 @@ class ProductionService
                 }
             }
 
-            // Normalize header ItemCode & ProdName
+            // Normalize header ItemCode, ProdName & UOM
             $hCode = (string) ($header['ItemCode'] ?? $header['item_code'] ?? $header['item'] ?? $localOrder?->item_code ?? '');
             $hName = (string) ($header['ProdName'] ?? $header['prod_name'] ?? $header['ItemName'] ?? $header['item_name'] ?? $localOrder?->parentItem?->item_name ?? '');
             if ((empty($hName) || $hName === $hCode) && !empty($hCode)) {
                 $hName = $this->resolveItemName($hCode);
             }
+            $hUom = (string) ($header['Uom'] ?? $header['uom'] ?? $header['UOM'] ?? $header['SalUnitMsr'] ?? $header['sal_unit_msr'] ?? $header['UnitMsr'] ?? $localOrder?->parentItem?->sal_unit_msr ?? '');
+            if (empty($hUom) && !empty($hCode)) {
+                $hUom = $this->resolveItemUom($hCode);
+            }
+
             $header['ItemCode'] = $hCode;
             $header['ProdName'] = $hName;
+            $header['Uom'] = $hUom;
+            $header['uom'] = $hUom;
+            $header['UOM'] = $hUom;
+            $header['SalUnitMsr'] = $hUom;
+            $header['sal_unit_msr'] = $hUom;
             unset($header['item_code'], $header['item'], $header['prod_name'], $header['item_name'], $header['ItemName']);
 
             // Normalize item lines
@@ -895,8 +908,20 @@ class ProductionService
                     if ((empty($itName) || $itName === $itCode) && !empty($itCode)) {
                         $itName = $this->resolveItemName($itCode);
                     }
+                    $itUom = (string) ($it['Uom'] ?? $it['uom'] ?? $it['UOM'] ?? $it['Unit'] ?? $it['unit'] ?? $it['UnitMsr'] ?? $it['SalUnitMsr'] ?? '');
+                    if ((empty($itUom) || strtolower($itUom) === 'manual') && !empty($itCode)) {
+                        $resolvedUom = $this->resolveItemUom($itCode);
+                        if (!empty($resolvedUom)) {
+                            $itUom = $resolvedUom;
+                        }
+                    }
                     $it['ItemCode'] = $itCode;
                     $it['ItemName'] = $itName;
+                    $it['Uom'] = $itUom;
+                    $it['uom'] = $itUom;
+                    $it['UOM'] = $itUom;
+                    $it['Unit'] = $itUom;
+                    $it['unit'] = $itUom;
                     unset($it['item_code'], $it['item'], $it['item_name'], $it['prod_name'], $it['ProdName'], $it['Dscription'], $it['dscription']);
                 }
                 unset($it);
@@ -907,6 +932,7 @@ class ProductionService
         if ((empty($header) && empty($items)) && $localOrder) {
             $hCode = (string) $localOrder->item_code;
             $hName = (string) ($localOrder->parentItem?->item_name ?? $this->resolveItemName($hCode));
+            $hUom = (string) ($localOrder->parentItem?->sal_unit_msr ?? $this->resolveItemUom($hCode));
 
             $header = [
                 'id'          => $localOrder->id,
@@ -915,6 +941,11 @@ class ProductionService
                 'Series'      => $localOrder->series ?: 15,
                 'ItemCode'    => $hCode,
                 'ProdName'    => $hName,
+                'Uom'         => $hUom,
+                'uom'         => $hUom,
+                'UOM'         => $hUom,
+                'SalUnitMsr'  => $hUom,
+                'sal_unit_msr'=> $hUom,
                 'Status'      => (string) $localOrder->status,
                 'Type'        => (string) $localOrder->type,
                 'PlannedQty'  => floatval($localOrder->planned_qty),
@@ -934,12 +965,18 @@ class ProductionService
             foreach ($localOrder->details as $idx => $line) {
                 $lCode = (string) $line->item_code;
                 $lName = (string) ($line->item?->item_name ?? $this->resolveItemName($lCode));
+                $lUom = (string) ($line->item?->sal_unit_msr ?? $this->resolveItemUom($lCode));
 
                 $items[] = [
                     'LineNum'     => $line->line_num ?? $idx,
                     'ItemType'    => $line->type === 'Resource' ? 'R' : ($line->type === 'Text' ? 'T' : 'I'),
                     'ItemCode'    => $lCode,
                     'ItemName'    => $lName,
+                    'Uom'         => $lUom,
+                    'uom'         => $lUom,
+                    'UOM'         => $lUom,
+                    'Unit'        => $lUom,
+                    'unit'        => $lUom,
                     'BaseQty'     => floatval($line->base_qty),
                     'PlannedQty'  => floatval($line->planned_qty),
                     'IssuedQty'   => floatval($line->issued_qty),
@@ -2422,6 +2459,59 @@ class ProductionService
         }
 
         return (string) $itemCode;
+    }
+
+    /**
+     * Helper to resolve item unit of measure (UoM) from Master Items, Production Items, or BOMs.
+     *
+     * @param string|null $itemCode
+     * @return string
+     */
+    public function resolveItemUom(?string $itemCode): string
+    {
+        if (empty($itemCode)) {
+            return '';
+        }
+
+        try {
+            $uom = \App\Models\ProductionItem::where('item_code', $itemCode)->value('invntry_uom');
+            if (!empty($uom)) {
+                return (string) $uom;
+            }
+        } catch (\Exception $e) {
+            // ignore
+        }
+
+        try {
+            $uom = \App\Models\Item::where('item_code', $itemCode)->value('sal_unit_msr');
+            if (!empty($uom)) {
+                return (string) $uom;
+            }
+        } catch (\Exception $e) {
+            // ignore
+        }
+
+        try {
+            $uom = \App\Models\ProductionBom::where('product_code', $itemCode)
+                ->orWhere('item_code', $itemCode)
+                ->value('u_unit');
+            if (!empty($uom)) {
+                return (string) $uom;
+            }
+        } catch (\Exception $e) {
+            // ignore
+        }
+
+        try {
+            $uom = \App\Models\ProductionBomItem::where('item_code', $itemCode)->value('uom');
+            if (!empty($uom)) {
+                return (string) $uom;
+            }
+        } catch (\Exception $e) {
+            // ignore
+        }
+
+        return '';
     }
 
     /**
