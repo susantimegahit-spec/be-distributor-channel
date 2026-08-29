@@ -14,6 +14,404 @@ servers:
   - url: http://localhost:8000/api/distributor-channel
     description: Local Server
 paths:
+  /v1/master-units:
+    get:
+      summary: Daftar Master Unit
+      description: Mengambil daftar seluruh master unit (pabrik/organisasi) dengan dukungan pencarian dan pagination.
+      tags:
+        - Master Units
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kata kunci pencarian berdasarkan unit_code, unit_name, atau description.
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: integer
+            enum: [0, 1]
+          description: Filter status aktif (1) atau non-aktif (0).
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Jumlah item per halaman (jika ingin pagination).
+      responses:
+        '200':
+          description: Daftar master unit berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar master unit berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        unit_code:
+                          type: string
+                          example: "UNIT1"
+                        unit_name:
+                          type: string
+                          example: "Unit Produksi Garam 1"
+                        description:
+                          type: string
+                          example: "Pabrik garam unit 1 Manyar Gresik"
+                        status:
+                          type: integer
+                          example: 1
+                        warehouses_count:
+                          type: integer
+                          example: 3
+                        created_at:
+                          type: string
+                          format: date-time
+                        updated_at:
+                          type: string
+                          format: date-time
+    post:
+      summary: Buat Master Unit Baru
+      description: Menambahkan master unit baru ke dalam sistem.
+      tags:
+        - Master Units
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - unit_code
+                - unit_name
+              properties:
+                unit_code:
+                  type: string
+                  maxLength: 50
+                  example: "UNIT1"
+                unit_name:
+                  type: string
+                  maxLength: 255
+                  example: "Unit Produksi Garam 1"
+                description:
+                  type: string
+                  example: "Pabrik garam unit 1 Manyar Gresik"
+                status:
+                  type: integer
+                  enum: [0, 1]
+                  default: 1
+                  example: 1
+      responses:
+        '201':
+          description: Master unit berhasil dibuat.
+        '422':
+          description: Validasi gagal (misal kode unit duplikat).
+
+  /v1/master-units/{id}:
+    get:
+      summary: Detail Master Unit
+      description: Mengambil informasi detail master unit beserta daftar warehouse yang terhubung.
+      tags:
+        - Master Units
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID Master Unit.
+      responses:
+        '200':
+          description: Detail master unit berhasil diambil.
+        '404':
+          description: Master unit tidak ditemukan.
+    put:
+      summary: Update Master Unit
+      description: Memperbarui data master unit.
+      tags:
+        - Master Units
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID Master Unit.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                unit_code:
+                  type: string
+                  maxLength: 50
+                  example: "UNIT1"
+                unit_name:
+                  type: string
+                  maxLength: 255
+                  example: "Unit Produksi Garam 1 - Revisi"
+                description:
+                  type: string
+                  example: "Updated description"
+                status:
+                  type: integer
+                  enum: [0, 1]
+                  example: 1
+      responses:
+        '200':
+          description: Master unit berhasil diperbarui.
+        '404':
+          description: Master unit tidak ditemukan.
+    delete:
+      summary: Hapus Master Unit
+      description: Menghapus data master unit dari sistem.
+      tags:
+        - Master Units
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID Master Unit.
+      responses:
+        '200':
+          description: Master unit berhasil dihapus.
+        '404':
+          description: Master unit tidak ditemukan.
+
+  /v1/warehouses:
+    get:
+      summary: Daftar Master Gudang (Warehouse)
+      description: Mengambil daftar master warehouse lengkap dengan data relasi master unit yang terhubung.
+      tags:
+        - Master Warehouses
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Pencarian berdasarkan whs_code atau whs_name.
+        - name: master_unit_id
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter gudang berdasarkan ID master unit tertentu.
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: integer
+            enum: [0, 1]
+          description: Filter status aktif (1) atau non-aktif (0).
+      responses:
+        '200':
+          description: Daftar master gudang berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar master gudang berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        whs_code:
+                          type: string
+                          example: "WHS-PRD-01"
+                        whs_name:
+                          type: string
+                          example: "Gudang Produksi Manyar"
+                        master_unit_id:
+                          type: integer
+                          nullable: true
+                          example: 1
+                        status:
+                          type: integer
+                          example: 1
+                        unit:
+                          type: object
+                          nullable: true
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            unit_code:
+                              type: string
+                              example: "UNIT1"
+                            unit_name:
+                              type: string
+                              example: "Unit Produksi Garam 1"
+    post:
+      summary: Tambah Master Gudang Manual
+      description: Menambahkan master gudang secara manual beserta penentuan unitnya.
+      tags:
+        - Master Warehouses
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - whs_code
+                - whs_name
+              properties:
+                whs_code:
+                  type: string
+                  maxLength: 50
+                  example: "WHS-NEW-01"
+                whs_name:
+                  type: string
+                  maxLength: 255
+                  example: "Gudang Tambahan Baru"
+                master_unit_id:
+                  type: integer
+                  nullable: true
+                  example: 1
+                status:
+                  type: integer
+                  enum: [0, 1]
+                  default: 1
+                  example: 1
+      responses:
+        '201':
+          description: Data master gudang berhasil ditambahkan.
+
+  /v1/warehouses/{id}:
+    get:
+      summary: Detail Master Gudang
+      description: Mengambil data detail master gudang beserta objek unit yang terhubung.
+      tags:
+        - Master Warehouses
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID Master Warehouse.
+      responses:
+        '200':
+          description: Detail master gudang berhasil diambil.
+        '404':
+          description: Data gudang tidak ditemukan.
+    put:
+      summary: Edit / Assign Unit Master Gudang
+      description: Memperbarui data master gudang termasuk menghubungkan atau mengganti master_unit_id.
+      tags:
+        - Master Warehouses
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID Master Warehouse.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                whs_code:
+                  type: string
+                  example: "WHS-PRD-01"
+                whs_name:
+                  type: string
+                  example: "Gudang Produksi Manyar Unit 1"
+                master_unit_id:
+                  type: integer
+                  nullable: true
+                  example: 1
+                  description: ID dari master unit yang dipilih di form master warehouse.
+                status:
+                  type: integer
+                  enum: [0, 1]
+                  example: 1
+      responses:
+        '200':
+          description: Data master gudang berhasil diperbarui.
+        '404':
+          description: Data gudang tidak ditemukan.
+    delete:
+      summary: Hapus Master Gudang
+      description: Menghapus data master gudang.
+      tags:
+        - Master Warehouses
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID Master Warehouse.
+      responses:
+        '200':
+          description: Data master gudang berhasil dihapus.
+        '404':
+          description: Data gudang tidak ditemukan.
+
+  /v1/warehouses/sync:
+    post:
+      summary: Sinkronisasi Master Gudang Dari SAP
+      description: Mengambil dan menyinkronkan seluruh daftar gudang dari SAP B1. Relasi master_unit_id yang sudah di-assign sebelumnya akan tetap dipertahankan.
+      tags:
+        - Master Warehouses
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Data master gudang berhasil disinkronisasi dari SAP.
+
   /v1/sales-orders/sync-from-sap:
     post:
       summary: Sync Sales Orders & Discounts From SAP B1

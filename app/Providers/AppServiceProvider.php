@@ -126,6 +126,10 @@ class AppServiceProvider extends ServiceProvider
             \App\Modules\PurchasingRequest\Repositories\DocumentTypeRepositoryInterface::class,
             \App\Modules\PurchasingRequest\Repositories\DocumentTypeRepository::class
         );
+        $this->app->bind(
+            \App\Modules\MasterUnit\Repositories\MasterUnitRepositoryInterface::class,
+            \App\Modules\MasterUnit\Repositories\MasterUnitRepository::class
+        );
     }
 
     /**
