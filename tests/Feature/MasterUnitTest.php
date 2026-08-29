@@ -30,14 +30,14 @@ class MasterUnitTest extends TestCase
             'unit_code' => 'UNIT1',
             'unit_name' => 'Unit Pabrik 1',
             'description' => 'Pabrik Garam Unit 1',
-            'status' => 1,
+            'status' => 'ACTIVE',
         ]);
 
         MasterUnit::create([
             'unit_code' => 'UNIT2',
             'unit_name' => 'Unit Pabrik 2',
             'description' => 'Pabrik Garam Unit 2',
-            'status' => 1,
+            'status' => 'ACTIVE',
         ]);
 
         $response = $this->getJson('/api/distributor-channel/v1/master-units');
@@ -57,13 +57,13 @@ class MasterUnitTest extends TestCase
         MasterUnit::create([
             'unit_code' => 'HO',
             'unit_name' => 'Head Office Surabaya',
-            'status' => 1,
+            'status' => 'ACTIVE',
         ]);
 
         MasterUnit::create([
             'unit_code' => 'PABRIK_GRS',
             'unit_name' => 'Pabrik Manyar Gresik',
-            'status' => 1,
+            'status' => 'ACTIVE',
         ]);
 
         $response = $this->getJson('/api/distributor-channel/v1/master-units?search=Office');
@@ -81,7 +81,7 @@ class MasterUnitTest extends TestCase
             'unit_code' => 'UNIT3',
             'unit_name' => 'Unit Produksi 3',
             'description' => 'Gudang & Produksi Unit 3',
-            'status' => 1,
+            'status' => 'ACTIVE',
         ];
 
         $response = $this->postJson('/api/distributor-channel/v1/master-units', $payload);
@@ -92,11 +92,13 @@ class MasterUnitTest extends TestCase
                 'message' => 'Master unit berhasil dibuat.',
             ])
             ->assertJsonPath('data.unit_code', 'UNIT3')
-            ->assertJsonPath('data.unit_name', 'Unit Produksi 3');
+            ->assertJsonPath('data.unit_name', 'Unit Produksi 3')
+            ->assertJsonPath('data.status', 'ACTIVE');
 
         $this->assertDatabaseHas('master_units', [
             'unit_code' => 'UNIT3',
             'unit_name' => 'Unit Produksi 3',
+            'status' => 'ACTIVE',
         ]);
     }
 
@@ -107,13 +109,13 @@ class MasterUnitTest extends TestCase
         MasterUnit::create([
             'unit_code' => 'UNIT1',
             'unit_name' => 'Unit 1 Exists',
-            'status' => 1,
+            'status' => 'ACTIVE',
         ]);
 
         $payload = [
             'unit_code' => 'UNIT1',
             'unit_name' => 'Unit 1 Duplicate',
-            'status' => 1,
+            'status' => 'ACTIVE',
         ];
 
         $response = $this->postJson('/api/distributor-channel/v1/master-units', $payload);
@@ -129,14 +131,14 @@ class MasterUnitTest extends TestCase
         $unit = MasterUnit::create([
             'unit_code' => 'UNIT1',
             'unit_name' => 'Unit Produksi 1',
-            'status' => 1,
+            'status' => 'ACTIVE',
         ]);
 
         Warehouse::create([
             'whs_code' => 'WHS-P1',
             'whs_name' => 'Gudang Pabrik 1',
-            'master_unit_id' => $unit->id,
-            'status' => 1,
+            'master_unit_id' => 'UNIT1',
+            'status' => 'ACTIVE',
         ]);
 
         $response = $this->getJson("/api/distributor-channel/v1/master-units/{$unit->id}");
@@ -158,12 +160,13 @@ class MasterUnitTest extends TestCase
         $unit = MasterUnit::create([
             'unit_code' => 'UNIT1',
             'unit_name' => 'Unit Produksi 1',
-            'status' => 1,
+            'status' => 'ACTIVE',
         ]);
 
         $payload = [
             'unit_name' => 'Unit Produksi 1 - Revised',
             'description' => 'Updated description',
+            'status' => 'ACTIVE',
         ];
 
         $response = $this->putJson("/api/distributor-channel/v1/master-units/{$unit->id}", $payload);
@@ -188,7 +191,7 @@ class MasterUnitTest extends TestCase
         $unit = MasterUnit::create([
             'unit_code' => 'UNIT_DEL',
             'unit_name' => 'Unit Will Delete',
-            'status' => 1,
+            'status' => 'ACTIVE',
         ]);
 
         $response = $this->deleteJson("/api/distributor-channel/v1/master-units/{$unit->id}");

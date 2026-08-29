@@ -28,7 +28,10 @@ class MasterUnitRepository implements MasterUnitRepositoryInterface
         }
 
         if (isset($filters['status']) && $filters['status'] !== '') {
-            $query->where('status', (int) $filters['status']);
+            $status = strtoupper((string) $filters['status']);
+            if ($status === '1') $status = 'ACTIVE';
+            if ($status === '0') $status = 'INACTIVE';
+            $query->where('status', $status);
         }
 
         $sortBy = $filters['sort_by'] ?? 'id';

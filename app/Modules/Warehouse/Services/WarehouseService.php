@@ -151,7 +151,7 @@ class WarehouseService
             $synced[] = $this->warehouseRepository->upsertByCode([
                 'whs_code' => $item['WhsCode'],
                 'whs_name' => $item['WhsName'],
-                'status' => 1,
+                'status' => 'ACTIVE',
             ]);
         }
 

@@ -14,11 +14,7 @@ return new class extends Migration
         if (Schema::hasTable('warehouses')) {
             Schema::table('warehouses', function (Blueprint $table) {
                 if (!Schema::hasColumn('warehouses', 'master_unit_id')) {
-                    $table->foreignId('master_unit_id')
-                        ->nullable()
-                        ->after('whs_name')
-                        ->constrained('master_units')
-                        ->nullOnDelete();
+                    $table->string('master_unit_id', 50)->nullable()->after('whs_name')->index()->comment('References master_units unit_code or id (varchar)');
                 }
             });
         }
@@ -32,7 +28,6 @@ return new class extends Migration
         if (Schema::hasTable('warehouses')) {
             Schema::table('warehouses', function (Blueprint $table) {
                 if (Schema::hasColumn('warehouses', 'master_unit_id')) {
-                    $table->dropForeign(['master_unit_id']);
                     $table->dropColumn('master_unit_id');
                 }
             });

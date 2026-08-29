@@ -30,18 +30,30 @@ class WarehouseRepository implements WarehouseRepositoryInterface
         }
 
         if (!empty($filters['master_unit_id'])) {
-            $query->where('master_unit_id', (int) $filters['master_unit_id']);
+            $unitId = (string) $filters['master_unit_id'];
+            $query->where(function ($q) use ($unitId) {
+                $q->where('master_unit_id', $unitId)
+                  ->orWhereHas('unit', function ($uq) use ($unitId) {
+                      $uq->where('unit_code', $unitId);
+                  });
+            });
         }
 
         if (!empty($filters['unit_code'])) {
-            $unitCode = $filters['unit_code'];
-            $query->whereHas('unit', function ($uq) use ($unitCode) {
-                $uq->where('unit_code', $unitCode);
+            $unitCode = (string) $filters['unit_code'];
+            $query->where(function ($q) use ($unitCode) {
+                $q->where('master_unit_id', $unitCode)
+                  ->orWhereHas('unit', function ($uq) use ($unitCode) {
+                      $uq->where('unit_code', $unitCode);
+                  });
             });
         }
 
         if (isset($filters['status']) && $filters['status'] !== '') {
-            $query->where('status', (int) $filters['status']);
+            $status = strtoupper((string) $filters['status']);
+            if ($status === '1') $status = 'ACTIVE';
+            if ($status === '0') $status = 'INACTIVE';
+            $query->where('status', $status);
         }
 
         $sortBy = $filters['sort_by'] ?? 'whs_code';
@@ -70,6 +82,13 @@ class WarehouseRepository implements WarehouseRepositoryInterface
      */
     public function create(array $data): Warehouse
     {
+        if (!empty($data['master_unit_id']) && is_numeric($data['master_unit_id'])) {
+            $unit = \App\Models\MasterUnit::find($data['master_unit_id']);
+            if ($unit) {
+                $data['master_unit_id'] = $unit->unit_code;
+            }
+        }
+
         $warehouse = Warehouse::create($data);
         return $warehouse->load('unit');
     }
@@ -83,6 +102,13 @@ class WarehouseRepository implements WarehouseRepositoryInterface
      */
     public function update(int $id, array $data): Warehouse
     {
+        if (isset($data['master_unit_id']) && is_numeric($data['master_unit_id'])) {
+            $unit = \App\Models\MasterUnit::find($data['master_unit_id']);
+            if ($unit) {
+                $data['master_unit_id'] = $unit->unit_code;
+            }
+        }
+
         $warehouse = Warehouse::findOrFail($id);
         $warehouse->update($data);
         return $warehouse->fresh(['unit']);

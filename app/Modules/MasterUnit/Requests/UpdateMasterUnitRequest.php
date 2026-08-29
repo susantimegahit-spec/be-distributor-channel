@@ -16,6 +16,23 @@ class UpdateMasterUnitRequest extends FormRequest
     }
 
     /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('status')) {
+            $status = $this->input('status');
+            if ($status === 1 || $status === '1' || strtolower((string) $status) === 'active') {
+                $this->merge(['status' => 'ACTIVE']);
+            } elseif ($status === 0 || $status === '0' || strtolower((string) $status) === 'inactive') {
+                $this->merge(['status' => 'INACTIVE']);
+            } elseif (is_string($status)) {
+                $this->merge(['status' => strtoupper($status)]);
+            }
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
@@ -34,7 +51,7 @@ class UpdateMasterUnitRequest extends FormRequest
             ],
             'unit_name' => ['sometimes', 'required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'status' => ['nullable', 'integer', 'in:0,1'],
+            'status' => ['nullable', 'string', 'max:20', 'in:ACTIVE,INACTIVE'],
         ];
     }
 
@@ -49,7 +66,7 @@ class UpdateMasterUnitRequest extends FormRequest
             'unit_code.required' => 'Kode unit wajib diisi.',
             'unit_code.unique' => 'Kode unit sudah terdaftar.',
             'unit_name.required' => 'Nama unit wajib diisi.',
-            'status.in' => 'Status harus berupa 1 (Aktif) atau 0 (Tidak Aktif).',
+            'status.in' => 'Status harus berupa ACTIVE atau INACTIVE.',
         ];
     }
 }

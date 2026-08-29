@@ -33,9 +33,9 @@ paths:
           in: query
           required: false
           schema:
-            type: integer
-            enum: [0, 1]
-          description: Filter status aktif (1) atau non-aktif (0).
+            type: string
+            enum: [ACTIVE, INACTIVE]
+          description: Filter status aktif (ACTIVE) atau non-aktif (INACTIVE).
         - name: per_page
           in: query
           required: false
@@ -74,8 +74,8 @@ paths:
                           type: string
                           example: "Pabrik garam unit 1 Manyar Gresik"
                         status:
-                          type: integer
-                          example: 1
+                          type: string
+                          example: "ACTIVE"
                         warehouses_count:
                           type: integer
                           example: 3
@@ -114,10 +114,10 @@ paths:
                   type: string
                   example: "Pabrik garam unit 1 Manyar Gresik"
                 status:
-                  type: integer
-                  enum: [0, 1]
-                  default: 1
-                  example: 1
+                  type: string
+                  enum: [ACTIVE, INACTIVE]
+                  default: "ACTIVE"
+                  example: "ACTIVE"
       responses:
         '201':
           description: Master unit berhasil dibuat.
@@ -177,9 +177,9 @@ paths:
                   type: string
                   example: "Updated description"
                 status:
-                  type: integer
-                  enum: [0, 1]
-                  example: 1
+                  type: string
+                  enum: [ACTIVE, INACTIVE]
+                  example: "ACTIVE"
       responses:
         '200':
           description: Master unit berhasil diperbarui.
@@ -219,20 +219,26 @@ paths:
           required: false
           schema:
             type: string
-          description: Pencarian berdasarkan whs_code atau whs_name.
+          description: Pencarian berdasarkan whs_code, whs_name, unit_code, atau unit_name.
         - name: master_unit_id
           in: query
           required: false
           schema:
-            type: integer
-          description: Filter gudang berdasarkan ID master unit tertentu.
+            type: string
+          description: Filter gudang berdasarkan Unit Code / Unit ID tertentu.
+        - name: unit_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter gudang berdasarkan unit_code tertentu.
         - name: status
           in: query
           required: false
           schema:
-            type: integer
-            enum: [0, 1]
-          description: Filter status aktif (1) atau non-aktif (0).
+            type: string
+            enum: [ACTIVE, INACTIVE]
+          description: Filter status aktif (ACTIVE) atau non-aktif (INACTIVE).
       responses:
         '200':
           description: Daftar master gudang berhasil diambil.
@@ -262,12 +268,20 @@ paths:
                           type: string
                           example: "Gudang Produksi Manyar"
                         master_unit_id:
-                          type: integer
+                          type: string
                           nullable: true
-                          example: 1
+                          example: "UNIT1"
+                        unit_code:
+                          type: string
+                          nullable: true
+                          example: "UNIT1"
+                        unit_name:
+                          type: string
+                          nullable: true
+                          example: "Unit Produksi Garam 1"
                         status:
-                          type: integer
-                          example: 1
+                          type: string
+                          example: "ACTIVE"
                         unit:
                           type: object
                           nullable: true
@@ -307,14 +321,14 @@ paths:
                   maxLength: 255
                   example: "Gudang Tambahan Baru"
                 master_unit_id:
-                  type: integer
+                  type: string
                   nullable: true
-                  example: 1
+                  example: "UNIT1"
                 status:
-                  type: integer
-                  enum: [0, 1]
-                  default: 1
-                  example: 1
+                  type: string
+                  enum: [ACTIVE, INACTIVE]
+                  default: "ACTIVE"
+                  example: "ACTIVE"
       responses:
         '201':
           description: Data master gudang berhasil ditambahkan.
@@ -367,14 +381,14 @@ paths:
                   type: string
                   example: "Gudang Produksi Manyar Unit 1"
                 master_unit_id:
-                  type: integer
+                  type: string
                   nullable: true
-                  example: 1
-                  description: ID dari master unit yang dipilih di form master warehouse.
+                  example: "UNIT1"
+                  description: Unit Code (atau ID) dari master unit yang dipilih di form master warehouse.
                 status:
-                  type: integer
-                  enum: [0, 1]
-                  example: 1
+                  type: string
+                  enum: [ACTIVE, INACTIVE]
+                  example: "ACTIVE"
       responses:
         '200':
           description: Data master gudang berhasil diperbarui.

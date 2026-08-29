@@ -20,7 +20,7 @@ class MasterUnit extends Model
     ];
 
     protected $casts = [
-        'status' => 'integer',
+        'status' => 'string',
     ];
 
     /**
@@ -28,6 +28,6 @@ class MasterUnit extends Model
      */
     public function warehouses(): HasMany
     {
-        return $this->hasMany(Warehouse::class, 'master_unit_id');
+        return $this->hasMany(Warehouse::class, 'master_unit_id', 'unit_code');
     }
 }

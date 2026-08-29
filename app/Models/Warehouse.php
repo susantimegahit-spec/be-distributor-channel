@@ -18,8 +18,8 @@ class Warehouse extends Model
     ];
 
     protected $casts = [
-        'master_unit_id' => 'integer',
-        'status' => 'integer',
+        'master_unit_id' => 'string',
+        'status' => 'string',
     ];
 
     protected $appends = [
@@ -32,7 +32,7 @@ class Warehouse extends Model
      */
     public function unit(): BelongsTo
     {
-        return $this->belongsTo(MasterUnit::class, 'master_unit_id');
+        return $this->belongsTo(MasterUnit::class, 'master_unit_id', 'unit_code');
     }
 
     /**
@@ -40,7 +40,7 @@ class Warehouse extends Model
      */
     public function masterUnit(): BelongsTo
     {
-        return $this->belongsTo(MasterUnit::class, 'master_unit_id');
+        return $this->belongsTo(MasterUnit::class, 'master_unit_id', 'unit_code');
     }
 
     /**

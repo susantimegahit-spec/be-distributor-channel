@@ -27,13 +27,13 @@ class WarehouseManagementTest extends TestCase
         $this->unit1 = MasterUnit::create([
             'unit_code' => 'UNIT1',
             'unit_name' => 'Unit Produksi 1',
-            'status' => 1,
+            'status' => 'ACTIVE',
         ]);
 
         $this->unit2 = MasterUnit::create([
             'unit_code' => 'UNIT2',
             'unit_name' => 'Unit Produksi 2',
-            'status' => 1,
+            'status' => 'ACTIVE',
         ]);
     }
 
@@ -44,15 +44,15 @@ class WarehouseManagementTest extends TestCase
         Warehouse::create([
             'whs_code' => 'WHS01',
             'whs_name' => 'Gudang Utama 1',
-            'master_unit_id' => $this->unit1->id,
-            'status' => 1,
+            'master_unit_id' => 'UNIT1',
+            'status' => 'ACTIVE',
         ]);
 
         Warehouse::create([
             'whs_code' => 'WHS02',
             'whs_name' => 'Gudang Utama 2',
-            'master_unit_id' => $this->unit2->id,
-            'status' => 1,
+            'master_unit_id' => 'UNIT2',
+            'status' => 'ACTIVE',
         ]);
 
         $response = $this->getJson('/api/distributor-channel/v1/warehouses');
@@ -65,6 +65,8 @@ class WarehouseManagementTest extends TestCase
             ->assertJsonCount(2, 'data')
             ->assertJsonPath('data.0.whs_code', 'WHS01')
             ->assertJsonPath('data.0.unit.unit_code', 'UNIT1')
+            ->assertJsonPath('data.0.unit_code', 'UNIT1')
+            ->assertJsonPath('data.0.unit_name', 'Unit Produksi 1')
             ->assertJsonPath('data.1.whs_code', 'WHS02')
             ->assertJsonPath('data.1.unit.unit_code', 'UNIT2');
     }
@@ -76,23 +78,23 @@ class WarehouseManagementTest extends TestCase
         Warehouse::create([
             'whs_code' => 'WHS01',
             'whs_name' => 'Gudang Unit 1',
-            'master_unit_id' => $this->unit1->id,
-            'status' => 1,
+            'master_unit_id' => 'UNIT1',
+            'status' => 'ACTIVE',
         ]);
 
         Warehouse::create([
             'whs_code' => 'WHS02',
             'whs_name' => 'Gudang Unit 2',
-            'master_unit_id' => $this->unit2->id,
-            'status' => 1,
+            'master_unit_id' => 'UNIT2',
+            'status' => 'ACTIVE',
         ]);
 
-        $response = $this->getJson("/api/distributor-channel/v1/warehouses?master_unit_id={$this->unit1->id}");
+        $response = $this->getJson('/api/distributor-channel/v1/warehouses?master_unit_id=UNIT1');
 
         $response->assertStatus(200)
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.whs_code', 'WHS01')
-            ->assertJsonPath('data.0.master_unit_id', $this->unit1->id);
+            ->assertJsonPath('data.0.master_unit_id', 'UNIT1');
     }
 
     public function test_can_create_warehouse_with_master_unit(): void
@@ -102,8 +104,8 @@ class WarehouseManagementTest extends TestCase
         $payload = [
             'whs_code' => 'WHS03',
             'whs_name' => 'Gudang Baru Unit 1',
-            'master_unit_id' => $this->unit1->id,
-            'status' => 1,
+            'master_unit_id' => 'UNIT1',
+            'status' => 'ACTIVE',
         ];
 
         $response = $this->postJson('/api/distributor-channel/v1/warehouses', $payload);
@@ -114,12 +116,14 @@ class WarehouseManagementTest extends TestCase
                 'message' => 'Data master gudang berhasil ditambahkan.',
             ])
             ->assertJsonPath('data.whs_code', 'WHS03')
-            ->assertJsonPath('data.master_unit_id', $this->unit1->id)
-            ->assertJsonPath('data.unit.unit_code', 'UNIT1');
+            ->assertJsonPath('data.master_unit_id', 'UNIT1')
+            ->assertJsonPath('data.unit.unit_code', 'UNIT1')
+            ->assertJsonPath('data.unit_name', 'Unit Produksi 1');
 
         $this->assertDatabaseHas('warehouses', [
             'whs_code' => 'WHS03',
-            'master_unit_id' => $this->unit1->id,
+            'master_unit_id' => 'UNIT1',
+            'status' => 'ACTIVE',
         ]);
     }
 
@@ -130,8 +134,8 @@ class WarehouseManagementTest extends TestCase
         $whs = Warehouse::create([
             'whs_code' => 'WHS01',
             'whs_name' => 'Gudang Surabaya',
-            'master_unit_id' => $this->unit1->id,
-            'status' => 1,
+            'master_unit_id' => 'UNIT1',
+            'status' => 'ACTIVE',
         ]);
 
         $response = $this->getJson("/api/distributor-channel/v1/warehouses/{$whs->id}");
@@ -153,13 +157,14 @@ class WarehouseManagementTest extends TestCase
             'whs_code' => 'WHS01',
             'whs_name' => 'Gudang Awal Tanpa Unit',
             'master_unit_id' => null,
-            'status' => 1,
+            'status' => 'ACTIVE',
         ]);
 
         // User edits warehouse and assigns Unit 2
         $payload = [
             'whs_name' => 'Gudang Assigned Unit 2',
-            'master_unit_id' => $this->unit2->id,
+            'master_unit_id' => 'UNIT2',
+            'status' => 'ACTIVE',
         ];
 
         $response = $this->putJson("/api/distributor-channel/v1/warehouses/{$whs->id}", $payload);
@@ -169,12 +174,12 @@ class WarehouseManagementTest extends TestCase
                 'success' => true,
                 'message' => 'Data master gudang berhasil diperbarui.',
             ])
-            ->assertJsonPath('data.master_unit_id', $this->unit2->id)
+            ->assertJsonPath('data.master_unit_id', 'UNIT2')
             ->assertJsonPath('data.unit.unit_code', 'UNIT2');
 
         $this->assertDatabaseHas('warehouses', [
             'id' => $whs->id,
-            'master_unit_id' => $this->unit2->id,
+            'master_unit_id' => 'UNIT2',
         ]);
     }
 
@@ -185,7 +190,7 @@ class WarehouseManagementTest extends TestCase
         $whs = Warehouse::create([
             'whs_code' => 'WHS_DEL',
             'whs_name' => 'Gudang Hapus',
-            'status' => 1,
+            'status' => 'ACTIVE',
         ]);
 
         $response = $this->deleteJson("/api/distributor-channel/v1/warehouses/{$whs->id}");
@@ -209,8 +214,8 @@ class WarehouseManagementTest extends TestCase
         $whs = Warehouse::create([
             'whs_code' => 'WHS_SAP_01',
             'whs_name' => 'Old Name from SAP',
-            'master_unit_id' => $this->unit1->id,
-            'status' => 1,
+            'master_unit_id' => 'UNIT1',
+            'status' => 'ACTIVE',
         ]);
 
         Http::fake([
@@ -238,11 +243,11 @@ class WarehouseManagementTest extends TestCase
                 'message' => 'Data master gudang berhasil disinkronisasi dari SAP.',
             ]);
 
-        // Verify that WHS_SAP_01 name was updated from SAP, but master_unit_id is STILL $this->unit1->id
+        // Verify that WHS_SAP_01 name was updated from SAP, but master_unit_id is STILL UNIT1
         $this->assertDatabaseHas('warehouses', [
             'whs_code' => 'WHS_SAP_01',
             'whs_name' => 'Updated Name from SAP',
-            'master_unit_id' => $this->unit1->id,
+            'master_unit_id' => 'UNIT1',
         ]);
 
         // Verify new warehouse was inserted
