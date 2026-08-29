@@ -20,7 +20,7 @@ class MasterUnit extends Model
     ];
 
     protected $casts = [
-        'status' => 'string',
+        'status' => 'integer',
     ];
 
     /**

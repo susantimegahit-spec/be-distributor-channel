@@ -17,7 +17,7 @@ return new class extends Migration
                 $table->string('unit_code', 50)->unique()->index();
                 $table->string('unit_name', 255);
                 $table->text('description')->nullable();
-                $table->string('status', 20)->default('ACTIVE')->comment('Status: ACTIVE, INACTIVE');
+                $table->unsignedSmallInteger('status')->default(1)->comment('1: Active, 0: Inactive');
                 $table->timestamps();
             });
         }

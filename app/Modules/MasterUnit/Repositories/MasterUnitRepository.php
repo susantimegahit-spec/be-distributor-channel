@@ -28,10 +28,12 @@ class MasterUnitRepository implements MasterUnitRepositoryInterface
         }
 
         if (isset($filters['status']) && $filters['status'] !== '') {
-            $status = strtoupper((string) $filters['status']);
-            if ($status === '1') $status = 'ACTIVE';
-            if ($status === '0') $status = 'INACTIVE';
-            $query->where('status', $status);
+            $status = $filters['status'];
+            if (is_string($status)) {
+                if (strtolower($status) === 'active') $status = 1;
+                elseif (strtolower($status) === 'inactive') $status = 0;
+            }
+            $query->where('status', (int) $status);
         }
 
         $sortBy = $filters['sort_by'] ?? 'id';

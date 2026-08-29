@@ -19,7 +19,7 @@ class Warehouse extends Model
 
     protected $casts = [
         'master_unit_id' => 'string',
-        'status' => 'string',
+        'status' => 'integer',
     ];
 
     protected $appends = [

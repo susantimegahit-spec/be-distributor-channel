@@ -30,14 +30,14 @@ class MasterUnitTest extends TestCase
             'unit_code' => 'UNIT1',
             'unit_name' => 'Unit Pabrik 1',
             'description' => 'Pabrik Garam Unit 1',
-            'status' => 'ACTIVE',
+            'status' => 1,
         ]);
 
         MasterUnit::create([
             'unit_code' => 'UNIT2',
             'unit_name' => 'Unit Pabrik 2',
             'description' => 'Pabrik Garam Unit 2',
-            'status' => 'ACTIVE',
+            'status' => 1,
         ]);
 
         $response = $this->getJson('/api/distributor-channel/v1/master-units');
@@ -57,13 +57,13 @@ class MasterUnitTest extends TestCase
         MasterUnit::create([
             'unit_code' => 'HO',
             'unit_name' => 'Head Office Surabaya',
-            'status' => 'ACTIVE',
+            'status' => 1,
         ]);
 
         MasterUnit::create([
             'unit_code' => 'PABRIK_GRS',
             'unit_name' => 'Pabrik Manyar Gresik',
-            'status' => 'ACTIVE',
+            'status' => 1,
         ]);
 
         $response = $this->getJson('/api/distributor-channel/v1/master-units?search=Office');
@@ -73,15 +73,16 @@ class MasterUnitTest extends TestCase
             ->assertJsonPath('data.0.unit_code', 'HO');
     }
 
-    public function test_can_create_master_unit(): void
+    public function test_can_create_master_unit_with_string_status(): void
     {
         Sanctum::actingAs($this->user);
 
+        // Sending string "1" as status in request
         $payload = [
             'unit_code' => 'UNIT3',
             'unit_name' => 'Unit Produksi 3',
             'description' => 'Gudang & Produksi Unit 3',
-            'status' => 'ACTIVE',
+            'status' => '1',
         ];
 
         $response = $this->postJson('/api/distributor-channel/v1/master-units', $payload);
@@ -93,12 +94,12 @@ class MasterUnitTest extends TestCase
             ])
             ->assertJsonPath('data.unit_code', 'UNIT3')
             ->assertJsonPath('data.unit_name', 'Unit Produksi 3')
-            ->assertJsonPath('data.status', 'ACTIVE');
+            ->assertJsonPath('data.status', 1);
 
         $this->assertDatabaseHas('master_units', [
             'unit_code' => 'UNIT3',
             'unit_name' => 'Unit Produksi 3',
-            'status' => 'ACTIVE',
+            'status' => 1,
         ]);
     }
 
@@ -109,13 +110,13 @@ class MasterUnitTest extends TestCase
         MasterUnit::create([
             'unit_code' => 'UNIT1',
             'unit_name' => 'Unit 1 Exists',
-            'status' => 'ACTIVE',
+            'status' => 1,
         ]);
 
         $payload = [
             'unit_code' => 'UNIT1',
             'unit_name' => 'Unit 1 Duplicate',
-            'status' => 'ACTIVE',
+            'status' => 1,
         ];
 
         $response = $this->postJson('/api/distributor-channel/v1/master-units', $payload);
@@ -131,14 +132,14 @@ class MasterUnitTest extends TestCase
         $unit = MasterUnit::create([
             'unit_code' => 'UNIT1',
             'unit_name' => 'Unit Produksi 1',
-            'status' => 'ACTIVE',
+            'status' => 1,
         ]);
 
         Warehouse::create([
             'whs_code' => 'WHS-P1',
             'whs_name' => 'Gudang Pabrik 1',
             'master_unit_id' => 'UNIT1',
-            'status' => 'ACTIVE',
+            'status' => 1,
         ]);
 
         $response = $this->getJson("/api/distributor-channel/v1/master-units/{$unit->id}");
@@ -160,13 +161,13 @@ class MasterUnitTest extends TestCase
         $unit = MasterUnit::create([
             'unit_code' => 'UNIT1',
             'unit_name' => 'Unit Produksi 1',
-            'status' => 'ACTIVE',
+            'status' => 1,
         ]);
 
         $payload = [
             'unit_name' => 'Unit Produksi 1 - Revised',
             'description' => 'Updated description',
-            'status' => 'ACTIVE',
+            'status' => '1',
         ];
 
         $response = $this->putJson("/api/distributor-channel/v1/master-units/{$unit->id}", $payload);
@@ -176,11 +177,13 @@ class MasterUnitTest extends TestCase
                 'success' => true,
                 'message' => 'Master unit berhasil diperbarui.',
             ])
-            ->assertJsonPath('data.unit_name', 'Unit Produksi 1 - Revised');
+            ->assertJsonPath('data.unit_name', 'Unit Produksi 1 - Revised')
+            ->assertJsonPath('data.status', 1);
 
         $this->assertDatabaseHas('master_units', [
             'id' => $unit->id,
             'unit_name' => 'Unit Produksi 1 - Revised',
+            'status' => 1,
         ]);
     }
 
@@ -191,7 +194,7 @@ class MasterUnitTest extends TestCase
         $unit = MasterUnit::create([
             'unit_code' => 'UNIT_DEL',
             'unit_name' => 'Unit Will Delete',
-            'status' => 'ACTIVE',
+            'status' => 1,
         ]);
 
         $response = $this->deleteJson("/api/distributor-channel/v1/master-units/{$unit->id}");

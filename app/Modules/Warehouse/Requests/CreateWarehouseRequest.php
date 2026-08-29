@@ -21,12 +21,10 @@ class CreateWarehouseRequest extends FormRequest
     {
         if ($this->has('status')) {
             $status = $this->input('status');
-            if ($status === 1 || $status === '1' || strtolower((string) $status) === 'active') {
-                $this->merge(['status' => 'ACTIVE']);
-            } elseif ($status === 0 || $status === '0' || strtolower((string) $status) === 'inactive') {
-                $this->merge(['status' => 'INACTIVE']);
-            } elseif (is_string($status)) {
-                $this->merge(['status' => strtoupper($status)]);
+            if ($status === 1 || $status === '1' || (is_string($status) && strtolower($status) === 'active')) {
+                $this->merge(['status' => 1]);
+            } elseif ($status === 0 || $status === '0' || (is_string($status) && strtolower($status) === 'inactive')) {
+                $this->merge(['status' => 0]);
             }
         }
 
@@ -52,7 +50,7 @@ class CreateWarehouseRequest extends FormRequest
             'whs_code' => ['required', 'string', 'max:50', 'unique:warehouses,whs_code'],
             'whs_name' => ['required', 'string', 'max:255'],
             'master_unit_id' => ['nullable', 'string', 'max:50'],
-            'status' => ['nullable', 'string', 'max:20', 'in:ACTIVE,INACTIVE'],
+            'status' => ['nullable', 'integer', 'in:0,1'],
         ];
     }
 
@@ -67,7 +65,7 @@ class CreateWarehouseRequest extends FormRequest
             'whs_code.required' => 'Kode gudang wajib diisi.',
             'whs_code.unique' => 'Kode gudang sudah terdaftar.',
             'whs_name.required' => 'Nama gudang wajib diisi.',
-            'status.in' => 'Status harus berupa ACTIVE atau INACTIVE.',
+            'status.in' => 'Status harus berupa 1 (Aktif) atau 0 (Tidak Aktif).',
         ];
     }
 }
