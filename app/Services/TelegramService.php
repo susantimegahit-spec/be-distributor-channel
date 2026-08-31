@@ -2,9 +2,13 @@
 
 namespace App\Services;
 
+use App\Models\User;
+use App\Models\UserTelegramRecipient;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Throwable;
 
 class TelegramService
@@ -559,14 +563,147 @@ class TelegramService
     }
 
     /**
-     * Truncate string to max length safely.
+     * Get Bot Username (with cache to avoid repeating API calls).
      */
-    public function truncateText(string $text, int $max = 4000): string
+    public function getBotUsername(): ?string
     {
-        if (mb_strlen($text) <= $max) {
-            return $text;
+        return Cache::remember('telegram_bot_username', 86400, function () {
+            $me = $this->getMe();
+            return $me['result']['username'] ?? null;
+        });
+    }
+
+    /**
+     * Generate 1-Click Telegram Deep Link for automatic account connection.
+     *
+     * @param User $user
+     * @param string|null $recipientLabel
+     * @param int $expiryMinutes
+     * @return array
+     */
+    public function generateConnectLink(User $user, ?string $recipientLabel = null, int $expiryMinutes = 30): array
+    {
+        $botUsername = $this->getBotUsername();
+        if (empty($botUsername)) {
+            return [
+                'success' => false,
+                'error' => 'Bot username could not be retrieved from Telegram API. Check TELEGRAM_BOT_TOKEN.',
+            ];
         }
 
-        return mb_substr($text, 0, $max - 15) . "\n...[truncated]";
+        $token = 'conn_' . Str::random(24);
+
+        Cache::put("telegram_auth_{$token}", [
+            'user_id' => $user->id,
+            'label'   => $recipientLabel ?: $user->name,
+        ], now()->addMinutes($expiryMinutes));
+
+        $url = "https://t.me/{$botUsername}?start={$token}";
+
+        return [
+            'success'      => true,
+            'bot_username' => $botUsername,
+            'token'        => $token,
+            'connect_url'  => $url,
+            'expires_in_minutes' => $expiryMinutes,
+        ];
+    }
+
+    /**
+     * Handle incoming webhook updates from Telegram (including /start <token>).
+     */
+    public function handleWebhookUpdate(array $update): array
+    {
+        $message = $update['message'] ?? $update['edited_message'] ?? null;
+        if (!$message) {
+            return ['status' => 'ignored', 'reason' => 'No message payload'];
+        }
+
+        $chat = $message['chat'] ?? [];
+        $from = $message['from'] ?? [];
+        $chatId = (string) ($chat['id'] ?? '');
+        $chatType = $chat['type'] ?? 'private';
+        $senderName = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')) ?: 'Pengguna';
+        $text = trim((string) ($message['text'] ?? ''));
+
+        if (empty($chatId)) {
+            return ['status' => 'ignored', 'reason' => 'Missing chat ID'];
+        }
+
+        // Check if message is a /start with connection token
+        if (str_starts_with($text, '/start conn_')) {
+            $token = trim(str_replace('/start', '', $text));
+            $cacheKey = "telegram_auth_{$token}";
+            $authData = Cache::get($cacheKey);
+
+            if (!$authData || empty($authData['user_id'])) {
+                $this->sendMessage(
+                    "⚠️ <b>Link Kedaluwarsa</b>\n\nLink tautan Telegram ini sudah kedaluwarsa atau tidak valid.\nSilakan klik tombol <b>Hubungkan Telegram</b> kembali di sistem web SMESTA.",
+                    $chatId,
+                    'HTML'
+                );
+                return ['status' => 'expired_or_invalid_token'];
+            }
+
+            $user = User::find($authData['user_id']);
+            if (!$user) {
+                return ['status' => 'user_not_found'];
+            }
+
+            $label = $authData['label'] ?? $senderName;
+
+            // Automatically insert / update recipient into database
+            $recipient = UserTelegramRecipient::updateOrCreate(
+                [
+                    'user_id'          => $user->id,
+                    'telegram_chat_id' => $chatId,
+                ],
+                [
+                    'recipient_name' => $label,
+                    'chat_type'      => $chatType,
+                    'is_active'      => true,
+                ]
+            );
+
+            // Invalidate single-use token
+            Cache::forget($cacheKey);
+
+            $appName = config('app.name', 'SMESTA');
+            $welcomeText = "🎉 <b>AKUN TELEGRAM BERHASIL TERHUBUNG!</b>\n";
+            $welcomeText .= "━━━━━━━━━━━━━━━━━━━━\n";
+            $welcomeText .= "Halo <b>" . $this->escapeHtml($senderName) . "</b>,\n\n";
+            $welcomeText .= "Akun Telegram Anda telah resmi terhubung dengan akun <b>" . $this->escapeHtml($user->name) . "</b> pada sistem <b>{$appName}</b>.\n\n";
+            $welcomeText .= "📋 <b>Detail Registrasi:</b>\n";
+            $welcomeText .= "• <b>Nama Penerima:</b> " . $this->escapeHtml($recipient->recipient_name) . "\n";
+            $welcomeText .= "• <b>Chat ID:</b> <code>{$chatId}</code>\n";
+            $welcomeText .= "• <b>Tipe Chat:</b> " . ucfirst($chatType) . "\n\n";
+            $welcomeText .= "🚀 <i>Seluruh notifikasi approval dan update status penting akan otomatis dikirim ke chat ini.</i>";
+
+            $this->sendMessage($welcomeText, $chatId, 'HTML', [
+                'inline_keyboard' => [
+                    [['text' => '🌐 Buka Web Dashboard', 'url' => config('app.url', 'https://smesta-dev.susantimegah.com')]]
+                ]
+            ]);
+
+            return [
+                'status'     => 'connected',
+                'user_id'    => $user->id,
+                'chat_id'    => $chatId,
+                'recipient'  => $recipient,
+            ];
+        }
+
+        // Generic /start message without token
+        if ($text === '/start') {
+            $welcome = "👋 <b>Halo " . $this->escapeHtml($senderName) . "!</b>\n\n";
+            $welcome .= "Ini adalah <b>Bot Notifikasi Resmi SMESTA Distributor Channel</b>.\n\n";
+            $welcome .= "🔑 <b>Chat ID Anda:</b> <code>{$chatId}</code>\n\n";
+            $welcome .= "👉 Untuk menghubungkan akun ini secara otomatis dengan akun web SMESTA Anda, silakan buka menu <b>Pengaturan / Profil</b> di web dan klik tombol <b>Hubungkan Telegram</b>.";
+
+            $this->sendMessage($welcome, $chatId, 'HTML');
+            return ['status' => 'started_generic', 'chat_id' => $chatId];
+        }
+
+        return ['status' => 'unhandled_command', 'text' => $text];
     }
 }

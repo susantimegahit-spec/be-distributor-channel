@@ -262,4 +262,43 @@ class NotificationController extends Controller
 
         return $this->successResponse(['deleted' => true], 'Penerima Telegram berhasil dihapus.');
     }
+
+    /**
+     * Generate 1-Click Telegram Deep Link for the authenticated user.
+     */
+    public function getConnectLink(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'label' => 'nullable|string|max:255',
+        ]);
+
+        $telegramService = app(\App\Services\TelegramService::class);
+        $result = $telegramService->generateConnectLink($request->user(), $validated['label'] ?? null);
+
+        if (empty($result['success'])) {
+            return $this->errorResponse($result['error'] ?? 'Gagal membuat link koneksi Telegram.', 400);
+        }
+
+        return $this->successResponse($result, 'Link koneksi Telegram berhasil dibuat.');
+    }
+
+    /**
+     * Receive and process Webhook updates from Telegram Bot API.
+     */
+    public function handleWebhook(Request $request): JsonResponse
+    {
+        $secret = config('telegram.webhook.secret_token');
+        if (!empty($secret)) {
+            $headerSecret = $request->header('X-Telegram-Bot-Api-Secret-Token');
+            if ($headerSecret !== $secret) {
+                return response()->json(['ok' => false, 'error' => 'Unauthorized webhook token'], 403);
+            }
+        }
+
+        $update = $request->all();
+        $telegramService = app(\App\Services\TelegramService::class);
+        $result = $telegramService->handleWebhookUpdate($update);
+
+        return response()->json(['ok' => true, 'result' => $result]);
+    }
 }

@@ -13,6 +13,7 @@ Route::prefix('v1/notifications')->middleware('auth:sanctum')->group(function ()
     Route::post('/', [NotificationController::class, 'send']);
     Route::post('/test', [NotificationController::class, 'sendTest']);
     Route::post('/telegram/test', [NotificationController::class, 'sendTelegramTest']);
+    Route::get('/telegram/connect-link', [NotificationController::class, 'getConnectLink']);
     Route::get('/telegram/recipients', [NotificationController::class, 'listTelegramRecipients']);
     Route::post('/telegram/recipients', [NotificationController::class, 'addTelegramRecipient']);
     Route::delete('/telegram/recipients/{id}', [NotificationController::class, 'deleteTelegramRecipient'])->whereNumber('id');
@@ -23,3 +24,6 @@ Route::prefix('v1/notifications')->middleware('auth:sanctum')->group(function ()
     Route::get('/{id}', [NotificationController::class, 'show'])->whereNumber('id');
     Route::delete('/{id}', [NotificationController::class, 'destroy'])->whereNumber('id');
 });
+
+// Public Telegram Webhook Endpoint
+Route::post('v1/telegram/webhook', [NotificationController::class, 'handleWebhook']);

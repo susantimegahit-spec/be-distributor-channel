@@ -81,6 +81,53 @@ paths:
                   message:
                     type: string
                     example: TELEGRAM_BOT_TOKEN belum dikonfigurasi di .env
+  /v1/notifications/telegram/connect-link:
+    get:
+      summary: Buat Link 1-Klik Hubungkan Telegram
+      description: Menghasilkan link deep-linking unik (t.me/bot?start=...) yang ketika dibuka dan ditekan Start oleh pengguna di Telegram, akan otomatis mendaftarkan Chat ID pengguna ke database.
+      tags:
+        - Notifications
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: label
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Label nama penerima (misal "HP Budi (Teknisi 1)" atau "Grup").
+      responses:
+        '200':
+          description: Link koneksi berhasil dibuat.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Link koneksi Telegram berhasil dibuat.
+                  data:
+                    type: object
+                    properties:
+                      bot_username:
+                        type: string
+                        example: smesta_notif_bot
+                      token:
+                        type: string
+                        example: conn_aBcDeFg123456
+                      connect_url:
+                        type: string
+                        example: https://t.me/smesta_notif_bot?start=conn_aBcDeFg123456
+                      expires_in_minutes:
+                        type: integer
+                        example: 30
   /v1/notifications/telegram/recipients:
     get:
       summary: Daftar Penerima Telegram Akun Saya
@@ -181,6 +228,22 @@ paths:
       responses:
         '200':
           description: Penerima Telegram berhasil dihapus.
+  /v1/telegram/webhook:
+    post:
+      summary: Webhook Receiver Telegram Bot API
+      description: Endpoint publik yang dipanggil langsung oleh Telegram Bot API saat ada interaksi pengguna (misal klik Start via Link Koneksi).
+      tags:
+        - Notifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Payload update dari Telegram Bot API
+      responses:
+        '200':
+          description: Update berhasil diproses.
   /v1/master-units:
     get:
       summary: Daftar Master Unit
