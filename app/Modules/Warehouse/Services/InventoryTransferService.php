@@ -16,15 +16,33 @@ class InventoryTransferService
     {
         $sapUrl = config('services.sap.url');
         $response = Http::timeout(30)->post("{$sapUrl}/api/searchQtyBin", [
-            'CustomQuery' => $payload['CustomQuery'] ?? '',
-            'WhsCode' => $payload['WhsCode'] ?? '',
+            'CustomQuery' => $payload['CustomQuery'] ?? $payload['custom_query'] ?? '',
+            'WhsCode' => $payload['WhsCode'] ?? $payload['whs_code'] ?? '',
         ]);
 
         if (!$response->successful()) {
             throw new \Exception('Gagal menghubungi API SAP untuk mencari data Bin.');
         }
 
-        return $response->json();
+        $data = $response->json();
+        $rawItems = $data['Result'] ?? $data['result'] ?? [];
+
+        // Filter out dummy empty 0 rows returned by SAP when data is not found
+        $filteredItems = array_values(array_filter((array)$rawItems, function ($row) {
+            if (!is_array($row)) return false;
+            $itemCode = trim((string)($row['ItemCode'] ?? $row['item_code'] ?? ''));
+            $absEntry = trim((string)($row['AbsEntry'] ?? $row['abs_entry'] ?? ''));
+            $whsCode  = trim((string)($row['WhsCode'] ?? $row['whs_code'] ?? ''));
+            $sisaQty  = floatval($row['SisaQty'] ?? $row['sisa_qty'] ?? 0);
+
+            return (!empty($itemCode) && $itemCode !== '0') ||
+                   (!empty($absEntry) && $absEntry !== '0') ||
+                   (!empty($whsCode)) ||
+                   $sisaQty > 0;
+        }));
+
+        $data['Result'] = $filteredItems;
+        return $data;
     }
 
     /**
@@ -37,14 +55,30 @@ class InventoryTransferService
     {
         $sapUrl = config('services.sap.url');
         $response = Http::timeout(30)->post("{$sapUrl}/api/searchBin", [
-            'CustomQuery' => $payload['CustomQuery'] ?? '',
+            'CustomQuery' => $payload['CustomQuery'] ?? $payload['custom_query'] ?? '',
         ]);
 
         if (!$response->successful()) {
             throw new \Exception('Gagal menghubungi API SAP untuk mencari data Master Bin.');
         }
 
-        return $response->json();
+        $data = $response->json();
+        $rawItems = $data['Result'] ?? $data['result'] ?? [];
+
+        // Filter out dummy empty rows returned by SAP when data is not found
+        $filteredItems = array_values(array_filter((array)$rawItems, function ($row) {
+            if (!is_array($row)) return false;
+            $binCode  = trim((string)($row['BinCode'] ?? $row['bin_code'] ?? ''));
+            $absEntry = trim((string)($row['AbsEntry'] ?? $row['abs_entry'] ?? ''));
+            $whsCode  = trim((string)($row['WhsCode'] ?? $row['whs_code'] ?? ''));
+
+            return (!empty($binCode) && $binCode !== '0') ||
+                   (!empty($absEntry) && $absEntry !== '0') ||
+                   (!empty($whsCode));
+        }));
+
+        $data['Result'] = $filteredItems;
+        return $data;
     }
 
     /**

@@ -12584,6 +12584,87 @@ paths:
                         items:
                           type: object
 
+  /v1/warehouses/search-qty-bin:
+    post:
+      summary: Search Qty Bin Location dari SAP
+      description: Mencari kuantiti sisa pada bin location gudang SAP (/api/searchQtyBin). Jika kosong, mengembalikan respon Data not found.
+      tags:
+        - Master Warehouse
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - WhsCode
+              properties:
+                CustomQuery:
+                  type: string
+                  example: "BIN-01"
+                WhsCode:
+                  type: string
+                  example: "WHS01"
+      responses:
+        '200':
+          description: Berhasil mencari data bin qty atau Data not found jika kosong.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data not found.
+                  data:
+                    type: array
+                    items:
+                      type: object
+
+  /v1/warehouses/search-bin:
+    post:
+      summary: Search Master Bin Location dari SAP
+      description: Mencari master bin location SAP (/api/searchBin). Jika kosong, mengembalikan respon Data not found.
+      tags:
+        - Master Warehouse
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - CustomQuery
+              properties:
+                CustomQuery:
+                  type: string
+                  example: "BIN-01"
+      responses:
+        '200':
+          description: Berhasil mencari data master bin atau Data not found jika kosong.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data not found.
+                  data:
+                    type: array
+                    items:
+                      type: object
+
   /v1/production/add-receipt-prod-sap:
     post:
       summary: Add Receipt for Production on SAP

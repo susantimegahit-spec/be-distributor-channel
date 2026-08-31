@@ -35,11 +35,16 @@ class InventoryTransferController extends Controller
         try {
             $result = $this->inventoryTransferService->searchQtyBin($request->all());
             
-            if (isset($result['ErrorCode']) && $result['ErrorCode'] !== 0) {
+            if (isset($result['ErrorCode']) && (int)$result['ErrorCode'] !== 0) {
                 return $this->errorResponse($result['Message'] ?? 'Gagal mencari data bin qty', $result, 400);
             }
 
-            return $this->successResponse($result['Result'] ?? [], $result['Message'] ?? 'Pencarian data bin qty berhasil.');
+            $items = $result['Result'] ?? [];
+            if (empty($items)) {
+                return $this->successResponse([], 'Data not found.');
+            }
+
+            return $this->successResponse($items, !empty($result['Message']) ? $result['Message'] : 'Pencarian data bin qty berhasil.');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), null, 500);
         }
@@ -60,11 +65,16 @@ class InventoryTransferController extends Controller
         try {
             $result = $this->inventoryTransferService->searchBin($request->all());
             
-            if (isset($result['ErrorCode']) && $result['ErrorCode'] !== 0) {
+            if (isset($result['ErrorCode']) && (int)$result['ErrorCode'] !== 0) {
                 return $this->errorResponse($result['Message'] ?? 'Gagal mencari data master bin', $result, 400);
             }
 
-            return $this->successResponse($result['Result'] ?? [], $result['Message'] ?? 'Pencarian data master bin berhasil.');
+            $items = $result['Result'] ?? [];
+            if (empty($items)) {
+                return $this->successResponse([], 'Data not found.');
+            }
+
+            return $this->successResponse($items, !empty($result['Message']) ? $result['Message'] : 'Pencarian data master bin berhasil.');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), null, 500);
         }
