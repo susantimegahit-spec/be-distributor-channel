@@ -61,6 +61,8 @@ class AuthController extends Controller
                 'name_expedition' => $user->expedition?->expedition_name,
                 'production_code' => $user->production_code,
                 'whs_code' => $user->whs_code,
+                'units' => $user->units,
+                'unit' => $user->units,
                 'ocr_code' => $user->ocr_code,
                 'ocr_code2' => $user->ocr_code2,
                 'ocr_code3' => $user->ocr_code3,

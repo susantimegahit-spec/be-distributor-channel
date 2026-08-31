@@ -222,7 +222,13 @@ class UserCrudService
             $data['distributors']
         );
 
+        if (isset($data['unit']) && !isset($data['units'])) {
+            $data['units'] = $data['unit'];
+        }
+        unset($data['unit']);
+
         $isProductionUser = !empty($data['whs_code']) || 
+                            !empty($data['units']) ||
                             !empty($data['ocr_code']) || 
                             !empty($data['ocr_code2']) || 
                             !empty($data['ocr_code3']);
@@ -298,7 +304,13 @@ class UserCrudService
             $data['distributors']
         );
 
+        if (isset($data['unit']) && !isset($data['units'])) {
+            $data['units'] = $data['unit'];
+        }
+        unset($data['unit']);
+
         $isProductionUser = !empty($data['whs_code']) || 
+                            !empty($data['units']) ||
                             !empty($data['ocr_code']) || 
                             !empty($data['ocr_code2']) || 
                             !empty($data['ocr_code3']);

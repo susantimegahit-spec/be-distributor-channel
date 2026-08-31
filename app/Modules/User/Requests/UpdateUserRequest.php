@@ -19,7 +19,7 @@ class UpdateUserRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        $fields = ['production_code', 'whs_code', 'ocr_code', 'ocr_code2', 'ocr_code3'];
+        $fields = ['production_code', 'whs_code', 'units', 'unit', 'ocr_code', 'ocr_code2', 'ocr_code3'];
         
         $updates = [];
         foreach ($fields as $field) {
@@ -35,6 +35,10 @@ class UpdateUserRequest extends FormRequest
                     $updates[$field] = null;
                 }
             }
+        }
+        
+        if (isset($updates['unit']) && !isset($updates['units'])) {
+            $updates['units'] = $updates['unit'];
         }
         
         $stringFields = ['code_customer', 'id_distributor', 'expedition_code', 'originator', 'stage'];
@@ -116,6 +120,8 @@ class UpdateUserRequest extends FormRequest
             ],
             'production_code' => 'sometimes|nullable|string|max:100',
             'whs_code' => 'sometimes|nullable|string|max:100',
+            'units' => 'sometimes|nullable|string|max:255',
+            'unit' => 'sometimes|nullable|string|max:255',
             'ocr_code' => 'sometimes|nullable|string|max:100',
             'ocr_code2' => 'sometimes|nullable|string|max:100',
             'ocr_code3' => 'sometimes|nullable|string|max:100',
