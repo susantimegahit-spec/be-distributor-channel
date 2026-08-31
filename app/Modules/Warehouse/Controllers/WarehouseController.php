@@ -134,4 +134,23 @@ class WarehouseController extends Controller
             return $this->errorResponse($e->getMessage(), null, 500);
         }
     }
+
+    /**
+     * Get stock by items in a warehouse from SAP API (/api/getstokbyitem).
+     *
+     * @param  Request  $request
+     * @return JsonResponse
+     */
+    public function getStockByItem(Request $request): JsonResponse
+    {
+        $userId = $request->user()?->id;
+        $params = $request->all();
+
+        try {
+            $result = $this->warehouseService->getStockByItem($params, $userId);
+            return $this->successResponse($result, 'Data stok item di gudang berhasil diambil dari SAP.');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), null, 400);
+        }
+    }
 }

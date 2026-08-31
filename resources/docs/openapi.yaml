@@ -12415,7 +12415,7 @@ paths:
   /v1/production/add-issue-prod-sap:
     post:
       summary: Add Goods Issue for Production on SAP
-      description: Melakukan Issue Material/Component ke Production Order pada SAP Business One (/api/addissueprod).
+      description: Melakukan Issue Material/Component ke Production Order pada SAP Business One (/api/AddIssueForProduction).
       tags:
         - Production Module
       security:
@@ -12506,7 +12506,7 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: "Success - Issue for Production. DocNum: 40512"
+                    example: "Success - [AddIssueForProduction]. DocNum: 40512"
                   data:
                     type: object
                     properties:
@@ -12515,11 +12515,74 @@ paths:
                         example: 0
                       Message:
                         type: string
-                        example: "Success - Issue for Production. DocNum: 40512"
+                        example: "Success - [AddIssueForProduction]. DocNum: 40512"
         '422':
           description: Validasi request gagal.
         '500':
           description: Gagal memproses Goods Issue ke SAP.
+
+  /v1/warehouses/stock-by-item:
+    post:
+      summary: Get Stok Item di Gudang dari SAP
+      description: Mengambil data stok item pada gudang tertentu langsung dari SAP Business One API (/api/getstokbyitem).
+      tags:
+        - Master Warehouse
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - WhsCode
+              properties:
+                CustomQuery:
+                  type: string
+                  example: "'B12.B','B26'"
+                  description: String query kode item dengan kutip tunggal (contoh "'B12.B','B26'") atau array item_codes
+                item_codes:
+                  type: array
+                  items:
+                    type: string
+                  example: ["B12.B", "B26"]
+                  description: Alternatif input berupa array kode item (backend otomatis memformat ke CustomQuery)
+                WhsCode:
+                  type: string
+                  example: "FG01"
+                  description: Kode gudang SAP
+      responses:
+        '200':
+          description: Data stok item di gudang berhasil diambil dari SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data stok item di gudang berhasil diambil dari SAP.
+                  data:
+                    type: object
+                    properties:
+                      whs_code:
+                        type: string
+                        example: FG01
+                      custom_query:
+                        type: string
+                        example: "'B12.B','B26'"
+                      total_items:
+                        type: integer
+                        example: 2
+                      items:
+                        type: array
+                        items:
+                          type: object
 
   /v1/production/add-receipt-prod-sap:
     post:

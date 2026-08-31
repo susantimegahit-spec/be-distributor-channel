@@ -166,4 +166,104 @@ class WarehouseService
 
         return $synced;
     }
+
+    /**
+     * Get stock of items in a warehouse from SAP API (/api/getstokbyitem).
+     *
+     * @param  array  $params
+     * @param  int|null  $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function getStockByItem(array $params, ?int $userId = null): array
+    {
+        $sapUrl = config('services.sap.url');
+        $whsCode = (string) ($params['WhsCode'] ?? $params['whs_code'] ?? $params['warehouse'] ?? '');
+        $rawQuery = $params['CustomQuery'] ?? $params['custom_query'] ?? $params['item_codes'] ?? $params['item_code'] ?? $params['items'] ?? '';
+
+        if (empty($whsCode)) {
+            throw new \Exception("Parameter 'WhsCode' (kode gudang) wajib diisi.");
+        }
+
+        // Format CustomQuery to SQL IN list format with single quotes: e.g. "'B12.B','B26'"
+        $formattedQuery = $this->formatCustomQuery($rawQuery);
+        if (empty($formattedQuery)) {
+            throw new \Exception("Parameter 'CustomQuery' atau 'item_codes' wajib diisi.");
+        }
+
+        $sapPayload = [
+            'CustomQuery' => $formattedQuery,
+            'WhsCode'     => $whsCode,
+        ];
+
+        $response = Http::timeout(30)->post("{$sapUrl}/api/getstokbyitem", $sapPayload);
+
+        if (!$response->successful()) {
+            throw new \Exception("Gagal menghubungi API SAP getstokbyitem (HTTP {$response->status()}).");
+        }
+
+        $body = $response->json();
+
+        if (isset($body['ErrorCode']) && (int)$body['ErrorCode'] !== 0) {
+            throw new \Exception('API SAP mengembalikan error: ' . ($body['Message'] ?? 'Unknown error'));
+        }
+
+        $items = $body['Result'] ?? $body['data'] ?? $body['Items'] ?? (is_array($body) && array_is_list($body) ? $body : []);
+
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'GET_STOCK_BY_ITEM_SAP',
+                "Checked stock in SAP for Warehouse [{$whsCode}] with query: {$formattedQuery}"
+            );
+        }
+
+        return [
+            'whs_code'     => $whsCode,
+            'custom_query' => $formattedQuery,
+            'total_items'  => count($items),
+            'items'        => $items,
+            'raw'          => $body,
+        ];
+    }
+
+    /**
+     * Format raw input item codes into SAP CustomQuery format: "'ITEM1','ITEM2'".
+     */
+    protected function formatCustomQuery(mixed $raw): string
+    {
+        if (is_array($raw)) {
+            $cleaned = array_filter(array_map(function ($item) {
+                if (is_array($item)) {
+                    $val = $item['ItemCode'] ?? $item['item_code'] ?? $item['code'] ?? $item['value'] ?? '';
+                    return trim((string)$val, " '\"");
+                }
+                return trim((string)$item, " '\"");
+            }, $raw));
+
+            if (empty($cleaned)) {
+                return '';
+            }
+
+            return "'" . implode("','", array_unique($cleaned)) . "'";
+        }
+
+        $str = trim((string) $raw);
+        if (empty($str)) {
+            return '';
+        }
+
+        // If string already contains properly formatted single quotes e.g. "'B12.B','B26'"
+        if (str_contains($str, "'")) {
+            return $str;
+        }
+
+        // If comma-separated or space-separated plain string e.g. "B12.B, B26"
+        $parts = array_filter(array_map(fn($p) => trim($p, " '\""), explode(',', $str)));
+        if (empty($parts)) {
+            return '';
+        }
+
+        return "'" . implode("','", array_unique($parts)) . "'";
+    }
 }

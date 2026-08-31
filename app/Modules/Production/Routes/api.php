@@ -66,4 +66,9 @@ Route::prefix('v1/production')->middleware('auth:sanctum')->group(function () {
 
     // Master Units from SAP
     Route::get('/get-unit', [ProductionController::class, 'getUnitsSap']);
+
+    // Warehouse Stock by Item from SAP
+    Route::match(['get', 'post'], '/stock-by-item', [ProductionController::class, 'getStockByItem']);
+    Route::post('/get-stok-by-item', [ProductionController::class, 'getStockByItem']);
+    Route::post('/get-stock-by-item', [ProductionController::class, 'getStockByItem']);
 });

@@ -834,7 +834,7 @@ class ProductionController extends Controller
     }
 
     /**
-     * Add Goods Issue for Production on SAP (/api/addissueprod).
+     * Add Goods Issue for Production on SAP (/api/AddIssueForProduction).
      */
     public function addIssueProdSap(Request $request): JsonResponse
     {
@@ -941,6 +941,22 @@ class ProductionController extends Controller
             return $this->successResponse($units, $message);
         } catch (\Exception $e) {
             return $this->errorResponse('Gagal mengambil data Master Unit dari SAP: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
+     * Get stock by items in warehouse from SAP API (/api/getstokbyitem).
+     */
+    public function getStockByItem(Request $request): JsonResponse
+    {
+        $userId = $request->user()?->id;
+        $params = $request->all();
+
+        try {
+            $result = $this->productionService->getStockByItem($params, $userId);
+            return $this->successResponse($result, 'Data stok item di gudang berhasil diambil dari SAP.');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), null, 400);
         }
     }
 }
