@@ -719,6 +719,12 @@ class ProductionService
             $item['U_Unit'] = $unitVal;
             $item['u_unit'] = $unitVal;
 
+            $shiftVal = $this->formatShiftLabel($item['U_Shift'] ?? $item['Shift'] ?? $item['u_shift'] ?? $item['shift'] ?? '');
+            $item['Shift'] = $shiftVal;
+            $item['U_Shift'] = $shiftVal;
+            $item['shift'] = $shiftVal;
+            $item['u_shift'] = $shiftVal;
+
             $normalizedItems[] = $item;
         }
         $items = $normalizedItems;
@@ -787,9 +793,10 @@ class ProductionService
                     'Unit'        => (string) ($lOrder->u_unit ?? ''),
                     'U_Unit'      => (string) ($lOrder->u_unit ?? ''),
                     'u_unit'      => (string) ($lOrder->u_unit ?? ''),
-                    'Shift'       => (string) ($lOrder->u_shift ?? ''),
-                    'U_Shift'     => (string) ($lOrder->u_shift ?? ''),
-                    'u_shift'     => (string) ($lOrder->u_shift ?? ''),
+                    'Shift'       => $this->formatShiftLabel((string) ($lOrder->u_shift ?? '')),
+                    'U_Shift'     => $this->formatShiftLabel((string) ($lOrder->u_shift ?? '')),
+                    'shift'       => $this->formatShiftLabel((string) ($lOrder->u_shift ?? '')),
+                    'u_shift'     => $this->formatShiftLabel((string) ($lOrder->u_shift ?? '')),
                     'Remarks'     => (string) $lOrder->comments,
                     'is_local'    => true,
                 ];
@@ -953,6 +960,15 @@ class ProductionService
             $header['UOM'] = $hUom;
             $header['SalUnitMsr'] = $hUom;
             $header['sal_unit_msr'] = $hUom;
+
+            // Format Shift field (e.g. 'X' -> 'All', '1' -> 'Shift 1', '2' -> 'Shift 2', '3' -> 'Shift 3')
+            $rawShift = (string) ($header['Shift'] ?? $header['U_Shift'] ?? $header['shift'] ?? $header['u_shift'] ?? $localOrder?->u_shift ?? '');
+            $formattedShift = $this->formatShiftLabel($rawShift);
+            $header['Shift'] = $formattedShift;
+            $header['shift'] = $formattedShift;
+            $header['U_Shift'] = $formattedShift;
+            $header['u_shift'] = $formattedShift;
+
             unset($header['item_code'], $header['item'], $header['prod_name'], $header['item_name'], $header['ItemName']);
 
             // Normalize item lines
@@ -990,6 +1006,8 @@ class ProductionService
             $hName = (string) ($localOrder->parentItem?->item_name ?? $this->resolveItemName($hCode));
             $hUom = (string) ($localOrder->parentItem?->sal_unit_msr ?? $this->resolveItemUom($hCode));
 
+            $formattedLocalShift = $this->formatShiftLabel((string) ($localOrder->u_shift ?? ''));
+
             $header = [
                 'id'          => $localOrder->id,
                 'DocEntry'    => (string) ($localOrder->doc_entry ?: $localOrder->id),
@@ -1015,8 +1033,13 @@ class ProductionService
                 'DueDate'     => $localOrder->due_date ? date('Y-m-d\TH:i:s', strtotime($localOrder->due_date)) : null,
                 'WhsCode'     => (string) $localOrder->warehouse,
                 'Remarks'     => (string) $localOrder->comments,
-                'Shift'       => (string) $localOrder->u_shift,
+                'Shift'       => $formattedLocalShift,
+                'shift'       => $formattedLocalShift,
+                'U_Shift'     => $formattedLocalShift,
+                'u_shift'     => $formattedLocalShift,
                 'Unit'        => (string) $localOrder->u_unit,
+                'U_Unit'      => (string) $localOrder->u_unit,
+                'u_unit'      => (string) $localOrder->u_unit,
                 'Bomid'       => (string) $localOrder->production_bom_id,
                 'is_local'    => true,
             ];
@@ -3028,5 +3051,40 @@ class ProductionService
         }
 
         return "'" . implode("','", array_unique($parts)) . "'";
+    }
+
+    /**
+     * Format shift code/value into human-readable label:
+     * - 'X' / 'x' / 'ALL' / 'All' -> 'All'
+     * - '1' / 'Shift 1' -> 'Shift 1'
+     * - '2' / 'Shift 2' -> 'Shift 2'
+     * - '3' / 'Shift 3' -> 'Shift 3'
+     *
+     * @param mixed $rawShift
+     * @return string
+     */
+    public function formatShiftLabel(mixed $rawShift): string
+    {
+        $shift = trim((string) $rawShift);
+        if ($shift === '') {
+            return '';
+        }
+
+        $upper = strtoupper($shift);
+
+        if ($upper === 'X' || $upper === 'ALL') {
+            return 'All';
+        }
+        if ($shift === '1' || $upper === 'SHIFT 1' || $upper === 'SHIFT1' || $upper === 'SHIFT-1') {
+            return 'Shift 1';
+        }
+        if ($shift === '2' || $upper === 'SHIFT 2' || $upper === 'SHIFT2' || $upper === 'SHIFT-2') {
+            return 'Shift 2';
+        }
+        if ($shift === '3' || $upper === 'SHIFT 3' || $upper === 'SHIFT3' || $upper === 'SHIFT-3') {
+            return 'Shift 3';
+        }
+
+        return $shift;
     }
 }
