@@ -191,9 +191,12 @@ class WarehouseService
             throw new \Exception("Parameter 'CustomQuery' atau 'item_codes' wajib diisi.");
         }
 
+        // Format WhsCode to single quotes format: e.g. "'FG01'"
+        $formattedWhsCode = $this->formatWhsCode($whsCode);
+
         $sapPayload = [
             'CustomQuery' => $formattedQuery,
-            'WhsCode'     => $whsCode,
+            'WhsCode'     => $formattedWhsCode,
         ];
 
         $response = Http::timeout(30)->post("{$sapUrl}/api/getstokbyitem", $sapPayload);
@@ -214,12 +217,12 @@ class WarehouseService
             $this->auditLogService->log(
                 $userId,
                 'GET_STOCK_BY_ITEM_SAP',
-                "Checked stock in SAP for Warehouse [{$whsCode}] with query: {$formattedQuery}"
+                "Checked stock in SAP for Warehouse [{$formattedWhsCode}] with query: {$formattedQuery}"
             );
         }
 
         return [
-            'whs_code'     => $whsCode,
+            'whs_code'     => $formattedWhsCode,
             'custom_query' => $formattedQuery,
             'total_items'  => count($items),
             'items'        => $items,
@@ -262,6 +265,36 @@ class WarehouseService
         $parts = array_filter(array_map(fn($p) => trim($p, " '\""), explode(',', $str)));
         if (empty($parts)) {
             return '';
+        }
+
+        return "'" . implode("','", array_unique($parts)) . "'";
+    }
+
+    /**
+     * Format raw input warehouse code into SAP single-quoted format: e.g. "'FG01'".
+     */
+    protected function formatWhsCode(mixed $raw): string
+    {
+        if (is_array($raw)) {
+            $cleaned = array_filter(array_map(fn($w) => trim((string)$w, " '\""), $raw));
+            if (empty($cleaned)) {
+                return "''";
+            }
+            return "'" . implode("','", array_unique($cleaned)) . "'";
+        }
+
+        $str = trim((string) $raw);
+        if (empty($str)) {
+            return "''";
+        }
+
+        if (str_contains($str, "'")) {
+            return $str;
+        }
+
+        $parts = array_filter(array_map(fn($p) => trim($p, " '\""), explode(',', $str)));
+        if (empty($parts)) {
+            return "'{$str}'";
         }
 
         return "'" . implode("','", array_unique($parts)) . "'";

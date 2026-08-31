@@ -12551,8 +12551,8 @@ paths:
                   description: Alternatif input berupa array kode item (backend otomatis memformat ke CustomQuery)
                 WhsCode:
                   type: string
-                  example: "FG01"
-                  description: Kode gudang SAP
+                  example: "'FG01'"
+                  description: Kode gudang SAP (contoh "'FG01'" atau "FG01", backend otomatis membungkus tanda petik untuk SAP)
       responses:
         '200':
           description: Data stok item di gudang berhasil diambil dari SAP.
@@ -12572,7 +12572,7 @@ paths:
                     properties:
                       whs_code:
                         type: string
-                        example: FG01
+                        example: "'FG01'"
                       custom_query:
                         type: string
                         example: "'B12.B','B26'"
