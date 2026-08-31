@@ -57,7 +57,6 @@ class User extends Authenticatable
         'accessible_systems',
         'actions',
         'organization_assignment',
-        'unit',
     ];
 
     /**
@@ -228,22 +227,6 @@ class User extends Authenticatable
             ->where('is_active', true)
             ->pluck('telegram_chat_id')
             ->toArray();
-    }
-
-    /**
-     * Get unit accessor (alias to units).
-     */
-    public function getUnitAttribute(): ?string
-    {
-        return $this->attributes['units'] ?? null;
-    }
-
-    /**
-     * Set unit mutator (writes to units column).
-     */
-    public function setUnitAttribute($value): void
-    {
-        $this->attributes['units'] = is_array($value) ? implode(',', array_filter(array_map('trim', $value))) : $value;
     }
 
     /**
