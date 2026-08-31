@@ -210,4 +210,56 @@ class NotificationController extends Controller
             $result
         );
     }
+
+    /**
+     * Get all registered Telegram recipients/chat IDs for the authenticated user.
+     */
+    public function listTelegramRecipients(Request $request): JsonResponse
+    {
+        $recipients = $request->user()->telegramRecipients()
+            ->latest()
+            ->get();
+
+        return $this->successResponse($recipients, 'Daftar penerima Telegram berhasil diambil.');
+    }
+
+    /**
+     * Register a new Telegram Chat ID (individual or group) for the authenticated user.
+     */
+    public function addTelegramRecipient(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'telegram_chat_id' => 'required|string|max:100',
+            'recipient_name'   => 'nullable|string|max:255',
+            'chat_type'        => 'nullable|string|in:private,group,supergroup,channel',
+            'is_active'        => 'nullable|boolean',
+        ]);
+
+        $recipient = $request->user()->telegramRecipients()->updateOrCreate(
+            ['telegram_chat_id' => $validated['telegram_chat_id']],
+            [
+                'recipient_name' => $validated['recipient_name'] ?? ($request->user()->name ?? 'Telegram Recipient'),
+                'chat_type'      => $validated['chat_type'] ?? 'private',
+                'is_active'      => $validated['is_active'] ?? true,
+            ]
+        );
+
+        return $this->successResponse($recipient, 'Penerima Telegram berhasil didaftarkan.');
+    }
+
+    /**
+     * Delete a Telegram recipient from the authenticated user.
+     */
+    public function deleteTelegramRecipient(Request $request, int $id): JsonResponse
+    {
+        $deleted = $request->user()->telegramRecipients()
+            ->where('id', $id)
+            ->delete();
+
+        if (!$deleted) {
+            abort(404, 'Penerima Telegram tidak ditemukan.');
+        }
+
+        return $this->successResponse(['deleted' => true], 'Penerima Telegram berhasil dihapus.');
+    }
 }

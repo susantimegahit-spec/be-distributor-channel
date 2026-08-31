@@ -164,6 +164,89 @@ class TelegramService
     }
 
     /**
+     * Send notification to all registered Telegram recipients (individuals or groups) of a specific User.
+     *
+     * @param \App\Models\User $user
+     * @param string $title
+     * @param string $message
+     * @param string $level
+     * @param array|null $buttons
+     * @param array|null $fields
+     * @return array Array of delivery results per chat ID
+     */
+    public function sendToUser(
+        \App\Models\User $user,
+        string $title,
+        string $message,
+        string $level = 'info',
+        ?array $buttons = null,
+        ?array $fields = null
+    ): array {
+        $recipients = $user->telegramRecipients()
+            ->where('is_active', true)
+            ->get();
+
+        if ($recipients->isEmpty()) {
+            // Fallback to default channel if configured or log warning
+            Log::info("TelegramService: User [{$user->id}] ({$user->name}) has no active Telegram recipients.");
+            return [
+                'success' => false,
+                'user_id' => $user->id,
+                'recipients_count' => 0,
+                'message' => 'User has no registered Telegram recipients.',
+            ];
+        }
+
+        $results = [];
+        foreach ($recipients as $recipient) {
+            $res = $this->sendNotification(
+                title: $title,
+                message: $message,
+                level: $level,
+                chatId: $recipient->telegram_chat_id,
+                buttons: $buttons,
+                fields: $fields
+            );
+
+            $results[] = [
+                'recipient_id'     => $recipient->id,
+                'recipient_name'   => $recipient->recipient_name,
+                'telegram_chat_id' => $recipient->telegram_chat_id,
+                'chat_type'        => $recipient->chat_type,
+                'status'           => !empty($res['ok']),
+                'response'         => $res,
+            ];
+        }
+
+        return [
+            'success' => true,
+            'user_id' => $user->id,
+            'recipients_count' => $recipients->count(),
+            'deliveries' => $results,
+        ];
+    }
+
+    /**
+     * Send notification to a collection of users.
+     */
+    public function sendToUsers(
+        iterable $users,
+        string $title,
+        string $message,
+        string $level = 'info',
+        ?array $buttons = null,
+        ?array $fields = null
+    ): array {
+        $summary = [];
+        foreach ($users as $user) {
+            if ($user instanceof \App\Models\User) {
+                $summary[] = $this->sendToUser($user, $title, $message, $level, $buttons, $fields);
+            }
+        }
+        return $summary;
+    }
+
+    /**
      * Send structured exception / crash alert to Telegram error channel.
      *
      * @param Throwable $exception

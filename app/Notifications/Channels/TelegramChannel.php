@@ -40,15 +40,18 @@ class TelegramChannel
                 $chatId = $notifiable->telegram_chat_id;
             }
 
-            if (is_string($message)) {
-                return $this->telegramService->sendMessage($message, $chatId);
+            $chatIds = is_array($chatId) ? $chatId : (!empty($chatId) ? [$chatId] : [null]);
+            $responses = [];
+
+            foreach ($chatIds as $targetId) {
+                if (is_string($message)) {
+                    $responses[] = $this->telegramService->sendMessage($message, $targetId);
+                } elseif ($message instanceof TelegramMessage) {
+                    $responses[] = $message->send($this->telegramService, $targetId);
+                }
             }
 
-            if ($message instanceof TelegramMessage) {
-                return $message->send($this->telegramService, $chatId);
-            }
-
-            return null;
+            return count($responses) === 1 ? $responses[0] : ['ok' => true, 'results' => $responses];
         } catch (Throwable $e) {
             Log::error('TelegramChannel send notification failed: ' . $e->getMessage());
             return ['ok' => false, 'error' => $e->getMessage()];

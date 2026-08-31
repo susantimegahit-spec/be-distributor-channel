@@ -207,6 +207,28 @@ class User extends Authenticatable
     }
 
     /**
+     * Get all Telegram recipients / chat IDs associated with this user.
+     */
+    public function telegramRecipients(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(UserTelegramRecipient::class);
+    }
+
+    /**
+     * Route notifications for the Telegram channel.
+     * Returns an array of active Telegram Chat IDs.
+     *
+     * @return array<string>
+     */
+    public function routeNotificationForTelegram(): array
+    {
+        return $this->telegramRecipients()
+            ->where('is_active', true)
+            ->pluck('telegram_chat_id')
+            ->toArray();
+    }
+
+    /**
      * Get normalized user-level custom permissions map:
      * [
      *   "sales-order" => ["create" => true, "read" => true, "update" => false, "delete" => false, "approve" => false, "export" => true]
