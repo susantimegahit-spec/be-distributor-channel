@@ -162,4 +162,52 @@ class NotificationController extends Controller
             'deleted' => (bool) $deleted
         ], 'Device token FCM berhasil dihapus.');
     }
+
+    /**
+     * Send test notification to Telegram via API.
+     */
+    public function sendTelegramTest(Request $request): JsonResponse
+    {
+        $payload = $request->validate([
+            'message' => 'nullable|string|max:1000',
+            'title' => 'nullable|string|max:255',
+            'level' => 'nullable|string|in:info,success,warning,error,danger,critical',
+            'chat_id' => 'nullable|string|max:100',
+        ]);
+
+        $telegramService = app(\App\Services\TelegramService::class);
+
+        if (!$telegramService->isConfigured()) {
+            return $this->errorResponse('TELEGRAM_BOT_TOKEN belum dikonfigurasi di .env', 400);
+        }
+
+        $title = $payload['title'] ?? 'Test Notifikasi Telegram';
+        $message = $payload['message'] ?? 'Notifikasi pengujian dari API SMESTA.';
+        $level = $payload['level'] ?? 'info';
+        $chatId = $payload['chat_id'] ?? null;
+
+        $result = $telegramService->sendNotification(
+            title: $title,
+            message: $message,
+            level: $level,
+            chatId: $chatId,
+            buttons: [
+                ['text' => '🌐 SMESTA Dashboard', 'url' => config('app.url', 'http://localhost:8000')],
+            ],
+            fields: [
+                'Sender' => $request->user()->name ?? 'API User',
+                'Time' => now()->toDateTimeString(),
+            ]
+        );
+
+        if (!empty($result['ok'])) {
+            return $this->successResponse($result, 'Notifikasi Telegram berhasil dikirim.');
+        }
+
+        return $this->errorResponse(
+            'Gagal mengirim notifikasi Telegram: ' . ($result['description'] ?? 'Unknown error'),
+            400,
+            $result
+        );
+    }
 }

@@ -12,6 +12,7 @@ Route::prefix('v1/notifications')->middleware('auth:sanctum')->group(function ()
     Route::get('/', [NotificationController::class, 'index']);
     Route::post('/', [NotificationController::class, 'send']);
     Route::post('/test', [NotificationController::class, 'sendTest']);
+    Route::post('/telegram/test', [NotificationController::class, 'sendTelegramTest']);
     Route::post('/read-all', [NotificationController::class, 'markAllAsRead']);
     Route::post('/device-token', [NotificationController::class, 'registerDeviceToken']);
     Route::delete('/device-token', [NotificationController::class, 'deleteDeviceToken']);

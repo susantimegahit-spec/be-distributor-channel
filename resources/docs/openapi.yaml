@@ -14,6 +14,73 @@ servers:
   - url: http://localhost:8000/api/distributor-channel
     description: Local Server
 paths:
+  /v1/notifications/telegram/test:
+    post:
+      summary: Kirim Test Notifikasi Telegram Bot
+      description: Mengirim pesan notifikasi pengujian langsung ke channel atau akun Telegram yang telah dikonfigurasi.
+      tags:
+        - Notifications
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: Test Notifikasi Telegram
+                  description: Judul notifikasi
+                message:
+                  type: string
+                  example: Halo! Ini adalah notifikasi pengujian Telegram Bot dari API SMESTA.
+                  description: Isi pesan notifikasi
+                level:
+                  type: string
+                  enum: [info, success, warning, error, danger, critical]
+                  example: info
+                  description: Level alert notifikasi
+                chat_id:
+                  type: string
+                  example: "123456789"
+                  description: Target chat ID khusus (opsional, jika tidak diisi akan menggunakan TELEGRAM_CHAT_ID)
+      responses:
+        '200':
+          description: Notifikasi Telegram berhasil dikirim.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Notifikasi Telegram berhasil dikirim.
+                  data:
+                    type: object
+        '400':
+          description: Bot belum dikonfigurasi atau pengiriman gagal.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: TELEGRAM_BOT_TOKEN belum dikonfigurasi di .env
   /v1/master-units:
     get:
       summary: Daftar Master Unit
