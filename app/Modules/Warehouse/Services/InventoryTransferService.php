@@ -117,57 +117,90 @@ class InventoryTransferService
             foreach ($payload['Lines'] as &$line) {
                 // Ensure UseBaseUn is uppercase
                 if (isset($line['UseBaseUn'])) {
-                    $line['UseBaseUn'] = strtoupper($line['UseBaseUn']);
+                    $line['UseBaseUn'] = strtoupper((string)$line['UseBaseUn']);
                 }
 
-                // Preprocess Lines_BinFROM
-                if (isset($line['Lines_BinFROM']) && is_array($line['Lines_BinFROM'])) {
-                    foreach ($line['Lines_BinFROM'] as &$b) {
+                // 1. Process Bin FROM (Support Lines_BinFrom, Lines_BinFROM, lines_bin_from)
+                $rawBinFrom = $line['Lines_BinFROM'] ?? $line['Lines_BinFrom'] ?? $line['lines_bin_from'] ?? null;
+                $flagBinFrom = strtoupper(trim((string)($line['BinActivfrom'] ?? $line['BinActivFrom'] ?? $line['bin_activ_from'] ?? '')));
+
+                if (is_array($rawBinFrom) && !empty($rawBinFrom) && $flagBinFrom !== 'N') {
+                    foreach ($rawBinFrom as &$b) {
                         if (isset($b['AbsEntry']) && !is_numeric($b['AbsEntry']) && $b['AbsEntry'] !== 'NO BIN') {
                             $resolved = $this->resolveBinAbsEntry((string)$b['AbsEntry']);
                             if ($resolved !== null) {
                                 $b['AbsEntry'] = $resolved;
                             }
                         }
+                        if (isset($b['AbsEntry']) && is_numeric($b['AbsEntry'])) {
+                            $b['AbsEntry'] = (int)$b['AbsEntry'];
+                        }
+                        if (isset($b['Quantity'])) {
+                            $b['Quantity'] = floatval($b['Quantity']);
+                        }
                     }
-                }
+                    unset($b);
 
-                $binFrom = isset($line['Lines_BinFROM']) ? array_filter((array)$line['Lines_BinFROM'], function ($b) {
-                    return !empty($b['AbsEntry']) && is_numeric($b['AbsEntry']);
-                }) : [];
+                    $binFrom = array_values(array_filter($rawBinFrom, function ($b) {
+                        return !empty($b['AbsEntry']) && is_numeric($b['AbsEntry']) && floatval($b['Quantity'] ?? 0) > 0;
+                    }));
 
-                if (empty($binFrom)) {
+                    if (!empty($binFrom)) {
+                        $line['BinActivfrom'] = 'Y';
+                        $line['Lines_BinFROM'] = $binFrom;
+                    } else {
+                        $line['BinActivfrom'] = 'N';
+                        unset($line['Lines_BinFROM']);
+                    }
+                } else {
                     $line['BinActivfrom'] = 'N';
                     unset($line['Lines_BinFROM']);
-                } else {
-                    $line['BinActivfrom'] = 'Y';
-                    $line['Lines_BinFROM'] = array_values($binFrom);
                 }
 
-                // Preprocess Lines_BinTO
-                if (isset($line['Lines_BinTO']) && is_array($line['Lines_BinTO'])) {
-                    foreach ($line['Lines_BinTO'] as &$b) {
+                // Clean duplicate keys for BinFrom
+                unset($line['BinActivFrom'], $line['bin_activ_from'], $line['Lines_BinFrom'], $line['lines_bin_from']);
+
+                // 2. Process Bin TO (Support Lines_BinTo, Lines_BinTO, lines_bin_to)
+                $rawBinTo = $line['Lines_BinTO'] ?? $line['Lines_BinTo'] ?? $line['lines_bin_to'] ?? null;
+                $flagBinTo = strtoupper(trim((string)($line['BinActivto'] ?? $line['BinActivTo'] ?? $line['bin_activ_to'] ?? '')));
+
+                if (is_array($rawBinTo) && !empty($rawBinTo) && $flagBinTo !== 'N') {
+                    foreach ($rawBinTo as &$b) {
                         if (isset($b['AbsEntry']) && !is_numeric($b['AbsEntry']) && $b['AbsEntry'] !== 'NO BIN') {
                             $resolved = $this->resolveBinAbsEntry((string)$b['AbsEntry']);
                             if ($resolved !== null) {
                                 $b['AbsEntry'] = $resolved;
                             }
                         }
+                        if (isset($b['AbsEntry']) && is_numeric($b['AbsEntry'])) {
+                            $b['AbsEntry'] = (int)$b['AbsEntry'];
+                        }
+                        if (isset($b['Quantity'])) {
+                            $b['Quantity'] = floatval($b['Quantity']);
+                        }
                     }
-                }
+                    unset($b);
 
-                $binTo = isset($line['Lines_BinTO']) ? array_filter((array)$line['Lines_BinTO'], function ($b) {
-                    return !empty($b['AbsEntry']) && is_numeric($b['AbsEntry']);
-                }) : [];
+                    $binTo = array_values(array_filter($rawBinTo, function ($b) {
+                        return !empty($b['AbsEntry']) && is_numeric($b['AbsEntry']) && floatval($b['Quantity'] ?? 0) > 0;
+                    }));
 
-                if (empty($binTo)) {
+                    if (!empty($binTo)) {
+                        $line['BinActivto'] = 'Y';
+                        $line['Lines_BinTO'] = $binTo;
+                    } else {
+                        $line['BinActivto'] = 'N';
+                        unset($line['Lines_BinTO']);
+                    }
+                } else {
                     $line['BinActivto'] = 'N';
                     unset($line['Lines_BinTO']);
-                } else {
-                    $line['BinActivto'] = 'Y';
-                    $line['Lines_BinTO'] = array_values($binTo);
                 }
+
+                // Clean duplicate keys for BinTo
+                unset($line['BinActivTo'], $line['bin_activ_to'], $line['Lines_BinTo'], $line['lines_bin_to']);
             }
+            unset($line);
         }
 
         // Add AddonId and UserId
