@@ -332,13 +332,31 @@ class ProductionService
                             'sap_status'    => 'SYNCED',
                             'integrated_at' => now(),
                         ]);
+                    } else {
+                        $errorMsg = $body['Message'] ?? $body['ErrorMessage'] ?? 'SAP Error Code ' . ($body['ErrorCode'] ?? 'unknown');
+                        $updatedOrder->update([
+                            'status'     => $oldStatus,
+                            'sap_status' => 'FAILED',
+                            'sap_error'  => $errorMsg,
+                        ]);
+                        throw new \Exception("Gagal rilis ke SAP: {$errorMsg}");
                     }
+                } else {
+                    $errorMsg = 'SAP API Error HTTP ' . $response->status() . ': ' . ($response->body() ?: 'Gagal terhubung ke SAP API');
+                    $updatedOrder->update([
+                        'status'     => $oldStatus,
+                        'sap_status' => 'FAILED',
+                        'sap_error'  => $errorMsg,
+                    ]);
+                    throw new \Exception("Gagal rilis ke SAP: {$errorMsg}");
                 }
             } catch (\Exception $ex) {
                 $updatedOrder->update([
+                    'status'     => $oldStatus,
                     'sap_status' => 'FAILED',
                     'sap_error'  => $ex->getMessage(),
                 ]);
+                throw new \Exception($ex->getMessage(), $ex->getCode() ?: 500, $ex);
             }
         }
 
@@ -569,17 +587,30 @@ class ProductionService
                         ]);
                         $sapResponse = $body;
                     } else {
+                        $errorMsg = $body['Message'] ?? $body['ErrorMessage'] ?? 'SAP Error Code ' . ($body['ErrorCode'] ?? 'unknown');
                         $order->update([
+                            'status'     => 'PLANNED',
                             'sap_status' => 'FAILED',
-                            'sap_error'  => $body['Message'] ?? 'Unknown SAP error',
+                            'sap_error'  => $errorMsg,
                         ]);
+                        throw new \Exception("Gagal rilis ke SAP: {$errorMsg}");
                     }
+                } else {
+                    $errorMsg = 'SAP API Error HTTP ' . $response->status() . ': ' . ($response->body() ?: 'Gagal terhubung ke SAP API');
+                    $order->update([
+                        'status'     => 'PLANNED',
+                        'sap_status' => 'FAILED',
+                        'sap_error'  => $errorMsg,
+                    ]);
+                    throw new \Exception("Gagal rilis ke SAP: {$errorMsg}");
                 }
             } catch (\Exception $ex) {
                 $order->update([
+                    'status'     => 'PLANNED',
                     'sap_status' => 'FAILED',
                     'sap_error'  => $ex->getMessage(),
                 ]);
+                throw new \Exception($ex->getMessage(), $ex->getCode() ?: 500, $ex);
             }
         }
 
