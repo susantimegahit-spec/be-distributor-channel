@@ -674,14 +674,14 @@ class ProductionService
     {
         $sapUrl = config('services.sap.url');
 
-        $rawFrom = $filters['from'] ?? $filters['from_date'] ?? $filters['From'] ?? date('Y-1-1');
+        $rawFrom = $filters['from'] ?? $filters['from_date'] ?? $filters['From'] ?? date('Y-01-01');
         $rawTo = $filters['to'] ?? $filters['to_date'] ?? $filters['To'] ?? date('Y-12-31');
 
         $fromTime = strtotime((string) $rawFrom);
         $toTime = strtotime((string) $rawTo);
 
-        $fromFormatted = $fromTime ? date('Y-n-j', $fromTime) : (string) $rawFrom;
-        $toFormatted = $toTime ? date('Y-n-j', $toTime) : (string) $rawTo;
+        $fromFormatted = $fromTime ? date('Y-m-d', $fromTime) : (string) $rawFrom;
+        $toFormatted = $toTime ? date('Y-m-d', $toTime) : (string) $rawTo;
 
         $whsCode = (string) ($filters['whs_code'] ?? $filters['warehouse'] ?? $filters['WhsCode'] ?? '');
         $toWhsCode = (string) ($filters['to_whs_code'] ?? $filters['to_warehouse'] ?? $filters['ToWhsCode'] ?? '');
@@ -695,19 +695,21 @@ class ProductionService
             $unitFilterList = array_values(array_filter(array_map('trim', explode(',', $rawUnits))));
         }
 
-        // Normalize status filter if provided (e.g. RELEASE or RELEASED)
+        // Normalize status filter if provided (e.g. RELEASE or RELEASED, ALL, empty)
         $rawStatusFilter = strtoupper(trim((string) ($filters['status'] ?? $filters['Status'] ?? '')));
         $statusFilter = null;
-        if ($rawStatusFilter === 'RELEASE' || $rawStatusFilter === 'RELEASED' || $rawStatusFilter === 'R') {
-            $statusFilter = 'RELEASED';
-        } elseif ($rawStatusFilter === 'PLAN' || $rawStatusFilter === 'PLANNED' || $rawStatusFilter === 'P') {
-            $statusFilter = 'PLANNED';
-        } elseif ($rawStatusFilter === 'CLOSE' || $rawStatusFilter === 'CLOSED' || $rawStatusFilter === 'C') {
-            $statusFilter = 'CLOSED';
-        } elseif ($rawStatusFilter === 'CANCEL' || $rawStatusFilter === 'CANCELLED' || $rawStatusFilter === 'L') {
-            $statusFilter = 'CANCELLED';
-        } elseif (!empty($rawStatusFilter) && $rawStatusFilter !== 'ALL') {
-            $statusFilter = $rawStatusFilter;
+        if (!empty($rawStatusFilter) && !in_array($rawStatusFilter, ['ALL', 'SEMUA', 'ALL STATUS', 'NULL', 'UNDEFINED', ''])) {
+            if (str_contains($rawStatusFilter, 'RELEASE') || $rawStatusFilter === 'R') {
+                $statusFilter = 'RELEASED';
+            } elseif (str_contains($rawStatusFilter, 'PLAN') || $rawStatusFilter === 'P') {
+                $statusFilter = 'PLANNED';
+            } elseif (str_contains($rawStatusFilter, 'CLOSE') || $rawStatusFilter === 'C') {
+                $statusFilter = 'CLOSED';
+            } elseif (str_contains($rawStatusFilter, 'CANCEL') || $rawStatusFilter === 'L') {
+                $statusFilter = 'CANCELLED';
+            } else {
+                $statusFilter = $rawStatusFilter;
+            }
         }
 
         $payload = [
@@ -724,7 +726,7 @@ class ProductionService
         $items = [];
 
         try {
-            $response = Http::timeout(30)->post("{$sapUrl}/api/getListPDO", $payload);
+            $response = Http::retry(2, 500)->timeout(30)->post("{$sapUrl}/api/getListPDO", $payload);
 
             if ($response->successful()) {
                 $body = $response->json();
