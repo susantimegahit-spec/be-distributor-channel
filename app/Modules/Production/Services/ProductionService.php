@@ -323,12 +323,27 @@ class ProductionService
                 if ($response->successful()) {
                     $body = $response->json();
                     if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
-                        $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? null;
-                        $sapDocNum   = $body['DocNum'] ?? $body['doc_num'] ?? null;
+                        $sapDocNum = $body['DocNum'] ?? $body['doc_num'] ?? $body['Result']['DocNum'] ?? null;
+                        if (empty($sapDocNum) && !empty($body['Message'])) {
+                            if (preg_match('/DocNum:\s*([0-9]+)/i', $body['Message'], $matches)) {
+                                $sapDocNum = $matches[1];
+                            }
+                        }
+
+                        $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? $body['Result']['DocEntry'] ?? null;
+                        if (empty($sapDocEntry) && !empty($body['Message'])) {
+                            if (preg_match('/DocEntry:\s*([0-9]+)/i', $body['Message'], $matches)) {
+                                $sapDocEntry = $matches[1];
+                            }
+                        }
+                        if (empty($sapDocEntry)) {
+                            $sapDocEntry = $sapDocNum;
+                        }
+
                         $updatedOrder->update([
                             'doc_entry'     => $sapDocEntry,
-                            'doc_num'       => $sapDocNum,
-                            'prod_order_no' => $sapDocNum ?? $updatedOrder->prod_order_no,
+                            'doc_num'       => (string) ($sapDocNum ?: $updatedOrder->doc_num),
+                            'prod_order_no' => (string) ($sapDocNum ?: $updatedOrder->prod_order_no),
                             'sap_status'    => 'SYNCED',
                             'integrated_at' => now(),
                         ]);
@@ -576,12 +591,27 @@ class ProductionService
                 if ($response->successful()) {
                     $body = $response->json();
                     if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
-                        $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? null;
-                        $sapDocNum   = $body['DocNum'] ?? $body['doc_num'] ?? null;
+                        $sapDocNum = $body['DocNum'] ?? $body['doc_num'] ?? $body['Result']['DocNum'] ?? null;
+                        if (empty($sapDocNum) && !empty($body['Message'])) {
+                            if (preg_match('/DocNum:\s*([0-9]+)/i', $body['Message'], $matches)) {
+                                $sapDocNum = $matches[1];
+                            }
+                        }
+
+                        $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? $body['Result']['DocEntry'] ?? null;
+                        if (empty($sapDocEntry) && !empty($body['Message'])) {
+                            if (preg_match('/DocEntry:\s*([0-9]+)/i', $body['Message'], $matches)) {
+                                $sapDocEntry = $matches[1];
+                            }
+                        }
+                        if (empty($sapDocEntry)) {
+                            $sapDocEntry = $sapDocNum;
+                        }
+
                         $order->update([
                             'doc_entry'     => $sapDocEntry,
-                            'doc_num'       => $sapDocNum,
-                            'prod_order_no' => $sapDocNum ?? $order->prod_order_no,
+                            'doc_num'       => (string) ($sapDocNum ?: $order->doc_num),
+                            'prod_order_no' => (string) ($sapDocNum ?: $order->prod_order_no),
                             'sap_status'    => 'SYNCED',
                             'integrated_at' => now(),
                         ]);
