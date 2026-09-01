@@ -624,7 +624,15 @@ class ProductionService
 
         $whsCode = (string) ($filters['whs_code'] ?? $filters['warehouse'] ?? $filters['WhsCode'] ?? '');
         $toWhsCode = (string) ($filters['to_whs_code'] ?? $filters['to_warehouse'] ?? $filters['ToWhsCode'] ?? '');
-        $unitFilter = trim((string) ($filters['unit'] ?? $filters['u_unit'] ?? $filters['Unit'] ?? $filters['U_Unit'] ?? ''));
+
+        // Support multiple units (array or comma-separated string)
+        $rawUnits = $filters['units'] ?? $filters['unit'] ?? $filters['u_unit'] ?? $filters['Units'] ?? $filters['Unit'] ?? $filters['U_Unit'] ?? null;
+        $unitFilterList = [];
+        if (is_array($rawUnits)) {
+            $unitFilterList = array_values(array_filter(array_map('trim', $rawUnits)));
+        } elseif (is_string($rawUnits) && trim($rawUnits) !== '') {
+            $unitFilterList = array_values(array_filter(array_map('trim', explode(',', $rawUnits))));
+        }
 
         // Normalize status filter if provided (e.g. RELEASE or RELEASED)
         $rawStatusFilter = strtoupper(trim((string) ($filters['status'] ?? $filters['Status'] ?? '')));
@@ -647,9 +655,9 @@ class ProductionService
             'WhsCode'   => $whsCode,
             'ToWhsCode' => $toWhsCode,
         ];
-        if ($unitFilter !== '') {
-            $payload['Unit'] = $unitFilter;
-            $payload['U_Unit'] = $unitFilter;
+        if (!empty($unitFilterList)) {
+            $payload['Unit'] = implode(',', $unitFilterList);
+            $payload['U_Unit'] = implode(',', $unitFilterList);
         }
 
         $items = [];
@@ -695,10 +703,17 @@ class ProductionService
                 continue;
             }
 
-            // Filter if unit filter is active
-            if ($unitFilter !== '') {
+            // Filter if unit filter is active (supports multiple units)
+            if (!empty($unitFilterList)) {
                 $itemUnit = trim((string) ($item['U_Unit'] ?? $item['Unit'] ?? $item['u_unit'] ?? ''));
-                if (strcasecmp($itemUnit, $unitFilter) !== 0) {
+                $unitMatched = false;
+                foreach ($unitFilterList as $u) {
+                    if (strcasecmp($itemUnit, $u) === 0) {
+                        $unitMatched = true;
+                        break;
+                    }
+                }
+                if (!$unitMatched) {
                     continue;
                 }
             }
@@ -719,7 +734,7 @@ class ProductionService
             $item['U_Unit'] = $unitVal;
             $item['u_unit'] = $unitVal;
 
-            $shiftVal = $this->formatShiftLabel($item['U_Shift'] ?? $item['Shift'] ?? $item['u_shift'] ?? $item['shift'] ?? '');
+            $shiftVal = (string) ($item['U_Shift'] ?? $item['Shift'] ?? $item['u_shift'] ?? $item['shift'] ?? '');
             $item['Shift'] = $shiftVal;
             $item['U_Shift'] = $shiftVal;
             $item['shift'] = $shiftVal;
@@ -748,10 +763,15 @@ class ProductionService
                 $localQuery->where('warehouse', $whsCode);
             }
 
-            if ($unitFilter !== '') {
-                $localQuery->where(function ($q) use ($unitFilter) {
-                    $q->where('u_unit', $unitFilter)
-                        ->orWhere('u_unit', 'ILIKE', $unitFilter);
+            if (!empty($unitFilterList)) {
+                $localQuery->where(function ($q) use ($unitFilterList) {
+                    foreach ($unitFilterList as $idx => $u) {
+                        if ($idx === 0) {
+                            $q->where('u_unit', $u)->orWhere('u_unit', 'ILIKE', $u);
+                        } else {
+                            $q->orWhere('u_unit', $u)->orWhere('u_unit', 'ILIKE', $u);
+                        }
+                    }
                 });
             }
 
@@ -793,10 +813,10 @@ class ProductionService
                     'Unit'        => (string) ($lOrder->u_unit ?? ''),
                     'U_Unit'      => (string) ($lOrder->u_unit ?? ''),
                     'u_unit'      => (string) ($lOrder->u_unit ?? ''),
-                    'Shift'       => $this->formatShiftLabel((string) ($lOrder->u_shift ?? '')),
-                    'U_Shift'     => $this->formatShiftLabel((string) ($lOrder->u_shift ?? '')),
-                    'shift'       => $this->formatShiftLabel((string) ($lOrder->u_shift ?? '')),
-                    'u_shift'     => $this->formatShiftLabel((string) ($lOrder->u_shift ?? '')),
+                    'Shift'       => (string) ($lOrder->u_shift ?? ''),
+                    'U_Shift'     => (string) ($lOrder->u_shift ?? ''),
+                    'shift'       => (string) ($lOrder->u_shift ?? ''),
+                    'u_shift'     => (string) ($lOrder->u_shift ?? ''),
                     'Remarks'     => (string) $lOrder->comments,
                     'is_local'    => true,
                 ];
@@ -961,13 +981,12 @@ class ProductionService
             $header['SalUnitMsr'] = $hUom;
             $header['sal_unit_msr'] = $hUom;
 
-            // Format Shift field (e.g. 'X' -> 'All', '1' -> 'Shift 1', '2' -> 'Shift 2', '3' -> 'Shift 3')
+            // Shift field (return raw value so FE can format/convert as needed)
             $rawShift = (string) ($header['Shift'] ?? $header['U_Shift'] ?? $header['shift'] ?? $header['u_shift'] ?? $localOrder?->u_shift ?? '');
-            $formattedShift = $this->formatShiftLabel($rawShift);
-            $header['Shift'] = $formattedShift;
-            $header['shift'] = $formattedShift;
-            $header['U_Shift'] = $formattedShift;
-            $header['u_shift'] = $formattedShift;
+            $header['Shift'] = $rawShift;
+            $header['shift'] = $rawShift;
+            $header['U_Shift'] = $rawShift;
+            $header['u_shift'] = $rawShift;
 
             unset($header['item_code'], $header['item'], $header['prod_name'], $header['item_name'], $header['ItemName']);
 
@@ -1006,7 +1025,7 @@ class ProductionService
             $hName = (string) ($localOrder->parentItem?->item_name ?? $this->resolveItemName($hCode));
             $hUom = (string) ($localOrder->parentItem?->sal_unit_msr ?? $this->resolveItemUom($hCode));
 
-            $formattedLocalShift = $this->formatShiftLabel((string) ($localOrder->u_shift ?? ''));
+            $rawLocalShift = (string) ($localOrder->u_shift ?? '');
 
             $header = [
                 'id'          => $localOrder->id,
@@ -1033,10 +1052,10 @@ class ProductionService
                 'DueDate'     => $localOrder->due_date ? date('Y-m-d\TH:i:s', strtotime($localOrder->due_date)) : null,
                 'WhsCode'     => (string) $localOrder->warehouse,
                 'Remarks'     => (string) $localOrder->comments,
-                'Shift'       => $formattedLocalShift,
-                'shift'       => $formattedLocalShift,
-                'U_Shift'     => $formattedLocalShift,
-                'u_shift'     => $formattedLocalShift,
+                'Shift'       => $rawLocalShift,
+                'shift'       => $rawLocalShift,
+                'U_Shift'     => $rawLocalShift,
+                'u_shift'     => $rawLocalShift,
                 'Unit'        => (string) $localOrder->u_unit,
                 'U_Unit'      => (string) $localOrder->u_unit,
                 'u_unit'      => (string) $localOrder->u_unit,
@@ -1198,12 +1217,25 @@ class ProductionService
         $whsCode = (string) ($filters['whs_code'] ?? $filters['warehouse'] ?? $filters['WhsCode'] ?? '');
         $toWhsCode = (string) ($filters['to_whs_code'] ?? $filters['to_warehouse'] ?? $filters['ToWhsCode'] ?? '');
 
+        // Support multiple units
+        $rawUnits = $filters['units'] ?? $filters['unit'] ?? $filters['u_unit'] ?? $filters['Units'] ?? $filters['Unit'] ?? $filters['U_Unit'] ?? null;
+        $unitFilterList = [];
+        if (is_array($rawUnits)) {
+            $unitFilterList = array_values(array_filter(array_map('trim', $rawUnits)));
+        } elseif (is_string($rawUnits) && trim($rawUnits) !== '') {
+            $unitFilterList = array_values(array_filter(array_map('trim', explode(',', $rawUnits))));
+        }
+
         $payload = [
             'From'      => $fromFormatted,
             'To'        => $toFormatted,
             'WhsCode'   => $whsCode,
             'ToWhsCode' => $toWhsCode,
         ];
+        if (!empty($unitFilterList)) {
+            $payload['Unit'] = implode(',', $unitFilterList);
+            $payload['U_Unit'] = implode(',', $unitFilterList);
+        }
 
         $items = [];
 
@@ -1227,6 +1259,19 @@ class ProductionService
             // Proceed to local merge
         }
 
+        // Filter SAP items by units if provided
+        if (!empty($unitFilterList)) {
+            $items = array_values(array_filter($items, function ($item) use ($unitFilterList) {
+                $itemUnit = trim((string) ($item['U_Unit'] ?? $item['Unit'] ?? $item['u_unit'] ?? ''));
+                foreach ($unitFilterList as $u) {
+                    if (strcasecmp($itemUnit, $u) === 0) {
+                        return true;
+                    }
+                }
+                return false;
+            }));
+        }
+
         // Fetch and merge local Production Receipts from Database
         try {
             $localReceiptQuery = \App\Models\ProductionReceipt::query()
@@ -1234,6 +1279,18 @@ class ProductionService
 
             if (!empty($rawFrom) && !empty($rawTo)) {
                 $localReceiptQuery->whereBetween('doc_date', [$rawFrom, $rawTo]);
+            }
+
+            if (!empty($unitFilterList)) {
+                $localReceiptQuery->where(function ($q) use ($unitFilterList) {
+                    foreach ($unitFilterList as $idx => $u) {
+                        if ($idx === 0) {
+                            $q->where('u_unit', $u)->orWhere('u_unit', 'ILIKE', $u);
+                        } else {
+                            $q->orWhere('u_unit', $u)->orWhere('u_unit', 'ILIKE', $u);
+                        }
+                    }
+                });
             }
 
             $localReceipts = $localReceiptQuery->orderBy('id', 'desc')->get();
@@ -1531,12 +1588,25 @@ class ProductionService
         $whsCode = (string) ($filters['whs_code'] ?? $filters['warehouse'] ?? $filters['WhsCode'] ?? '');
         $toWhsCode = (string) ($filters['to_whs_code'] ?? $filters['to_warehouse'] ?? $filters['ToWhsCode'] ?? '');
 
+        // Support multiple units
+        $rawUnits = $filters['units'] ?? $filters['unit'] ?? $filters['u_unit'] ?? $filters['Units'] ?? $filters['Unit'] ?? $filters['U_Unit'] ?? null;
+        $unitFilterList = [];
+        if (is_array($rawUnits)) {
+            $unitFilterList = array_values(array_filter(array_map('trim', $rawUnits)));
+        } elseif (is_string($rawUnits) && trim($rawUnits) !== '') {
+            $unitFilterList = array_values(array_filter(array_map('trim', explode(',', $rawUnits))));
+        }
+
         $payload = [
             'From'      => $fromFormatted,
             'To'        => $toFormatted,
             'WhsCode'   => $whsCode,
             'ToWhsCode' => $toWhsCode,
         ];
+        if (!empty($unitFilterList)) {
+            $payload['Unit'] = implode(',', $unitFilterList);
+            $payload['U_Unit'] = implode(',', $unitFilterList);
+        }
 
         $items = [];
 
@@ -1560,6 +1630,19 @@ class ProductionService
             // Proceed to local merge
         }
 
+        // Filter SAP items by units if provided
+        if (!empty($unitFilterList)) {
+            $items = array_values(array_filter($items, function ($item) use ($unitFilterList) {
+                $itemUnit = trim((string) ($item['U_Unit'] ?? $item['Unit'] ?? $item['u_unit'] ?? ''));
+                foreach ($unitFilterList as $u) {
+                    if (strcasecmp($itemUnit, $u) === 0) {
+                        return true;
+                    }
+                }
+                return false;
+            }));
+        }
+
         // Fetch and merge local Production Issues from Database
         try {
             $localIssueQuery = \App\Models\ProductionIssue::query()
@@ -1567,6 +1650,18 @@ class ProductionService
 
             if (!empty($rawFrom) && !empty($rawTo)) {
                 $localIssueQuery->whereBetween('doc_date', [$rawFrom, $rawTo]);
+            }
+
+            if (!empty($unitFilterList)) {
+                $localIssueQuery->where(function ($q) use ($unitFilterList) {
+                    foreach ($unitFilterList as $idx => $u) {
+                        if ($idx === 0) {
+                            $q->where('u_unit', $u)->orWhere('u_unit', 'ILIKE', $u);
+                        } else {
+                            $q->orWhere('u_unit', $u)->orWhere('u_unit', 'ILIKE', $u);
+                        }
+                    }
+                });
             }
 
             $localIssues = $localIssueQuery->orderBy('id', 'desc')->get();
