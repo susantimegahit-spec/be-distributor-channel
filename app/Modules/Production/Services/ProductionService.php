@@ -713,11 +713,15 @@ class ProductionService
         }
 
         $payload = [
-            'From'      => $fromFormatted,
-            'To'        => $toFormatted,
-            'WhsCode'   => $whsCode,
-            'ToWhsCode' => $toWhsCode,
+            'From' => $fromFormatted,
+            'To'   => $toFormatted,
         ];
+        if (!empty($whsCode)) {
+            $payload['WhsCode'] = $whsCode;
+        }
+        if (!empty($toWhsCode)) {
+            $payload['ToWhsCode'] = $toWhsCode;
+        }
         if (!empty($unitFilterList)) {
             $payload['Unit'] = implode(',', $unitFilterList);
             $payload['U_Unit'] = implode(',', $unitFilterList);
@@ -731,7 +735,15 @@ class ProductionService
             if ($response->successful()) {
                 $body = $response->json();
                 if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
-                    $rawItems = $body['Result'] ?? [];
+                    $rawItems = $body['Result'] ?? $body['data'] ?? [];
+                    if (is_array($rawItems) && isset($rawItems['Table1'])) {
+                        $rawItems = $rawItems['Table1'];
+                    } elseif (is_array($rawItems) && isset($rawItems['Items'])) {
+                        $rawItems = $rawItems['Items'];
+                    } elseif (is_array($rawItems) && isset($rawItems['Rows'])) {
+                        $rawItems = $rawItems['Rows'];
+                    }
+
                     if (is_array($rawItems)) {
                         $items = array_values(array_filter($rawItems, function ($item) {
                             if (!is_array($item)) return false;
