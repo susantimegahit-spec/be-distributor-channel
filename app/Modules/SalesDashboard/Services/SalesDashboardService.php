@@ -468,7 +468,7 @@ class SalesDashboardService
         $cmoRecords = $cmoQuery->select(
             DB::raw($cmoMonthSql . ' as month'),
             'i.brand',
-            DB::raw('SUM(cmod.line_total) as cmo_amount')
+            DB::raw('SUM(cmod.quantity * COALESCE(NULLIF(i.per_kg, 0), 1)) as cmo_amount')
         )
         ->groupBy(DB::raw($cmoMonthSql), 'i.brand')
         ->get()
@@ -504,7 +504,7 @@ class SalesDashboardService
         $soRecords = $soQuery->select(
             DB::raw($soMonthSql . ' as month'),
             'i.brand',
-            DB::raw('SUM(sod.line_total) as so_amount')
+            DB::raw('SUM(sod.quantity * COALESCE(NULLIF(i.per_kg, 0), 1)) as so_amount')
         )
         ->groupBy(DB::raw($soMonthSql), 'i.brand')
         ->get()
@@ -539,7 +539,7 @@ class SalesDashboardService
         $doRecords = $doQuery->select(
             DB::raw($soMonthSql . ' as month'),
             'i.brand',
-            DB::raw('SUM(sod.line_total) as do_amount')
+            DB::raw('SUM(sod.quantity * COALESCE(NULLIF(i.per_kg, 0), 1)) as do_amount')
         )
         ->groupBy(DB::raw($soMonthSql), 'i.brand')
         ->get()
