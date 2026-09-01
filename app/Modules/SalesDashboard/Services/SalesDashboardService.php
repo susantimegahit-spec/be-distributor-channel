@@ -19,18 +19,39 @@ class SalesDashboardService
      * Map of Indonesian and English month names to month numbers.
      */
     protected array $monthMap = [
-        'januari' => 1, 'january' => 1, 'jan' => 1,
-        'februari' => 2, 'february' => 2, 'feb' => 2,
-        'maret' => 3, 'march' => 3, 'mar' => 3,
-        'april' => 4, 'apr' => 4,
-        'mei' => 5, 'may' => 5,
-        'juni' => 6, 'june' => 6, 'jun' => 6,
-        'juli' => 7, 'july' => 7, 'jul' => 7,
-        'agustus' => 8, 'august' => 8, 'aug' => 8,
-        'september' => 9, 'sep' => 9, 'sept' => 9,
-        'oktober' => 10, 'october' => 10, 'oct' => 10,
-        'november' => 11, 'nov' => 11,
-        'desember' => 12, 'december' => 12, 'dec' => 12,
+        'januari' => 1,
+        'january' => 1,
+        'jan' => 1,
+        'februari' => 2,
+        'february' => 2,
+        'feb' => 2,
+        'maret' => 3,
+        'march' => 3,
+        'mar' => 3,
+        'april' => 4,
+        'apr' => 4,
+        'mei' => 5,
+        'may' => 5,
+        'juni' => 6,
+        'june' => 6,
+        'jun' => 6,
+        'juli' => 7,
+        'july' => 7,
+        'jul' => 7,
+        'agustus' => 8,
+        'august' => 8,
+        'aug' => 8,
+        'september' => 9,
+        'sep' => 9,
+        'sept' => 9,
+        'oktober' => 10,
+        'october' => 10,
+        'oct' => 10,
+        'november' => 11,
+        'nov' => 11,
+        'desember' => 12,
+        'december' => 12,
+        'dec' => 12,
     ];
 
     public function __construct(SalesDashboardRepositoryInterface $repository)
@@ -80,7 +101,7 @@ class SalesDashboardService
 
             if ($hasDistributor && $hasBrand) {
                 $headerRowIndex = $index;
-                
+
                 // Map static and monthly columns
                 foreach ($trimmedRow as $colIndex => $colName) {
                     if (in_array($colName, ['kode distributor', 'kode customer', 'customer_code', 'customer code'])) {
@@ -299,7 +320,7 @@ class SalesDashboardService
         // We also have local records already updated to DELIVERY/ARRIVED by order status synchronization.
         // Let's query local sales orders where status is 'DELIVERY' or 'ARRIVED' to get DO amounts,
         // and also call the SAP Status API for any integrated orders in this period to make sure they are up-to-date.
-        
+
         $integratedOrdersQuery = DB::table('sales_orders')
             ->whereBetween('doc_date', [$startDate, $endDate])
             ->whereNotNull('sap_doc_num')
@@ -328,7 +349,7 @@ class SalesDashboardService
                             $noso = $sapData['NOSO'] ?? null;
                             $docType = $sapData['Doc'] ?? '';
                             $sapStatus = $sapData['StatusOrder'] ?? '';
-                            
+
                             if ($noso) {
                                 // If SAP returned DO or OINV status, update local status to DELIVERY/ARRIVED
                                 $updateData = [];
@@ -427,6 +448,8 @@ class SalesDashboardService
             $dashQuery->whereIn('brand', $filters['brands']);
         }
 
+        // tes push
+
         $dashRecords = $dashQuery->select(
             'month',
             'brand',
@@ -435,8 +458,8 @@ class SalesDashboardService
             DB::raw('SUM(so_amount) as so_amount'),
             DB::raw('SUM(do_amount) as do_amount')
         )
-        ->groupBy('month', 'brand')
-        ->get();
+            ->groupBy('month', 'brand')
+            ->get();
 
         // --- 2. CMO realtime langsung dari customer_monthly_orders ---
         // Hanya hitung CMO status DRAFT (belum diposting jadi SO)
@@ -470,9 +493,9 @@ class SalesDashboardService
             'i.brand',
             DB::raw('SUM(cmod.quantity * COALESCE(NULLIF(i.per_kg, 0), 1)) as cmo_amount')
         )
-        ->groupBy(DB::raw($cmoMonthSql), 'i.brand')
-        ->get()
-        ->keyBy(fn($r) => $r->brand . '_' . (int)$r->month);
+            ->groupBy(DB::raw($cmoMonthSql), 'i.brand')
+            ->get()
+            ->keyBy(fn($r) => $r->brand . '_' . (int)$r->month);
 
         // --- 3. SO realtime langsung dari sales_orders & sales_order_details ---
         // Hitung semua SO yang sudah diproses (status selain DRAFT, REJECTED, FAILED)
@@ -506,9 +529,9 @@ class SalesDashboardService
             'i.brand',
             DB::raw('SUM(sod.quantity * COALESCE(NULLIF(i.per_kg, 0), 1)) as so_amount')
         )
-        ->groupBy(DB::raw($soMonthSql), 'i.brand')
-        ->get()
-        ->keyBy(fn($r) => $r->brand . '_' . (int)$r->month);
+            ->groupBy(DB::raw($soMonthSql), 'i.brand')
+            ->get()
+            ->keyBy(fn($r) => $r->brand . '_' . (int)$r->month);
 
         // --- 4. DO realtime langsung dari sales_orders (DELIVERY / ARRIVED / COMPLETED) ---
         $doQuery = DB::table('sales_order_details as sod')
@@ -541,9 +564,9 @@ class SalesDashboardService
             'i.brand',
             DB::raw('SUM(sod.quantity * COALESCE(NULLIF(i.per_kg, 0), 1)) as do_amount')
         )
-        ->groupBy(DB::raw($soMonthSql), 'i.brand')
-        ->get()
-        ->keyBy(fn($r) => $r->brand . '_' . (int)$r->month);
+            ->groupBy(DB::raw($soMonthSql), 'i.brand')
+            ->get()
+            ->keyBy(fn($r) => $r->brand . '_' . (int)$r->month);
 
         // --- 5. Tentukan unique brands ---
         $brandsFromDash = $dashRecords->pluck('brand')->filter()->unique();
@@ -734,9 +757,9 @@ class SalesDashboardService
             ->whereYear('so.doc_date', $year)
             ->where('so.card_code', $customerCode)
             ->whereIn('i.brand', $brands)
-            ->where(function($q) {
+            ->where(function ($q) {
                 $q->where('so.approval_id', 6)
-                  ->orWhereIn('so.status', ['ORDER_APPROVED', 'DELIVERY', 'ARRIVED']);
+                    ->orWhereIn('so.status', ['ORDER_APPROVED', 'DELIVERY', 'ARRIVED']);
             })
             ->select(
                 DB::raw($soMonthSql . ' as month'),
@@ -779,7 +802,7 @@ class SalesDashboardService
                 $body = $response->json();
                 if (isset($body['ErrorCode']) && $body['ErrorCode'] === 0) {
                     $results = $body['Result'] ?? [];
-                    
+
                     foreach ($results as $item) {
                         $month = (int)$item['Bulan'];
                         $brandName = trim(strtoupper($item['Brand']));
