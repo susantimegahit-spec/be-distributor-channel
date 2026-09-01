@@ -748,18 +748,21 @@ class ProductionService
         $normalizedItems = [];
         foreach ($items as $item) {
             if (!is_array($item)) continue;
-            $s = strtoupper(trim((string) ($item['Status'] ?? '')));
-            if ($s === 'R' || $s === 'RELEASE' || $s === 'RELEASED') {
+            $rawS = strtoupper(trim((string) ($item['Status'] ?? $item['status'] ?? $item['ProductionOrderStatus'] ?? $item['DocStatus'] ?? '')));
+            if (in_array($rawS, ['R', 'RELEASE', 'RELEASED'])) {
                 $item['Status'] = 'RELEASED';
-            } elseif ($s === 'P' || $s === 'PLAN' || $s === 'PLANNED') {
+            } elseif (in_array($rawS, ['P', 'PLAN', 'PLANNED'])) {
                 $item['Status'] = 'PLANNED';
-            } elseif ($s === 'C' || $s === 'CLOSE' || $s === 'CLOSED') {
+            } elseif (in_array($rawS, ['C', 'CLOSE', 'CLOSED'])) {
                 $item['Status'] = 'CLOSED';
-            } elseif ($s === 'L' || $s === 'CANCEL' || $s === 'CANCELLED') {
+            } elseif (in_array($rawS, ['L', 'CANCEL', 'CANCELLED'])) {
                 $item['Status'] = 'CANCELLED';
+            } else {
+                $item['Status'] = $rawS ?: 'PLANNED';
             }
+            $item['status'] = $item['Status'];
 
-            // Filter if status filter is active
+            // Filter if status filter is active (if status is empty/ALL, all statuses are included)
             if ($statusFilter && $item['Status'] !== $statusFilter) {
                 continue;
             }
@@ -811,17 +814,37 @@ class ProductionService
                 ->with(['parentItem', 'details']);
 
             if ($statusFilter) {
-                $localQuery->where('status', $statusFilter);
-            } else {
-                $localQuery->where(function ($q) {
-                    $q->where('status', 'PLANNED')
-                        ->orWhereNull('doc_entry')
-                        ->orWhere('sap_status', '!=', 'SYNCED');
+                $localQuery->where(function ($q) use ($statusFilter) {
+                    $q->where('status', $statusFilter)
+                      ->orWhere('status', 'ILIKE', $statusFilter);
+                    if ($statusFilter === 'RELEASED') {
+                        $q->orWhere('status', 'RELEASE')->orWhere('status', 'ILIKE', 'RELEASE');
+                    } elseif ($statusFilter === 'PLANNED') {
+                        $q->orWhere('status', 'PLAN')->orWhere('status', 'ILIKE', 'PLAN');
+                    } elseif ($statusFilter === 'CLOSED') {
+                        $q->orWhere('status', 'CLOSE')->orWhere('status', 'ILIKE', 'CLOSE');
+                    } elseif ($statusFilter === 'CANCELLED') {
+                        $q->orWhere('status', 'CANCEL')->orWhere('status', 'ILIKE', 'CANCEL');
+                    }
                 });
             }
 
             if (!empty($whsCode)) {
                 $localQuery->where('warehouse', $whsCode);
+            }
+
+            if (!empty($filters['from']) || !empty($filters['from_date']) || !empty($filters['From'])) {
+                $fromDate = date('Y-m-d', strtotime((string)$rawFrom));
+                $toDate = date('Y-m-d', strtotime((string)$rawTo));
+                $localQuery->where(function ($q) use ($fromDate, $toDate) {
+                    $q->whereBetween('post_date', [$fromDate, $toDate])
+                      ->orWhereBetween('start_date', [$fromDate, $toDate])
+                      ->orWhere(function ($sub) use ($fromDate, $toDate) {
+                          $sub->whereNull('post_date')->whereNull('start_date')
+                              ->whereDate('created_at', '>=', $fromDate)
+                              ->whereDate('created_at', '<=', $toDate);
+                      });
+                });
             }
 
             if (!empty($unitFilterList)) {
@@ -849,6 +872,23 @@ class ProductionService
                     continue;
                 }
 
+                $lRawStatus = strtoupper(trim((string) ($lOrder->status ?? '')));
+                if (in_array($lRawStatus, ['R', 'RELEASE', 'RELEASED'])) {
+                    $normLStatus = 'RELEASED';
+                } elseif (in_array($lRawStatus, ['P', 'PLAN', 'PLANNED'])) {
+                    $normLStatus = 'PLANNED';
+                } elseif (in_array($lRawStatus, ['C', 'CLOSE', 'CLOSED'])) {
+                    $normLStatus = 'CLOSED';
+                } elseif (in_array($lRawStatus, ['L', 'CANCEL', 'CANCELLED'])) {
+                    $normLStatus = 'CANCELLED';
+                } else {
+                    $normLStatus = $lRawStatus ?: 'PLANNED';
+                }
+
+                if ($statusFilter && $normLStatus !== $statusFilter) {
+                    continue;
+                }
+
                 $docEntryVal = (string) ($lOrder->doc_entry ?: $lOrder->id);
                 $localItems[] = [
                     'id'          => $lOrder->id,
@@ -861,7 +901,8 @@ class ProductionService
                     'series_name' => (string) ($lOrder->series_name ?? ''),
                     'ItemCode'    => (string) $lOrder->item_code,
                     'ProdName'    => (string) ($lOrder->parentItem?->item_name ?? $this->resolveItemName($lOrder->item_code)),
-                    'Status'      => (string) $lOrder->status,
+                    'Status'      => $normLStatus,
+                    'status'      => $normLStatus,
                     'Type'        => (string) $lOrder->type,
                     'PlannedQty'  => floatval($lOrder->planned_qty),
                     'CmpltQty'    => floatval($lOrder->cmplt_qty),
