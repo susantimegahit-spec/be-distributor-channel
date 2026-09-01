@@ -84,7 +84,9 @@ class SalesOrder extends Model
 
     protected $appends = [
         'sales_employee_name',
+        'total_order',
         'total_discount',
+        'grand_total',
         'depo',
     ];
 
@@ -97,15 +99,55 @@ class SalesOrder extends Model
     }
 
     /**
+     * Get the total order amount from item lines before discount.
+     */
+    public function getTotalOrderAttribute(): float
+    {
+        if ($this->relationLoaded('details') && $this->details->isNotEmpty()) {
+            $total = (float) $this->details->sum(function ($line) {
+                return (float) $line->quantity * (float) $line->unit_price;
+            });
+            if ($total > 0) {
+                return $total;
+            }
+        }
+
+        $dbTotal = (float) $this->details()->selectRaw('SUM(quantity * unit_price) as total')->value('total');
+        if ($dbTotal > 0) {
+            return $dbTotal;
+        }
+
+        return (float) $this->doc_total;
+    }
+
+    /**
      * Get the total discount amount.
      */
     public function getTotalDiscountAttribute(): float
     {
-        if (!$this->sapDiscount) {
-            return 0.0;
+        if ($this->relationLoaded('sapDiscount') && $this->sapDiscount) {
+            if ($this->sapDiscount->relationLoaded('details')) {
+                return (float) $this->sapDiscount->details->sum('total_discount');
+            }
+            return (float) $this->sapDiscount->details()->sum('total_discount');
         }
 
-        return (float) $this->sapDiscount->details->sum('total_discount');
+        if ($this->sapDiscount) {
+            return (float) $this->sapDiscount->details()->sum('total_discount');
+        }
+
+        return 0.0;
+    }
+
+    /**
+     * Get the grand total (total_order - total_discount).
+     */
+    public function getGrandTotalAttribute(): float
+    {
+        $totalOrder = $this->total_order;
+        $totalDiscount = $this->total_discount;
+
+        return max(0.0, $totalOrder - $totalDiscount);
     }
 
     /**
@@ -193,20 +235,27 @@ class SalesOrder extends Model
      */
     public function getDocTotalAfterDiscountAttribute(): float
     {
-        $docTotal = (float) $this->doc_total;
-        $totalDiscount = $this->total_discount;
-        
-        return max(0.0, $docTotal - $totalDiscount);
+        return $this->grand_total;
     }
 
     /**
-     * Convert the model instance to an array to include DocTotal.
+     * Convert the model instance to an array to include total_order, total_discount, grand_total, and DocTotal.
      */
     public function toArray()
     {
         $array = parent::toArray();
-        $array['DocTotal'] = $this->doc_total_after_discount;
-        
+        $array['total_order'] = $this->total_order;
+        $array['totalOrder'] = $this->total_order;
+        $array['total_discount'] = $this->total_discount;
+        $array['totalDiscount'] = $this->total_discount;
+        $array['grand_total'] = $this->grand_total;
+        $array['grandTotal'] = $this->grand_total;
+
+        // Ensure doc_total reflects gross total of items for frontend compatibility
+        $array['doc_total'] = (string) $this->total_order;
+        $array['docTotal'] = $this->total_order;
+        $array['DocTotal'] = $this->grand_total;
+
         return $array;
     }
 }
