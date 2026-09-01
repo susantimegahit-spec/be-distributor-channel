@@ -319,7 +319,7 @@ class ProductionService
                     'Lines'       => $lines,
                 ];
 
-                $response = Http::timeout(30)->post("{$sapUrl}/api/addpdo", $sapPayload);
+                $response = Http::retry(3, 1000)->timeout(45)->post("{$sapUrl}/api/addpdo", $sapPayload);
                 if ($response->successful()) {
                     $body = $response->json();
                     if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
@@ -572,7 +572,7 @@ class ProductionService
             ];
 
             try {
-                $response = Http::timeout(30)->post("{$sapUrl}/api/addpdo", $sapPayload);
+                $response = Http::retry(3, 1000)->timeout(45)->post("{$sapUrl}/api/addpdo", $sapPayload);
                 if ($response->successful()) {
                     $body = $response->json();
                     if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
@@ -2317,7 +2317,7 @@ class ProductionService
         ];
 
         try {
-            $response = Http::timeout(45)->post("{$sapUrl}/api/AddIssueForProduction", $sapPayload);
+            $response = Http::retry(3, 1000)->timeout(45)->post("{$sapUrl}/api/AddIssueForProduction", $sapPayload);
             if ($response->successful()) {
                 $body = $response->json();
                 if (!isset($body['ErrorCode']) || (int)$body['ErrorCode'] === 0) {
@@ -2509,7 +2509,7 @@ class ProductionService
         ];
 
         try {
-            $response = Http::timeout(45)->post("{$sapUrl}/api/addreceiptprod", $sapPayload);
+            $response = Http::retry(3, 1000)->timeout(45)->post("{$sapUrl}/api/addreceiptprod", $sapPayload);
             if ($response->successful()) {
                 $body = $response->json();
                 if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
