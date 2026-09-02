@@ -76,7 +76,25 @@ class ExternalCustomerMonthlyOrderController extends Controller
         foreach ($lines as $line) {
             $itemCode   = $line['item_code'];
             $item       = Item::where('item_code', $itemCode)->first();
-            $unitPrice  = isset($line['unit_price']) ? (float)$line['unit_price'] : ($item?->price ?? 0.0);
+            
+            // Auto lookup price from DistributorItemPrice if not provided or 0
+            $distPrice = \App\Models\DistributorItemPrice::where('code_customer', $distributor->code_customer)
+                ->where('item_code', $itemCode)
+                ->where('status', 1)
+                ->value('price');
+
+            $unitPrice = (!empty($line['unit_price']) && (float)$line['unit_price'] > 0)
+                ? (float)$line['unit_price']
+                : ($distPrice !== null ? (float)$distPrice : (float)($item?->price ?? 0.0));
+
+            if ($unitPrice <= 0) {
+                return $this->errorResponse(
+                    "Harga barang (unit_price) untuk item '{$itemCode}' tidak boleh 0 atau belum terdaftar pada master harga distributor.",
+                    ['lines' => ["Item '{$itemCode}' memiliki harga 0."]],
+                    422
+                );
+            }
+
             $quantity   = (float)$line['quantity'];
             $discPercent = isset($line['disc_percent']) ? (float)$line['disc_percent'] : 0.0;
 
