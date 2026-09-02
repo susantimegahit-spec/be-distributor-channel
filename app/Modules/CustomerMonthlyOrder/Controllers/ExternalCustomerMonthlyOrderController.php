@@ -87,29 +87,14 @@ class ExternalCustomerMonthlyOrderController extends Controller
 
             if ($masterPrice === null || $masterPrice <= 0) {
                 return $this->errorResponse(
-                    "Item '{$itemCode}' belum memiliki master harga aktif untuk distributor '{$distributor->code_customer}'.",
-                    ['lines' => ["Item '{$itemCode}' belum terdaftar pada master harga distributor."]],
+                    "Item '{$itemCode}' belum terdaftar/belum di-mapping pada master harga distributor '{$distributor->code_customer}'.",
+                    ['lines' => ["Item '{$itemCode}' belum memiliki master harga aktif pada distributor ini."]],
                     422
                 );
             }
 
-            // If unit_price is explicitly provided by client and > 0, validate match with master price
-            if (isset($line['unit_price']) && (float)$line['unit_price'] > 0) {
-                $sentPrice = (float)$line['unit_price'];
-                if (abs($sentPrice - $masterPrice) > 0.01) {
-                    $sentPriceFormatted   = number_format($sentPrice, 0, ',', '.');
-                    $masterPriceFormatted = number_format($masterPrice, 0, ',', '.');
-                    return $this->errorResponse(
-                        "Harga (unit_price) untuk item '{$itemCode}' (Rp {$sentPriceFormatted}) tidak sesuai dengan harga resmi master distributor (Rp {$masterPriceFormatted}).",
-                        ['lines' => ["Harga item '{$itemCode}' tidak sesuai dengan master harga."]],
-                        422
-                    );
-                }
-                $unitPrice = $sentPrice;
-            } else {
-                // If omitted or sent as 0, auto-fill from master price
-                $unitPrice = $masterPrice;
-            }
+            // Always auto-adjust/override to official master price
+            $unitPrice = $masterPrice;
 
             $quantity   = (float)$line['quantity'];
             $discPercent = isset($line['disc_percent']) ? (float)$line['disc_percent'] : 0.0;
