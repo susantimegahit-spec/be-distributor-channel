@@ -42,8 +42,14 @@ class ExternalCustomerMonthlyOrderApiTest extends TestCase
         $this->item = Item::create([
             'item_code' => 'SKU-TEST-001',
             'item_name' => 'Barang Test 1',
-            'price' => 50000,
-            'sales_uom' => 'CTN',
+            'sal_unit_msr' => 'CTN',
+        ]);
+
+        \App\Models\DistributorItemPrice::create([
+            'code_customer' => 'CUST-TEST-001',
+            'item_code'     => 'SKU-TEST-001',
+            'price'         => 50000,
+            'status'        => 1,
         ]);
     }
 
@@ -257,19 +263,79 @@ class ExternalCustomerMonthlyOrderApiTest extends TestCase
             ->assertJsonPath('errors.attachment.0', 'Dokumen bukti PO fisik (attachment) dalam format PDF wajib diunggah.');
     }
 
-    public function test_lists_allowed_distributor_customer_codes_successfully(): void
+    public function test_auto_resolves_unit_price_from_distributor_item_prices_when_zero(): void
     {
-        $response = $this->withHeader('Authorization', 'Bearer ' . $this->rawApiKey)
-            ->getJson('/api/distributor-channel/v1/external/customer-monthly-orders/distributors');
+        \Illuminate\Support\Facades\Storage::fake('public');
+        $file = \Illuminate\Http\UploadedFile::fake()->create('po.pdf', 100, 'application/pdf');
 
-        $response->assertStatus(200)
+        $payload = [
+            'card_code'          => 'CUST-TEST-001',
+            'distributor_ref_no' => 'PO-ZERO-PRICE-001',
+            'doc_date'           => '2026-09-01',
+            'lines'              => json_encode([
+                [
+                    'item_code'  => 'SKU-TEST-001',
+                    'quantity'   => 10,
+                    'unit_price' => 0, // Sending 0 should auto resolve to 50000 from DistributorItemPrice
+                ],
+            ]),
+            'attachment'         => $file,
+        ];
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->rawApiKey)
+            ->post('/api/distributor-channel/v1/external/customer-monthly-orders', $payload);
+
+        $response->assertStatus(201)
             ->assertJson([
-                'success' => true,
-                'message' => 'Daftar distributor berhasil diambil.',
+                'success'      => true,
+                'is_duplicate' => false,
+            ]);
+
+        $this->assertDatabaseHas('customer_monthly_order_details', [
+            'item_code'   => 'SKU-TEST-001',
+            'quantity'    => 10,
+            'unit_price'  => 50000,
+            'line_total'  => 500000,
+        ]);
+    }
+
+    public function test_fails_when_item_price_is_zero_and_not_in_master(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+        $file = \Illuminate\Http\UploadedFile::fake()->create('po.pdf', 100, 'application/pdf');
+
+        // Create an item that has no price in distributor_item_prices
+        Item::create([
+            'item_code'    => 'SKU-NO-PRICE',
+            'item_name'    => 'Barang Tanpa Harga',
+            'sal_unit_msr' => 'CTN',
+        ]);
+
+        $payload = [
+            'card_code'          => 'CUST-TEST-001',
+            'distributor_ref_no' => 'PO-ZERO-PRICE-FAIL',
+            'doc_date'           => '2026-09-01',
+            'lines'              => json_encode([
+                [
+                    'item_code'  => 'SKU-NO-PRICE',
+                    'quantity'   => 10,
+                    'unit_price' => 0,
+                ],
+            ]),
+            'attachment'         => $file,
+        ];
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->rawApiKey)
+            ->post('/api/distributor-channel/v1/external/customer-monthly-orders', $payload);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'success' => false,
             ])
             ->assertJsonFragment([
-                'card_code' => 'CUST-TEST-001',
-                'customer_name' => 'Distributor Test PT',
+                'message' => "Harga barang (unit_price) untuk item 'SKU-NO-PRICE' tidak boleh 0 atau belum terdaftar pada master harga distributor.",
             ]);
     }
 }
+
+
