@@ -77,22 +77,38 @@ class ExternalCustomerMonthlyOrderController extends Controller
             $itemCode   = $line['item_code'];
             $item       = Item::where('item_code', $itemCode)->first();
             
-            // Auto lookup price from DistributorItemPrice if not provided or 0
+            // Get active master price from DistributorItemPrice
             $distPrice = \App\Models\DistributorItemPrice::where('code_customer', $distributor->code_customer)
                 ->where('item_code', $itemCode)
                 ->where('status', 1)
                 ->value('price');
 
-            $unitPrice = (!empty($line['unit_price']) && (float)$line['unit_price'] > 0)
-                ? (float)$line['unit_price']
-                : ($distPrice !== null ? (float)$distPrice : (float)($item?->price ?? 0.0));
+            $masterPrice = $distPrice !== null ? (float)$distPrice : null;
 
-            if ($unitPrice <= 0) {
+            if ($masterPrice === null || $masterPrice <= 0) {
                 return $this->errorResponse(
-                    "Harga barang (unit_price) untuk item '{$itemCode}' tidak boleh 0 atau belum terdaftar pada master harga distributor.",
-                    ['lines' => ["Item '{$itemCode}' memiliki harga 0."]],
+                    "Item '{$itemCode}' belum memiliki master harga aktif untuk distributor '{$distributor->code_customer}'.",
+                    ['lines' => ["Item '{$itemCode}' belum terdaftar pada master harga distributor."]],
                     422
                 );
+            }
+
+            // If unit_price is explicitly provided by client and > 0, validate match with master price
+            if (isset($line['unit_price']) && (float)$line['unit_price'] > 0) {
+                $sentPrice = (float)$line['unit_price'];
+                if (abs($sentPrice - $masterPrice) > 0.01) {
+                    $sentPriceFormatted   = number_format($sentPrice, 0, ',', '.');
+                    $masterPriceFormatted = number_format($masterPrice, 0, ',', '.');
+                    return $this->errorResponse(
+                        "Harga (unit_price) untuk item '{$itemCode}' (Rp {$sentPriceFormatted}) tidak sesuai dengan harga resmi master distributor (Rp {$masterPriceFormatted}).",
+                        ['lines' => ["Harga item '{$itemCode}' tidak sesuai dengan master harga."]],
+                        422
+                    );
+                }
+                $unitPrice = $sentPrice;
+            } else {
+                // If omitted or sent as 0, auto-fill from master price
+                $unitPrice = $masterPrice;
             }
 
             $quantity   = (float)$line['quantity'];
