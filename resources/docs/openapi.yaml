@@ -1530,7 +1530,8 @@ paths:
                         example: 50
                       unit_price:
                         type: number
-                        example: 150000
+                        example: 0
+                        description: "Harga satuan per item (opsional / boleh diisi 0). Backend secara otomatis menyesuaikan dengan master harga resmi distributor."
                       unit_msr:
                         type: string
                         example: "CTN"
