@@ -3298,4 +3298,240 @@ class ProductionService
 
         return $shift;
     }
+
+    /**
+     * Get all Change Products.
+     *
+     * @param array $filters
+     * @return Collection
+     */
+    public function getAllChangeProducts(array $filters = []): Collection
+    {
+        return $this->productionRepository->getAllChangeProducts($filters);
+    }
+
+    /**
+     * Get Change Product by ID.
+     *
+     * @param int $id
+     * @return \App\Models\ProductionChangeProduct
+     * @throws \Exception
+     */
+    public function getChangeProductById(int $id): \App\Models\ProductionChangeProduct
+    {
+        $cp = $this->productionRepository->getChangeProductById($id);
+        if (!$cp) {
+            throw new \Exception('Transaksi Change Product tidak ditemukan.');
+        }
+        return $cp;
+    }
+
+    /**
+     * Create a new Change Product.
+     *
+     * @param array $data
+     * @param int|null $userId
+     * @return \App\Models\ProductionChangeProduct
+     */
+    public function createChangeProduct(array $data, ?int $userId = null): \App\Models\ProductionChangeProduct
+    {
+        $data['created_by'] = $userId;
+        $data['updated_by'] = $userId;
+        $data['status'] = $data['status'] ?? 'DRAFT';
+        $data['sap_status'] = $data['sap_status'] ?? 'PENDING';
+
+        $cp = $this->productionRepository->createChangeProduct($data);
+
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'CREATE_CHANGE_PRODUCT',
+                "Membuat draft Change Product {$cp->cp_no} dengan " . count($cp->items) . " item."
+            );
+        }
+
+        return $cp;
+    }
+
+    /**
+     * Update an existing Change Product.
+     *
+     * @param int $id
+     * @param array $data
+     * @param int|null $userId
+     * @return \App\Models\ProductionChangeProduct
+     * @throws \Exception
+     */
+    public function updateChangeProduct(int $id, array $data, ?int $userId = null): \App\Models\ProductionChangeProduct
+    {
+        $cp = $this->getChangeProductById($id);
+
+        if ($cp->status === 'COMPLETE') {
+            throw new \Exception('Transaksi Change Product yang sudah COMPLETE tidak dapat diubah.');
+        }
+
+        $data['updated_by'] = $userId;
+
+        $updatedCp = $this->productionRepository->updateChangeProduct($cp, $data);
+
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'UPDATE_CHANGE_PRODUCT',
+                "Memperbarui Change Product {$updatedCp->cp_no}."
+            );
+        }
+
+        return $updatedCp;
+    }
+
+    /**
+     * Delete a Change Product.
+     *
+     * @param int $id
+     * @param int|null $userId
+     * @return bool
+     * @throws \Exception
+     */
+    public function deleteChangeProduct(int $id, ?int $userId = null): bool
+    {
+        $cp = $this->getChangeProductById($id);
+
+        if ($cp->status === 'COMPLETE') {
+            throw new \Exception('Transaksi Change Product yang sudah COMPLETE tidak dapat dihapus.');
+        }
+
+        $cpNo = $cp->cp_no;
+        $deleted = $this->productionRepository->deleteChangeProduct($cp);
+
+        if ($userId && $deleted) {
+            $this->auditLogService->log(
+                $userId,
+                'DELETE_CHANGE_PRODUCT',
+                "Menghapus Change Product {$cpNo}."
+            );
+        }
+
+        return $deleted;
+    }
+
+    /**
+     * Post Change Product transaction to SAP B1 (/api/AddCP).
+     *
+     * @param int|\App\Models\ProductionChangeProduct $cpOrId
+     * @param int|null $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function postChangeProductToSap(int|\App\Models\ProductionChangeProduct $cpOrId, ?int $userId = null): array
+    {
+        $cp = is_numeric($cpOrId) ? $this->getChangeProductById((int)$cpOrId) : $cpOrId;
+        $cp->loadMissing('items');
+
+        if ($cp->items->isEmpty()) {
+            throw new \Exception('Transaksi Change Product tidak memiliki detail baris item.');
+        }
+
+        $docDate = $cp->doc_date ? $cp->doc_date->format('Y-m-d\TH:i:s') : now()->format('Y-m-d\TH:i:s');
+        $docDueDate = $cp->doc_due_date ? $cp->doc_due_date->format('Y-m-d\TH:i:s') : $docDate;
+
+        $lines = [];
+        foreach ($cp->items as $item) {
+            $lines[] = [
+                'oldItemCode' => (string)$item->old_item_code,
+                'newItemCode' => (string)$item->new_item_code,
+                'quantity'    => floatval($item->quantity),
+                'fromWhsCode' => (string)$item->from_whs_code,
+                'toWhsCode'   => (string)$item->to_whs_code,
+                'ocrCode'     => (string)($item->ocr_code ?? ''),
+                'ocrCode2'    => (string)($item->ocr_code2 ?? ''),
+                'ocrCode3'    => (string)($item->ocr_code3 ?? ''),
+            ];
+        }
+
+        $sapPayload = [
+            'docDate'    => $docDate,
+            'docDueDate' => $docDueDate,
+            'comments'   => (string)($cp->comments ?? "Change Product {$cp->cp_no}"),
+            'shift'      => (string)($cp->shift ?? '1'),
+            'unit'       => (string)($cp->unit ?? ''),
+            'addonId'    => (string)($cp->addon_id ?? $cp->cp_no),
+            'userId'     => (string)($cp->user_id ?? ($userId ? (string)$userId : '1')),
+            'lines'      => $lines,
+        ];
+
+        $sapUrl = config('services.sap.url');
+        if (empty($sapUrl)) {
+            throw new \Exception('Konfigurasi URL SAP (services.sap.url) belum diatur.');
+        }
+
+        try {
+            $response = Http::retry(3, 1000)->timeout(45)->post("{$sapUrl}/api/AddCP", $sapPayload);
+        } catch (\Exception $ex) {
+            $cp->update([
+                'sap_status' => 'FAILED',
+                'sap_error'  => 'Koneksi ke SAP gagal: ' . $ex->getMessage(),
+            ]);
+            throw new \Exception('Gagal menghubungi API SAP AddCP: ' . $ex->getMessage());
+        }
+
+        if (!$response->successful()) {
+            $errorMsg = "HTTP error {$response->status()} dari SAP: " . $response->body();
+            $cp->update([
+                'sap_status' => 'FAILED',
+                'sap_error'  => $errorMsg,
+            ]);
+            throw new \Exception($errorMsg);
+        }
+
+        $body = $response->json();
+        $errorCode = $body['errorCode'] ?? $body['ErrorCode'] ?? 0;
+        $message = $body['message'] ?? $body['Message'] ?? '';
+
+        if ($errorCode !== 0) {
+            $cp->update([
+                'sap_status' => 'FAILED',
+                'sap_error'  => $message ?: 'SAP mengembalikan error tanpa pesan.',
+            ]);
+            throw new \Exception('SAP AddCP Error: ' . ($message ?: 'Unknown error'));
+        }
+
+        // Extract Issue Entry (GI) & Receipt Entry (GR)
+        $issueEntry = $body['issue_entry'] ?? $body['IssueEntry'] ?? $body['gi_entry'] ?? null;
+        $receiptEntry = $body['receipt_entry'] ?? $body['ReceiptEntry'] ?? $body['gr_entry'] ?? null;
+
+        if (!$issueEntry && preg_match('/Issue\s*Entry:\s*(\d+)/i', $message, $giMatch)) {
+            $issueEntry = (int)$giMatch[1];
+        }
+        if (!$receiptEntry && preg_match('/Receipt\s*Entry:\s*(\d+)/i', $message, $grMatch)) {
+            $receiptEntry = (int)$grMatch[1];
+        }
+
+        $cp->update([
+            'gi_entry'      => $issueEntry ? (int)$issueEntry : null,
+            'gr_entry'      => $receiptEntry ? (int)$receiptEntry : null,
+            'status'        => 'COMPLETE',
+            'sap_status'    => 'SYNCED',
+            'sap_message'   => $message,
+            'sap_error'     => null,
+            'integrated_at' => now(),
+            'updated_by'    => $userId,
+        ]);
+
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'POST_CHANGE_PRODUCT',
+                "Posting Change Product {$cp->cp_no} ke SAP berhasil. Issue Entry: {$issueEntry}, Receipt Entry: {$receiptEntry}"
+            );
+        }
+
+        return [
+            'change_product' => $cp->fresh(['items']),
+            'gi_entry'       => $issueEntry,
+            'gr_entry'       => $receiptEntry,
+            'sap_response'   => $body,
+        ];
+    }
 }
+

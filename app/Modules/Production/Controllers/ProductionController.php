@@ -959,4 +959,227 @@ class ProductionController extends Controller
             return $this->errorResponse($e->getMessage(), null, 400);
         }
     }
+
+    /**
+     * Display a listing of Change Products.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function indexChangeProducts(Request $request): JsonResponse
+    {
+        $filters = $request->only(['search', 'status', 'sap_status', 'date_from', 'date_to']);
+        $changeProducts = $this->productionService->getAllChangeProducts($filters);
+
+        return $this->successResponse($changeProducts, 'Daftar transaksi Change Product berhasil diambil.');
+    }
+
+    /**
+     * Display the specified Change Product.
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function showChangeProduct(int $id): JsonResponse
+    {
+        try {
+            $cp = $this->productionService->getChangeProductById($id);
+            return $this->successResponse($cp, 'Detail transaksi Change Product berhasil diambil.');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), [], 404);
+        }
+    }
+
+    /**
+     * Store a newly created Change Product (Draft or Direct Post).
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function storeChangeProduct(Request $request): JsonResponse
+    {
+        $input = $this->normalizeChangeProductInput($request->all());
+
+        $request->merge($input);
+        $request->validate([
+            'doc_date'                => 'required|date',
+            'doc_due_date'            => 'nullable|date',
+            'comments'                => 'nullable|string',
+            'shift'                   => 'nullable|string|max:50',
+            'unit'                    => 'nullable|string|max:50',
+            'addon_id'                => 'nullable|string|max:100',
+            'user_id'                 => 'nullable|string|max:50',
+            'items'                   => 'required|array|min:1',
+            'items.*.old_item_code'   => 'required|string|max:50',
+            'items.*.new_item_code'   => 'required|string|max:50',
+            'items.*.quantity'        => 'required|numeric|min:0.0001',
+            'items.*.from_whs_code'   => 'required|string|max:50',
+            'items.*.to_whs_code'     => 'required|string|max:50',
+        ]);
+
+        $userId = $request->user()?->id;
+
+        try {
+            $cp = $this->productionService->createChangeProduct($input, $userId);
+
+            // Auto post to SAP if requested
+            if ($request->boolean('post_now') || $request->boolean('is_posted') || $request->input('status') === 'POST' || $request->input('status') === 'COMPLETE') {
+                $postResult = $this->productionService->postChangeProductToSap($cp, $userId);
+                return $this->successResponse($postResult, 'Transaksi Change Product berhasil disimpan dan diposting ke SAP.', 201);
+            }
+
+            return $this->successResponse($cp, 'Draft Change Product berhasil disimpan.', 201);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal menyimpan Change Product: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
+     * Update the specified Change Product in storage.
+     *
+     * @param Request $request
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function updateChangeProduct(Request $request, int $id): JsonResponse
+    {
+        $input = $this->normalizeChangeProductInput($request->all());
+
+        $request->merge($input);
+        $request->validate([
+            'doc_date'                => 'sometimes|required|date',
+            'doc_due_date'            => 'nullable|date',
+            'comments'                => 'nullable|string',
+            'shift'                   => 'nullable|string|max:50',
+            'unit'                    => 'nullable|string|max:50',
+            'addon_id'                => 'nullable|string|max:100',
+            'user_id'                 => 'nullable|string|max:50',
+            'items'                   => 'sometimes|required|array|min:1',
+            'items.*.old_item_code'   => 'required_with:items|string|max:50',
+            'items.*.new_item_code'   => 'required_with:items|string|max:50',
+            'items.*.quantity'        => 'required_with:items|numeric|min:0.0001',
+            'items.*.from_whs_code'   => 'required_with:items|string|max:50',
+            'items.*.to_whs_code'     => 'required_with:items|string|max:50',
+        ]);
+
+        $userId = $request->user()?->id;
+
+        try {
+            $cp = $this->productionService->updateChangeProduct($id, $input, $userId);
+
+            // Auto post to SAP if requested
+            if ($request->boolean('post_now') || $request->boolean('is_posted') || $request->input('status') === 'POST' || $request->input('status') === 'COMPLETE') {
+                $postResult = $this->productionService->postChangeProductToSap($cp, $userId);
+                return $this->successResponse($postResult, 'Transaksi Change Product berhasil diperbarui dan diposting ke SAP.');
+            }
+
+            return $this->successResponse($cp, 'Transaksi Change Product berhasil diperbarui.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal memperbarui Change Product: ' . $e->getMessage(), [], 400);
+        }
+    }
+
+    /**
+     * Remove the specified Change Product from storage.
+     *
+     * @param Request $request
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function destroyChangeProduct(Request $request, int $id): JsonResponse
+    {
+        $userId = $request->user()?->id;
+
+        try {
+            $this->productionService->deleteChangeProduct($id, $userId);
+            return $this->successResponse(null, 'Transaksi Change Product berhasil dihapus.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal menghapus Change Product: ' . $e->getMessage(), [], 400);
+        }
+    }
+
+    /**
+     * Post a Change Product transaction to SAP B1 (/api/AddCP).
+     *
+     * @param Request $request
+     * @param int|null $id
+     * @return JsonResponse
+     */
+    public function postChangeProductSap(Request $request, ?int $id = null): JsonResponse
+    {
+        $userId = $request->user()?->id;
+        $targetId = $id ?? $request->input('id') ?? $request->input('change_product_id');
+
+        try {
+            // Case 1: Post existing record by ID
+            if ($targetId) {
+                $result = $this->productionService->postChangeProductToSap((int)$targetId, $userId);
+                return $this->successResponse($result, 'Transaksi Change Product berhasil diposting ke SAP.');
+            }
+
+            // Case 2: Direct payload creation & immediate post
+            $input = $this->normalizeChangeProductInput($request->all());
+            $request->merge($input);
+            $request->validate([
+                'doc_date'                => 'required|date',
+                'items'                   => 'required|array|min:1',
+                'items.*.old_item_code'   => 'required|string|max:50',
+                'items.*.new_item_code'   => 'required|string|max:50',
+                'items.*.quantity'        => 'required|numeric|min:0.0001',
+                'items.*.from_whs_code'   => 'required|string|max:50',
+                'items.*.to_whs_code'     => 'required|string|max:50',
+            ]);
+
+            $cp = $this->productionService->createChangeProduct($input, $userId);
+            $result = $this->productionService->postChangeProductToSap($cp, $userId);
+
+            return $this->successResponse($result, 'Transaksi Change Product berhasil disimpan dan diposting ke SAP.', 201);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal memposting Change Product ke SAP: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
+     * Helper to normalize input parameters for Change Product (supports camelCase and snake_case).
+     *
+     * @param array $raw
+     * @return array
+     */
+    protected function normalizeChangeProductInput(array $raw): array
+    {
+        $normalized = [];
+
+        // Header mapping
+        $normalized['doc_date'] = $raw['doc_date'] ?? $raw['docDate'] ?? $raw['DocDate'] ?? now()->toIso8601String();
+        $normalized['doc_due_date'] = $raw['doc_due_date'] ?? $raw['docDueDate'] ?? $raw['DocDueDate'] ?? $normalized['doc_date'];
+        $normalized['comments'] = $raw['comments'] ?? $raw['Comments'] ?? null;
+        $normalized['shift'] = $raw['shift'] ?? $raw['Shift'] ?? null;
+        $normalized['unit'] = $raw['unit'] ?? $raw['Unit'] ?? null;
+        $normalized['addon_id'] = $raw['addon_id'] ?? $raw['addonId'] ?? $raw['AddonId'] ?? null;
+        $normalized['user_id'] = isset($raw['user_id']) ? (string)$raw['user_id'] : (isset($raw['userId']) ? (string)$raw['userId'] : (isset($raw['UserId']) ? (string)$raw['UserId'] : null));
+
+        // Details mapping (only if provided)
+        if (isset($raw['items']) || isset($raw['lines']) || isset($raw['Lines'])) {
+            $rawLines = $raw['items'] ?? $raw['lines'] ?? $raw['Lines'] ?? [];
+            $items = [];
+            if (is_array($rawLines)) {
+                foreach ($rawLines as $line) {
+                    $items[] = [
+                        'old_item_code' => $line['old_item_code'] ?? $line['oldItemCode'] ?? $line['OldItemCode'] ?? '',
+                        'new_item_code' => $line['new_item_code'] ?? $line['newItemCode'] ?? $line['NewItemCode'] ?? '',
+                        'quantity'      => floatval($line['quantity'] ?? $line['Quantity'] ?? $line['qty'] ?? 0),
+                        'from_whs_code' => $line['from_whs_code'] ?? $line['fromWhsCode'] ?? $line['FromWhsCode'] ?? '',
+                        'to_whs_code'   => $line['to_whs_code'] ?? $line['toWhsCode'] ?? $line['ToWhsCode'] ?? '',
+                        'ocr_code'      => $line['ocr_code'] ?? $line['ocrCode'] ?? $line['OcrCode'] ?? null,
+                        'ocr_code2'     => $line['ocr_code2'] ?? $line['ocrCode2'] ?? $line['OcrCode2'] ?? null,
+                        'ocr_code3'     => $line['ocr_code3'] ?? $line['ocrCode3'] ?? $line['OcrCode3'] ?? null,
+                    ];
+                }
+            }
+            $normalized['items'] = $items;
+        }
+
+        return $normalized;
+    }
 }
+

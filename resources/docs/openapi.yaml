@@ -14,6 +14,340 @@ servers:
   - url: http://localhost:8000/api/distributor-channel
     description: Local Server
 paths:
+  /v1/production/change-products:
+    get:
+      summary: Daftar Transaksi Change Product
+      description: Mengambil seluruh riwayat transaksi Change Product (penggantian item lama ke item baru) beserta status sinkronisasi SAP.
+      tags:
+        - Production - Change Product
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          description: Pencarian berdasarkan nomor dokumen CP, comments, addon_id, atau item code
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Filter status transaksi (DRAFT, COMPLETE, CANCELLED)
+          schema:
+            type: string
+            enum: [DRAFT, COMPLETE, CANCELLED]
+        - name: sap_status
+          in: query
+          description: Filter status sinkronisasi SAP (PENDING, SYNCED, FAILED)
+          schema:
+            type: string
+            enum: [PENDING, SYNCED, FAILED]
+        - name: date_from
+          in: query
+          description: Filter tanggal dokumen mulai (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          description: Filter tanggal dokumen akhir (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Data transaksi Change Product berhasil diambil.
+    post:
+      summary: Buat Draft / Simpan & Posting Transaksi Change Product
+      description: |
+        Menyimpan transaksi Change Product baru. Default berstatus **DRAFT**.
+        Jika parameter `post_now: true` dikirimkan, backend akan langsung memproses ke SAP B1 (`POST /api/AddCP`), mengambil nomor GI (Goods Issue) dan GR (Goods Receipt), lalu mengubah status menjadi **COMPLETE**.
+      tags:
+        - Production - Change Product
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - docDate
+                - lines
+              properties:
+                docDate:
+                  type: string
+                  format: date-time
+                  example: "2026-09-01T00:00:00"
+                docDueDate:
+                  type: string
+                  format: date-time
+                  example: "2026-09-01T00:00:00"
+                comments:
+                  type: string
+                  example: "Proses Change Product Multiple Items"
+                shift:
+                  type: string
+                  example: "1"
+                unit:
+                  type: string
+                  example: "UNIT-A"
+                addonId:
+                  type: string
+                  example: "ADDON-CP-001"
+                userId:
+                  type: string
+                  example: "105"
+                post_now:
+                  type: boolean
+                  description: Jika true, langsung diposting ke SAP saat disimpan
+                  example: false
+                lines:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - oldItemCode
+                      - newItemCode
+                      - quantity
+                      - fromWhsCode
+                      - toWhsCode
+                    properties:
+                      oldItemCode:
+                        type: string
+                        example: "ITEM-OLD-001"
+                      newItemCode:
+                        type: string
+                        example: "ITEM-NEW-001"
+                      quantity:
+                        type: number
+                        example: 10.0
+                      fromWhsCode:
+                        type: string
+                        example: "WRH-RAW"
+                      toWhsCode:
+                        type: string
+                        example: "WRH-FG"
+                      ocrCode:
+                        type: string
+                        example: "CC-PROD"
+                      ocrCode2:
+                        type: string
+                        example: "DEPT-MFG"
+                      ocrCode3:
+                        type: string
+                        example: "LINE-01"
+      responses:
+        '201':
+          description: Transaksi Change Product berhasil disimpan.
+        '422':
+          description: Validasi payload gagal.
+        '500':
+          description: Terjadi kesalahan server atau integrasi SAP gagal.
+
+  /v1/production/change-products/{id}:
+    get:
+      summary: Detail Transaksi Change Product
+      description: Mengambil detail satu transaksi Change Product berdasarkan ID, termasuk detail items dan nomor GI / GR jika sudah COMPLETE.
+      tags:
+        - Production - Change Product
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail transaksi Change Product berhasil diambil.
+        '404':
+          description: Data tidak ditemukan.
+    put:
+      summary: Update Draft Transaksi Change Product
+      description: Memperbarui data transaksi Change Product. Hanya diizinkan jika status masih **DRAFT**.
+      tags:
+        - Production - Change Product
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                docDate:
+                  type: string
+                  format: date-time
+                docDueDate:
+                  type: string
+                  format: date-time
+                comments:
+                  type: string
+                shift:
+                  type: string
+                unit:
+                  type: string
+                addonId:
+                  type: string
+                userId:
+                  type: string
+                post_now:
+                  type: boolean
+                lines:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      oldItemCode:
+                        type: string
+                      newItemCode:
+                        type: string
+                      quantity:
+                        type: number
+                      fromWhsCode:
+                        type: string
+                      toWhsCode:
+                        type: string
+                      ocrCode:
+                        type: string
+                      ocrCode2:
+                        type: string
+                      ocrCode3:
+                        type: string
+      responses:
+        '200':
+          description: Data Change Product berhasil diperbarui.
+        '400':
+          description: Data berstatus COMPLETE tidak dapat diubah.
+    delete:
+      summary: Hapus Draft Transaksi Change Product
+      description: Menghapus transaksi Change Product. Hanya diizinkan jika status masih **DRAFT**.
+      tags:
+        - Production - Change Product
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Transaksi Change Product berhasil dihapus.
+        '400':
+          description: Data berstatus COMPLETE tidak dapat dihapus.
+
+  /v1/production/change-products/{id}/post:
+    post:
+      summary: Posting Draft Change Product ke SAP (/api/AddCP)
+      description: Mengirim transaksi Change Product berstatus **DRAFT** ke SAP B1. Setelah sukses, nomor GI (Issue Entry) dan GR (Receipt Entry) akan dicatat dan status transaksi berubah menjadi **COMPLETE**.
+      tags:
+        - Production - Change Product
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Berhasil diposting ke SAP dan status berubah COMPLETE.
+        '500':
+          description: Gagal diposting ke SAP.
+
+  /v1/production/add-cp:
+    post:
+      summary: Direct Save & Post Change Product ke SAP (Alias)
+      description: Endpoint praktis untuk langsung menyimpan dan mengeksekusi posting Change Product ke SAP dalam satu panggilan.
+      tags:
+        - Production - Change Product
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - docDate
+                - lines
+              properties:
+                docDate:
+                  type: string
+                  format: date-time
+                  example: "2026-09-01T00:00:00"
+                docDueDate:
+                  type: string
+                  format: date-time
+                  example: "2026-09-01T00:00:00"
+                comments:
+                  type: string
+                  example: "Proses Change Product Multiple Items"
+                shift:
+                  type: string
+                  example: "1"
+                unit:
+                  type: string
+                  example: "UNIT-A"
+                addonId:
+                  type: string
+                  example: "ADDON-CP-001"
+                userId:
+                  type: string
+                  example: "105"
+                lines:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - oldItemCode
+                      - newItemCode
+                      - quantity
+                      - fromWhsCode
+                      - toWhsCode
+                    properties:
+                      oldItemCode:
+                        type: string
+                        example: "ITEM-OLD-001"
+                      newItemCode:
+                        type: string
+                        example: "ITEM-NEW-001"
+                      quantity:
+                        type: number
+                        example: 10.0
+                      fromWhsCode:
+                        type: string
+                        example: "WRH-RAW"
+                      toWhsCode:
+                        type: string
+                        example: "WRH-FG"
+                      ocrCode:
+                        type: string
+                        example: "CC-PROD"
+                      ocrCode2:
+                        type: string
+                        example: "DEPT-MFG"
+                      ocrCode3:
+                        type: string
+                        example: "LINE-01"
+      responses:
+        '201':
+          description: Berhasil diposting ke SAP.
+        '500':
+          description: Gagal diposting ke SAP.
+
   /v1/notifications/telegram/test:
     post:
       summary: Kirim Test Notifikasi Telegram Bot
@@ -12583,87 +12917,6 @@ paths:
                         type: array
                         items:
                           type: object
-
-  /v1/warehouses/search-qty-bin:
-    post:
-      summary: Search Qty Bin Location dari SAP
-      description: Mencari kuantiti sisa pada bin location gudang SAP (/api/searchQtyBin). Jika kosong, mengembalikan respon Data not found.
-      tags:
-        - Master Warehouse
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - WhsCode
-              properties:
-                CustomQuery:
-                  type: string
-                  example: "BIN-01"
-                WhsCode:
-                  type: string
-                  example: "WHS01"
-      responses:
-        '200':
-          description: Berhasil mencari data bin qty atau Data not found jika kosong.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Data not found.
-                  data:
-                    type: array
-                    items:
-                      type: object
-
-  /v1/warehouses/search-bin:
-    post:
-      summary: Search Master Bin Location dari SAP
-      description: Mencari master bin location SAP (/api/searchBin). Jika kosong, mengembalikan respon Data not found.
-      tags:
-        - Master Warehouse
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - CustomQuery
-              properties:
-                CustomQuery:
-                  type: string
-                  example: "BIN-01"
-      responses:
-        '200':
-          description: Berhasil mencari data master bin atau Data not found jika kosong.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Data not found.
-                  data:
-                    type: array
-                    items:
-                      type: object
 
   /v1/production/add-receipt-prod-sap:
     post:
