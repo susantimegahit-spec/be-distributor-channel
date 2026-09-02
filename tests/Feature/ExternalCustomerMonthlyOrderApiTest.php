@@ -333,9 +333,41 @@ class ExternalCustomerMonthlyOrderApiTest extends TestCase
                 'success' => false,
             ])
             ->assertJsonFragment([
-                'message' => "Harga barang (unit_price) untuk item 'SKU-NO-PRICE' tidak boleh 0 atau belum terdaftar pada master harga distributor.",
+                'message' => "Item 'SKU-NO-PRICE' belum memiliki master harga aktif untuk distributor 'CUST-TEST-001'.",
+            ]);
+    }
+
+    public function test_fails_when_sent_unit_price_does_not_match_master_price(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+        $file = \Illuminate\Http\UploadedFile::fake()->create('po.pdf', 100, 'application/pdf');
+
+        $payload = [
+            'card_code'          => 'CUST-TEST-001',
+            'distributor_ref_no' => 'PO-MISMATCH-PRICE',
+            'doc_date'           => '2026-09-01',
+            'lines'              => json_encode([
+                [
+                    'item_code'  => 'SKU-TEST-001',
+                    'quantity'   => 10,
+                    'unit_price' => 40000, // Master price is 50000 -> must fail
+                ],
+            ]),
+            'attachment'         => $file,
+        ];
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->rawApiKey)
+            ->post('/api/distributor-channel/v1/external/customer-monthly-orders', $payload);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+            ])
+            ->assertJsonFragment([
+                'message' => "Harga (unit_price) untuk item 'SKU-TEST-001' (Rp 40.000) tidak sesuai dengan harga resmi master distributor (Rp 50.000).",
             ]);
     }
 }
+
 
 
