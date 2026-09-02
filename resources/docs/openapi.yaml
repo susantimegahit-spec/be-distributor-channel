@@ -72,7 +72,8 @@ paths:
               type: object
               required:
                 - docDate
-                - lines
+                - oldLines
+                - newLines
               properties:
                 docDate:
                   type: string
@@ -84,7 +85,7 @@ paths:
                   example: "2026-09-01T00:00:00"
                 comments:
                   type: string
-                  example: "Proses Change Product Multiple Items"
+                  example: "Change product 4 item lama menjadi 2 item baru"
                 shift:
                   type: string
                   example: "1"
@@ -101,32 +102,25 @@ paths:
                   type: boolean
                   description: Jika true, langsung diposting ke SAP saat disimpan
                   example: false
-                lines:
+                oldLines:
                   type: array
+                  description: Daftar item lama yang dikeluarkan (Goods Issue)
                   items:
                     type: object
                     required:
-                      - oldItemCode
-                      - newItemCode
+                      - itemCode
                       - quantity
                       - fromWhsCode
-                      - toWhsCode
                     properties:
-                      oldItemCode:
+                      itemCode:
                         type: string
-                        example: "ITEM-OLD-001"
-                      newItemCode:
-                        type: string
-                        example: "ITEM-NEW-001"
+                        example: "OLD-01"
                       quantity:
                         type: number
                         example: 10.0
                       fromWhsCode:
                         type: string
-                        example: "WRH-RAW"
-                      toWhsCode:
-                        type: string
-                        example: "WRH-FG"
+                        example: "PRD01-01"
                       ocrCode:
                         type: string
                         example: "CC-PROD"
@@ -136,6 +130,37 @@ paths:
                       ocrCode3:
                         type: string
                         example: "LINE-01"
+                newLines:
+                  type: array
+                  description: Daftar item baru yang dimasukkan (Goods Receipt)
+                  items:
+                    type: object
+                    required:
+                      - itemCode
+                      - quantity
+                      - toWhsCode
+                    properties:
+                      itemCode:
+                        type: string
+                        example: "NEW-01"
+                      quantity:
+                        type: number
+                        example: 12.0
+                      toWhsCode:
+                        type: string
+                        example: "FG01"
+                      ocrCode:
+                        type: string
+                        example: "CC-PROD"
+                      ocrCode2:
+                        type: string
+                        example: "DEPT-MFG"
+                      ocrCode3:
+                        type: string
+                        example: "LINE-01"
+                      valueAllocationPercent:
+                        type: number
+                        example: 0
       responses:
         '201':
           description: Transaksi Change Product berhasil disimpan.
@@ -147,7 +172,7 @@ paths:
   /v1/production/change-products/{id}:
     get:
       summary: Detail Transaksi Change Product
-      description: Mengambil detail satu transaksi Change Product berdasarkan ID, termasuk detail items dan nomor GI / GR jika sudah COMPLETE.
+      description: Mengambil detail satu transaksi Change Product berdasarkan ID, termasuk detail oldLines dan newLines serta nomor GI / GR jika sudah COMPLETE.
       tags:
         - Production - Change Product
       security:
@@ -201,19 +226,32 @@ paths:
                   type: string
                 post_now:
                   type: boolean
-                lines:
+                oldLines:
                   type: array
                   items:
                     type: object
                     properties:
-                      oldItemCode:
-                        type: string
-                      newItemCode:
+                      itemCode:
                         type: string
                       quantity:
                         type: number
                       fromWhsCode:
                         type: string
+                      ocrCode:
+                        type: string
+                      ocrCode2:
+                        type: string
+                      ocrCode3:
+                        type: string
+                newLines:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      itemCode:
+                        type: string
+                      quantity:
+                        type: number
                       toWhsCode:
                         type: string
                       ocrCode:
@@ -222,6 +260,8 @@ paths:
                         type: string
                       ocrCode3:
                         type: string
+                      valueAllocationPercent:
+                        type: number
       responses:
         '200':
           description: Data Change Product berhasil diperbarui.
@@ -282,7 +322,8 @@ paths:
               type: object
               required:
                 - docDate
-                - lines
+                - oldLines
+                - newLines
               properties:
                 docDate:
                   type: string
@@ -294,7 +335,7 @@ paths:
                   example: "2026-09-01T00:00:00"
                 comments:
                   type: string
-                  example: "Proses Change Product Multiple Items"
+                  example: "Change product 4 item lama menjadi 2 item baru"
                 shift:
                   type: string
                   example: "1"
@@ -307,32 +348,24 @@ paths:
                 userId:
                   type: string
                   example: "105"
-                lines:
+                oldLines:
                   type: array
                   items:
                     type: object
                     required:
-                      - oldItemCode
-                      - newItemCode
+                      - itemCode
                       - quantity
                       - fromWhsCode
-                      - toWhsCode
                     properties:
-                      oldItemCode:
+                      itemCode:
                         type: string
-                        example: "ITEM-OLD-001"
-                      newItemCode:
-                        type: string
-                        example: "ITEM-NEW-001"
+                        example: "OLD-01"
                       quantity:
                         type: number
                         example: 10.0
                       fromWhsCode:
                         type: string
-                        example: "WRH-RAW"
-                      toWhsCode:
-                        type: string
-                        example: "WRH-FG"
+                        example: "PRD01-01"
                       ocrCode:
                         type: string
                         example: "CC-PROD"
@@ -342,6 +375,36 @@ paths:
                       ocrCode3:
                         type: string
                         example: "LINE-01"
+                newLines:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - itemCode
+                      - quantity
+                      - toWhsCode
+                    properties:
+                      itemCode:
+                        type: string
+                        example: "NEW-01"
+                      quantity:
+                        type: number
+                        example: 12.0
+                      toWhsCode:
+                        type: string
+                        example: "FG01"
+                      ocrCode:
+                        type: string
+                        example: "CC-PROD"
+                      ocrCode2:
+                        type: string
+                        example: "DEPT-MFG"
+                      ocrCode3:
+                        type: string
+                        example: "LINE-01"
+                      valueAllocationPercent:
+                        type: number
+                        example: 0
       responses:
         '201':
           description: Berhasil diposting ke SAP.

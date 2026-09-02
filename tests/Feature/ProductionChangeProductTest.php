@@ -34,38 +34,70 @@ class ProductionChangeProductTest extends TestCase
     }
 
     /**
-     * Test creating a Change Product draft.
+     * Test creating a Change Product draft (4 old items -> 2 new items).
      */
     public function test_create_change_product_draft_successfully(): void
     {
         $payload = [
             'docDate'    => '2026-09-01T00:00:00',
             'docDueDate' => '2026-09-01T00:00:00',
-            'comments'   => 'Proses Change Product Multiple Items',
+            'comments'   => 'Change product 4 item lama menjadi 2 item baru',
             'shift'      => '1',
             'unit'       => 'UNIT-A',
             'addonId'    => 'ADDON-CP-001',
             'userId'     => '105',
-            'lines'      => [
+            'oldLines'   => [
                 [
-                    'oldItemCode' => 'ITEM-OLD-001',
-                    'newItemCode' => 'ITEM-NEW-001',
+                    'itemCode'    => 'OLD-01',
                     'quantity'    => 10.0,
-                    'fromWhsCode' => 'WRH-RAW',
-                    'toWhsCode'   => 'WRH-FG',
+                    'fromWhsCode' => 'PRD01-01',
                     'ocrCode'     => 'CC-PROD',
                     'ocrCode2'    => 'DEPT-MFG',
                     'ocrCode3'    => 'LINE-01',
                 ],
                 [
-                    'oldItemCode' => 'ITEM-OLD-002',
-                    'newItemCode' => 'ITEM-NEW-002',
+                    'itemCode'    => 'OLD-02',
                     'quantity'    => 5.0,
-                    'fromWhsCode' => 'WRH-RAW',
-                    'toWhsCode'   => 'WRH-FG',
+                    'fromWhsCode' => 'PRD01-01',
                     'ocrCode'     => 'CC-PROD',
                     'ocrCode2'    => 'DEPT-MFG',
                     'ocrCode3'    => 'LINE-01',
+                ],
+                [
+                    'itemCode'    => 'OLD-03',
+                    'quantity'    => 2.0,
+                    'fromWhsCode' => 'PRD01-01',
+                    'ocrCode'     => 'CC-PROD',
+                    'ocrCode2'    => 'DEPT-MFG',
+                    'ocrCode3'    => 'LINE-01',
+                ],
+                [
+                    'itemCode'    => 'OLD-04',
+                    'quantity'    => 8.0,
+                    'fromWhsCode' => 'PRD01-01',
+                    'ocrCode'     => 'CC-PROD',
+                    'ocrCode2'    => 'DEPT-MFG',
+                    'ocrCode3'    => 'LINE-01',
+                ],
+            ],
+            'newLines'   => [
+                [
+                    'itemCode'               => 'NEW-01',
+                    'quantity'               => 12.0,
+                    'toWhsCode'              => 'FG01',
+                    'ocrCode'                => 'CC-PROD',
+                    'ocrCode2'               => 'DEPT-MFG',
+                    'ocrCode3'               => 'LINE-01',
+                    'valueAllocationPercent' => 0,
+                ],
+                [
+                    'itemCode'               => 'NEW-02',
+                    'quantity'               => 4.0,
+                    'toWhsCode'              => 'FG01',
+                    'ocrCode'                => 'CC-PROD',
+                    'ocrCode2'               => 'DEPT-MFG',
+                    'ocrCode3'               => 'LINE-01',
+                    'valueAllocationPercent' => 0,
                 ],
             ],
         ];
@@ -76,7 +108,8 @@ class ProductionChangeProductTest extends TestCase
         $response->assertStatus(201);
         $response->assertJsonPath('data.status', 'DRAFT');
         $response->assertJsonPath('data.sap_status', 'PENDING');
-        $this->assertCount(2, $response->json('data.items'));
+        $this->assertCount(4, $response->json('data.old_lines'));
+        $this->assertCount(2, $response->json('data.new_lines'));
     }
 
     /**
@@ -92,23 +125,33 @@ class ProductionChangeProductTest extends TestCase
             'created_by' => $this->user->id,
         ]);
 
-        $cp->items()->create([
+        $cp->oldLines()->create([
             'line_num'      => 0,
-            'old_item_code' => 'ITEM-OLD-001',
-            'new_item_code' => 'ITEM-NEW-001',
+            'item_code'     => 'OLD-01',
             'quantity'      => 5.0,
             'from_whs_code' => 'WRH-RAW',
+        ]);
+
+        $cp->newLines()->create([
+            'line_num'      => 0,
+            'item_code'     => 'NEW-01',
+            'quantity'      => 5.0,
             'to_whs_code'   => 'WRH-FG',
         ]);
 
         $updatePayload = [
             'comments' => 'Updated comments for Change Product',
-            'lines'    => [
+            'oldLines' => [
                 [
-                    'oldItemCode' => 'ITEM-OLD-001-EDIT',
-                    'newItemCode' => 'ITEM-NEW-001-EDIT',
+                    'itemCode'    => 'OLD-EDIT-01',
                     'quantity'    => 12.5,
                     'fromWhsCode' => 'WRH-RAW',
+                ],
+            ],
+            'newLines' => [
+                [
+                    'itemCode'    => 'NEW-EDIT-01',
+                    'quantity'    => 10.0,
                     'toWhsCode'   => 'WRH-FG',
                 ],
             ],
@@ -119,8 +162,10 @@ class ProductionChangeProductTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJsonPath('data.comments', 'Updated comments for Change Product');
-        $response->assertJsonPath('data.items.0.old_item_code', 'ITEM-OLD-001-EDIT');
-        $response->assertJsonPath('data.items.0.quantity', 12.5);
+        $response->assertJsonPath('data.old_lines.0.item_code', 'OLD-EDIT-01');
+        $response->assertJsonPath('data.old_lines.0.quantity', 12.5);
+        $response->assertJsonPath('data.new_lines.0.item_code', 'NEW-EDIT-01');
+        $response->assertJsonPath('data.new_lines.0.quantity', 10);
     }
 
     /**
@@ -146,12 +191,17 @@ class ProductionChangeProductTest extends TestCase
             'created_by' => $this->user->id,
         ]);
 
-        $cp->items()->create([
+        $cp->oldLines()->create([
             'line_num'      => 0,
-            'old_item_code' => 'ITEM-OLD-001',
-            'new_item_code' => 'ITEM-NEW-001',
+            'item_code'     => 'OLD-01',
             'quantity'      => 10.0,
             'from_whs_code' => 'WRH-RAW',
+        ]);
+
+        $cp->newLines()->create([
+            'line_num'      => 0,
+            'item_code'     => 'NEW-01',
+            'quantity'      => 10.0,
             'to_whs_code'   => 'WRH-FG',
         ]);
 

@@ -1002,19 +1002,22 @@ class ProductionController extends Controller
 
         $request->merge($input);
         $request->validate([
-            'doc_date'                => 'required|date',
-            'doc_due_date'            => 'nullable|date',
-            'comments'                => 'nullable|string',
-            'shift'                   => 'nullable|string|max:50',
-            'unit'                    => 'nullable|string|max:50',
-            'addon_id'                => 'nullable|string|max:100',
-            'user_id'                 => 'nullable|string|max:50',
-            'items'                   => 'required|array|min:1',
-            'items.*.old_item_code'   => 'required|string|max:50',
-            'items.*.new_item_code'   => 'required|string|max:50',
-            'items.*.quantity'        => 'required|numeric|min:0.0001',
-            'items.*.from_whs_code'   => 'required|string|max:50',
-            'items.*.to_whs_code'     => 'required|string|max:50',
+            'doc_date'                          => 'required|date',
+            'doc_due_date'                      => 'nullable|date',
+            'comments'                          => 'nullable|string',
+            'shift'                             => 'nullable|string|max:50',
+            'unit'                              => 'nullable|string|max:50',
+            'addon_id'                          => 'nullable|string|max:100',
+            'user_id'                           => 'nullable|string|max:50',
+            'old_lines'                         => 'required|array|min:1',
+            'old_lines.*.item_code'             => 'required|string|max:50',
+            'old_lines.*.quantity'              => 'required|numeric|min:0.0001',
+            'old_lines.*.from_whs_code'         => 'required|string|max:50',
+            'new_lines'                         => 'required|array|min:1',
+            'new_lines.*.item_code'             => 'required|string|max:50',
+            'new_lines.*.quantity'              => 'required|numeric|min:0.0001',
+            'new_lines.*.to_whs_code'           => 'required|string|max:50',
+            'new_lines.*.value_allocation_percent' => 'nullable|numeric|min:0',
         ]);
 
         $userId = $request->user()?->id;
@@ -1047,19 +1050,22 @@ class ProductionController extends Controller
 
         $request->merge($input);
         $request->validate([
-            'doc_date'                => 'sometimes|required|date',
-            'doc_due_date'            => 'nullable|date',
-            'comments'                => 'nullable|string',
-            'shift'                   => 'nullable|string|max:50',
-            'unit'                    => 'nullable|string|max:50',
-            'addon_id'                => 'nullable|string|max:100',
-            'user_id'                 => 'nullable|string|max:50',
-            'items'                   => 'sometimes|required|array|min:1',
-            'items.*.old_item_code'   => 'required_with:items|string|max:50',
-            'items.*.new_item_code'   => 'required_with:items|string|max:50',
-            'items.*.quantity'        => 'required_with:items|numeric|min:0.0001',
-            'items.*.from_whs_code'   => 'required_with:items|string|max:50',
-            'items.*.to_whs_code'     => 'required_with:items|string|max:50',
+            'doc_date'                          => 'sometimes|required|date',
+            'doc_due_date'                      => 'nullable|date',
+            'comments'                          => 'nullable|string',
+            'shift'                             => 'nullable|string|max:50',
+            'unit'                              => 'nullable|string|max:50',
+            'addon_id'                          => 'nullable|string|max:100',
+            'user_id'                           => 'nullable|string|max:50',
+            'old_lines'                         => 'sometimes|required|array|min:1',
+            'old_lines.*.item_code'             => 'required_with:old_lines|string|max:50',
+            'old_lines.*.quantity'              => 'required_with:old_lines|numeric|min:0.0001',
+            'old_lines.*.from_whs_code'         => 'required_with:old_lines|string|max:50',
+            'new_lines'                         => 'sometimes|required|array|min:1',
+            'new_lines.*.item_code'             => 'required_with:new_lines|string|max:50',
+            'new_lines.*.quantity'              => 'required_with:new_lines|numeric|min:0.0001',
+            'new_lines.*.to_whs_code'           => 'required_with:new_lines|string|max:50',
+            'new_lines.*.value_allocation_percent' => 'nullable|numeric|min:0',
         ]);
 
         $userId = $request->user()?->id;
@@ -1121,13 +1127,15 @@ class ProductionController extends Controller
             $input = $this->normalizeChangeProductInput($request->all());
             $request->merge($input);
             $request->validate([
-                'doc_date'                => 'required|date',
-                'items'                   => 'required|array|min:1',
-                'items.*.old_item_code'   => 'required|string|max:50',
-                'items.*.new_item_code'   => 'required|string|max:50',
-                'items.*.quantity'        => 'required|numeric|min:0.0001',
-                'items.*.from_whs_code'   => 'required|string|max:50',
-                'items.*.to_whs_code'     => 'required|string|max:50',
+                'doc_date'                  => 'required|date',
+                'old_lines'                 => 'required|array|min:1',
+                'old_lines.*.item_code'     => 'required|string|max:50',
+                'old_lines.*.quantity'      => 'required|numeric|min:0.0001',
+                'old_lines.*.from_whs_code' => 'required|string|max:50',
+                'new_lines'                 => 'required|array|min:1',
+                'new_lines.*.item_code'     => 'required|string|max:50',
+                'new_lines.*.quantity'      => 'required|numeric|min:0.0001',
+                'new_lines.*.to_whs_code'   => 'required|string|max:50',
             ]);
 
             $cp = $this->productionService->createChangeProduct($input, $userId);
@@ -1158,25 +1166,77 @@ class ProductionController extends Controller
         $normalized['addon_id'] = $raw['addon_id'] ?? $raw['addonId'] ?? $raw['AddonId'] ?? null;
         $normalized['user_id'] = isset($raw['user_id']) ? (string)$raw['user_id'] : (isset($raw['userId']) ? (string)$raw['userId'] : (isset($raw['UserId']) ? (string)$raw['UserId'] : null));
 
-        // Details mapping (only if provided)
-        if (isset($raw['items']) || isset($raw['lines']) || isset($raw['Lines'])) {
-            $rawLines = $raw['items'] ?? $raw['lines'] ?? $raw['Lines'] ?? [];
-            $items = [];
-            if (is_array($rawLines)) {
-                foreach ($rawLines as $line) {
-                    $items[] = [
-                        'old_item_code' => $line['old_item_code'] ?? $line['oldItemCode'] ?? $line['OldItemCode'] ?? '',
-                        'new_item_code' => $line['new_item_code'] ?? $line['newItemCode'] ?? $line['NewItemCode'] ?? '',
+        // 1. Old lines mapping
+        if (isset($raw['old_lines']) || isset($raw['oldLines']) || isset($raw['OldLines'])) {
+            $rawOld = $raw['old_lines'] ?? $raw['oldLines'] ?? $raw['OldLines'] ?? [];
+            $oldLines = [];
+            if (is_array($rawOld)) {
+                foreach ($rawOld as $line) {
+                    $oldLines[] = [
+                        'item_code'     => $line['item_code'] ?? $line['itemCode'] ?? $line['ItemCode'] ?? '',
                         'quantity'      => floatval($line['quantity'] ?? $line['Quantity'] ?? $line['qty'] ?? 0),
                         'from_whs_code' => $line['from_whs_code'] ?? $line['fromWhsCode'] ?? $line['FromWhsCode'] ?? '',
-                        'to_whs_code'   => $line['to_whs_code'] ?? $line['toWhsCode'] ?? $line['ToWhsCode'] ?? '',
                         'ocr_code'      => $line['ocr_code'] ?? $line['ocrCode'] ?? $line['OcrCode'] ?? null,
                         'ocr_code2'     => $line['ocr_code2'] ?? $line['ocrCode2'] ?? $line['OcrCode2'] ?? null,
                         'ocr_code3'     => $line['ocr_code3'] ?? $line['ocrCode3'] ?? $line['OcrCode3'] ?? null,
                     ];
                 }
             }
-            $normalized['items'] = $items;
+            $normalized['old_lines'] = $oldLines;
+        }
+
+        // 2. New lines mapping
+        if (isset($raw['new_lines']) || isset($raw['newLines']) || isset($raw['NewLines'])) {
+            $rawNew = $raw['new_lines'] ?? $raw['newLines'] ?? $raw['NewLines'] ?? [];
+            $newLines = [];
+            if (is_array($rawNew)) {
+                foreach ($rawNew as $line) {
+                    $newLines[] = [
+                        'item_code'                => $line['item_code'] ?? $line['itemCode'] ?? $line['ItemCode'] ?? '',
+                        'quantity'                 => floatval($line['quantity'] ?? $line['Quantity'] ?? $line['qty'] ?? 0),
+                        'to_whs_code'              => $line['to_whs_code'] ?? $line['toWhsCode'] ?? $line['ToWhsCode'] ?? '',
+                        'ocr_code'                 => $line['ocr_code'] ?? $line['ocrCode'] ?? $line['OcrCode'] ?? null,
+                        'ocr_code2'                => $line['ocr_code2'] ?? $line['ocrCode2'] ?? $line['OcrCode2'] ?? null,
+                        'ocr_code3'                => $line['ocr_code3'] ?? $line['ocrCode3'] ?? $line['OcrCode3'] ?? null,
+                        'value_allocation_percent' => floatval($line['value_allocation_percent'] ?? $line['valueAllocationPercent'] ?? $line['ValueAllocationPercent'] ?? 0),
+                    ];
+                }
+            }
+            $normalized['new_lines'] = $newLines;
+        }
+
+        // 3. Fallback: If legacy single lines / items array given with oldItemCode & newItemCode
+        if (!isset($normalized['old_lines']) && !isset($normalized['new_lines']) && (isset($raw['items']) || isset($raw['lines']) || isset($raw['Lines']))) {
+            $rawLines = $raw['items'] ?? $raw['lines'] ?? $raw['Lines'] ?? [];
+            $oldLines = [];
+            $newLines = [];
+            if (is_array($rawLines)) {
+                foreach ($rawLines as $line) {
+                    if (!empty($line['old_item_code']) || !empty($line['oldItemCode'])) {
+                        $oldLines[] = [
+                            'item_code'     => $line['old_item_code'] ?? $line['oldItemCode'] ?? '',
+                            'quantity'      => floatval($line['quantity'] ?? $line['Quantity'] ?? $line['qty'] ?? 0),
+                            'from_whs_code' => $line['from_whs_code'] ?? $line['fromWhsCode'] ?? '',
+                            'ocr_code'      => $line['ocr_code'] ?? $line['ocrCode'] ?? null,
+                            'ocr_code2'     => $line['ocr_code2'] ?? $line['ocrCode2'] ?? null,
+                            'ocr_code3'     => $line['ocr_code3'] ?? $line['ocrCode3'] ?? null,
+                        ];
+                    }
+                    if (!empty($line['new_item_code']) || !empty($line['newItemCode'])) {
+                        $newLines[] = [
+                            'item_code'                => $line['new_item_code'] ?? $line['newItemCode'] ?? '',
+                            'quantity'                 => floatval($line['quantity'] ?? $line['Quantity'] ?? $line['qty'] ?? 0),
+                            'to_whs_code'              => $line['to_whs_code'] ?? $line['toWhsCode'] ?? '',
+                            'ocr_code'                 => $line['ocr_code'] ?? $line['ocrCode'] ?? null,
+                            'ocr_code2'                => $line['ocr_code2'] ?? $line['ocrCode2'] ?? null,
+                            'ocr_code3'                => $line['ocr_code3'] ?? $line['ocrCode3'] ?? null,
+                            'value_allocation_percent' => floatval($line['value_allocation_percent'] ?? $line['valueAllocationPercent'] ?? 0),
+                        ];
+                    }
+                }
+            }
+            if (!empty($oldLines)) $normalized['old_lines'] = $oldLines;
+            if (!empty($newLines)) $normalized['new_lines'] = $newLines;
         }
 
         return $normalized;

@@ -52,11 +52,19 @@ class ProductionChangeProduct extends Model
     ];
 
     /**
-     * Get the detail items for the change product transaction.
+     * Get the old item lines (Goods Issue) for the change product transaction.
      */
-    public function items(): HasMany
+    public function oldLines(): HasMany
     {
-        return $this->hasMany(ProductionChangeProductItem::class, 'production_change_product_id')->orderBy('line_num');
+        return $this->hasMany(ProductionChangeProductOldLine::class, 'production_change_product_id')->orderBy('line_num');
+    }
+
+    /**
+     * Get the new item lines (Goods Receipt) for the change product transaction.
+     */
+    public function newLines(): HasMany
+    {
+        return $this->hasMany(ProductionChangeProductNewLine::class, 'production_change_product_id')->orderBy('line_num');
     }
 
     /**

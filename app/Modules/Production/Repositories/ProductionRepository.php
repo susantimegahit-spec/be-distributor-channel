@@ -366,7 +366,8 @@ class ProductionRepository implements ProductionRepositoryInterface
     public function getAllChangeProducts(array $filters = []): Collection
     {
         $query = \App\Models\ProductionChangeProduct::query()->with([
-            'items',
+            'oldLines',
+            'newLines',
         ]);
 
         $likeOperator = DB::connection('pgsql_production')->getDriverName() === 'pgsql' ? 'ilike' : 'like';
@@ -377,9 +378,11 @@ class ProductionRepository implements ProductionRepositoryInterface
                 $q->where('cp_no', $likeOperator, "%{$search}%")
                   ->orWhere('comments', $likeOperator, "%{$search}%")
                   ->orWhere('addon_id', $likeOperator, "%{$search}%")
-                  ->orWhereHas('items', function ($itemQ) use ($search, $likeOperator) {
-                      $itemQ->where('old_item_code', $likeOperator, "%{$search}%")
-                            ->orWhere('new_item_code', $likeOperator, "%{$search}%");
+                  ->orWhereHas('oldLines', function ($oldQ) use ($search, $likeOperator) {
+                      $oldQ->where('item_code', $likeOperator, "%{$search}%");
+                  })
+                  ->orWhereHas('newLines', function ($newQ) use ($search, $likeOperator) {
+                      $newQ->where('item_code', $likeOperator, "%{$search}%");
                   });
             });
         }
@@ -409,18 +412,20 @@ class ProductionRepository implements ProductionRepositoryInterface
     public function getChangeProductById(int $id): ?\App\Models\ProductionChangeProduct
     {
         return \App\Models\ProductionChangeProduct::with([
-            'items',
+            'oldLines',
+            'newLines',
         ])->find($id);
     }
 
     /**
-     * Create a new production change product with its items.
+     * Create a new production change product with its old and new lines.
      */
     public function createChangeProduct(array $data): \App\Models\ProductionChangeProduct
     {
         return DB::connection('pgsql_production')->transaction(function () use ($data) {
-            $items = $data['items'] ?? $data['lines'] ?? $data['Lines'] ?? [];
-            unset($data['items'], $data['lines'], $data['Lines']);
+            $oldLines = $data['old_lines'] ?? $data['oldLines'] ?? $data['OldLines'] ?? [];
+            $newLines = $data['new_lines'] ?? $data['newLines'] ?? $data['NewLines'] ?? [];
+            unset($data['old_lines'], $data['oldLines'], $data['OldLines'], $data['new_lines'], $data['newLines'], $data['NewLines'], $data['items'], $data['lines']);
 
             if (empty($data['cp_no'])) {
                 $prefix = 'CP-' . date('Ymd') . '-';
@@ -436,21 +441,32 @@ class ProductionRepository implements ProductionRepositoryInterface
 
             $cp = \App\Models\ProductionChangeProduct::create($data);
 
-            foreach ($items as $index => $item) {
-                $cp->items()->create([
+            foreach ($oldLines as $index => $line) {
+                $cp->oldLines()->create([
                     'line_num'      => $index,
-                    'old_item_code' => $item['old_item_code'] ?? $item['oldItemCode'] ?? $item['OldItemCode'] ?? '',
-                    'new_item_code' => $item['new_item_code'] ?? $item['newItemCode'] ?? $item['NewItemCode'] ?? '',
-                    'quantity'      => floatval($item['quantity'] ?? $item['Quantity'] ?? $item['qty'] ?? 0),
-                    'from_whs_code' => $item['from_whs_code'] ?? $item['fromWhsCode'] ?? $item['FromWhsCode'] ?? '',
-                    'to_whs_code'   => $item['to_whs_code'] ?? $item['toWhsCode'] ?? $item['ToWhsCode'] ?? '',
-                    'ocr_code'      => $item['ocr_code'] ?? $item['ocrCode'] ?? $item['OcrCode'] ?? null,
-                    'ocr_code2'     => $item['ocr_code2'] ?? $item['ocrCode2'] ?? $item['OcrCode2'] ?? null,
-                    'ocr_code3'     => $item['ocr_code3'] ?? $item['ocrCode3'] ?? $item['OcrCode3'] ?? null,
+                    'item_code'     => $line['item_code'] ?? $line['itemCode'] ?? $line['ItemCode'] ?? '',
+                    'quantity'      => floatval($line['quantity'] ?? $line['Quantity'] ?? $line['qty'] ?? 0),
+                    'from_whs_code' => $line['from_whs_code'] ?? $line['fromWhsCode'] ?? $line['FromWhsCode'] ?? '',
+                    'ocr_code'      => $line['ocr_code'] ?? $line['ocrCode'] ?? $line['OcrCode'] ?? null,
+                    'ocr_code2'     => $line['ocr_code2'] ?? $line['ocrCode2'] ?? $line['OcrCode2'] ?? null,
+                    'ocr_code3'     => $line['ocr_code3'] ?? $line['ocrCode3'] ?? $line['OcrCode3'] ?? null,
                 ]);
             }
 
-            return $cp->fresh(['items']);
+            foreach ($newLines as $index => $line) {
+                $cp->newLines()->create([
+                    'line_num'                 => $index,
+                    'item_code'                => $line['item_code'] ?? $line['itemCode'] ?? $line['ItemCode'] ?? '',
+                    'quantity'                 => floatval($line['quantity'] ?? $line['Quantity'] ?? $line['qty'] ?? 0),
+                    'to_whs_code'              => $line['to_whs_code'] ?? $line['toWhsCode'] ?? $line['ToWhsCode'] ?? '',
+                    'ocr_code'                 => $line['ocr_code'] ?? $line['ocrCode'] ?? $line['OcrCode'] ?? null,
+                    'ocr_code2'                => $line['ocr_code2'] ?? $line['ocrCode2'] ?? $line['OcrCode2'] ?? null,
+                    'ocr_code3'                => $line['ocr_code3'] ?? $line['ocrCode3'] ?? $line['OcrCode3'] ?? null,
+                    'value_allocation_percent' => floatval($line['value_allocation_percent'] ?? $line['valueAllocationPercent'] ?? $line['ValueAllocationPercent'] ?? 0),
+                ]);
+            }
+
+            return $cp->fresh(['oldLines', 'newLines']);
         });
     }
 
@@ -460,29 +476,44 @@ class ProductionRepository implements ProductionRepositoryInterface
     public function updateChangeProduct(\App\Models\ProductionChangeProduct $cp, array $data): \App\Models\ProductionChangeProduct
     {
         return DB::connection('pgsql_production')->transaction(function () use ($cp, $data) {
-            $items = $data['items'] ?? $data['lines'] ?? $data['Lines'] ?? null;
-            unset($data['items'], $data['lines'], $data['Lines']);
+            $oldLines = $data['old_lines'] ?? $data['oldLines'] ?? $data['OldLines'] ?? null;
+            $newLines = $data['new_lines'] ?? $data['newLines'] ?? $data['NewLines'] ?? null;
+            unset($data['old_lines'], $data['oldLines'], $data['OldLines'], $data['new_lines'], $data['newLines'], $data['NewLines'], $data['items'], $data['lines']);
 
             $cp->update($data);
 
-            if ($items !== null) {
-                $cp->items()->delete();
-                foreach ($items as $index => $item) {
-                    $cp->items()->create([
+            if ($oldLines !== null) {
+                $cp->oldLines()->delete();
+                foreach ($oldLines as $index => $line) {
+                    $cp->oldLines()->create([
                         'line_num'      => $index,
-                        'old_item_code' => $item['old_item_code'] ?? $item['oldItemCode'] ?? $item['OldItemCode'] ?? '',
-                        'new_item_code' => $item['new_item_code'] ?? $item['newItemCode'] ?? $item['NewItemCode'] ?? '',
-                        'quantity'      => floatval($item['quantity'] ?? $item['Quantity'] ?? $item['qty'] ?? 0),
-                        'from_whs_code' => $item['from_whs_code'] ?? $item['fromWhsCode'] ?? $item['FromWhsCode'] ?? '',
-                        'to_whs_code'   => $item['to_whs_code'] ?? $item['toWhsCode'] ?? $item['ToWhsCode'] ?? '',
-                        'ocr_code'      => $item['ocr_code'] ?? $item['ocrCode'] ?? $item['OcrCode'] ?? null,
-                        'ocr_code2'     => $item['ocr_code2'] ?? $item['ocrCode2'] ?? $item['OcrCode2'] ?? null,
-                        'ocr_code3'     => $item['ocr_code3'] ?? $item['ocrCode3'] ?? $item['OcrCode3'] ?? null,
+                        'item_code'     => $line['item_code'] ?? $line['itemCode'] ?? $line['ItemCode'] ?? '',
+                        'quantity'      => floatval($line['quantity'] ?? $line['Quantity'] ?? $line['qty'] ?? 0),
+                        'from_whs_code' => $line['from_whs_code'] ?? $line['fromWhsCode'] ?? $line['FromWhsCode'] ?? '',
+                        'ocr_code'      => $line['ocr_code'] ?? $line['ocrCode'] ?? $line['OcrCode'] ?? null,
+                        'ocr_code2'     => $line['ocr_code2'] ?? $line['ocrCode2'] ?? $line['OcrCode2'] ?? null,
+                        'ocr_code3'     => $line['ocr_code3'] ?? $line['ocrCode3'] ?? $line['OcrCode3'] ?? null,
                     ]);
                 }
             }
 
-            return $cp->fresh(['items']);
+            if ($newLines !== null) {
+                $cp->newLines()->delete();
+                foreach ($newLines as $index => $line) {
+                    $cp->newLines()->create([
+                        'line_num'                 => $index,
+                        'item_code'                => $line['item_code'] ?? $line['itemCode'] ?? $line['ItemCode'] ?? '',
+                        'quantity'                 => floatval($line['quantity'] ?? $line['Quantity'] ?? $line['qty'] ?? 0),
+                        'to_whs_code'              => $line['to_whs_code'] ?? $line['toWhsCode'] ?? $line['ToWhsCode'] ?? '',
+                        'ocr_code'                 => $line['ocr_code'] ?? $line['ocrCode'] ?? $line['OcrCode'] ?? null,
+                        'ocr_code2'                => $line['ocr_code2'] ?? $line['ocrCode2'] ?? $line['OcrCode2'] ?? null,
+                        'ocr_code3'                => $line['ocr_code3'] ?? $line['ocrCode3'] ?? $line['OcrCode3'] ?? null,
+                        'value_allocation_percent' => floatval($line['value_allocation_percent'] ?? $line['valueAllocationPercent'] ?? $line['ValueAllocationPercent'] ?? 0),
+                    ]);
+                }
+            }
+
+            return $cp->fresh(['oldLines', 'newLines']);
         });
     }
 

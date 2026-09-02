@@ -3343,10 +3343,12 @@ class ProductionService
         $cp = $this->productionRepository->createChangeProduct($data);
 
         if ($userId) {
+            $oldLineCount = $cp->oldLines ? $cp->oldLines->count() : 0;
+            $newLineCount = $cp->newLines ? $cp->newLines->count() : 0;
             $this->auditLogService->log(
                 $userId,
                 'CREATE_CHANGE_PRODUCT',
-                "Membuat draft Change Product {$cp->cp_no} dengan " . count($cp->items) . " item."
+                "Membuat draft Change Product {$cp->cp_no} dengan {$oldLineCount} old lines dan {$newLineCount} new lines."
             );
         }
 
@@ -3426,26 +3428,37 @@ class ProductionService
     public function postChangeProductToSap(int|\App\Models\ProductionChangeProduct $cpOrId, ?int $userId = null): array
     {
         $cp = is_numeric($cpOrId) ? $this->getChangeProductById((int)$cpOrId) : $cpOrId;
-        $cp->loadMissing('items');
+        $cp->loadMissing(['oldLines', 'newLines']);
 
-        if ($cp->items->isEmpty()) {
-            throw new \Exception('Transaksi Change Product tidak memiliki detail baris item.');
+        if ($cp->oldLines->isEmpty() || $cp->newLines->isEmpty()) {
+            throw new \Exception('Transaksi Change Product wajib memiliki OldLines dan NewLines.');
         }
 
         $docDate = $cp->doc_date ? $cp->doc_date->format('Y-m-d\TH:i:s') : now()->format('Y-m-d\TH:i:s');
         $docDueDate = $cp->doc_due_date ? $cp->doc_due_date->format('Y-m-d\TH:i:s') : $docDate;
 
-        $lines = [];
-        foreach ($cp->items as $item) {
-            $lines[] = [
-                'oldItemCode' => (string)$item->old_item_code,
-                'newItemCode' => (string)$item->new_item_code,
+        $oldLines = [];
+        foreach ($cp->oldLines as $item) {
+            $oldLines[] = [
+                'itemCode'    => (string)$item->item_code,
                 'quantity'    => floatval($item->quantity),
                 'fromWhsCode' => (string)$item->from_whs_code,
-                'toWhsCode'   => (string)$item->to_whs_code,
                 'ocrCode'     => (string)($item->ocr_code ?? ''),
                 'ocrCode2'    => (string)($item->ocr_code2 ?? ''),
                 'ocrCode3'    => (string)($item->ocr_code3 ?? ''),
+            ];
+        }
+
+        $newLines = [];
+        foreach ($cp->newLines as $item) {
+            $newLines[] = [
+                'itemCode'               => (string)$item->item_code,
+                'quantity'               => floatval($item->quantity),
+                'toWhsCode'              => (string)$item->to_whs_code,
+                'ocrCode'                => (string)($item->ocr_code ?? ''),
+                'ocrCode2'               => (string)($item->ocr_code2 ?? ''),
+                'ocrCode3'               => (string)($item->ocr_code3 ?? ''),
+                'valueAllocationPercent' => floatval($item->value_allocation_percent ?? 0),
             ];
         }
 
@@ -3457,7 +3470,8 @@ class ProductionService
             'unit'       => (string)($cp->unit ?? ''),
             'addonId'    => (string)($cp->addon_id ?? $cp->cp_no),
             'userId'     => (string)($cp->user_id ?? ($userId ? (string)$userId : '1')),
-            'lines'      => $lines,
+            'oldLines'   => $oldLines,
+            'newLines'   => $newLines,
         ];
 
         $sapUrl = config('services.sap.url');
@@ -3527,7 +3541,7 @@ class ProductionService
         }
 
         return [
-            'change_product' => $cp->fresh(['items']),
+            'change_product' => $cp->fresh(['oldLines', 'newLines']),
             'gi_entry'       => $issueEntry,
             'gr_entry'       => $receiptEntry,
             'sap_response'   => $body,
