@@ -2256,14 +2256,27 @@ class ProductionService
             throw new \Exception("Lines valid tidak ditemukan dalam request.");
         }
 
+        // Normalize Shift to valid SAP values: 'A' (Shift 1), 'B' (Shift 2), 'C' (Shift 3)
+        $rawShift = trim((string) ($data['shift'] ?? $data['u_shift'] ?? $data['Shift'] ?? $data['U_Shift'] ?? 'A'));
+        $shiftUpper = strtoupper($rawShift);
+        if (in_array($shiftUpper, ['1', 'SHIFT 1', 'SHIFT1', 'A', 'X', 'ALL'])) {
+            $shift = 'A';
+        } elseif (in_array($shiftUpper, ['2', 'SHIFT 2', 'SHIFT2', 'B'])) {
+            $shift = 'B';
+        } elseif (in_array($shiftUpper, ['3', 'SHIFT 3', 'SHIFT3', 'C'])) {
+            $shift = 'C';
+        } else {
+            $shift = 'A';
+        }
+
         return [
             'DocDate'    => $docDate,
             'DocDueDate' => $docDueDate,
             'Comments'   => (string) ($data['comments'] ?? $data['Comments'] ?? ''),
-            'Shift'      => (string) ($data['shift'] ?? $data['u_shift'] ?? $data['Shift'] ?? $data['U_Shift'] ?? ''),
+            'Shift'      => $shift,
             'Unit'       => (string) ($data['unit'] ?? $data['u_unit'] ?? $data['Unit'] ?? $data['U_Unit'] ?? ''),
             'Bomid'      => (string) ($data['bom_id'] ?? $data['bomid'] ?? $data['u_bom_id'] ?? $data['Bomid'] ?? $data['U_BomId'] ?? ''),
-            'AddonId'    => (string) ($data['addon_id'] ?? $data['AddonId'] ?? $data['U_AddonId'] ?? 'ADDON-INT-01'),
+            'AddonId'    => 2,
             'UserId'     => (string) ($data['user_id'] ?? $data['UserId'] ?? $data['U_UserId'] ?? ($userId ? (string)$userId : '1')),
             'Lines'      => $lines,
         ];
@@ -2406,23 +2419,44 @@ class ProductionService
             if ($response->successful()) {
                 $body = $response->json();
                 if (!isset($body['ErrorCode']) || (int)$body['ErrorCode'] === 0) {
-                    $sapDocNum = $body['DocNum'] ?? $body['doc_num'] ?? null;
+                    $sapDocNum   = $body['DocNum'] ?? $body['doc_num'] ?? null;
+                    $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? null;
 
-                    // Ekstrak DocNum dari string Message jika tidak disediakan langsung sebagai field terpisah
+                    // Ekstrak dari $body['Result'] jika tersedia
+                    $resultData = $body['Result'] ?? $body['result'] ?? null;
+                    if (is_array($resultData)) {
+                        $firstResult = isset($resultData[0]) ? $resultData[0] : $resultData;
+                        if (is_array($firstResult)) {
+                            $sapDocNum   = $sapDocNum ?? ($firstResult['DocNum'] ?? $firstResult['doc_num'] ?? null);
+                            $sapDocEntry = $sapDocEntry ?? ($firstResult['DocEntry'] ?? $firstResult['doc_entry'] ?? null);
+                        }
+                    } elseif (is_numeric($resultData) || is_string($resultData)) {
+                        $sapDocNum   = $sapDocNum ?? (string)$resultData;
+                        $sapDocEntry = $sapDocEntry ?? (string)$resultData;
+                    }
+
+                    // Ekstrak DocNum & DocEntry dari string Message jika tidak disediakan langsung sebagai field terpisah
                     // Contoh format message: "Success - [AddIssueForProduction]. DocNum: 40512"
                     if (empty($sapDocNum) && !empty($body['Message'])) {
                         if (preg_match('/DocNum:\s*([0-9]+)/i', $body['Message'], $matches)) {
                             $sapDocNum = $matches[1];
                         }
                     }
+                    if (empty($sapDocEntry) && !empty($body['Message'])) {
+                        if (preg_match('/DocEntry:\s*([0-9]+)/i', $body['Message'], $matches)) {
+                            $sapDocEntry = $matches[1];
+                        }
+                    }
 
-                    $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? $sapDocNum;
+                    $sapDocEntry = $sapDocEntry ?: $sapDocNum;
+                    $sapDocNum   = $sapDocNum ?: $sapDocEntry;
 
                     $localIssue->update([
                         'doc_entry'     => $sapDocEntry,
                         'doc_num'       => (string) ($sapDocNum ?: $localIssue->doc_num),
                         'issue_no'      => (string) ($sapDocNum ?: $localIssue->issue_no),
                         'sap_status'    => 'SYNCED',
+                        'sap_error'     => null,
                         'integrated_at' => now(),
                     ]);
                     $sapResponse = $body;
@@ -2600,11 +2634,41 @@ class ProductionService
                 if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
                     $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? null;
                     $sapDocNum   = $body['DocNum'] ?? $body['doc_num'] ?? null;
+
+                    // Ekstrak dari $body['Result'] jika tersedia
+                    $resultData = $body['Result'] ?? $body['result'] ?? null;
+                    if (is_array($resultData)) {
+                        $firstResult = isset($resultData[0]) ? $resultData[0] : $resultData;
+                        if (is_array($firstResult)) {
+                            $sapDocNum   = $sapDocNum ?? ($firstResult['DocNum'] ?? $firstResult['doc_num'] ?? null);
+                            $sapDocEntry = $sapDocEntry ?? ($firstResult['DocEntry'] ?? $firstResult['doc_entry'] ?? null);
+                        }
+                    } elseif (is_numeric($resultData) || is_string($resultData)) {
+                        $sapDocNum   = $sapDocNum ?? (string)$resultData;
+                        $sapDocEntry = $sapDocEntry ?? (string)$resultData;
+                    }
+
+                    // Ekstrak DocNum & DocEntry dari string Message jika belum didapat
+                    if (empty($sapDocNum) && !empty($body['Message'])) {
+                        if (preg_match('/DocNum:\s*([0-9]+)/i', $body['Message'], $matches)) {
+                            $sapDocNum = $matches[1];
+                        }
+                    }
+                    if (empty($sapDocEntry) && !empty($body['Message'])) {
+                        if (preg_match('/DocEntry:\s*([0-9]+)/i', $body['Message'], $matches)) {
+                            $sapDocEntry = $matches[1];
+                        }
+                    }
+
+                    $sapDocEntry = $sapDocEntry ?: $sapDocNum;
+                    $sapDocNum   = $sapDocNum ?: $sapDocEntry;
+
                     $localReceipt->update([
                         'doc_entry'     => $sapDocEntry,
                         'doc_num'       => $sapDocNum,
                         'receipt_no'    => $sapDocNum ?? $localReceipt->receipt_no,
                         'sap_status'    => 'SYNCED',
+                        'sap_error'     => null,
                         'integrated_at' => now(),
                     ]);
                     $sapResponse = $body;
@@ -3574,6 +3638,132 @@ class ProductionService
             'gi_entry'       => $issueEntry,
             'gr_entry'       => $receiptEntry,
             'sap_response'   => $body,
+        ];
+    }
+
+    /**
+     * Edit Comment on Issue for Production in SAP (/api/EditCommentIssueForProduction).
+     *
+     * @param array $data
+     * @param int|null $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function editCommentIssueSap(array $data, ?int $userId = null): array
+    {
+        $sapUrl = config('services.sap.url');
+
+        $docEntry = (string) ($data['DocEntry'] ?? $data['doc_entry'] ?? $data['docEntry'] ?? $data['id'] ?? '');
+        if (empty($docEntry)) {
+            throw new \Exception('DocEntry wajib diisi untuk mengubah komentar Issue for Production.');
+        }
+
+        $comment = (string) ($data['Comment'] ?? $data['comment'] ?? $data['remarks'] ?? $data['Remarks'] ?? $data['comments'] ?? $data['Comments'] ?? '');
+
+        $payload = [
+            'DocEntry' => $docEntry,
+            'Comment'  => $comment,
+        ];
+
+        $response = Http::timeout(30)->post("{$sapUrl}/api/EditCommentIssueForProduction", $payload);
+
+        if (!$response->successful()) {
+            throw new \Exception('Gagal menghubungi API SAP EditCommentIssueForProduction. HTTP Status: ' . $response->status());
+        }
+
+        $body = $response->json();
+
+        if (isset($body['ErrorCode']) && (int)$body['ErrorCode'] !== 0) {
+            throw new \Exception('API SAP EditCommentIssueForProduction error: ' . ($body['Message'] ?? 'Unknown SAP error'));
+        }
+
+        // Update local database record if exists
+        try {
+            \App\Models\ProductionIssue::where('doc_entry', $docEntry)
+                ->orWhere('id', is_numeric($docEntry) ? (int)$docEntry : 0)
+                ->update([
+                    'comments'   => $comment,
+                    'updated_by' => $userId,
+                ]);
+        } catch (\Exception $e) {
+            // Ignore local DB update failure if table does not exist or record not found
+        }
+
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'EDIT_COMMENT_ISSUE_SAP',
+                "Edited comment on Issue for Production for DocEntry {$docEntry}."
+            );
+        }
+
+        return [
+            'doc_entry'    => $docEntry,
+            'comment'      => $comment,
+            'sap_response' => $body,
+        ];
+    }
+
+    /**
+     * Edit Remarks on Production Receipt in SAP (/api/EditReceiptRemarks).
+     *
+     * @param array $data
+     * @param int|null $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function editRemarksReceiptSap(array $data, ?int $userId = null): array
+    {
+        $sapUrl = config('services.sap.url');
+
+        $docEntry = (string) ($data['DocEntry'] ?? $data['doc_entry'] ?? $data['docEntry'] ?? $data['id'] ?? '');
+        if (empty($docEntry)) {
+            throw new \Exception('DocEntry wajib diisi untuk mengubah remarks Production Receipt.');
+        }
+
+        $comment = (string) ($data['Comment'] ?? $data['comment'] ?? $data['remarks'] ?? $data['Remarks'] ?? $data['comments'] ?? $data['Comments'] ?? '');
+
+        $payload = [
+            'DocEntry' => $docEntry,
+            'Comment'  => $comment,
+        ];
+
+        $response = Http::timeout(30)->post("{$sapUrl}/api/EditReceiptRemarks", $payload);
+
+        if (!$response->successful()) {
+            throw new \Exception('Gagal menghubungi API SAP EditReceiptRemarks. HTTP Status: ' . $response->status());
+        }
+
+        $body = $response->json();
+
+        if (isset($body['ErrorCode']) && (int)$body['ErrorCode'] !== 0) {
+            throw new \Exception('API SAP EditReceiptRemarks error: ' . ($body['Message'] ?? 'Unknown SAP error'));
+        }
+
+        // Update local database record if exists
+        try {
+            \App\Models\ProductionReceipt::where('doc_entry', $docEntry)
+                ->orWhere('id', is_numeric($docEntry) ? (int)$docEntry : 0)
+                ->update([
+                    'comments'   => $comment,
+                    'updated_by' => $userId,
+                ]);
+        } catch (\Exception $e) {
+            // Ignore local DB update failure if table does not exist or record not found
+        }
+
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'EDIT_REMARKS_RECEIPT_SAP',
+                "Edited remarks on Production Receipt for DocEntry {$docEntry}."
+            );
+        }
+
+        return [
+            'doc_entry'    => $docEntry,
+            'comment'      => $comment,
+            'sap_response' => $body,
         ];
     }
 }

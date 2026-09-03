@@ -843,8 +843,17 @@ class ProductionController extends Controller
 
         try {
             $result = $this->productionService->addIssueProdSap($input, $userId);
-            $sapResponse = $result['sap_response'] ?? [];
-            return $this->successResponse($sapResponse, $sapResponse['Message'] ?? 'Goods Issue for Production berhasil diproses ke SAP.');
+            $localIssue = $result['issue'] ?? null;
+            $sapResponse = $result['sap_response'] ?? null;
+
+            if ($localIssue && $localIssue->sap_status === 'FAILED') {
+                return $this->errorResponse('Gagal memposting Goods Issue ke SAP: ' . ($localIssue->sap_error ?? 'SAP error'), [
+                    'local_issue' => $localIssue,
+                    'sap_error'   => $localIssue->sap_error,
+                ], 400);
+            }
+
+            return $this->successResponse($sapResponse ?? $localIssue, $sapResponse['Message'] ?? 'Goods Issue for Production berhasil diproses ke SAP.');
         } catch (\Exception $e) {
             return $this->errorResponse('Gagal memproses Goods Issue for Production ke SAP: ' . $e->getMessage(), [], 500);
         }
@@ -860,8 +869,17 @@ class ProductionController extends Controller
 
         try {
             $result = $this->productionService->addReceiptProdSap($input, $userId);
-            $sapResponse = $result['sap_response'] ?? [];
-            return $this->successResponse($sapResponse, $sapResponse['Message'] ?? 'Receipt for Production berhasil diproses ke SAP.');
+            $localReceipt = $result['receipt'] ?? null;
+            $sapResponse = $result['sap_response'] ?? null;
+
+            if ($localReceipt && $localReceipt->sap_status === 'FAILED') {
+                return $this->errorResponse('Gagal memposting Receipt ke SAP: ' . ($localReceipt->sap_error ?? 'SAP error'), [
+                    'local_receipt' => $localReceipt,
+                    'sap_error'     => $localReceipt->sap_error,
+                ], 400);
+            }
+
+            return $this->successResponse($sapResponse ?? $localReceipt, $sapResponse['Message'] ?? 'Receipt for Production berhasil diproses ke SAP.');
         } catch (\Exception $e) {
             return $this->errorResponse('Gagal memproses Receipt for Production ke SAP: ' . $e->getMessage(), [], 500);
         }
@@ -924,6 +942,46 @@ class ProductionController extends Controller
             return $this->successResponse($result['sap_response'], 'Inventory Transfer (IT) berhasil dibatalkan di SAP.');
         } catch (\Exception $e) {
             return $this->errorResponse('Gagal membatalkan Inventory Transfer di SAP: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
+     * Edit Comment on Issue for Production in SAP (/api/EditCommentIssueForProduction).
+     */
+    public function editCommentIssueSap(Request $request): JsonResponse
+    {
+        $userId = $request->user()?->id;
+        $input = $request->all();
+
+        if (empty($input['DocEntry']) && empty($input['doc_entry']) && empty($input['docEntry']) && empty($input['id'])) {
+            return $this->errorResponse('DocEntry wajib diisi.', [], 422);
+        }
+
+        try {
+            $result = $this->productionService->editCommentIssueSap($input, $userId);
+            return $this->successResponse($result, 'Berhasil memperbarui komentar Issue for Production di SAP.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal memperbarui komentar Issue for Production di SAP: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
+     * Edit Remarks on Production Receipt in SAP (/api/EditReceiptRemarks).
+     */
+    public function editRemarksReceiptSap(Request $request): JsonResponse
+    {
+        $userId = $request->user()?->id;
+        $input = $request->all();
+
+        if (empty($input['DocEntry']) && empty($input['doc_entry']) && empty($input['docEntry']) && empty($input['id'])) {
+            return $this->errorResponse('DocEntry wajib diisi.', [], 422);
+        }
+
+        try {
+            $result = $this->productionService->editRemarksReceiptSap($input, $userId);
+            return $this->successResponse($result, 'Berhasil memperbarui remarks Production Receipt di SAP.');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Gagal memperbarui remarks Production Receipt di SAP: ' . $e->getMessage(), [], 500);
         }
     }
 
