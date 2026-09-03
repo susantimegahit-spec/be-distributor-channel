@@ -215,23 +215,21 @@ class ProductionChangeProductTest extends TestCase
         $response->assertJsonPath('data.change_product.status', 'COMPLETE');
         $response->assertJsonPath('data.change_product.sap_status', 'SYNCED');
 
-        // Verify SAP payload mapped 'All' to 'X'
+        // Verify SAP payload mapped 'All' to 'A' (valid SAP value for Shift 1 / All fallback)
         Http::assertSent(function ($request) {
-            return $request['shift'] === 'X';
+            return $request['shift'] === 'A';
         });
 
         // Verify unit mapping for all variations
         $service = app(\App\Modules\Production\Services\ProductionService::class);
-        $this->assertEquals('X', $service->mapChangeProductShift('All'));
-        $this->assertEquals('X', $service->mapChangeProductShift('all'));
-        $this->assertEquals('X', $service->mapChangeProductShift('ALL'));
-        $this->assertEquals('X', $service->mapChangeProductShift('X'));
-        $this->assertEquals('1', $service->mapChangeProductShift('Shift 1'));
-        $this->assertEquals('1', $service->mapChangeProductShift('1'));
-        $this->assertEquals('2', $service->mapChangeProductShift('Shift 2'));
-        $this->assertEquals('2', $service->mapChangeProductShift('2'));
-        $this->assertEquals('3', $service->mapChangeProductShift('Shift 3'));
-        $this->assertEquals('3', $service->mapChangeProductShift('3'));
+        $this->assertEquals('A', $service->mapChangeProductShift('All'));
+        $this->assertEquals('A', $service->mapChangeProductShift('all'));
+        $this->assertEquals('A', $service->mapChangeProductShift('Shift 1'));
+        $this->assertEquals('A', $service->mapChangeProductShift('1'));
+        $this->assertEquals('B', $service->mapChangeProductShift('Shift 2'));
+        $this->assertEquals('B', $service->mapChangeProductShift('2'));
+        $this->assertEquals('C', $service->mapChangeProductShift('Shift 3'));
+        $this->assertEquals('C', $service->mapChangeProductShift('3'));
 
         $this->assertDatabaseHas('production_change_products', [
             'id'         => $cp->id,

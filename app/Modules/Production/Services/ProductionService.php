@@ -3302,10 +3302,12 @@ class ProductionService
     /**
      * Map shift value for Change Product SAP integration.
      *
-     * - 'All' / 'ALL' / 'all' / 'X' -> 'X'
-     * - 'Shift 1' / '1' / 'A' -> '1'
-     * - 'Shift 2' / '2' / 'B' -> '2'
-     * - 'Shift 3' / '3' / 'C' -> '3'
+     * SAP B1 U_Shift valid values are strictly:
+     * - 'A' = Shift 1
+     * - 'B' = Shift 2
+     * - 'C' = Shift 3
+     *
+     * If FE sends 'All', 'all', or empty, fallback to 'A' (Shift 1) unless SAP adds 'X'.
      *
      * @param mixed $shiftValue
      * @return string
@@ -3315,20 +3317,15 @@ class ProductionService
         $val = trim((string) $shiftValue);
         $upper = strtoupper($val);
 
-        if ($upper === 'ALL' || $upper === 'X' || $val === '') {
-            return 'X';
-        }
-        if ($upper === 'SHIFT 1' || $upper === 'SHIFT1' || $upper === 'SHIFT-1' || $upper === '1' || $upper === 'A') {
-            return '1';
-        }
         if ($upper === 'SHIFT 2' || $upper === 'SHIFT2' || $upper === 'SHIFT-2' || $upper === '2' || $upper === 'B') {
-            return '2';
+            return 'B';
         }
         if ($upper === 'SHIFT 3' || $upper === 'SHIFT3' || $upper === 'SHIFT-3' || $upper === '3' || $upper === 'C') {
-            return '3';
+            return 'C';
         }
 
-        return $val;
+        // Shift 1, All, '1', 'A', or fallback default to 'A'
+        return 'A';
     }
 
     /**
