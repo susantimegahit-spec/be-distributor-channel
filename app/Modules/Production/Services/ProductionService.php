@@ -2406,7 +2406,7 @@ class ProductionService
                     'ItemCode'  => (string) ($l['ItemCode'] ?? ''),
                     'Quantity'  => floatval($l['Quantity']),
                     'WhsCode'   => (string) ($l['WhsCode'] ?? ''),
-                    'UoMEntry'  => is_numeric($l['UoMEntry'] ?? 1) ? (int)($l['UoMEntry'] ?? 1) : 1,
+                    // 'UoMEntry'  => is_numeric($l['UoMEntry'] ?? 1) ? (int)($l['UoMEntry'] ?? 1) : 1,
                     'OcrCode'   => (string) ($l['OcrCode'] ?? ''),
                     'OcrCode2'  => (string) ($l['OcrCode2'] ?? ''),
                     'OcrCode3'  => (string) ($l['OcrCode3'] ?? ''),
@@ -2436,14 +2436,14 @@ class ProductionService
                     }
 
                     // Ekstrak DocNum & DocEntry dari string Message jika tidak disediakan langsung sebagai field terpisah
-                    // Contoh format message: "Success - [AddIssueForProduction]. DocNum: 40512"
+                    // Contoh format message: "Success - [AddIssueForProduction]. DocNum: 260910001"
                     if (empty($sapDocNum) && !empty($body['Message'])) {
-                        if (preg_match('/DocNum:\s*([0-9]+)/i', $body['Message'], $matches)) {
+                        if (preg_match('/DocNum[:\s]+([0-9]+)/i', $body['Message'], $matches)) {
                             $sapDocNum = $matches[1];
                         }
                     }
                     if (empty($sapDocEntry) && !empty($body['Message'])) {
-                        if (preg_match('/DocEntry:\s*([0-9]+)/i', $body['Message'], $matches)) {
+                        if (preg_match('/DocEntry[:\s]+([0-9]+)/i', $body['Message'], $matches)) {
                             $sapDocEntry = $matches[1];
                         }
                     }
@@ -2452,13 +2452,23 @@ class ProductionService
                     $sapDocNum   = $sapDocNum ?: $sapDocEntry;
 
                     $localIssue->update([
-                        'doc_entry'     => $sapDocEntry,
+                        'doc_entry'     => (string) $sapDocEntry,
                         'doc_num'       => (string) ($sapDocNum ?: $localIssue->doc_num),
                         'issue_no'      => (string) ($sapDocNum ?: $localIssue->issue_no),
                         'sap_status'    => 'SYNCED',
                         'sap_error'     => null,
                         'integrated_at' => now(),
                     ]);
+
+                    // Pastikan DocNum dan DocEntry terisi di sapResponse
+                    $body['DocNum']   = (string) $sapDocNum;
+                    $body['DocEntry'] = (string) $sapDocEntry;
+                    if (empty($body['Result'])) {
+                        $body['Result'] = [
+                            'DocNum'   => (string) $sapDocNum,
+                            'DocEntry' => (string) $sapDocEntry,
+                        ];
+                    }
                     $sapResponse = $body;
 
                     // Update referensi nomor issue di tabel PDO Header (replace nomor generate dari BE)
