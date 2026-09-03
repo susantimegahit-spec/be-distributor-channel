@@ -141,7 +141,12 @@ class InventoryTransferController extends Controller
                 return $this->errorResponse($result['Message'] ?? 'Gagal mengambil daftar Inventory Transfer', $result, 400);
             }
 
-            return $this->successResponse($result['Result'] ?? [], $result['Message'] ?? 'Mengambil daftar Inventory Transfer berhasil.');
+            $items = $result['Result'] ?? [];
+            if (empty($items)) {
+                return $this->successResponse([], 'Data not found.');
+            }
+
+            return $this->successResponse($items, !empty($result['Message']) ? $result['Message'] : 'Mengambil daftar Inventory Transfer berhasil.');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), null, 500);
         }
@@ -171,13 +176,14 @@ class InventoryTransferController extends Controller
             $table1 = $sapResult['Table1'] ?? [];
             $table2 = $sapResult['Table2'] ?? [];
 
-            $formatted = null;
-            if (!empty($table1) && is_array($table1)) {
-                $formatted = $table1[0];
-                $formatted['lines'] = $table2;
+            if (empty($table1)) {
+                return $this->successResponse(null, 'Data not found.');
             }
 
-            return $this->successResponse($formatted, $result['Message'] ?? 'Mengambil detail Inventory Transfer berhasil.');
+            $formatted = $table1[0];
+            $formatted['lines'] = $table2;
+
+            return $this->successResponse($formatted, !empty($result['Message']) ? $result['Message'] : 'Mengambil detail Inventory Transfer berhasil.');
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), null, 500);
         }

@@ -10671,7 +10671,7 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: Mengambil daftar Inventory Transfer berhasil.
+                    example: Mengambil daftar Inventory Transfer berhasil. (atau 'Data not found.' jika kosong/dummy)
                   data:
                     type: array
                     items:
@@ -10876,7 +10876,7 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: Mengambil detail Inventory Transfer berhasil.
+                    example: Mengambil detail Inventory Transfer berhasil. (atau 'Data not found.' jika tidak ditemukan)
                   data:
                     type: object
                     properties:

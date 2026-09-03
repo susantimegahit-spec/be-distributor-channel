@@ -231,7 +231,20 @@ class InventoryTransferService
             throw new \Exception('Gagal menghubungi API SAP untuk mendapatkan daftar Inventory Transfer.');
         }
 
-        return $response->json();
+        $data = $response->json();
+        $rawItems = $data['Result'] ?? $data['result'] ?? [];
+
+        // Filter out dummy empty / zero rows returned by SAP when data is not found
+        $filteredItems = array_values(array_filter((array)$rawItems, function ($row) {
+            if (!is_array($row)) return false;
+            $docEntry = trim((string)($row['DocEntry'] ?? $row['doc_entry'] ?? ''));
+            $docNum   = trim((string)($row['DocNum'] ?? $row['doc_num'] ?? ''));
+
+            return !in_array($docEntry, ['0', '']) && !in_array($docNum, ['0', '']);
+        }));
+
+        $data['Result'] = $filteredItems;
+        return $data;
     }
 
     /**
@@ -251,7 +264,35 @@ class InventoryTransferService
             throw new \Exception('Gagal menghubungi API SAP untuk mendapatkan data Inventory Transfer.');
         }
 
-        return $response->json();
+        $data = $response->json();
+        $rawResult = $data['Result'] ?? $data['result'] ?? [];
+        $table1 = $rawResult['Table1'] ?? $rawResult['table1'] ?? [];
+        $table2 = $rawResult['Table2'] ?? $rawResult['table2'] ?? [];
+
+        // Filter out dummy empty / zero rows for Table1
+        $filteredTable1 = array_values(array_filter((array)$table1, function ($row) {
+            if (!is_array($row)) return false;
+            $docEntry = trim((string)($row['DocEntry'] ?? $row['doc_entry'] ?? ''));
+            $docNum   = trim((string)($row['DocNum'] ?? $row['doc_num'] ?? ''));
+
+            return !in_array($docEntry, ['0', '']) && !in_array($docNum, ['0', '']);
+        }));
+
+        // Filter out dummy lines for Table2
+        $filteredTable2 = array_values(array_filter((array)$table2, function ($line) {
+            if (!is_array($line)) return false;
+            $itemCode = trim((string)($line['ItemCode'] ?? $line['item_code'] ?? ''));
+            $docEntry = trim((string)($line['DocEntry'] ?? $line['doc_entry'] ?? ''));
+
+            return !empty($itemCode) && !in_array($docEntry, ['0', '']);
+        }));
+
+        $data['Result'] = [
+            'Table1' => $filteredTable1,
+            'Table2' => $filteredTable2,
+        ];
+
+        return $data;
     }
 
     /**

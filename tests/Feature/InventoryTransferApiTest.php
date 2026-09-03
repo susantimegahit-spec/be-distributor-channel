@@ -266,4 +266,97 @@ class InventoryTransferApiTest extends TestCase
             ->assertJsonPath('success', false)
             ->assertJsonPath('status_code', 422);
     }
+
+    /**
+     * Test get list IT when SAP returns dummy 0 row or empty array.
+     */
+    public function test_get_list_it_empty_or_dummy_zero_returns_data_not_found(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        // 1. Test when SAP returns dummy 0 row
+        Http::fake([
+            '*/api/getListIT' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => '',
+                'Result' => [
+                    [
+                        'DocEntry' => '0',
+                        'DocNum' => '0',
+                        'DocDate' => '',
+                        'FromWhsCode' => '',
+                        'ToWhsCode' => '',
+                        'Comments' => ''
+                    ]
+                ]
+            ], 200)
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/distributor-channel/v1/warehouses/inventory-transfer');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Data not found.')
+            ->assertJsonPath('data', []);
+
+        // 2. Test when SAP returns empty array
+        Http::fake([
+            '*/api/getListIT' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => '',
+                'Result' => []
+            ], 200)
+        ]);
+
+        $response2 = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->getJson('/api/distributor-channel/v1/warehouses/inventory-transfer');
+
+        $response2->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Data not found.')
+            ->assertJsonPath('data', []);
+    }
+
+    /**
+     * Test get IT by ID when SAP returns dummy 0 row or empty table.
+     */
+    public function test_get_it_by_id_empty_or_dummy_zero_returns_data_not_found(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        Http::fake([
+            '*/api/getITbyId' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => '',
+                'Result' => [
+                    'Table1' => [
+                        [
+                            'Series' => '0',
+                            'DocEntry' => '0',
+                            'DocNum' => '0',
+                            'DocDate' => '',
+                            'FromWhsCode' => '',
+                            'ToWhsCode' => '',
+                            'Comments' => ''
+                        ]
+                    ],
+                    'Table2' => []
+                ]
+            ], 200)
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/api/distributor-channel/v1/warehouses/inventory-transfer/get-by-id', [
+            'CustomQuery' => '999999'
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Data not found.')
+            ->assertJsonPath('data', null);
+    }
 }
