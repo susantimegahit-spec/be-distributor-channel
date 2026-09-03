@@ -830,7 +830,7 @@ class ProductionService
             if ($statusFilter) {
                 $localQuery->where(function ($q) use ($statusFilter) {
                     $q->where('status', $statusFilter)
-                      ->orWhere('status', 'ILIKE', $statusFilter);
+                        ->orWhere('status', 'ILIKE', $statusFilter);
                     if ($statusFilter === 'RELEASED') {
                         $q->orWhere('status', 'RELEASE')->orWhere('status', 'ILIKE', 'RELEASE');
                     } elseif ($statusFilter === 'PLANNED') {
@@ -852,12 +852,12 @@ class ProductionService
                 $toDate = date('Y-m-d', strtotime((string)$rawTo));
                 $localQuery->where(function ($q) use ($fromDate, $toDate) {
                     $q->whereBetween('post_date', [$fromDate, $toDate])
-                      ->orWhereBetween('start_date', [$fromDate, $toDate])
-                      ->orWhere(function ($sub) use ($fromDate, $toDate) {
-                          $sub->whereNull('post_date')->whereNull('start_date')
-                              ->whereDate('created_at', '>=', $fromDate)
-                              ->whereDate('created_at', '<=', $toDate);
-                      });
+                        ->orWhereBetween('start_date', [$fromDate, $toDate])
+                        ->orWhere(function ($sub) use ($fromDate, $toDate) {
+                            $sub->whereNull('post_date')->whereNull('start_date')
+                                ->whereDate('created_at', '>=', $fromDate)
+                                ->whereDate('created_at', '<=', $toDate);
+                        });
                 });
             }
 
@@ -3497,7 +3497,7 @@ class ProductionService
             'comments'   => (string)($cp->comments ?? "Change Product {$cp->cp_no}"),
             'shift'      => $this->mapChangeProductShift($cp->shift),
             'unit'       => (string)($cp->unit ?? ''),
-            'addonId'    => (string)($cp->addon_id ?? $cp->cp_no),
+            'addonId'    => '2',
             'userId'     => (string)($cp->user_id ?? ($userId ? (string)$userId : '1')),
             'oldLines'   => $oldLines,
             'newLines'   => $newLines,
@@ -3577,4 +3577,3 @@ class ProductionService
         ];
     }
 }
-

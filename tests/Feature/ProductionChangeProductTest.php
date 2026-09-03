@@ -215,9 +215,9 @@ class ProductionChangeProductTest extends TestCase
         $response->assertJsonPath('data.change_product.status', 'COMPLETE');
         $response->assertJsonPath('data.change_product.sap_status', 'SYNCED');
 
-        // Verify SAP payload mapped 'All' to 'A' (valid SAP value for Shift 1 / All fallback)
+        // Verify SAP payload mapped 'All' to 'A' and addonId is '2'
         Http::assertSent(function ($request) {
-            return $request['shift'] === 'A';
+            return $request['shift'] === 'A' && $request['addonId'] === '2';
         });
 
         // Verify unit mapping for all variations
