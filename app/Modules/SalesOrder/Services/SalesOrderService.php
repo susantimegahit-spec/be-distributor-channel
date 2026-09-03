@@ -119,6 +119,10 @@ class SalesOrderService
         $data['created_by'] = $userId;
         $data['updated_by'] = $userId;
 
+        if (empty($data['eta_date']) && !empty($data['doc_due_date'])) {
+            $data['eta_date'] = $data['doc_due_date'];
+        }
+
         // Calculate doc_total as sum of line_total
         $docTotal = 0;
         foreach ($data['lines'] as $line) {
@@ -159,6 +163,21 @@ class SalesOrderService
     }
 
     /**
+     * Alias for updateOrder.
+     *
+     * @param  int  $id
+     * @param  array  $data
+     * @param  int  $userId
+     * @param  int  $distributorId
+     * @return SalesOrder
+     * @throws ValidationException
+     */
+    public function updateDraft(int $id, array $data, int $userId, int $distributorId): SalesOrder
+    {
+        return $this->updateOrder($id, $data, $userId, $distributorId);
+    }
+
+    /**
      * Update an existing Sales Order draft.
      *
      * @param  int  $id
@@ -192,6 +211,10 @@ class SalesOrderService
         $data['customer_name'] = $distributor ? $distributor->name : $salesOrder->customer_name;
         $data['status'] = $data['status'] ?? $salesOrder->status;
         $data['updated_by'] = $userId;
+
+        if (empty($data['eta_date']) && !empty($data['doc_due_date'])) {
+            $data['eta_date'] = $data['doc_due_date'];
+        }
 
         // Recalculate doc_total
         $docTotal = 0;
@@ -312,6 +335,11 @@ class SalesOrderService
             'DocDate' => 'doc_date',
             'doc_due_date' => 'doc_due_date',
             'DocDueDate' => 'doc_due_date',
+            'eta_date' => 'eta_date',
+            'etaDate' => 'eta_date',
+            'EtaDate' => 'eta_date',
+            'u_eta' => 'eta_date',
+            'U_ETA' => 'eta_date',
             'slp_code' => 'slp_code',
             'SlpCode' => 'slp_code',
             'cntct_code' => 'cntct_code',
@@ -345,6 +373,10 @@ class SalesOrderService
                 }
                 $normalized[$targetKey] = $value;
             }
+        }
+
+        if (empty($normalized['eta_date']) && !empty($normalized['doc_due_date'])) {
+            $normalized['eta_date'] = $normalized['doc_due_date'];
         }
 
         // Lines mapping
