@@ -353,10 +353,178 @@ class ProductionRepository implements ProductionRepositoryInterface
     /**
      * Delete a production order.
      */
-    public function deleteOrder(\App\Models\ProductionOrder $order): bool
+     public function deleteOrder(\App\Models\ProductionOrder $order): bool
+     {
+         return DB::connection('pgsql_production')->transaction(function () use ($order) {
+             return $order->delete();
+         });
+     }
+
+    /**
+     * Get all production change products.
+     */
+    public function getAllChangeProducts(array $filters = []): Collection
     {
-        return DB::connection('pgsql_production')->transaction(function () use ($order) {
-            return $order->delete();
+        $query = \App\Models\ProductionChangeProduct::query()->with([
+            'oldLines',
+            'newLines',
+        ]);
+
+        $likeOperator = DB::connection('pgsql_production')->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+
+        if (!empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search, $likeOperator) {
+                $q->where('cp_no', $likeOperator, "%{$search}%")
+                  ->orWhere('comments', $likeOperator, "%{$search}%")
+                  ->orWhere('addon_id', $likeOperator, "%{$search}%")
+                  ->orWhereHas('oldLines', function ($oldQ) use ($search, $likeOperator) {
+                      $oldQ->where('item_code', $likeOperator, "%{$search}%");
+                  })
+                  ->orWhereHas('newLines', function ($newQ) use ($search, $likeOperator) {
+                      $newQ->where('item_code', $likeOperator, "%{$search}%");
+                  });
+            });
+        }
+
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        if (!empty($filters['sap_status'])) {
+            $query->where('sap_status', $filters['sap_status']);
+        }
+
+        if (!empty($filters['date_from'])) {
+            $query->whereDate('doc_date', '>=', $filters['date_from']);
+        }
+
+        if (!empty($filters['date_to'])) {
+            $query->whereDate('doc_date', '<=', $filters['date_to']);
+        }
+
+        return $query->orderBy('doc_date', 'desc')->orderBy('id', 'desc')->get();
+    }
+
+    /**
+     * Get production change product by ID.
+     */
+    public function getChangeProductById(int $id): ?\App\Models\ProductionChangeProduct
+    {
+        return \App\Models\ProductionChangeProduct::with([
+            'oldLines',
+            'newLines',
+        ])->find($id);
+    }
+
+    /**
+     * Create a new production change product with its old and new lines.
+     */
+    public function createChangeProduct(array $data): \App\Models\ProductionChangeProduct
+    {
+        return DB::connection('pgsql_production')->transaction(function () use ($data) {
+            $oldLines = $data['old_lines'] ?? $data['oldLines'] ?? $data['OldLines'] ?? [];
+            $newLines = $data['new_lines'] ?? $data['newLines'] ?? $data['NewLines'] ?? [];
+            unset($data['old_lines'], $data['oldLines'], $data['OldLines'], $data['new_lines'], $data['newLines'], $data['NewLines'], $data['items'], $data['lines']);
+
+            if (empty($data['cp_no'])) {
+                $prefix = 'CP-' . date('Ymd') . '-';
+                $last = \App\Models\ProductionChangeProduct::where('cp_no', 'like', "{$prefix}%")
+                    ->orderBy('id', 'desc')
+                    ->first();
+                $seq = 1;
+                if ($last && preg_match('/-(\d+)$/', $last->cp_no, $matches)) {
+                    $seq = (int)$matches[1] + 1;
+                }
+                $data['cp_no'] = $prefix . str_pad($seq, 4, '0', STR_PAD_LEFT);
+            }
+
+            $cp = \App\Models\ProductionChangeProduct::create($data);
+
+            foreach ($oldLines as $index => $line) {
+                $cp->oldLines()->create([
+                    'line_num'      => $index,
+                    'item_code'     => $line['item_code'] ?? $line['itemCode'] ?? $line['ItemCode'] ?? '',
+                    'quantity'      => floatval($line['quantity'] ?? $line['Quantity'] ?? $line['qty'] ?? 0),
+                    'from_whs_code' => $line['from_whs_code'] ?? $line['fromWhsCode'] ?? $line['FromWhsCode'] ?? '',
+                    'ocr_code'      => $line['ocr_code'] ?? $line['ocrCode'] ?? $line['OcrCode'] ?? null,
+                    'ocr_code2'     => $line['ocr_code2'] ?? $line['ocrCode2'] ?? $line['OcrCode2'] ?? null,
+                    'ocr_code3'     => $line['ocr_code3'] ?? $line['ocrCode3'] ?? $line['OcrCode3'] ?? null,
+                ]);
+            }
+
+            foreach ($newLines as $index => $line) {
+                $cp->newLines()->create([
+                    'line_num'                 => $index,
+                    'item_code'                => $line['item_code'] ?? $line['itemCode'] ?? $line['ItemCode'] ?? '',
+                    'quantity'                 => floatval($line['quantity'] ?? $line['Quantity'] ?? $line['qty'] ?? 0),
+                    'to_whs_code'              => $line['to_whs_code'] ?? $line['toWhsCode'] ?? $line['ToWhsCode'] ?? '',
+                    'ocr_code'                 => $line['ocr_code'] ?? $line['ocrCode'] ?? $line['OcrCode'] ?? null,
+                    'ocr_code2'                => $line['ocr_code2'] ?? $line['ocrCode2'] ?? $line['OcrCode2'] ?? null,
+                    'ocr_code3'                => $line['ocr_code3'] ?? $line['ocrCode3'] ?? $line['OcrCode3'] ?? null,
+                    'value_allocation_percent' => floatval($line['value_allocation_percent'] ?? $line['valueAllocationPercent'] ?? $line['ValueAllocationPercent'] ?? 0),
+                ]);
+            }
+
+            return $cp->fresh(['oldLines', 'newLines']);
+        });
+    }
+
+    /**
+     * Update an existing production change product.
+     */
+    public function updateChangeProduct(\App\Models\ProductionChangeProduct $cp, array $data): \App\Models\ProductionChangeProduct
+    {
+        return DB::connection('pgsql_production')->transaction(function () use ($cp, $data) {
+            $oldLines = $data['old_lines'] ?? $data['oldLines'] ?? $data['OldLines'] ?? null;
+            $newLines = $data['new_lines'] ?? $data['newLines'] ?? $data['NewLines'] ?? null;
+            unset($data['old_lines'], $data['oldLines'], $data['OldLines'], $data['new_lines'], $data['newLines'], $data['NewLines'], $data['items'], $data['lines']);
+
+            $cp->update($data);
+
+            if ($oldLines !== null) {
+                $cp->oldLines()->delete();
+                foreach ($oldLines as $index => $line) {
+                    $cp->oldLines()->create([
+                        'line_num'      => $index,
+                        'item_code'     => $line['item_code'] ?? $line['itemCode'] ?? $line['ItemCode'] ?? '',
+                        'quantity'      => floatval($line['quantity'] ?? $line['Quantity'] ?? $line['qty'] ?? 0),
+                        'from_whs_code' => $line['from_whs_code'] ?? $line['fromWhsCode'] ?? $line['FromWhsCode'] ?? '',
+                        'ocr_code'      => $line['ocr_code'] ?? $line['ocrCode'] ?? $line['OcrCode'] ?? null,
+                        'ocr_code2'     => $line['ocr_code2'] ?? $line['ocrCode2'] ?? $line['OcrCode2'] ?? null,
+                        'ocr_code3'     => $line['ocr_code3'] ?? $line['ocrCode3'] ?? $line['OcrCode3'] ?? null,
+                    ]);
+                }
+            }
+
+            if ($newLines !== null) {
+                $cp->newLines()->delete();
+                foreach ($newLines as $index => $line) {
+                    $cp->newLines()->create([
+                        'line_num'                 => $index,
+                        'item_code'                => $line['item_code'] ?? $line['itemCode'] ?? $line['ItemCode'] ?? '',
+                        'quantity'                 => floatval($line['quantity'] ?? $line['Quantity'] ?? $line['qty'] ?? 0),
+                        'to_whs_code'              => $line['to_whs_code'] ?? $line['toWhsCode'] ?? $line['ToWhsCode'] ?? '',
+                        'ocr_code'                 => $line['ocr_code'] ?? $line['ocrCode'] ?? $line['OcrCode'] ?? null,
+                        'ocr_code2'                => $line['ocr_code2'] ?? $line['ocrCode2'] ?? $line['OcrCode2'] ?? null,
+                        'ocr_code3'                => $line['ocr_code3'] ?? $line['ocrCode3'] ?? $line['OcrCode3'] ?? null,
+                        'value_allocation_percent' => floatval($line['value_allocation_percent'] ?? $line['valueAllocationPercent'] ?? $line['ValueAllocationPercent'] ?? 0),
+                    ]);
+                }
+            }
+
+            return $cp->fresh(['oldLines', 'newLines']);
+        });
+    }
+
+    /**
+     * Delete a production change product.
+     */
+    public function deleteChangeProduct(\App\Models\ProductionChangeProduct $cp): bool
+    {
+        return DB::connection('pgsql_production')->transaction(function () use ($cp) {
+            return $cp->delete();
         });
     }
 }
+

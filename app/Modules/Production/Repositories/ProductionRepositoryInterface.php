@@ -121,4 +121,46 @@ interface ProductionRepositoryInterface
      * @return bool
      */
     public function deleteOrder(\App\Models\ProductionOrder $order): bool;
+
+    /**
+     * Get all production change products.
+     *
+     * @param  array  $filters
+     * @return Collection<int, \App\Models\ProductionChangeProduct>
+     */
+    public function getAllChangeProducts(array $filters = []): Collection;
+
+    /**
+     * Get production change product by ID.
+     *
+     * @param  int  $id
+     * @return \App\Models\ProductionChangeProduct|null
+     */
+    public function getChangeProductById(int $id): ?\App\Models\ProductionChangeProduct;
+
+    /**
+     * Create a new production change product.
+     *
+     * @param  array  $data
+     * @return \App\Models\ProductionChangeProduct
+     */
+    public function createChangeProduct(array $data): \App\Models\ProductionChangeProduct;
+
+    /**
+     * Update an existing production change product.
+     *
+     * @param  \App\Models\ProductionChangeProduct  $cp
+     * @param  array  $data
+     * @return \App\Models\ProductionChangeProduct
+     */
+    public function updateChangeProduct(\App\Models\ProductionChangeProduct $cp, array $data): \App\Models\ProductionChangeProduct;
+
+    /**
+     * Delete a production change product.
+     *
+     * @param  \App\Models\ProductionChangeProduct  $cp
+     * @return bool
+     */
+    public function deleteChangeProduct(\App\Models\ProductionChangeProduct $cp): bool;
 }
+

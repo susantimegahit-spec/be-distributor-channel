@@ -71,4 +71,15 @@ Route::prefix('v1/production')->middleware('auth:sanctum')->group(function () {
     Route::match(['get', 'post'], '/stock-by-item', [ProductionController::class, 'getStockByItem']);
     Route::post('/get-stok-by-item', [ProductionController::class, 'getStockByItem']);
     Route::post('/get-stock-by-item', [ProductionController::class, 'getStockByItem']);
+
+    // Change Product CRUD & SAP Integration (/api/AddCP)
+    Route::get('/change-products', [ProductionController::class, 'indexChangeProducts']);
+    Route::get('/change-products/{id}', [ProductionController::class, 'showChangeProduct']);
+    Route::post('/change-products', [ProductionController::class, 'storeChangeProduct']);
+    Route::put('/change-products/{id}', [ProductionController::class, 'updateChangeProduct']);
+    Route::delete('/change-products/{id}', [ProductionController::class, 'destroyChangeProduct']);
+    Route::post('/change-products/{id}/post', [ProductionController::class, 'postChangeProductSap']);
+    Route::post('/change-products/sap', [ProductionController::class, 'postChangeProductSap']);
+    Route::post('/add-cp', [ProductionController::class, 'postChangeProductSap']);
 });
+
