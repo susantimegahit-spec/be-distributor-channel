@@ -3300,6 +3300,38 @@ class ProductionService
     }
 
     /**
+     * Map shift value for Change Product SAP integration.
+     *
+     * - 'All' / 'ALL' / 'all' / 'X' -> 'X'
+     * - 'Shift 1' / '1' / 'A' -> '1'
+     * - 'Shift 2' / '2' / 'B' -> '2'
+     * - 'Shift 3' / '3' / 'C' -> '3'
+     *
+     * @param mixed $shiftValue
+     * @return string
+     */
+    public function mapChangeProductShift(mixed $shiftValue): string
+    {
+        $val = trim((string) $shiftValue);
+        $upper = strtoupper($val);
+
+        if ($upper === 'ALL' || $upper === 'X' || $val === '') {
+            return 'X';
+        }
+        if ($upper === 'SHIFT 1' || $upper === 'SHIFT1' || $upper === 'SHIFT-1' || $upper === '1' || $upper === 'A') {
+            return '1';
+        }
+        if ($upper === 'SHIFT 2' || $upper === 'SHIFT2' || $upper === 'SHIFT-2' || $upper === '2' || $upper === 'B') {
+            return '2';
+        }
+        if ($upper === 'SHIFT 3' || $upper === 'SHIFT3' || $upper === 'SHIFT-3' || $upper === '3' || $upper === 'C') {
+            return '3';
+        }
+
+        return $val;
+    }
+
+    /**
      * Get all Change Products.
      *
      * @param array $filters
@@ -3466,7 +3498,7 @@ class ProductionService
             'docDate'    => $docDate,
             'docDueDate' => $docDueDate,
             'comments'   => (string)($cp->comments ?? "Change Product {$cp->cp_no}"),
-            'shift'      => (string)($cp->shift ?? '1'),
+            'shift'      => $this->mapChangeProductShift($cp->shift),
             'unit'       => (string)($cp->unit ?? ''),
             'addonId'    => (string)($cp->addon_id ?? $cp->cp_no),
             'userId'     => (string)($cp->user_id ?? ($userId ? (string)$userId : '1')),
