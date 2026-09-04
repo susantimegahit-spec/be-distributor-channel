@@ -109,7 +109,9 @@ class AddPdoSapTest extends TestCase
         Http::fake([
             '*/api/addpdo' => Http::response([
                 'ErrorCode' => 0,
-                'Message' => 'Success - [AddPDO] DocNum - DocEntry : 260910011 - 6715',
+                'Message' => 'Success - [AddPDO] DocNum - DocEntry : 260910013 - 6717',
+                'DocNum' => 260910013,
+                'DocEntry' => 260910013,
                 'Result' => null,
             ], 200),
         ]);
@@ -142,8 +144,8 @@ class AddPdoSapTest extends TestCase
         ])->postJson('/api/distributor-channel/v1/production/orders/sap', $payload);
 
         $response->assertStatus(200)
-            ->assertJsonPath('data.order.doc_num', '260910011')
-            ->assertJsonPath('data.order.doc_entry', 6715)
-            ->assertJsonPath('data.order.prod_order_no', '260910011');
+            ->assertJsonPath('data.order.doc_num', '260910013')
+            ->assertJsonPath('data.order.doc_entry', 6717)
+            ->assertJsonPath('data.order.prod_order_no', '260910013');
     }
 }

@@ -323,38 +323,49 @@ class ProductionService
                 if ($response->successful()) {
                     $body = $response->json();
                     if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
-                        $sapDocNum = $body['DocNum'] ?? $body['doc_num'] ?? $body['Result']['DocNum'] ?? null;
-                        $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? $body['Result']['DocEntry'] ?? null;
                         $message = (string) ($body['Message'] ?? $body['message'] ?? '');
+                        $sapDocNum = null;
+                        $sapDocEntry = null;
 
-                        // Handle format "DocNum - DocEntry" if present in DocNum string (e.g. "260910011 - 6715")
-                        if (is_string($sapDocNum) && str_contains($sapDocNum, '-')) {
-                            $parts = array_map('trim', explode('-', $sapDocNum));
-                            if (count($parts) >= 2 && is_numeric($parts[0]) && is_numeric($parts[1])) {
-                                $sapDocNum = $parts[0];
-                                if (empty($sapDocEntry)) {
-                                    $sapDocEntry = $parts[1];
+                        // 1. Prioritize explicit Message patterns from SAP (e.g. "DocNum - DocEntry : 260910013 - 6717")
+                        if (!empty($message)) {
+                            // Pattern 1: "DocNum - DocEntry : 260910013 - 6717"
+                            if (preg_match('/DocNum\s*-\s*DocEntry\s*[:=]?\s*([0-9]+)\s*-\s*([0-9]+)/i', $message, $matches)) {
+                                $sapDocNum = $matches[1];
+                                $sapDocEntry = $matches[2];
+                            }
+                            // Pattern 2: "DocNum: 260910013 - DocEntry: 6717" or "DocNum: 260910013, DocEntry: 6717"
+                            elseif (preg_match('/DocNum\s*[:=]\s*([0-9]+).*?DocEntry\s*[:=]\s*([0-9]+)/i', $message, $matches)) {
+                                $sapDocNum = $matches[1];
+                                $sapDocEntry = $matches[2];
+                            }
+                            // Pattern 3: "DocEntry: 6717 - DocNum: 260910013"
+                            elseif (preg_match('/DocEntry\s*[:=]\s*([0-9]+).*?DocNum\s*[:=]\s*([0-9]+)/i', $message, $matches)) {
+                                $sapDocEntry = $matches[1];
+                                $sapDocNum = $matches[2];
+                            }
+                        }
+
+                        // 2. Fallback to JSON fields if not matched from Message
+                        if (empty($sapDocNum)) {
+                            $sapDocNum = $body['DocNum'] ?? $body['doc_num'] ?? $body['Result']['DocNum'] ?? null;
+                            if (is_string($sapDocNum) && str_contains($sapDocNum, '-')) {
+                                $parts = array_map('trim', explode('-', $sapDocNum));
+                                if (count($parts) >= 2 && is_numeric($parts[0]) && is_numeric($parts[1])) {
+                                    $sapDocNum = $parts[0];
+                                    if (empty($sapDocEntry)) {
+                                        $sapDocEntry = $parts[1];
+                                    }
                                 }
                             }
                         }
 
-                        if (!empty($message)) {
-                            // Pattern 1: "DocNum - DocEntry : 260910011 - 6715"
-                            if (preg_match('/DocNum\s*-\s*DocEntry\s*[:=]?\s*([0-9]+)\s*-\s*([0-9]+)/i', $message, $matches)) {
-                                $sapDocNum = $sapDocNum ?: $matches[1];
-                                $sapDocEntry = $sapDocEntry ?: $matches[2];
-                            }
-                            // Pattern 2: "DocNum: 260910011 - DocEntry: 6715" or "DocNum: 260910011, DocEntry: 6715"
-                            elseif (preg_match('/DocNum\s*[:=]\s*([0-9]+).*?DocEntry\s*[:=]\s*([0-9]+)/i', $message, $matches)) {
-                                $sapDocNum = $sapDocNum ?: $matches[1];
-                                $sapDocEntry = $sapDocEntry ?: $matches[2];
-                            }
-                            // Pattern 3: "DocEntry: 6715 - DocNum: 260910011"
-                            elseif (preg_match('/DocEntry\s*[:=]\s*([0-9]+).*?DocNum\s*[:=]\s*([0-9]+)/i', $message, $matches)) {
-                                $sapDocEntry = $sapDocEntry ?: $matches[1];
-                                $sapDocNum = $sapDocNum ?: $matches[2];
-                            }
+                        if (empty($sapDocEntry)) {
+                            $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? $body['Result']['DocEntry'] ?? null;
+                        }
 
+                        // 3. Fallback regex for individual labels in message
+                        if (!empty($message)) {
                             if (empty($sapDocNum) && preg_match('/DocNum\s*[:=]\s*([0-9]+)/i', $message, $matches)) {
                                 $sapDocNum = $matches[1];
                             }
@@ -618,38 +629,49 @@ class ProductionService
                 if ($response->successful()) {
                     $body = $response->json();
                     if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
-                        $sapDocNum = $body['DocNum'] ?? $body['doc_num'] ?? $body['Result']['DocNum'] ?? null;
-                        $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? $body['Result']['DocEntry'] ?? null;
                         $message = (string) ($body['Message'] ?? $body['message'] ?? '');
+                        $sapDocNum = null;
+                        $sapDocEntry = null;
 
-                        // Handle format "DocNum - DocEntry" if present in DocNum string (e.g. "260910011 - 6715")
-                        if (is_string($sapDocNum) && str_contains($sapDocNum, '-')) {
-                            $parts = array_map('trim', explode('-', $sapDocNum));
-                            if (count($parts) >= 2 && is_numeric($parts[0]) && is_numeric($parts[1])) {
-                                $sapDocNum = $parts[0];
-                                if (empty($sapDocEntry)) {
-                                    $sapDocEntry = $parts[1];
+                        // 1. Prioritize explicit Message patterns from SAP (e.g. "DocNum - DocEntry : 260910013 - 6717")
+                        if (!empty($message)) {
+                            // Pattern 1: "DocNum - DocEntry : 260910013 - 6717"
+                            if (preg_match('/DocNum\s*-\s*DocEntry\s*[:=]?\s*([0-9]+)\s*-\s*([0-9]+)/i', $message, $matches)) {
+                                $sapDocNum = $matches[1];
+                                $sapDocEntry = $matches[2];
+                            }
+                            // Pattern 2: "DocNum: 260910013 - DocEntry: 6717" or "DocNum: 260910013, DocEntry: 6717"
+                            elseif (preg_match('/DocNum\s*[:=]\s*([0-9]+).*?DocEntry\s*[:=]\s*([0-9]+)/i', $message, $matches)) {
+                                $sapDocNum = $matches[1];
+                                $sapDocEntry = $matches[2];
+                            }
+                            // Pattern 3: "DocEntry: 6717 - DocNum: 260910013"
+                            elseif (preg_match('/DocEntry\s*[:=]\s*([0-9]+).*?DocNum\s*[:=]\s*([0-9]+)/i', $message, $matches)) {
+                                $sapDocEntry = $matches[1];
+                                $sapDocNum = $matches[2];
+                            }
+                        }
+
+                        // 2. Fallback to JSON fields if not matched from Message
+                        if (empty($sapDocNum)) {
+                            $sapDocNum = $body['DocNum'] ?? $body['doc_num'] ?? $body['Result']['DocNum'] ?? null;
+                            if (is_string($sapDocNum) && str_contains($sapDocNum, '-')) {
+                                $parts = array_map('trim', explode('-', $sapDocNum));
+                                if (count($parts) >= 2 && is_numeric($parts[0]) && is_numeric($parts[1])) {
+                                    $sapDocNum = $parts[0];
+                                    if (empty($sapDocEntry)) {
+                                        $sapDocEntry = $parts[1];
+                                    }
                                 }
                             }
                         }
 
-                        if (!empty($message)) {
-                            // Pattern 1: "DocNum - DocEntry : 260910011 - 6715"
-                            if (preg_match('/DocNum\s*-\s*DocEntry\s*[:=]?\s*([0-9]+)\s*-\s*([0-9]+)/i', $message, $matches)) {
-                                $sapDocNum = $sapDocNum ?: $matches[1];
-                                $sapDocEntry = $sapDocEntry ?: $matches[2];
-                            }
-                            // Pattern 2: "DocNum: 260910011 - DocEntry: 6715" or "DocNum: 260910011, DocEntry: 6715"
-                            elseif (preg_match('/DocNum\s*[:=]\s*([0-9]+).*?DocEntry\s*[:=]\s*([0-9]+)/i', $message, $matches)) {
-                                $sapDocNum = $sapDocNum ?: $matches[1];
-                                $sapDocEntry = $sapDocEntry ?: $matches[2];
-                            }
-                            // Pattern 3: "DocEntry: 6715 - DocNum: 260910011"
-                            elseif (preg_match('/DocEntry\s*[:=]\s*([0-9]+).*?DocNum\s*[:=]\s*([0-9]+)/i', $message, $matches)) {
-                                $sapDocEntry = $sapDocEntry ?: $matches[1];
-                                $sapDocNum = $sapDocNum ?: $matches[2];
-                            }
+                        if (empty($sapDocEntry)) {
+                            $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? $body['Result']['DocEntry'] ?? null;
+                        }
 
+                        // 3. Fallback regex for individual labels in message
+                        if (!empty($message)) {
                             if (empty($sapDocNum) && preg_match('/DocNum\s*[:=]\s*([0-9]+)/i', $message, $matches)) {
                                 $sapDocNum = $matches[1];
                             }
