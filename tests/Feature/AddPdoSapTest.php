@@ -103,4 +103,47 @@ class AddPdoSapTest extends TestCase
                 count($request['Lines']) === 3;
         });
     }
+
+    public function test_add_pdo_sap_with_docnum_docentry_message_format(): void
+    {
+        Http::fake([
+            '*/api/addpdo' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => 'Success - [AddPDO] DocNum - DocEntry : 260910011 - 6715',
+                'Result' => null,
+            ], 200),
+        ]);
+
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        $payload = [
+            'ItemCode' => 'FG_SPECIAL_02',
+            'Series' => 15,
+            'PlannedQty' => 50.0,
+            'PostingDate' => '2026-07-31T00:00:00',
+            'DueDate' => '2026-08-10T00:00:00',
+            'WhsCode' => '01',
+            'Remarks' => 'Test docnum docentry parsing',
+            'Shift' => 'Shift 1',
+            'Unit' => 'Unit1',
+            'Lines' => [
+                [
+                    'ItemType' => 'I',
+                    'ItemCode' => 'RM001',
+                    'BaseQty' => 1.0,
+                    'WhsCode' => '01',
+                    'IssueMethod' => 'M',
+                ],
+            ],
+        ];
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/api/distributor-channel/v1/production/orders/sap', $payload);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.order.doc_num', '260910011')
+            ->assertJsonPath('data.order.doc_entry', 6715)
+            ->assertJsonPath('data.order.prod_order_no', '260910011');
+    }
 }
