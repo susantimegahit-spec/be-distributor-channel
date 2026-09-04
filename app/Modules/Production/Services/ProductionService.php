@@ -2298,17 +2298,25 @@ class ProductionService
         $issueNo = 'ISS-' . date('Ymd') . '-' . strtoupper(substr(md5(uniqid()), 0, 6));
         $firstBaseEntry = $payload['Lines'][0]['BaseEntry'] ?? null;
 
-        $pdo = null;
-        if ($firstBaseEntry) {
-            $pdo = \App\Models\ProductionOrder::where('id', is_numeric($firstBaseEntry) ? (int)$firstBaseEntry : 0)
-                ->orWhere('doc_entry', is_numeric($firstBaseEntry) ? (int)$firstBaseEntry : 0)
-                ->orWhere('prod_order_no', (string)$firstBaseEntry)
-                ->first();
-        }
+        // Cache lookup PDOs by BaseEntry (mendukung multiple PDO dalam 1 issue)
+        $pdoCache = [];
+        $getPdoByBaseEntry = function ($baseEntry) use (&$pdoCache) {
+            if (!$baseEntry) return null;
+            $key = (string) $baseEntry;
+            if (!array_key_exists($key, $pdoCache)) {
+                $pdoCache[$key] = \App\Models\ProductionOrder::where('id', is_numeric($baseEntry) ? (int)$baseEntry : 0)
+                    ->orWhere('doc_entry', is_numeric($baseEntry) ? (int)$baseEntry : 0)
+                    ->orWhere('prod_order_no', (string)$baseEntry)
+                    ->first();
+            }
+            return $pdoCache[$key];
+        };
+
+        $firstPdo = $getPdoByBaseEntry($firstBaseEntry);
 
         $localIssue = \App\Models\ProductionIssue::create([
             'issue_no'            => $issueNo,
-            'production_order_id' => $pdo?->id,
+            'production_order_id' => $firstPdo?->id,
             'doc_date'            => $payload['DocDate'],
             'doc_due_date'        => $payload['DocDueDate'],
             'u_shift'             => $payload['Shift'],
@@ -2321,18 +2329,24 @@ class ProductionService
             'updated_by'          => $userId,
         ]);
 
+        $affectedPdos = [];
+
         foreach ($payload['Lines'] as $idx => $line) {
             $baseLine = $line['BaseLine'];
             $qty = floatval($line['Quantity']);
+            $currentLinePdo = $getPdoByBaseEntry($line['BaseEntry'] ?? null);
+            if ($currentLinePdo) {
+                $affectedPdos[$currentLinePdo->id] = $currentLinePdo;
+            }
 
             // Find matching PDO raw material component item
             $pdoItem = null;
             $itemCode = (string) ($line['ItemCode'] ?? '');
 
-            if ($pdo) {
-                $pdoItem = $pdo->details()->where('line_num', is_numeric($baseLine) ? (int)$baseLine : 0)->first();
+            if ($currentLinePdo) {
+                $pdoItem = $currentLinePdo->details()->where('line_num', is_numeric($baseLine) ? (int)$baseLine : 0)->first();
                 if (!$pdoItem && !empty($itemCode)) {
-                    $pdoItem = $pdo->details()->where('item_code', $itemCode)->first();
+                    $pdoItem = $currentLinePdo->details()->where('item_code', $itemCode)->first();
                 }
                 if (empty($itemCode) && $pdoItem) {
                     $itemCode = (string) $pdoItem->item_code;
@@ -2357,7 +2371,7 @@ class ProductionService
 
             \App\Models\ProductionIssueItem::create([
                 'production_issue_id'      => $localIssue->id,
-                'production_order_id'      => $pdo?->id,
+                'production_order_id'      => $currentLinePdo?->id,
                 'production_order_item_id' => $pdoItem?->id,
                 'line_num'                 => $idx,
                 'base_type'                => $line['BaseType'] ?? 202,
@@ -2378,12 +2392,12 @@ class ProductionService
             }
         }
 
-        // Catat referensi nomor issue di tabel PDO Header
-        if ($pdo) {
-            $existingIssues = array_filter(array_map('trim', explode(',', (string)$pdo->issue_for_production)));
+        // Catat referensi nomor issue di tabel PDO Header untuk semua PDO yang terlibat
+        foreach ($affectedPdos as $affectedPdo) {
+            $existingIssues = array_filter(array_map('trim', explode(',', (string)$affectedPdo->issue_for_production)));
             if (!in_array($issueNo, $existingIssues)) {
                 $existingIssues[] = $issueNo;
-                $pdo->update(['issue_for_production' => implode(', ', $existingIssues)]);
+                $affectedPdo->update(['issue_for_production' => implode(', ', $existingIssues)]);
             }
         }
 
@@ -2471,13 +2485,15 @@ class ProductionService
                     }
                     $sapResponse = $body;
 
-                    // Update referensi nomor issue di tabel PDO Header (replace nomor generate dari BE)
-                    if ($pdo && $sapDocNum) {
-                        $existingIssues = array_filter(array_map('trim', explode(',', (string)$pdo->issue_for_production)));
-                        $existingIssues = array_map(function ($val) use ($issueNo, $sapDocNum) {
-                            return $val === $issueNo ? (string)$sapDocNum : $val;
-                        }, $existingIssues);
-                        $pdo->update(['issue_for_production' => implode(', ', array_unique($existingIssues))]);
+                    // Update referensi nomor issue di tabel PDO Header (replace nomor generate dari BE ke nomor resmi SAP)
+                    if (!empty($affectedPdos) && $sapDocNum) {
+                        foreach ($affectedPdos as $affectedPdo) {
+                            $existingIssues = array_filter(array_map('trim', explode(',', (string)$affectedPdo->issue_for_production)));
+                            $existingIssues = array_map(function ($val) use ($issueNo, $sapDocNum) {
+                                return $val === $issueNo ? (string)$sapDocNum : $val;
+                            }, $existingIssues);
+                            $affectedPdo->update(['issue_for_production' => implode(', ', array_unique($existingIssues))]);
+                        }
                     }
                 } else {
                     $localIssue->update([
