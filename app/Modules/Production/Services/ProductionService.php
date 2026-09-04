@@ -327,10 +327,16 @@ class ProductionService
                         $sapDocNum = null;
                         $sapDocEntry = null;
 
-                        // 1. Prioritize explicit Message patterns from SAP (e.g. "DocNum - DocEntry : 260910013 - 6717")
+                        // 1. Prioritize explicit Message patterns from SAP
                         if (!empty($message)) {
+                            // Pattern 0 (HIGHEST PRIORITY): "DocNum: 260910013 - 6717" or "DocNum: 260910013 - 6717)"
+                            // Actual SAP middleware format — no "DocEntry" keyword in string!
+                            if (preg_match('/DocNum\s*[:=]\s*([0-9]+)\s*-\s*([0-9]+)/i', $message, $matches)) {
+                                $sapDocNum = $matches[1];
+                                $sapDocEntry = $matches[2];
+                            }
                             // Pattern 1: "DocNum - DocEntry : 260910013 - 6717"
-                            if (preg_match('/DocNum\s*-\s*DocEntry\s*[:=]?\s*([0-9]+)\s*-\s*([0-9]+)/i', $message, $matches)) {
+                            elseif (preg_match('/DocNum\s*-\s*DocEntry\s*[:=]?\s*([0-9]+)\s*-\s*([0-9]+)/i', $message, $matches)) {
                                 $sapDocNum = $matches[1];
                                 $sapDocEntry = $matches[2];
                             }
@@ -633,10 +639,16 @@ class ProductionService
                         $sapDocNum = null;
                         $sapDocEntry = null;
 
-                        // 1. Prioritize explicit Message patterns from SAP (e.g. "DocNum - DocEntry : 260910013 - 6717")
+                        // 1. Prioritize explicit Message patterns from SAP
                         if (!empty($message)) {
+                            // Pattern 0 (HIGHEST PRIORITY): "DocNum: 260910013 - 6717" or "DocNum: 260910013 - 6717)"
+                            // Actual SAP middleware format — no "DocEntry" keyword in string!
+                            if (preg_match('/DocNum\s*[:=]\s*([0-9]+)\s*-\s*([0-9]+)/i', $message, $matches)) {
+                                $sapDocNum = $matches[1];
+                                $sapDocEntry = $matches[2];
+                            }
                             // Pattern 1: "DocNum - DocEntry : 260910013 - 6717"
-                            if (preg_match('/DocNum\s*-\s*DocEntry\s*[:=]?\s*([0-9]+)\s*-\s*([0-9]+)/i', $message, $matches)) {
+                            elseif (preg_match('/DocNum\s*-\s*DocEntry\s*[:=]?\s*([0-9]+)\s*-\s*([0-9]+)/i', $message, $matches)) {
                                 $sapDocNum = $matches[1];
                                 $sapDocEntry = $matches[2];
                             }
