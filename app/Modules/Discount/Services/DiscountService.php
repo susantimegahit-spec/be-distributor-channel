@@ -48,17 +48,20 @@ class DiscountService
             }
         }
 
-        // 1. Generate Discount Code manually (YYYYMMDD + 8-digit running counter starting from 1)
+        // 1. Generate Discount Code manually (YYYYMMDD + 3-digit running counter starting from 501 for web portal)
         $todayPrefix = now()->format('Ymd');
-        $maxDiscountCode = SapDiscountHeader::where('discount_code', 'like', $todayPrefix . '%')
-            ->orderByRaw('CAST(discount_code AS BIGINT) DESC')
-            ->value('discount_code');
+        $todayCodes = SapDiscountHeader::where('discount_code', 'like', $todayPrefix . '%')
+            ->pluck('discount_code')
+            ->filter(function ($val) {
+                $seq = (int) substr($val, 8);
+                return $seq >= 500;
+            });
 
-        if ($maxDiscountCode) {
-            $lastSequence = (int) substr($maxDiscountCode, 8);
-            $newSequence = $lastSequence + 1;
+        if ($todayCodes->isNotEmpty()) {
+            $maxSeq = $todayCodes->map(fn($val) => (int) substr($val, 8))->max();
+            $newSequence = max($maxSeq + 1, 501);
         } else {
-            $newSequence = 1;
+            $newSequence = 501;
         }
 
         $code = $todayPrefix . str_pad($newSequence, 3, '0', STR_PAD_LEFT);
