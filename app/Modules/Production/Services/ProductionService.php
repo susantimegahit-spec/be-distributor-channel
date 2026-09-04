@@ -1456,8 +1456,30 @@ class ProductionService
             // Fallback
         }
 
-        // Enrich any missing ItemCode/ItemName in list items
+        // Enrich any missing ItemCode/ItemName/Comments in list items
         if (!empty($items)) {
+            $docEntriesInList = array_filter(array_column($items, 'DocEntry'));
+            $docNumsInList = array_filter(array_column($items, 'DocNum'));
+            $localReceiptsMap = [];
+            if (!empty($docEntriesInList) || !empty($docNumsInList)) {
+                try {
+                    $localReceiptsQuery = \App\Models\ProductionReceipt::query();
+                    if (!empty($docEntriesInList) && !empty($docNumsInList)) {
+                        $localReceiptsQuery->whereIn('doc_entry', $docEntriesInList)->orWhereIn('doc_num', $docNumsInList);
+                    } elseif (!empty($docEntriesInList)) {
+                        $localReceiptsQuery->whereIn('doc_entry', $docEntriesInList);
+                    } else {
+                        $localReceiptsQuery->whereIn('doc_num', $docNumsInList);
+                    }
+                    $records = $localReceiptsQuery->get();
+                    foreach ($records as $r) {
+                        if ($r->doc_entry) $localReceiptsMap[(string)$r->doc_entry] = $r;
+                        if ($r->doc_num) $localReceiptsMap[(string)$r->doc_num] = $r;
+                    }
+                } catch (\Exception $e) {
+                }
+            }
+
             foreach ($items as &$it) {
                 if (!is_array($it)) continue;
                 $c = (string) ($it['ItemCode'] ?? $it['item_code'] ?? $it['item'] ?? $it['Code'] ?? $it['code'] ?? '');
@@ -1469,6 +1491,14 @@ class ProductionService
 
                 $it['ItemCode'] = $c;
                 $it['ItemName'] = $n;
+
+                // Fallback Comments from local DB if SAP comments is empty
+                $docEntryKey = (string)($it['DocEntry'] ?? '');
+                $docNumKey = (string)($it['DocNum'] ?? '');
+                $localRec = $localReceiptsMap[$docEntryKey] ?? ($localReceiptsMap[$docNumKey] ?? null);
+                if (empty($it['Comments']) && $localRec && !empty($localRec->comments)) {
+                    $it['Comments'] = (string) $localRec->comments;
+                }
 
                 // Clean duplicate keys
                 unset($it['item_code'], $it['item'], $it['code'], $it['item_name'], $it['prod_name'], $it['ProdName'], $it['Dscription'], $it['dscription'], $it['ItemDescription'], $it['item_description'], $it['quantity'], $it['whs_code'], $it['warehouse']);
@@ -1659,6 +1689,10 @@ class ProductionService
                 $hName = $this->resolveItemName($hCode);
             }
 
+            if (empty($header['Comments']) && $localReceipt && !empty($localReceipt->comments)) {
+                $header['Comments'] = (string) $localReceipt->comments;
+            }
+
             $header['ItemCode'] = $hCode;
             $header['ItemName'] = $hName;
 
@@ -1827,8 +1861,30 @@ class ProductionService
             // Fallback
         }
 
-        // Enrich any missing ItemCode/ItemName in list items
+        // Enrich any missing ItemCode/ItemName/Comments in list items
         if (!empty($items)) {
+            $docEntriesInList = array_filter(array_column($items, 'DocEntry'));
+            $docNumsInList = array_filter(array_column($items, 'DocNum'));
+            $localIssuesMap = [];
+            if (!empty($docEntriesInList) || !empty($docNumsInList)) {
+                try {
+                    $localIssuesQuery = \App\Models\ProductionIssue::query();
+                    if (!empty($docEntriesInList) && !empty($docNumsInList)) {
+                        $localIssuesQuery->whereIn('doc_entry', $docEntriesInList)->orWhereIn('doc_num', $docNumsInList);
+                    } elseif (!empty($docEntriesInList)) {
+                        $localIssuesQuery->whereIn('doc_entry', $docEntriesInList);
+                    } else {
+                        $localIssuesQuery->whereIn('doc_num', $docNumsInList);
+                    }
+                    $records = $localIssuesQuery->get();
+                    foreach ($records as $r) {
+                        if ($r->doc_entry) $localIssuesMap[(string)$r->doc_entry] = $r;
+                        if ($r->doc_num) $localIssuesMap[(string)$r->doc_num] = $r;
+                    }
+                } catch (\Exception $e) {
+                }
+            }
+
             foreach ($items as &$it) {
                 if (!is_array($it)) continue;
                 $c = (string) ($it['ItemCode'] ?? $it['item_code'] ?? $it['item'] ?? $it['Code'] ?? $it['code'] ?? '');
@@ -1840,6 +1896,14 @@ class ProductionService
 
                 $it['ItemCode'] = $c;
                 $it['ItemName'] = $n;
+
+                // Fallback Comments from local DB if SAP comments is empty
+                $docEntryKey = (string)($it['DocEntry'] ?? '');
+                $docNumKey = (string)($it['DocNum'] ?? '');
+                $localRec = $localIssuesMap[$docEntryKey] ?? ($localIssuesMap[$docNumKey] ?? null);
+                if (empty($it['Comments']) && $localRec && !empty($localRec->comments)) {
+                    $it['Comments'] = (string) $localRec->comments;
+                }
 
                 // Clean duplicate keys
                 unset($it['item_code'], $it['item'], $it['code'], $it['item_name'], $it['prod_name'], $it['ProdName'], $it['Dscription'], $it['dscription'], $it['ItemDescription'], $it['item_description'], $it['quantity'], $it['whs_code'], $it['warehouse']);
@@ -2031,6 +2095,10 @@ class ProductionService
 
             if ((empty($hName) || $hName === $hCode) && !empty($hCode)) {
                 $hName = $this->resolveItemName($hCode);
+            }
+
+            if (empty($header['Comments']) && $localIssue && !empty($localIssue->comments)) {
+                $header['Comments'] = (string) $localIssue->comments;
             }
 
             $header['ItemCode'] = $hCode;
