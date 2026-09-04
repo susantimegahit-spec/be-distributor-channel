@@ -3840,11 +3840,11 @@ class ProductionService
             throw new \Exception('DocEntry wajib diisi untuk mengubah komentar Issue for Production.');
         }
 
-        $comment = (string) ($data['Comment'] ?? $data['comment'] ?? $data['remarks'] ?? $data['Remarks'] ?? $data['comments'] ?? $data['Comments'] ?? '');
+        $comment = (string) ($data['Comments'] ?? $data['comments'] ?? $data['Comment'] ?? $data['comment'] ?? $data['remarks'] ?? $data['Remarks'] ?? '');
 
         $payload = [
-            'DocEntry' => $docEntry,
-            'Comment'  => $comment,
+            'DocEntry'  => $docEntry,
+            'Comments'  => $comment,
         ];
 
         $response = Http::timeout(30)->post("{$sapUrl}/api/EditCommentIssueForProduction", $payload);
@@ -3881,13 +3881,13 @@ class ProductionService
 
         return [
             'doc_entry'    => $docEntry,
-            'comment'      => $comment,
+            'comments'     => $comment,
             'sap_response' => $body,
         ];
     }
 
     /**
-     * Edit Remarks on Production Receipt in SAP (/api/EditReceiptRemarks).
+     * Edit Comments on Production Receipt in SAP (/api/EditCommentReceiptFromProduction).
      *
      * @param array $data
      * @param int|null $userId
@@ -3903,23 +3903,23 @@ class ProductionService
             throw new \Exception('DocEntry wajib diisi untuk mengubah remarks Production Receipt.');
         }
 
-        $comment = (string) ($data['Comment'] ?? $data['comment'] ?? $data['remarks'] ?? $data['Remarks'] ?? $data['comments'] ?? $data['Comments'] ?? '');
+        $comment = (string) ($data['Comments'] ?? $data['comments'] ?? $data['Comment'] ?? $data['comment'] ?? $data['remarks'] ?? $data['Remarks'] ?? '');
 
         $payload = [
-            'DocEntry' => $docEntry,
-            'Comment'  => $comment,
+            'DocEntry'  => $docEntry,
+            'Comments'  => $comment,
         ];
 
-        $response = Http::timeout(30)->post("{$sapUrl}/api/EditReceiptRemarks", $payload);
+        $response = Http::timeout(30)->post("{$sapUrl}/api/EditCommentReceiptFromProduction", $payload);
 
         if (!$response->successful()) {
-            throw new \Exception('Gagal menghubungi API SAP EditReceiptRemarks. HTTP Status: ' . $response->status());
+            throw new \Exception('Gagal menghubungi API SAP EditCommentReceiptFromProduction. HTTP Status: ' . $response->status());
         }
 
         $body = $response->json();
 
         if (isset($body['ErrorCode']) && (int)$body['ErrorCode'] !== 0) {
-            throw new \Exception('API SAP EditReceiptRemarks error: ' . ($body['Message'] ?? 'Unknown SAP error'));
+            throw new \Exception('API SAP EditCommentReceiptFromProduction error: ' . ($body['Message'] ?? 'Unknown SAP error'));
         }
 
         // Update local database record if exists
@@ -3937,14 +3937,14 @@ class ProductionService
         if ($userId) {
             $this->auditLogService->log(
                 $userId,
-                'EDIT_REMARKS_RECEIPT_SAP',
-                "Edited remarks on Production Receipt for DocEntry {$docEntry}."
+                'EDIT_COMMENT_RECEIPT_SAP',
+                "Edited comment on Production Receipt for DocEntry {$docEntry}."
             );
         }
 
         return [
             'doc_entry'    => $docEntry,
-            'comment'      => $comment,
+            'comments'     => $comment,
             'sap_response' => $body,
         ];
     }

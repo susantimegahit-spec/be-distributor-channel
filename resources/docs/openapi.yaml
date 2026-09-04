@@ -13296,8 +13296,8 @@ paths:
 
   /v1/production/issues/sap/edit-comment:
     post:
-      summary: Edit Comment on Issue for Production in SAP
-      description: Mengubah komentar / remarks pada dokumen Issue for Production di SAP API (/api/EditCommentIssueForProduction).
+      summary: Edit Comments on Issue for Production in SAP
+      description: Mengubah komentar pada dokumen Issue for Production di SAP API (/api/EditCommentIssueForProduction).
       tags:
         - Production Module
       security:
@@ -13313,12 +13313,12 @@ paths:
               properties:
                 DocEntry:
                   type: string
-                  example: "123"
+                  example: "23988"
                   description: DocEntry dokumen Issue for Production
-                Comment:
+                Comments:
                   type: string
-                  example: "perbaikan coment"
-                  description: Komentar / keterangan baru
+                  example: "SBY test edit comment"
+                  description: Komentar baru
       responses:
         '200':
           description: Berhasil memperbarui komentar Issue for Production di SAP.
@@ -13338,10 +13338,10 @@ paths:
                     properties:
                       doc_entry:
                         type: string
-                        example: "123"
-                      comment:
+                        example: "23988"
+                      comments:
                         type: string
-                        example: "perbaikan coment"
+                        example: "SBY test edit comment"
                       sap_response:
                         type: object
         '422':
@@ -13351,8 +13351,8 @@ paths:
 
   /v1/production/receipts/sap/edit-remarks:
     post:
-      summary: Edit Remarks on Production Receipt in SAP
-      description: Mengubah komentar / remarks pada dokumen Production Receipt di SAP API (/api/EditReceiptRemarks).
+      summary: Edit Comments on Production Receipt in SAP
+      description: Mengubah komentar pada dokumen Production Receipt di SAP API (/api/EditCommentReceiptFromProduction).
       tags:
         - Production Module
       security:
@@ -13368,15 +13368,15 @@ paths:
               properties:
                 DocEntry:
                   type: string
-                  example: "123"
+                  example: "23988"
                   description: DocEntry dokumen Production Receipt
-                Comment:
+                Comments:
                   type: string
-                  example: "perbaikan coment"
-                  description: Komentar / remarks baru
+                  example: "SBY test edit comment"
+                  description: Komentar baru
       responses:
         '200':
-          description: Berhasil memperbarui remarks Production Receipt di SAP.
+          description: Berhasil memperbarui komentar Production Receipt di SAP.
           content:
             application/json:
               schema:
@@ -13387,16 +13387,16 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: Berhasil memperbarui remarks Production Receipt di SAP.
+                    example: Berhasil memperbarui komentar Production Receipt di SAP.
                   data:
                     type: object
                     properties:
                       doc_entry:
                         type: string
-                        example: "123"
-                      comment:
+                        example: "23988"
+                      comments:
                         type: string
-                        example: "perbaikan coment"
+                        example: "SBY test edit comment"
                       sap_response:
                         type: object
         '422':

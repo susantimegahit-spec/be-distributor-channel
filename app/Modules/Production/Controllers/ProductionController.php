@@ -966,7 +966,7 @@ class ProductionController extends Controller
     }
 
     /**
-     * Edit Remarks on Production Receipt in SAP (/api/EditReceiptRemarks).
+     * Edit Comments on Production Receipt in SAP (/api/EditCommentReceiptFromProduction).
      */
     public function editRemarksReceiptSap(Request $request): JsonResponse
     {
@@ -979,9 +979,9 @@ class ProductionController extends Controller
 
         try {
             $result = $this->productionService->editRemarksReceiptSap($input, $userId);
-            return $this->successResponse($result, 'Berhasil memperbarui remarks Production Receipt di SAP.');
+            return $this->successResponse($result, 'Berhasil memperbarui komentar Production Receipt di SAP.');
         } catch (\Exception $e) {
-            return $this->errorResponse('Gagal memperbarui remarks Production Receipt di SAP: ' . $e->getMessage(), [], 500);
+            return $this->errorResponse('Gagal memperbarui komentar Production Receipt di SAP: ' . $e->getMessage(), [], 500);
         }
     }
 
