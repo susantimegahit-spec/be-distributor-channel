@@ -98,7 +98,7 @@ class DiscountTest extends TestCase
                 'success' => true,
                 'message' => 'Diskon UDO berhasil dikirim ke SAP.',
                 'data' => [
-                    'code' => '20260314001',
+                    'code' => '20260314501',
                     'sap_response' => [
                         'ErrorCode' => 0,
                         'Message' => 'Discount saved locally'
@@ -114,7 +114,7 @@ class DiscountTest extends TestCase
 
         // Verify discount saved in local database
         $this->assertDatabaseHas('sap_discount_headers', [
-            'discount_code' => '20260314001',
+            'discount_code' => '20260314501',
             'card_code' => 'C110003074',
             'card_name' => 'LESAFFRE SARI',
             'total_so' => 0.00,
