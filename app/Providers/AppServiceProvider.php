@@ -6,8 +6,14 @@ use Illuminate\Support\ServiceProvider;
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Gate;
+use App\Models\User;
 use App\Modules\Auth\Repositories\UserRepositoryInterface;
 use App\Modules\Auth\Repositories\UserRepository;
+use App\Modules\Role\Repositories\RoleRepositoryInterface;
+use App\Modules\Role\Repositories\RoleRepository;
+use App\Modules\User\Repositories\UserCrudRepositoryInterface;
+use App\Modules\User\Repositories\UserCrudRepository;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,6 +25,110 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             UserRepositoryInterface::class,
             UserRepository::class
+        );
+        $this->app->bind(
+            RoleRepositoryInterface::class,
+            RoleRepository::class
+        );
+        $this->app->bind(
+            UserCrudRepositoryInterface::class,
+            UserCrudRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\Distributor\Repositories\DistributorRepositoryInterface::class,
+            \App\Modules\Distributor\Repositories\DistributorRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\Distributor\Repositories\OcrCodeRepositoryInterface::class,
+            \App\Modules\Distributor\Repositories\OcrCodeRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\Distributor\Repositories\CustomerShiptoRepositoryInterface::class,
+            \App\Modules\Distributor\Repositories\CustomerShiptoRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\SalesOrder\Repositories\SalesOrderRepositoryInterface::class,
+            \App\Modules\SalesOrder\Repositories\SalesOrderRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\Item\Repositories\ItemRepositoryInterface::class,
+            \App\Modules\Item\Repositories\ItemRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\SalesEmployee\Repositories\SalesEmployeeRepositoryInterface::class,
+            \App\Modules\SalesEmployee\Repositories\SalesEmployeeRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\Vat\Repositories\VatRepositoryInterface::class,
+            \App\Modules\Vat\Repositories\VatRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\Warehouse\Repositories\WarehouseRepositoryInterface::class,
+            \App\Modules\Warehouse\Repositories\WarehouseRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\DistributorItemPrice\Repositories\DistributorItemPriceRepositoryInterface::class,
+            \App\Modules\DistributorItemPrice\Repositories\DistributorItemPriceRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\Discount\Repositories\DiscountTypeRepositoryInterface::class,
+            \App\Modules\Discount\Repositories\DiscountTypeRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\Claim\Repositories\ProgramRepositoryInterface::class,
+            \App\Modules\Claim\Repositories\ProgramRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\Claim\Repositories\UploadRepositoryInterface::class,
+            \App\Modules\Claim\Repositories\UploadRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\Claim\Repositories\ResultRepositoryInterface::class,
+            \App\Modules\Claim\Repositories\ResultRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\Claim\Repositories\WithdrawRepositoryInterface::class,
+            \App\Modules\Claim\Repositories\WithdrawRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\Claim\Repositories\TrxClaimBalanceLedgerRepositoryInterface::class,
+            \App\Modules\Claim\Repositories\TrxClaimBalanceLedgerRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\SalesDistributor\Repositories\SalesDistributorRepositoryInterface::class,
+            \App\Modules\SalesDistributor\Repositories\SalesDistributorRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\Production\Repositories\ProductionRepositoryInterface::class,
+            \App\Modules\Production\Repositories\ProductionRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\SalesDashboard\Repositories\SalesDashboardRepositoryInterface::class,
+            \App\Modules\SalesDashboard\Repositories\SalesDashboardRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\CustomerMonthlyOrder\Repositories\CustomerMonthlyOrderRepositoryInterface::class,
+            \App\Modules\CustomerMonthlyOrder\Repositories\CustomerMonthlyOrderRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\SalesReturn\Repositories\SalesReturnRepositoryInterface::class,
+            \App\Modules\SalesReturn\Repositories\SalesReturnRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\Budgeting\Repositories\MasterBudgetRepositoryInterface::class,
+            \App\Modules\Budgeting\Repositories\MasterBudgetRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\PurchasingRequest\Repositories\PurchaseRequestRepositoryInterface::class,
+            \App\Modules\PurchasingRequest\Repositories\PurchaseRequestRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\PurchasingRequest\Repositories\DocumentTypeRepositoryInterface::class,
+            \App\Modules\PurchasingRequest\Repositories\DocumentTypeRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\MasterUnit\Repositories\MasterUnitRepositoryInterface::class,
+            \App\Modules\MasterUnit\Repositories\MasterUnitRepository::class
         );
     }
 
@@ -40,5 +150,34 @@ class AppServiceProvider extends ServiceProvider
                 }
             }
         }
+
+        // Dynamically load migrations from custom folders
+        $this->loadMigrationsFrom([
+            database_path('migrations/ekspedisi'),
+            database_path('migrations/production'),
+        ]);
+
+        // Register Custom Pulse Component (Kill User Control Card)
+        if (class_exists(\Livewire\Livewire::class)) {
+            \Livewire\Livewire::component('pulse.user-control-card', \App\Livewire\Pulse\UserControlCard::class);
+            \Livewire\Livewire::component('user-control-card', \App\Livewire\Pulse\UserControlCard::class);
+        }
+
+        // Define gate for Laravel Pulse / Monitoring SM dashboard access
+        Gate::define('viewPulse', function (?User $user = null) {
+            // 1. Allow if session is authenticated via /monitoringsm/login
+            if (session('pulse_authenticated') === true) {
+                return true;
+            }
+
+            // 2. Allow if secret token is passed in query parameter
+            $secretToken = env('PULSE_TOKEN', 'susantimegahpulse123');
+            if ($secretToken && request()->query('token') === $secretToken) {
+                return true;
+            }
+
+            // 3. Fallback to checking logged-in administrator
+            return $user && $user->role && $user->role->name === 'administrator';
+        });
     }
 }

@@ -36,17 +36,50 @@ class AuthController extends Controller
     {
         $result = $this->authService->login(
             $request->input('username'),
-            $request->input('password')
+            $request->input('password'),
+            (bool) $request->input('force', false)
         );
+
+        $user = $result['user'];
+        $user->load(['role.roleMenu', 'distributor', 'expedition', 'organizationAssignments']);
+        $permsMap = $user->getPermissionsMap();
 
         return $this->successResponse([
             'user' => [
-                'id' => $result['user']->id,
-                'name' => $result['user']->name,
-                'username' => $result['user']->username,
-                'email' => $result['user']->email,
-                'is_active' => $result['user']->is_active,
+                'id' => $user->id,
+                'name' => $user->name,
+                'username' => $user->username,
+                'email' => $user->email,
+                'role_id' => $user->role_id,
+                'role_name' => $user->role?->name,
+                'approval_id' => $user->role?->roleMenu?->approval_id,
+                'code_customer' => $user->code_customer,
+                'id_distributor' => $user->distributor?->id,
+                'name_distributor' => $user->distributor?->name,
+                'expedition_code' => $user->expedition_code,
+                'id_expedition' => $user->expedition?->id,
+                'name_expedition' => $user->expedition?->expedition_name,
+                'production_code' => $user->production_code,
+                'whs_code' => $user->whs_code,
+                'units' => $user->units,
+                'ocr_code' => $user->ocr_code,
+                'ocr_code2' => $user->ocr_code2,
+                'ocr_code3' => $user->ocr_code3,
+                'is_active' => $user->is_active,
+                'originator' => $user->originator,
+                'stage' => $user->stage,
+                'accessible_systems' => $user->accessible_systems,
+                'has_custom_override' => $permsMap['has_custom_override'],
+                'actions' => $user->custom_permissions_list,
+                'custom_permissions' => $user->custom_permissions_list,
+                'organization_assignment' => $user->organization_assignment,
+                'organization_assignments' => $user->organizationAssignments,
             ],
+            'organization_assignment' => $user->organization_assignment,
+            'menu' => $user->role?->roleMenu?->menu ?? [],
+            'actions' => $user->custom_permissions_list,
+            'permissions' => $permsMap['permissions_list'],
+            'permissions_map' => $permsMap['permissions'],
             'access_token' => $result['token'],
             'token_type' => 'Bearer',
         ], 'Login berhasil.');
@@ -60,7 +93,8 @@ class AuthController extends Controller
      */
     public function logout(Request $request): JsonResponse
     {
-        $this->authService->logout($request->user());
+        $fcmToken = $request->input('fcm_token');
+        $this->authService->logout($request->user(), $fcmToken);
 
         return $this->successResponse(null, 'Logout berhasil.');
     }

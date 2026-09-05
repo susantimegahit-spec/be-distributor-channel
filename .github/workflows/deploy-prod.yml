@@ -1,0 +1,37 @@
+name: Deploy Laravel App to cPanel (Production)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Production Server
+    if: github.actor == 'sanjayfirmansyah' || github.triggering_actor == 'sanjayfirmansyah' || github.actor == 'susantimegahit-spec' || github.triggering_actor == 'susantimegahit-spec' || contains(github.event.head_commit.author.email, 'sanjayfirmanzyah@gmail.com') || contains(github.event.pusher.email, 'sanjayfirmanzyah@gmail.com')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, xml, ctype, iconv, mysql, pgsql
+
+      - name: Install Composer Dependencies (Production)
+        run: |
+          composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+      - name: Deploy via SFTP/SSH
+        uses: easingthemes/ssh-deploy@v5.1.0
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          ARGS: "-rlgoDzvO --delete"
+          SOURCE: "./"
+          REMOTE_HOST: "103.89.4.98"
+          REMOTE_USER: "susantimegah"
+          REMOTE_PORT: "22"
+          TARGET: "/home/susantimegah/public_html/api-sm-connect.susantimegah.com"
+          EXCLUDE: "/node_modules/, /.git/, /.github/, /tests/, .env, .env.example, phpunit.xml, README.md, *.md, /storage/app/public/*, /storage/app/private/*, /storage/framework/*, /storage/logs/*, /.htaccess, /public/.htaccess, /public/storage"
+
