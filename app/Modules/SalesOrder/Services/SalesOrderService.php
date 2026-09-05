@@ -603,12 +603,17 @@ class SalesOrderService
                     }
                 }
 
+                $totalSO = (float)($salesOrder->total_order ?: $salesOrder->doc_total);
+                if ($sapDiscount) {
+                    $sapDiscount->update(['total_so' => $totalSO]);
+                }
+
                 $discountPayload = [
                     'Code' => $salesOrder->id_discount,
                     'Name' => '',
                     'CardCode' => $salesOrder->card_code,
                     'CardName' => $salesOrder->customer_name,
-                    'TotalSO' => 0,
+                    'TotalSO' => $totalSO,
                     'Lines' => $discountLines
                 ];
                 $sapUrl = config('services.sap.url');

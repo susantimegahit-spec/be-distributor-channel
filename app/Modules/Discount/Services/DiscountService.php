@@ -68,11 +68,12 @@ class DiscountService
 
         // Save to local database
         DB::transaction(function () use ($code, $data, $userId) {
+            $totalSo = (float)($data['TotalSO'] ?? $data['total_so'] ?? $data['TotalSo'] ?? 0);
             $header = SapDiscountHeader::create([
                 'discount_code' => $code,
                 'card_code' => $data['CardCode'],
                 'card_name' => $data['CardName'],
-                'total_so' => 0,
+                'total_so' => $totalSo,
                 'user_id' => $userId,
             ]);
 
