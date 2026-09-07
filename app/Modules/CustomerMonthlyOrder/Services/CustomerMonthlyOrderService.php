@@ -185,6 +185,12 @@ class CustomerMonthlyOrderService
             throw new \Exception('Customer monthly order yang sudah diposting tidak dapat diubah.');
         }
 
+        // Tidak boleh edit jika sudah masuk approval flow
+        $lockedStatuses = ['WAITING_OM', 'WAITING_ASM', 'WAITING_ADMIN_SALES', 'WAITING_FINANCE', 'ORDER_APPROVED'];
+        if (in_array(strtoupper($order->status), $lockedStatuses)) {
+            throw new \Exception('Customer monthly order yang sedang dalam proses approval tidak dapat diubah. Tunggu sampai disetujui atau ditolak terlebih dahulu.');
+        }
+
         $data['updated_by'] = $userId;
 
         // Recalculate doc_total
@@ -286,6 +292,7 @@ class CustomerMonthlyOrderService
             $soData['order_no'] = $this->generateSoNumber();
             $soData['status'] = 'WAITING_OM';
             $soData['approval_id'] = 2; // STAGE_WAITING_OM = 2
+            $soData['customer_monthly_order_id'] = $order->id; // Link SO back to its source CMO
             $soData['created_by'] = $userId;
             $soData['updated_by'] = $userId;
 
@@ -323,8 +330,10 @@ class CustomerMonthlyOrderService
                 }
             }
 
-            // 4. Update the CMO Status to POSTED
-            $order->update(['status' => 'POSTED']);
+            // 4. Update the CMO Status to WAITING_OM (mirrors the SO status)
+            // CMO will follow SO status throughout the approval flow.
+            // It will return to DRAFT if SO is rejected, and become POSTED when SO is COMPLETED.
+            $order->update(['status' => 'WAITING_OM']);
 
             return $salesOrder->load(['details.item', 'details.warehouse', 'details.vat', 'details.ocr', 'details.ocr2', 'details.ocr3', 'salesEmployee', 'sapDiscount.details', 'attachments']);
         });

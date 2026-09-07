@@ -20,6 +20,7 @@ class SalesOrder extends Model
 
     protected $fillable = [
         'order_no',
+        'customer_monthly_order_id',
         'distributor_id',
         'card_code',
         'customer_name',
@@ -204,6 +205,14 @@ class SalesOrder extends Model
     public function getSalesEmployeeNameAttribute(): ?string
     {
         return $this->salesEmployee?->slp_name;
+    }
+
+    /**
+     * Get the Customer Monthly Order that spawned this sales order.
+     */
+    public function customerMonthlyOrder(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\CustomerMonthlyOrder::class, 'customer_monthly_order_id');
     }
 
     /**
