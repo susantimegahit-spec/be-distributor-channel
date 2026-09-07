@@ -793,6 +793,16 @@ class SalesOrderService
             'submitted_at' => now(),
         ]);
 
+        // Sync status to associated CMO if exists
+        $cmo = \App\Models\CustomerMonthlyOrder::where('order_no', $salesOrder->order_no)->first();
+        if ($cmo) {
+            $cmo->update([
+                'status' => 'WAITING_OM',
+                'submitted_at' => now(),
+                'reject_reason' => null,
+            ]);
+        }
+
         \App\Models\SalesOrderApprovalHistory::create([
             'sales_order_id' => $salesOrder->id,
             'approval_id_before' => SalesOrder::STAGE_DRAFT,
@@ -971,6 +981,19 @@ class SalesOrderService
 
         $salesOrder->update($updateAttributes);
 
+        // Sync status and fields to associated CMO if exists
+        $cmo = \App\Models\CustomerMonthlyOrder::where('order_no', $salesOrder->order_no)->first();
+        if ($cmo) {
+            $cmoUpdate = [
+                'status' => $nextStatus,
+                'reject_reason' => null,
+            ];
+            if (isset($updateAttributes['doc_total'])) {
+                $cmoUpdate['doc_total'] = $updateAttributes['doc_total'];
+            }
+            $cmo->update($cmoUpdate);
+        }
+
         \App\Models\SalesOrderApprovalHistory::create([
             'sales_order_id' => $salesOrder->id,
             'approval_id_before' => $currentStage,
@@ -1100,6 +1123,17 @@ class SalesOrderService
             'approval_id' => $rollbackStage,
             'reject_reason' => $notes,
         ]);
+
+        // Sync status and reject reason to associated CMO if exists
+        $cmo = \App\Models\CustomerMonthlyOrder::where('order_no', $salesOrder->order_no)->first();
+        if ($cmo) {
+            $cmo->update([
+                'status' => $rollbackStatus,
+                'reject_reason' => $notes,
+                'rejected_by' => $userId,
+                'rejected_at' => now(),
+            ]);
+        }
 
         \App\Models\SalesOrderApprovalHistory::create([
             'sales_order_id' => $salesOrder->id,

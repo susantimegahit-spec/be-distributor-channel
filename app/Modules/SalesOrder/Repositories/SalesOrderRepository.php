@@ -139,6 +139,19 @@ class SalesOrderRepository implements SalesOrderRepositoryInterface
                 $salesOrder->details()->create($line);
             }
 
+            // Sync with associated CMO if exists
+            $cmo = CustomerMonthlyOrder::where('order_no', $salesOrder->order_no)->first();
+            if ($cmo) {
+                $cmoData = $data;
+                unset($cmoData['use_balance'], $cmoData['approval_id'], $cmoData['sales_pic_id']);
+                $cmo->update($cmoData);
+                $cmo->details()->delete();
+                foreach ($lines as $line) {
+                    $line['customer_monthly_order_id'] = $cmo->id;
+                    CustomerMonthlyOrderDetail::create($line);
+                }
+            }
+
             return $salesOrder->load(['details.item', 'details.warehouse', 'details.vat', 'details.ocr', 'details.ocr2', 'details.ocr3', 'salesEmployee', 'sapDiscount.details', 'attachments']);
         });
     }
