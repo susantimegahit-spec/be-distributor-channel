@@ -52,7 +52,7 @@ class NotificationService
             'data' => $data['data'] ?? [],
         ]);
 
-        broadcast(new PushNotificationCreated($notification))->toOthers();
+        broadcast(new PushNotificationCreated($notification));
 
         // Push to Firebase Cloud Messaging (FCM) for mobile devices
         $fcmResults = [];
