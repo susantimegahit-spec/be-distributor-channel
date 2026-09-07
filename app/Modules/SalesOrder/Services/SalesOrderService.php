@@ -793,17 +793,7 @@ class SalesOrderService
             'submitted_at' => now(),
         ]);
 
-        // Sync status to associated CMO if exists (via customer_monthly_order_id link)
-        if ($salesOrder->customer_monthly_order_id) {
-            DB::table('customer_monthly_orders')
-                ->where('id', $salesOrder->customer_monthly_order_id)
-                ->update([
-                    'status'        => 'WAITING_OM',
-                    'submitted_at'  => now(),
-                    'reject_reason' => null,
-                    'updated_at'    => now(),
-                ]);
-        }
+        // CMO tetap POSTED saat SO di-submit ulang (tidak perlu sync status)
 
         \App\Models\SalesOrderApprovalHistory::create([
             'sales_order_id' => $salesOrder->id,
@@ -983,23 +973,16 @@ class SalesOrderService
 
         $salesOrder->update($updateAttributes);
 
-        // Sync status and fields to associated CMO if exists (via customer_monthly_order_id link)
-        if ($salesOrder->customer_monthly_order_id) {
-            $cmoSyncData = [
-                'status'        => $nextStatus,
-                'reject_reason' => null,
-                'updated_at'    => now(),
-            ];
-            if (isset($updateAttributes['doc_total'])) {
-                $cmoSyncData['doc_total'] = $updateAttributes['doc_total'];
-            }
-            // If SO is now COMPLETED, mark CMO as POSTED (fully done)
-            if ($nextStage === SalesOrder::STAGE_COMPLETED) {
-                $cmoSyncData['status'] = 'POSTED';
-            }
+        // CMO hanya punya status DRAFT dan POSTED.
+        // Saat SO di-approve, status CMO tetap POSTED.
+        // Hanya update doc_total jika ada perubahan (saat finance approve).
+        if ($salesOrder->customer_monthly_order_id && isset($updateAttributes['doc_total'])) {
             DB::table('customer_monthly_orders')
                 ->where('id', $salesOrder->customer_monthly_order_id)
-                ->update($cmoSyncData);
+                ->update([
+                    'doc_total'  => $updateAttributes['doc_total'],
+                    'updated_at' => now(),
+                ]);
         }
 
         \App\Models\SalesOrderApprovalHistory::create([
