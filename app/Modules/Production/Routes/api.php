@@ -52,6 +52,8 @@ Route::prefix('v1/production')->middleware('auth:sanctum')->group(function () {
     Route::get('/get-receipt-prod-by-id', [ProductionController::class, 'getReceiptProdByIdSap']);
     Route::post('/get-receipt-prod-by-id', [ProductionController::class, 'getReceiptProdByIdSap']);
     Route::post('/add-receipt-prod-sap', [ProductionController::class, 'addReceiptProdSap']);
+    Route::post('/receipts/sap/edit-remarks', [ProductionController::class, 'editRemarksReceiptSap']);
+    Route::post('/edit-receipt-remarks', [ProductionController::class, 'editRemarksReceiptSap']);
 
     // Issue for Production from SAP
     Route::get('/issues/sap-list', [ProductionController::class, 'getListIssueProdSap']);
@@ -63,6 +65,8 @@ Route::prefix('v1/production')->middleware('auth:sanctum')->group(function () {
     Route::get('/get-issue-prod-by-id', [ProductionController::class, 'getIssueProdByIdSap']);
     Route::post('/get-issue-prod-by-id', [ProductionController::class, 'getIssueProdByIdSap']);
     Route::post('/add-issue-prod-sap', [ProductionController::class, 'addIssueProdSap']);
+    Route::post('/issues/sap/edit-comment', [ProductionController::class, 'editCommentIssueSap']);
+    Route::post('/edit-comment-issue-for-production', [ProductionController::class, 'editCommentIssueSap']);
 
     // Master Units from SAP
     Route::get('/get-unit', [ProductionController::class, 'getUnitsSap']);

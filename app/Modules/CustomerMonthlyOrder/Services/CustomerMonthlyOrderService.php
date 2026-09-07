@@ -182,7 +182,7 @@ class CustomerMonthlyOrderService
         }
 
         if (strtoupper($order->status) === 'POSTED') {
-            throw new \Exception('Customer monthly order yang sudah diposting tidak dapat diubah.');
+            throw new \Exception('Customer monthly order yang sudah diposting tidak dapat diubah. Tolak order terlebih dahulu agar kembali ke draft.');
         }
 
         $data['updated_by'] = $userId;
@@ -286,6 +286,7 @@ class CustomerMonthlyOrderService
             $soData['order_no'] = $this->generateSoNumber();
             $soData['status'] = 'WAITING_OM';
             $soData['approval_id'] = 2; // STAGE_WAITING_OM = 2
+            $soData['customer_monthly_order_id'] = $order->id; // Link SO back to its source CMO
             $soData['created_by'] = $userId;
             $soData['updated_by'] = $userId;
 
@@ -323,7 +324,8 @@ class CustomerMonthlyOrderService
                 }
             }
 
-            // 4. Update the CMO Status to POSTED
+            // 4. Update the CMO Status to POSTED — CMO hanya punya 2 status: DRAFT dan POSTED.
+            // CMO akan kembali ke DRAFT hanya jika SO di-reject.
             $order->update(['status' => 'POSTED']);
 
             return $salesOrder->load(['details.item', 'details.warehouse', 'details.vat', 'details.ocr', 'details.ocr2', 'details.ocr3', 'salesEmployee', 'sapDiscount.details', 'attachments']);

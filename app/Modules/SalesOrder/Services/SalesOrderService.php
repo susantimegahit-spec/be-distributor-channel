@@ -793,6 +793,8 @@ class SalesOrderService
             'submitted_at' => now(),
         ]);
 
+        // CMO tetap POSTED saat SO di-submit ulang (tidak perlu sync status)
+
         \App\Models\SalesOrderApprovalHistory::create([
             'sales_order_id' => $salesOrder->id,
             'approval_id_before' => SalesOrder::STAGE_DRAFT,
@@ -971,6 +973,18 @@ class SalesOrderService
 
         $salesOrder->update($updateAttributes);
 
+        // CMO hanya punya status DRAFT dan POSTED.
+        // Saat SO di-approve, status CMO tetap POSTED.
+        // Hanya update doc_total jika ada perubahan (saat finance approve).
+        if ($salesOrder->customer_monthly_order_id && isset($updateAttributes['doc_total'])) {
+            DB::table('customer_monthly_orders')
+                ->where('id', $salesOrder->customer_monthly_order_id)
+                ->update([
+                    'doc_total'  => $updateAttributes['doc_total'],
+                    'updated_at' => now(),
+                ]);
+        }
+
         \App\Models\SalesOrderApprovalHistory::create([
             'sales_order_id' => $salesOrder->id,
             'approval_id_before' => $currentStage,
@@ -1100,6 +1114,27 @@ class SalesOrderService
             'approval_id' => $rollbackStage,
             'reject_reason' => $notes,
         ]);
+
+        // Sync status and reject reason to associated CMO if exists (via customer_monthly_order_id link)
+        if ($salesOrder->customer_monthly_order_id) {
+            $cmoUpdated = DB::table('customer_monthly_orders')
+                ->where('id', $salesOrder->customer_monthly_order_id)
+                ->update([
+                    'status'        => $rollbackStatus,
+                    'reject_reason' => $notes,
+                    'rejected_by'   => $userId,
+                    'rejected_at'   => now(),
+                    'updated_at'    => now(),
+                ]);
+
+            if ($cmoUpdated === 0) {
+                Log::warning('[rejectOrder] CMO not updated for SO id=' . $salesOrder->id . ', cmo_id=' . $salesOrder->customer_monthly_order_id);
+            } else {
+                Log::info('[rejectOrder] CMO id=' . $salesOrder->customer_monthly_order_id . ' synced to ' . $rollbackStatus);
+            }
+        } else {
+            Log::info('[rejectOrder] SO id=' . $salesOrder->id . ' has no linked CMO (legacy data), skipping CMO sync.');
+        }
 
         \App\Models\SalesOrderApprovalHistory::create([
             'sales_order_id' => $salesOrder->id,
@@ -1245,20 +1280,34 @@ class SalesOrderService
             return;
         }
 
-        $notificationType = $stage->notification_type;
+        // Find target users for this stage
+        $targetUsers = \App\Models\User::whereHas('role.roleMenu', function ($q) use ($targetStageId) {
+            $q->where('approval_id', $targetStageId);
+        })->get();
 
-        if ($notificationType && str_contains($notificationType, 'email')) {
-            // Find target users for email (usually ASM / OM / Admin Sales / Finance)
-            $targetUsers = \App\Models\User::whereHas('role.roleMenu', function ($q) use ($targetStageId) {
-                $q->where('approval_id', $targetStageId);
-            })->get();
+        // If it's rolling back to DRAFT (Stage 1), notify the creator of the order
+        if ($targetStageId === SalesOrder::STAGE_DRAFT) {
+            $creator = \App\Models\User::find($salesOrder->created_by);
+            if ($creator) {
+                $targetUsers = collect([$creator]);
+            }
+        }
 
-            // If it's rolling back to DRAFT (Stage 1), notify the creator of the order
-            if ($targetStageId === SalesOrder::STAGE_DRAFT) {
-                $creator = \App\Models\User::find($salesOrder->created_by);
-                if ($creator) {
-                    $targetUsers = collect([$creator]);
-                }
+        // Fallback: If roleMenu mapping is empty, look up users by common role name keywords
+        if ($targetUsers->isEmpty()) {
+            $roleFallbackMap = [
+                SalesOrder::STAGE_WAITING_OM => ['om', 'operation_manager', 'operation manager'],
+                SalesOrder::STAGE_WAITING_ASM => ['asm', 'area_sales_manager', 'area sales manager'],
+                SalesOrder::STAGE_WAITING_ADMIN_SALES => ['admin_sales', 'sales_admin', 'admin sales'],
+                SalesOrder::STAGE_WAITING_FINANCE => ['finance', 'admin_finance'],
+                SalesOrder::STAGE_DRAFT => ['distributor'],
+            ];
+
+            if (isset($roleFallbackMap[$targetStageId])) {
+                $targetRoles = $roleFallbackMap[$targetStageId];
+                $targetUsers = \App\Models\User::whereHas('role', function ($q) use ($targetRoles) {
+                    $q->whereIn(\Illuminate\Support\Facades\DB::raw('LOWER(name)'), $targetRoles);
+                })->get();
             }
 
             if ($targetUsers->isEmpty()) {
@@ -1267,50 +1316,37 @@ class SalesOrderService
                     $targetUsers = collect([$creator]);
                 }
             }
+        }
 
-            foreach ($targetUsers as $targetUser) {
-                if ($targetUser->email) {
-                    try {
-                        \Illuminate\Support\Facades\Mail::to($targetUser->email)
-                            ->send(new \App\Mail\AsmApprovalNotificationMail($salesOrder, $targetUser->id));
-                    } catch (\Exception $e) {
-                        \Illuminate\Support\Facades\Log::error("Failed to send stage notification email to {$targetUser->email}: " . $e->getMessage());
-                    }
+        // 1. Send Email Notification to target users
+        foreach ($targetUsers as $targetUser) {
+            if ($targetUser->email) {
+                try {
+                    \Illuminate\Support\Facades\Mail::to($targetUser->email)
+                        ->send(new \App\Mail\AsmApprovalNotificationMail($salesOrder, $targetUser->id));
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error("Failed to send stage notification email to {$targetUser->email}: " . $e->getMessage());
                 }
             }
         }
 
-        if ($notificationType && str_contains($notificationType, 'web')) {
-            // Find all users who are allowed to approve/handle this target stage
-            $targetUsers = \App\Models\User::whereHas('role.roleMenu', function ($q) use ($targetStageId) {
-                $q->where('approval_id', $targetStageId);
-            })->get();
-
-            // If it's rolling back to DRAFT (Stage 1), notify the creator of the order
-            if ($targetStageId === SalesOrder::STAGE_DRAFT) {
-                $creator = \App\Models\User::find($salesOrder->created_by);
-                if ($creator) {
-                    $targetUsers = collect([$creator]);
-                }
-            }
-
-            if ($targetUsers->isNotEmpty()) {
-                try {
-                    $notificationService = app(\App\Modules\Notification\Services\NotificationService::class);
-                    $notificationService->sendToUsers($targetUsers, [
-                        'title' => 'Persetujuan Sales Order',
-                        'message' => "Sales Order {$salesOrder->order_no} membutuhkan tindakan Anda (Status: {$stage->label}).",
-                        'type' => 'info',
-                        'url' => "/sales-orders/{$salesOrder->id}",
-                        'data' => [
-                            'sales_order_id' => $salesOrder->id,
-                            'order_no' => $salesOrder->order_no,
-                            'stage_id' => $targetStageId,
-                        ],
-                    ]);
-                } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::error("Failed to send Reverb push notification: " . $e->getMessage());
-                }
+        // 2. Send Real-time Web Push Notification (Laravel Reverb) to target users
+        if ($targetUsers->isNotEmpty()) {
+            try {
+                $notificationService = app(\App\Modules\Notification\Services\NotificationService::class);
+                $notificationService->sendToUsers($targetUsers, [
+                    'title' => 'Persetujuan Sales Order',
+                    'message' => "Sales Order {$salesOrder->order_no} membutuhkan tindakan Anda (Status: {$stage->label}).",
+                    'type' => 'info',
+                    'url' => "/sales-orders/{$salesOrder->id}",
+                    'data' => [
+                        'sales_order_id' => $salesOrder->id,
+                        'order_no' => $salesOrder->order_no,
+                        'stage_id' => $targetStageId,
+                    ],
+                ]);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to send Reverb push notification: " . $e->getMessage());
             }
         }
     }

@@ -13294,6 +13294,116 @@ paths:
         '500':
           description: Gagal menghubungi API SAP.
 
+  /v1/production/issues/sap/edit-comment:
+    post:
+      summary: Edit Comments on Issue for Production in SAP
+      description: Mengubah komentar pada dokumen Issue for Production di SAP API (/api/EditCommentIssueForProduction).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocEntry
+              properties:
+                DocEntry:
+                  type: string
+                  example: "23988"
+                  description: DocEntry dokumen Issue for Production
+                Comments:
+                  type: string
+                  example: "SBY test edit comment"
+                  description: Komentar baru
+      responses:
+        '200':
+          description: Berhasil memperbarui komentar Issue for Production di SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Berhasil memperbarui komentar Issue for Production di SAP.
+                  data:
+                    type: object
+                    properties:
+                      doc_entry:
+                        type: string
+                        example: "23988"
+                      comments:
+                        type: string
+                        example: "SBY test edit comment"
+                      sap_response:
+                        type: object
+        '422':
+          description: DocEntry wajib diisi.
+        '500':
+          description: Gagal menghubungi API SAP.
+
+  /v1/production/receipts/sap/edit-remarks:
+    post:
+      summary: Edit Comments on Production Receipt in SAP
+      description: Mengubah komentar pada dokumen Production Receipt di SAP API (/api/EditCommentReceiptFromProduction).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocEntry
+              properties:
+                DocEntry:
+                  type: string
+                  example: "23988"
+                  description: DocEntry dokumen Production Receipt
+                Comments:
+                  type: string
+                  example: "SBY test edit comment"
+                  description: Komentar baru
+      responses:
+        '200':
+          description: Berhasil memperbarui komentar Production Receipt di SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Berhasil memperbarui komentar Production Receipt di SAP.
+                  data:
+                    type: object
+                    properties:
+                      doc_entry:
+                        type: string
+                        example: "23988"
+                      comments:
+                        type: string
+                        example: "SBY test edit comment"
+                      sap_response:
+                        type: object
+        '422':
+          description: DocEntry wajib diisi.
+        '500':
+          description: Gagal menghubungi API SAP.
+
   /v1/production/get-unit:
     get:
       summary: Get Master Units from SAP

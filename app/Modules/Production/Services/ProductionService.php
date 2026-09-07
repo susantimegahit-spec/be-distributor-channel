@@ -323,19 +323,63 @@ class ProductionService
                 if ($response->successful()) {
                     $body = $response->json();
                     if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
-                        $sapDocNum = $body['DocNum'] ?? $body['doc_num'] ?? $body['Result']['DocNum'] ?? null;
-                        if (empty($sapDocNum) && !empty($body['Message'])) {
-                            if (preg_match('/DocNum:\s*([0-9]+)/i', $body['Message'], $matches)) {
+                        $message = (string) ($body['Message'] ?? $body['message'] ?? '');
+                        $sapDocNum = null;
+                        $sapDocEntry = null;
+
+                        // 1. Prioritize explicit Message patterns from SAP
+                        if (!empty($message)) {
+                            // Pattern 0 (HIGHEST PRIORITY): "DocNum: 260910013 - 6717" or "DocNum: 260910013 - 6717)"
+                            // Actual SAP middleware format — no "DocEntry" keyword in string!
+                            if (preg_match('/DocNum\s*[:=]\s*([0-9]+)\s*-\s*([0-9]+)/i', $message, $matches)) {
                                 $sapDocNum = $matches[1];
+                                $sapDocEntry = $matches[2];
+                            }
+                            // Pattern 1: "DocNum - DocEntry : 260910013 - 6717"
+                            elseif (preg_match('/DocNum\s*-\s*DocEntry\s*[:=]?\s*([0-9]+)\s*-\s*([0-9]+)/i', $message, $matches)) {
+                                $sapDocNum = $matches[1];
+                                $sapDocEntry = $matches[2];
+                            }
+                            // Pattern 2: "DocNum: 260910013 - DocEntry: 6717" or "DocNum: 260910013, DocEntry: 6717"
+                            elseif (preg_match('/DocNum\s*[:=]\s*([0-9]+).*?DocEntry\s*[:=]\s*([0-9]+)/i', $message, $matches)) {
+                                $sapDocNum = $matches[1];
+                                $sapDocEntry = $matches[2];
+                            }
+                            // Pattern 3: "DocEntry: 6717 - DocNum: 260910013"
+                            elseif (preg_match('/DocEntry\s*[:=]\s*([0-9]+).*?DocNum\s*[:=]\s*([0-9]+)/i', $message, $matches)) {
+                                $sapDocEntry = $matches[1];
+                                $sapDocNum = $matches[2];
                             }
                         }
 
-                        $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? $body['Result']['DocEntry'] ?? null;
-                        if (empty($sapDocEntry) && !empty($body['Message'])) {
-                            if (preg_match('/DocEntry:\s*([0-9]+)/i', $body['Message'], $matches)) {
+                        // 2. Fallback to JSON fields if not matched from Message
+                        if (empty($sapDocNum)) {
+                            $sapDocNum = $body['DocNum'] ?? $body['doc_num'] ?? $body['Result']['DocNum'] ?? null;
+                            if (is_string($sapDocNum) && str_contains($sapDocNum, '-')) {
+                                $parts = array_map('trim', explode('-', $sapDocNum));
+                                if (count($parts) >= 2 && is_numeric($parts[0]) && is_numeric($parts[1])) {
+                                    $sapDocNum = $parts[0];
+                                    if (empty($sapDocEntry)) {
+                                        $sapDocEntry = $parts[1];
+                                    }
+                                }
+                            }
+                        }
+
+                        if (empty($sapDocEntry)) {
+                            $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? $body['Result']['DocEntry'] ?? null;
+                        }
+
+                        // 3. Fallback regex for individual labels in message
+                        if (!empty($message)) {
+                            if (empty($sapDocNum) && preg_match('/DocNum\s*[:=]\s*([0-9]+)/i', $message, $matches)) {
+                                $sapDocNum = $matches[1];
+                            }
+                            if (empty($sapDocEntry) && preg_match('/DocEntry\s*[:=]\s*([0-9]+)/i', $message, $matches)) {
                                 $sapDocEntry = $matches[1];
                             }
                         }
+
                         if (empty($sapDocEntry)) {
                             $sapDocEntry = $sapDocNum;
                         }
@@ -591,19 +635,63 @@ class ProductionService
                 if ($response->successful()) {
                     $body = $response->json();
                     if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
-                        $sapDocNum = $body['DocNum'] ?? $body['doc_num'] ?? $body['Result']['DocNum'] ?? null;
-                        if (empty($sapDocNum) && !empty($body['Message'])) {
-                            if (preg_match('/DocNum:\s*([0-9]+)/i', $body['Message'], $matches)) {
+                        $message = (string) ($body['Message'] ?? $body['message'] ?? '');
+                        $sapDocNum = null;
+                        $sapDocEntry = null;
+
+                        // 1. Prioritize explicit Message patterns from SAP
+                        if (!empty($message)) {
+                            // Pattern 0 (HIGHEST PRIORITY): "DocNum: 260910013 - 6717" or "DocNum: 260910013 - 6717)"
+                            // Actual SAP middleware format — no "DocEntry" keyword in string!
+                            if (preg_match('/DocNum\s*[:=]\s*([0-9]+)\s*-\s*([0-9]+)/i', $message, $matches)) {
                                 $sapDocNum = $matches[1];
+                                $sapDocEntry = $matches[2];
+                            }
+                            // Pattern 1: "DocNum - DocEntry : 260910013 - 6717"
+                            elseif (preg_match('/DocNum\s*-\s*DocEntry\s*[:=]?\s*([0-9]+)\s*-\s*([0-9]+)/i', $message, $matches)) {
+                                $sapDocNum = $matches[1];
+                                $sapDocEntry = $matches[2];
+                            }
+                            // Pattern 2: "DocNum: 260910013 - DocEntry: 6717" or "DocNum: 260910013, DocEntry: 6717"
+                            elseif (preg_match('/DocNum\s*[:=]\s*([0-9]+).*?DocEntry\s*[:=]\s*([0-9]+)/i', $message, $matches)) {
+                                $sapDocNum = $matches[1];
+                                $sapDocEntry = $matches[2];
+                            }
+                            // Pattern 3: "DocEntry: 6717 - DocNum: 260910013"
+                            elseif (preg_match('/DocEntry\s*[:=]\s*([0-9]+).*?DocNum\s*[:=]\s*([0-9]+)/i', $message, $matches)) {
+                                $sapDocEntry = $matches[1];
+                                $sapDocNum = $matches[2];
                             }
                         }
 
-                        $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? $body['Result']['DocEntry'] ?? null;
-                        if (empty($sapDocEntry) && !empty($body['Message'])) {
-                            if (preg_match('/DocEntry:\s*([0-9]+)/i', $body['Message'], $matches)) {
+                        // 2. Fallback to JSON fields if not matched from Message
+                        if (empty($sapDocNum)) {
+                            $sapDocNum = $body['DocNum'] ?? $body['doc_num'] ?? $body['Result']['DocNum'] ?? null;
+                            if (is_string($sapDocNum) && str_contains($sapDocNum, '-')) {
+                                $parts = array_map('trim', explode('-', $sapDocNum));
+                                if (count($parts) >= 2 && is_numeric($parts[0]) && is_numeric($parts[1])) {
+                                    $sapDocNum = $parts[0];
+                                    if (empty($sapDocEntry)) {
+                                        $sapDocEntry = $parts[1];
+                                    }
+                                }
+                            }
+                        }
+
+                        if (empty($sapDocEntry)) {
+                            $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? $body['Result']['DocEntry'] ?? null;
+                        }
+
+                        // 3. Fallback regex for individual labels in message
+                        if (!empty($message)) {
+                            if (empty($sapDocNum) && preg_match('/DocNum\s*[:=]\s*([0-9]+)/i', $message, $matches)) {
+                                $sapDocNum = $matches[1];
+                            }
+                            if (empty($sapDocEntry) && preg_match('/DocEntry\s*[:=]\s*([0-9]+)/i', $message, $matches)) {
                                 $sapDocEntry = $matches[1];
                             }
                         }
+
                         if (empty($sapDocEntry)) {
                             $sapDocEntry = $sapDocNum;
                         }
@@ -1456,8 +1544,30 @@ class ProductionService
             // Fallback
         }
 
-        // Enrich any missing ItemCode/ItemName in list items
+        // Enrich any missing ItemCode/ItemName/Comments in list items
         if (!empty($items)) {
+            $docEntriesInList = array_filter(array_column($items, 'DocEntry'));
+            $docNumsInList = array_filter(array_column($items, 'DocNum'));
+            $localReceiptsMap = [];
+            if (!empty($docEntriesInList) || !empty($docNumsInList)) {
+                try {
+                    $localReceiptsQuery = \App\Models\ProductionReceipt::query();
+                    if (!empty($docEntriesInList) && !empty($docNumsInList)) {
+                        $localReceiptsQuery->whereIn('doc_entry', $docEntriesInList)->orWhereIn('doc_num', $docNumsInList);
+                    } elseif (!empty($docEntriesInList)) {
+                        $localReceiptsQuery->whereIn('doc_entry', $docEntriesInList);
+                    } else {
+                        $localReceiptsQuery->whereIn('doc_num', $docNumsInList);
+                    }
+                    $records = $localReceiptsQuery->get();
+                    foreach ($records as $r) {
+                        if ($r->doc_entry) $localReceiptsMap[(string)$r->doc_entry] = $r;
+                        if ($r->doc_num) $localReceiptsMap[(string)$r->doc_num] = $r;
+                    }
+                } catch (\Exception $e) {
+                }
+            }
+
             foreach ($items as &$it) {
                 if (!is_array($it)) continue;
                 $c = (string) ($it['ItemCode'] ?? $it['item_code'] ?? $it['item'] ?? $it['Code'] ?? $it['code'] ?? '');
@@ -1469,6 +1579,14 @@ class ProductionService
 
                 $it['ItemCode'] = $c;
                 $it['ItemName'] = $n;
+
+                // Fallback Comments from local DB if SAP comments is empty
+                $docEntryKey = (string)($it['DocEntry'] ?? '');
+                $docNumKey = (string)($it['DocNum'] ?? '');
+                $localRec = $localReceiptsMap[$docEntryKey] ?? ($localReceiptsMap[$docNumKey] ?? null);
+                if (empty($it['Comments']) && $localRec && !empty($localRec->comments)) {
+                    $it['Comments'] = (string) $localRec->comments;
+                }
 
                 // Clean duplicate keys
                 unset($it['item_code'], $it['item'], $it['code'], $it['item_name'], $it['prod_name'], $it['ProdName'], $it['Dscription'], $it['dscription'], $it['ItemDescription'], $it['item_description'], $it['quantity'], $it['whs_code'], $it['warehouse']);
@@ -1659,6 +1777,10 @@ class ProductionService
                 $hName = $this->resolveItemName($hCode);
             }
 
+            if (empty($header['Comments']) && $localReceipt && !empty($localReceipt->comments)) {
+                $header['Comments'] = (string) $localReceipt->comments;
+            }
+
             $header['ItemCode'] = $hCode;
             $header['ItemName'] = $hName;
 
@@ -1827,8 +1949,30 @@ class ProductionService
             // Fallback
         }
 
-        // Enrich any missing ItemCode/ItemName in list items
+        // Enrich any missing ItemCode/ItemName/Comments in list items
         if (!empty($items)) {
+            $docEntriesInList = array_filter(array_column($items, 'DocEntry'));
+            $docNumsInList = array_filter(array_column($items, 'DocNum'));
+            $localIssuesMap = [];
+            if (!empty($docEntriesInList) || !empty($docNumsInList)) {
+                try {
+                    $localIssuesQuery = \App\Models\ProductionIssue::query();
+                    if (!empty($docEntriesInList) && !empty($docNumsInList)) {
+                        $localIssuesQuery->whereIn('doc_entry', $docEntriesInList)->orWhereIn('doc_num', $docNumsInList);
+                    } elseif (!empty($docEntriesInList)) {
+                        $localIssuesQuery->whereIn('doc_entry', $docEntriesInList);
+                    } else {
+                        $localIssuesQuery->whereIn('doc_num', $docNumsInList);
+                    }
+                    $records = $localIssuesQuery->get();
+                    foreach ($records as $r) {
+                        if ($r->doc_entry) $localIssuesMap[(string)$r->doc_entry] = $r;
+                        if ($r->doc_num) $localIssuesMap[(string)$r->doc_num] = $r;
+                    }
+                } catch (\Exception $e) {
+                }
+            }
+
             foreach ($items as &$it) {
                 if (!is_array($it)) continue;
                 $c = (string) ($it['ItemCode'] ?? $it['item_code'] ?? $it['item'] ?? $it['Code'] ?? $it['code'] ?? '');
@@ -1840,6 +1984,14 @@ class ProductionService
 
                 $it['ItemCode'] = $c;
                 $it['ItemName'] = $n;
+
+                // Fallback Comments from local DB if SAP comments is empty
+                $docEntryKey = (string)($it['DocEntry'] ?? '');
+                $docNumKey = (string)($it['DocNum'] ?? '');
+                $localRec = $localIssuesMap[$docEntryKey] ?? ($localIssuesMap[$docNumKey] ?? null);
+                if (empty($it['Comments']) && $localRec && !empty($localRec->comments)) {
+                    $it['Comments'] = (string) $localRec->comments;
+                }
 
                 // Clean duplicate keys
                 unset($it['item_code'], $it['item'], $it['code'], $it['item_name'], $it['prod_name'], $it['ProdName'], $it['Dscription'], $it['dscription'], $it['ItemDescription'], $it['item_description'], $it['quantity'], $it['whs_code'], $it['warehouse']);
@@ -2031,6 +2183,10 @@ class ProductionService
 
             if ((empty($hName) || $hName === $hCode) && !empty($hCode)) {
                 $hName = $this->resolveItemName($hCode);
+            }
+
+            if (empty($header['Comments']) && $localIssue && !empty($localIssue->comments)) {
+                $header['Comments'] = (string) $localIssue->comments;
             }
 
             $header['ItemCode'] = $hCode;
@@ -2256,14 +2412,27 @@ class ProductionService
             throw new \Exception("Lines valid tidak ditemukan dalam request.");
         }
 
+        // Normalize Shift to valid SAP values: 'A' (Shift 1), 'B' (Shift 2), 'C' (Shift 3)
+        $rawShift = trim((string) ($data['shift'] ?? $data['u_shift'] ?? $data['Shift'] ?? $data['U_Shift'] ?? 'A'));
+        $shiftUpper = strtoupper($rawShift);
+        if (in_array($shiftUpper, ['1', 'SHIFT 1', 'SHIFT1', 'A', 'X', 'ALL'])) {
+            $shift = 'A';
+        } elseif (in_array($shiftUpper, ['2', 'SHIFT 2', 'SHIFT2', 'B'])) {
+            $shift = 'B';
+        } elseif (in_array($shiftUpper, ['3', 'SHIFT 3', 'SHIFT3', 'C'])) {
+            $shift = 'C';
+        } else {
+            $shift = 'A';
+        }
+
         return [
             'DocDate'    => $docDate,
             'DocDueDate' => $docDueDate,
             'Comments'   => (string) ($data['comments'] ?? $data['Comments'] ?? ''),
-            'Shift'      => (string) ($data['shift'] ?? $data['u_shift'] ?? $data['Shift'] ?? $data['U_Shift'] ?? ''),
+            'Shift'      => $shift,
             'Unit'       => (string) ($data['unit'] ?? $data['u_unit'] ?? $data['Unit'] ?? $data['U_Unit'] ?? ''),
             'Bomid'      => (string) ($data['bom_id'] ?? $data['bomid'] ?? $data['u_bom_id'] ?? $data['Bomid'] ?? $data['U_BomId'] ?? ''),
-            'AddonId'    => (string) ($data['addon_id'] ?? $data['AddonId'] ?? $data['U_AddonId'] ?? 'ADDON-INT-01'),
+            'AddonId'    => 2,
             'UserId'     => (string) ($data['user_id'] ?? $data['UserId'] ?? $data['U_UserId'] ?? ($userId ? (string)$userId : '1')),
             'Lines'      => $lines,
         ];
@@ -2285,17 +2454,25 @@ class ProductionService
         $issueNo = 'ISS-' . date('Ymd') . '-' . strtoupper(substr(md5(uniqid()), 0, 6));
         $firstBaseEntry = $payload['Lines'][0]['BaseEntry'] ?? null;
 
-        $pdo = null;
-        if ($firstBaseEntry) {
-            $pdo = \App\Models\ProductionOrder::where('id', is_numeric($firstBaseEntry) ? (int)$firstBaseEntry : 0)
-                ->orWhere('doc_entry', is_numeric($firstBaseEntry) ? (int)$firstBaseEntry : 0)
-                ->orWhere('prod_order_no', (string)$firstBaseEntry)
-                ->first();
-        }
+        // Cache lookup PDOs by BaseEntry (mendukung multiple PDO dalam 1 issue)
+        $pdoCache = [];
+        $getPdoByBaseEntry = function ($baseEntry) use (&$pdoCache) {
+            if (!$baseEntry) return null;
+            $key = (string) $baseEntry;
+            if (!array_key_exists($key, $pdoCache)) {
+                $pdoCache[$key] = \App\Models\ProductionOrder::where('id', is_numeric($baseEntry) ? (int)$baseEntry : 0)
+                    ->orWhere('doc_entry', is_numeric($baseEntry) ? (int)$baseEntry : 0)
+                    ->orWhere('prod_order_no', (string)$baseEntry)
+                    ->first();
+            }
+            return $pdoCache[$key];
+        };
+
+        $firstPdo = $getPdoByBaseEntry($firstBaseEntry);
 
         $localIssue = \App\Models\ProductionIssue::create([
             'issue_no'            => $issueNo,
-            'production_order_id' => $pdo?->id,
+            'production_order_id' => $firstPdo?->id,
             'doc_date'            => $payload['DocDate'],
             'doc_due_date'        => $payload['DocDueDate'],
             'u_shift'             => $payload['Shift'],
@@ -2308,18 +2485,24 @@ class ProductionService
             'updated_by'          => $userId,
         ]);
 
+        $affectedPdos = [];
+
         foreach ($payload['Lines'] as $idx => $line) {
             $baseLine = $line['BaseLine'];
             $qty = floatval($line['Quantity']);
+            $currentLinePdo = $getPdoByBaseEntry($line['BaseEntry'] ?? null);
+            if ($currentLinePdo) {
+                $affectedPdos[$currentLinePdo->id] = $currentLinePdo;
+            }
 
             // Find matching PDO raw material component item
             $pdoItem = null;
             $itemCode = (string) ($line['ItemCode'] ?? '');
 
-            if ($pdo) {
-                $pdoItem = $pdo->details()->where('line_num', is_numeric($baseLine) ? (int)$baseLine : 0)->first();
+            if ($currentLinePdo) {
+                $pdoItem = $currentLinePdo->details()->where('line_num', is_numeric($baseLine) ? (int)$baseLine : 0)->first();
                 if (!$pdoItem && !empty($itemCode)) {
-                    $pdoItem = $pdo->details()->where('item_code', $itemCode)->first();
+                    $pdoItem = $currentLinePdo->details()->where('item_code', $itemCode)->first();
                 }
                 if (empty($itemCode) && $pdoItem) {
                     $itemCode = (string) $pdoItem->item_code;
@@ -2344,7 +2527,7 @@ class ProductionService
 
             \App\Models\ProductionIssueItem::create([
                 'production_issue_id'      => $localIssue->id,
-                'production_order_id'      => $pdo?->id,
+                'production_order_id'      => $currentLinePdo?->id,
                 'production_order_item_id' => $pdoItem?->id,
                 'line_num'                 => $idx,
                 'base_type'                => $line['BaseType'] ?? 202,
@@ -2365,12 +2548,12 @@ class ProductionService
             }
         }
 
-        // Catat referensi nomor issue di tabel PDO Header
-        if ($pdo) {
-            $existingIssues = array_filter(array_map('trim', explode(',', (string)$pdo->issue_for_production)));
+        // Catat referensi nomor issue di tabel PDO Header untuk semua PDO yang terlibat
+        foreach ($affectedPdos as $affectedPdo) {
+            $existingIssues = array_filter(array_map('trim', explode(',', (string)$affectedPdo->issue_for_production)));
             if (!in_array($issueNo, $existingIssues)) {
                 $existingIssues[] = $issueNo;
-                $pdo->update(['issue_for_production' => implode(', ', $existingIssues)]);
+                $affectedPdo->update(['issue_for_production' => implode(', ', $existingIssues)]);
             }
         }
 
@@ -2393,7 +2576,7 @@ class ProductionService
                     'ItemCode'  => (string) ($l['ItemCode'] ?? ''),
                     'Quantity'  => floatval($l['Quantity']),
                     'WhsCode'   => (string) ($l['WhsCode'] ?? ''),
-                    'UoMEntry'  => is_numeric($l['UoMEntry'] ?? 1) ? (int)($l['UoMEntry'] ?? 1) : 1,
+                    // 'UoMEntry'  => is_numeric($l['UoMEntry'] ?? 1) ? (int)($l['UoMEntry'] ?? 1) : 1,
                     'OcrCode'   => (string) ($l['OcrCode'] ?? ''),
                     'OcrCode2'  => (string) ($l['OcrCode2'] ?? ''),
                     'OcrCode3'  => (string) ($l['OcrCode3'] ?? ''),
@@ -2406,34 +2589,67 @@ class ProductionService
             if ($response->successful()) {
                 $body = $response->json();
                 if (!isset($body['ErrorCode']) || (int)$body['ErrorCode'] === 0) {
-                    $sapDocNum = $body['DocNum'] ?? $body['doc_num'] ?? null;
+                    $sapDocNum   = $body['DocNum'] ?? $body['doc_num'] ?? null;
+                    $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? null;
 
-                    // Ekstrak DocNum dari string Message jika tidak disediakan langsung sebagai field terpisah
-                    // Contoh format message: "Success - [AddIssueForProduction]. DocNum: 40512"
+                    // Ekstrak dari $body['Result'] jika tersedia
+                    $resultData = $body['Result'] ?? $body['result'] ?? null;
+                    if (is_array($resultData)) {
+                        $firstResult = isset($resultData[0]) ? $resultData[0] : $resultData;
+                        if (is_array($firstResult)) {
+                            $sapDocNum   = $sapDocNum ?? ($firstResult['DocNum'] ?? $firstResult['doc_num'] ?? null);
+                            $sapDocEntry = $sapDocEntry ?? ($firstResult['DocEntry'] ?? $firstResult['doc_entry'] ?? null);
+                        }
+                    } elseif (is_numeric($resultData) || is_string($resultData)) {
+                        $sapDocNum   = $sapDocNum ?? (string)$resultData;
+                        $sapDocEntry = $sapDocEntry ?? (string)$resultData;
+                    }
+
+                    // Ekstrak DocNum & DocEntry dari string Message jika tidak disediakan langsung sebagai field terpisah
+                    // Contoh format message: "Success - [AddIssueForProduction]. DocNum: 260910001"
                     if (empty($sapDocNum) && !empty($body['Message'])) {
-                        if (preg_match('/DocNum:\s*([0-9]+)/i', $body['Message'], $matches)) {
+                        if (preg_match('/DocNum[:\s]+([0-9]+)/i', $body['Message'], $matches)) {
                             $sapDocNum = $matches[1];
                         }
                     }
+                    if (empty($sapDocEntry) && !empty($body['Message'])) {
+                        if (preg_match('/DocEntry[:\s]+([0-9]+)/i', $body['Message'], $matches)) {
+                            $sapDocEntry = $matches[1];
+                        }
+                    }
 
-                    $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? $sapDocNum;
+                    $sapDocEntry = $sapDocEntry ?: $sapDocNum;
+                    $sapDocNum   = $sapDocNum ?: $sapDocEntry;
 
                     $localIssue->update([
-                        'doc_entry'     => $sapDocEntry,
+                        'doc_entry'     => (string) $sapDocEntry,
                         'doc_num'       => (string) ($sapDocNum ?: $localIssue->doc_num),
                         'issue_no'      => (string) ($sapDocNum ?: $localIssue->issue_no),
                         'sap_status'    => 'SYNCED',
+                        'sap_error'     => null,
                         'integrated_at' => now(),
                     ]);
+
+                    // Pastikan DocNum dan DocEntry terisi di sapResponse
+                    $body['DocNum']   = (string) $sapDocNum;
+                    $body['DocEntry'] = (string) $sapDocEntry;
+                    if (empty($body['Result'])) {
+                        $body['Result'] = [
+                            'DocNum'   => (string) $sapDocNum,
+                            'DocEntry' => (string) $sapDocEntry,
+                        ];
+                    }
                     $sapResponse = $body;
 
-                    // Update referensi nomor issue di tabel PDO Header (replace nomor generate dari BE)
-                    if ($pdo && $sapDocNum) {
-                        $existingIssues = array_filter(array_map('trim', explode(',', (string)$pdo->issue_for_production)));
-                        $existingIssues = array_map(function ($val) use ($issueNo, $sapDocNum) {
-                            return $val === $issueNo ? (string)$sapDocNum : $val;
-                        }, $existingIssues);
-                        $pdo->update(['issue_for_production' => implode(', ', array_unique($existingIssues))]);
+                    // Update referensi nomor issue di tabel PDO Header (replace nomor generate dari BE ke nomor resmi SAP)
+                    if (!empty($affectedPdos) && $sapDocNum) {
+                        foreach ($affectedPdos as $affectedPdo) {
+                            $existingIssues = array_filter(array_map('trim', explode(',', (string)$affectedPdo->issue_for_production)));
+                            $existingIssues = array_map(function ($val) use ($issueNo, $sapDocNum) {
+                                return $val === $issueNo ? (string)$sapDocNum : $val;
+                            }, $existingIssues);
+                            $affectedPdo->update(['issue_for_production' => implode(', ', array_unique($existingIssues))]);
+                        }
                     }
                 } else {
                     $localIssue->update([
@@ -2600,11 +2816,41 @@ class ProductionService
                 if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
                     $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? null;
                     $sapDocNum   = $body['DocNum'] ?? $body['doc_num'] ?? null;
+
+                    // Ekstrak dari $body['Result'] jika tersedia
+                    $resultData = $body['Result'] ?? $body['result'] ?? null;
+                    if (is_array($resultData)) {
+                        $firstResult = isset($resultData[0]) ? $resultData[0] : $resultData;
+                        if (is_array($firstResult)) {
+                            $sapDocNum   = $sapDocNum ?? ($firstResult['DocNum'] ?? $firstResult['doc_num'] ?? null);
+                            $sapDocEntry = $sapDocEntry ?? ($firstResult['DocEntry'] ?? $firstResult['doc_entry'] ?? null);
+                        }
+                    } elseif (is_numeric($resultData) || is_string($resultData)) {
+                        $sapDocNum   = $sapDocNum ?? (string)$resultData;
+                        $sapDocEntry = $sapDocEntry ?? (string)$resultData;
+                    }
+
+                    // Ekstrak DocNum & DocEntry dari string Message jika belum didapat
+                    if (empty($sapDocNum) && !empty($body['Message'])) {
+                        if (preg_match('/DocNum:\s*([0-9]+)/i', $body['Message'], $matches)) {
+                            $sapDocNum = $matches[1];
+                        }
+                    }
+                    if (empty($sapDocEntry) && !empty($body['Message'])) {
+                        if (preg_match('/DocEntry:\s*([0-9]+)/i', $body['Message'], $matches)) {
+                            $sapDocEntry = $matches[1];
+                        }
+                    }
+
+                    $sapDocEntry = $sapDocEntry ?: $sapDocNum;
+                    $sapDocNum   = $sapDocNum ?: $sapDocEntry;
+
                     $localReceipt->update([
                         'doc_entry'     => $sapDocEntry,
                         'doc_num'       => $sapDocNum,
                         'receipt_no'    => $sapDocNum ?? $localReceipt->receipt_no,
                         'sap_status'    => 'SYNCED',
+                        'sap_error'     => null,
                         'integrated_at' => now(),
                     ]);
                     $sapResponse = $body;
@@ -3574,6 +3820,132 @@ class ProductionService
             'gi_entry'       => $issueEntry,
             'gr_entry'       => $receiptEntry,
             'sap_response'   => $body,
+        ];
+    }
+
+    /**
+     * Edit Comment on Issue for Production in SAP (/api/EditCommentIssueForProduction).
+     *
+     * @param array $data
+     * @param int|null $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function editCommentIssueSap(array $data, ?int $userId = null): array
+    {
+        $sapUrl = config('services.sap.url');
+
+        $docEntry = (string) ($data['DocEntry'] ?? $data['doc_entry'] ?? $data['docEntry'] ?? $data['id'] ?? '');
+        if (empty($docEntry)) {
+            throw new \Exception('DocEntry wajib diisi untuk mengubah komentar Issue for Production.');
+        }
+
+        $comment = (string) ($data['Comments'] ?? $data['comments'] ?? $data['Comment'] ?? $data['comment'] ?? $data['remarks'] ?? $data['Remarks'] ?? '');
+
+        $payload = [
+            'DocEntry'  => $docEntry,
+            'Comments'  => $comment,
+        ];
+
+        $response = Http::timeout(30)->post("{$sapUrl}/api/EditCommentIssueForProduction", $payload);
+
+        if (!$response->successful()) {
+            throw new \Exception('Gagal menghubungi API SAP EditCommentIssueForProduction. HTTP Status: ' . $response->status());
+        }
+
+        $body = $response->json();
+
+        if (isset($body['ErrorCode']) && (int)$body['ErrorCode'] !== 0) {
+            throw new \Exception('API SAP EditCommentIssueForProduction error: ' . ($body['Message'] ?? 'Unknown SAP error'));
+        }
+
+        // Update local database record if exists
+        try {
+            \App\Models\ProductionIssue::where('doc_entry', $docEntry)
+                ->orWhere('id', is_numeric($docEntry) ? (int)$docEntry : 0)
+                ->update([
+                    'comments'   => $comment,
+                    'updated_by' => $userId,
+                ]);
+        } catch (\Exception $e) {
+            // Ignore local DB update failure if table does not exist or record not found
+        }
+
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'EDIT_COMMENT_ISSUE_SAP',
+                "Edited comment on Issue for Production for DocEntry {$docEntry}."
+            );
+        }
+
+        return [
+            'doc_entry'    => $docEntry,
+            'comments'     => $comment,
+            'sap_response' => $body,
+        ];
+    }
+
+    /**
+     * Edit Comments on Production Receipt in SAP (/api/EditCommentReceiptFromProduction).
+     *
+     * @param array $data
+     * @param int|null $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function editRemarksReceiptSap(array $data, ?int $userId = null): array
+    {
+        $sapUrl = config('services.sap.url');
+
+        $docEntry = (string) ($data['DocEntry'] ?? $data['doc_entry'] ?? $data['docEntry'] ?? $data['id'] ?? '');
+        if (empty($docEntry)) {
+            throw new \Exception('DocEntry wajib diisi untuk mengubah remarks Production Receipt.');
+        }
+
+        $comment = (string) ($data['Comments'] ?? $data['comments'] ?? $data['Comment'] ?? $data['comment'] ?? $data['remarks'] ?? $data['Remarks'] ?? '');
+
+        $payload = [
+            'DocEntry'  => $docEntry,
+            'Comments'  => $comment,
+        ];
+
+        $response = Http::timeout(30)->post("{$sapUrl}/api/EditCommentReceiptFromProduction", $payload);
+
+        if (!$response->successful()) {
+            throw new \Exception('Gagal menghubungi API SAP EditCommentReceiptFromProduction. HTTP Status: ' . $response->status());
+        }
+
+        $body = $response->json();
+
+        if (isset($body['ErrorCode']) && (int)$body['ErrorCode'] !== 0) {
+            throw new \Exception('API SAP EditCommentReceiptFromProduction error: ' . ($body['Message'] ?? 'Unknown SAP error'));
+        }
+
+        // Update local database record if exists
+        try {
+            \App\Models\ProductionReceipt::where('doc_entry', $docEntry)
+                ->orWhere('id', is_numeric($docEntry) ? (int)$docEntry : 0)
+                ->update([
+                    'comments'   => $comment,
+                    'updated_by' => $userId,
+                ]);
+        } catch (\Exception $e) {
+            // Ignore local DB update failure if table does not exist or record not found
+        }
+
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'EDIT_COMMENT_RECEIPT_SAP',
+                "Edited comment on Production Receipt for DocEntry {$docEntry}."
+            );
+        }
+
+        return [
+            'doc_entry'    => $docEntry,
+            'comments'     => $comment,
+            'sap_response' => $body,
         ];
     }
 }
