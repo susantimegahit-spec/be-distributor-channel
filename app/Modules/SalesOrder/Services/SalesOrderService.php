@@ -794,14 +794,14 @@ class SalesOrderService
         ]);
 
         // Sync status to associated CMO if exists
-        $cmo = \App\Models\CustomerMonthlyOrder::where('order_no', $salesOrder->order_no)->first();
-        if ($cmo) {
-            $cmo->update([
-                'status' => 'WAITING_OM',
-                'submitted_at' => now(),
+        DB::table('customer_monthly_orders')
+            ->where('order_no', $salesOrder->order_no)
+            ->update([
+                'status'        => 'WAITING_OM',
+                'submitted_at'  => now(),
                 'reject_reason' => null,
+                'updated_at'    => now(),
             ]);
-        }
 
         \App\Models\SalesOrderApprovalHistory::create([
             'sales_order_id' => $salesOrder->id,
@@ -982,17 +982,17 @@ class SalesOrderService
         $salesOrder->update($updateAttributes);
 
         // Sync status and fields to associated CMO if exists
-        $cmo = \App\Models\CustomerMonthlyOrder::where('order_no', $salesOrder->order_no)->first();
-        if ($cmo) {
-            $cmoUpdate = [
-                'status' => $nextStatus,
-                'reject_reason' => null,
-            ];
-            if (isset($updateAttributes['doc_total'])) {
-                $cmoUpdate['doc_total'] = $updateAttributes['doc_total'];
-            }
-            $cmo->update($cmoUpdate);
+        $cmoSyncData = [
+            'status'        => $nextStatus,
+            'reject_reason' => null,
+            'updated_at'    => now(),
+        ];
+        if (isset($updateAttributes['doc_total'])) {
+            $cmoSyncData['doc_total'] = $updateAttributes['doc_total'];
         }
+        DB::table('customer_monthly_orders')
+            ->where('order_no', $salesOrder->order_no)
+            ->update($cmoSyncData);
 
         \App\Models\SalesOrderApprovalHistory::create([
             'sales_order_id' => $salesOrder->id,
@@ -1125,14 +1125,24 @@ class SalesOrderService
         ]);
 
         // Sync status and reject reason to associated CMO if exists
-        $cmo = \App\Models\CustomerMonthlyOrder::where('order_no', $salesOrder->order_no)->first();
-        if ($cmo) {
-            $cmo->update([
-                'status' => $rollbackStatus,
+        // Use DB::table() directly to avoid Eloquent mass-assignment or event issues
+        $cmoUpdated = DB::table('customer_monthly_orders')
+            ->where('order_no', $salesOrder->order_no)
+            ->update([
+                'status'        => $rollbackStatus,
                 'reject_reason' => $notes,
-                'rejected_by' => $userId,
-                'rejected_at' => now(),
+                'rejected_by'   => $userId,
+                'rejected_at'   => now(),
+                'updated_at'    => now(),
             ]);
+
+        if ($cmoUpdated === 0) {
+            Log::warning('[rejectOrder] CMO not found or not updated for order_no: ' . $salesOrder->order_no, [
+                'sales_order_id' => $salesOrder->id,
+                'rollback_status' => $rollbackStatus,
+            ]);
+        } else {
+            Log::info('[rejectOrder] CMO synced to ' . $rollbackStatus . ' for order_no: ' . $salesOrder->order_no);
         }
 
         \App\Models\SalesOrderApprovalHistory::create([
