@@ -274,8 +274,20 @@
                                 </td>
 
                                 {{-- Prefix Key --}}
-                                <td class="py-4 px-4 font-mono text-xs text-amber-300/90">
-                                    {{ $key->key_prefix }}...
+                                <td class="py-4 px-4 whitespace-nowrap">
+                                    <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900/80 border border-slate-800 font-mono text-xs text-amber-300/90">
+                                        <span>{{ $key->key_prefix }}...</span>
+                                        <button
+                                            type="button"
+                                            onclick="copyPrefix('{{ $key->key_prefix }}', this)"
+                                            title="Copy Prefix Key"
+                                            class="p-1 rounded text-slate-400 hover:text-amber-300 hover:bg-slate-800 transition"
+                                        >
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                                            </svg>
+                                        </button>
+                                    </div>
                                 </td>
 
                                 {{-- Allowed IPs --}}
@@ -422,6 +434,41 @@
                 }, 2500);
             }).catch(err => {
                 alert('Gagal menyalin text: ' + err);
+            });
+        }
+
+        function copyPrefix(prefix, btn) {
+            const originalHtml = btn.innerHTML;
+            const copyPromise = (navigator.clipboard && window.isSecureContext)
+                ? navigator.clipboard.writeText(prefix)
+                : new Promise((resolve, reject) => {
+                    const temp = document.createElement('textarea');
+                    temp.value = prefix;
+                    temp.style.position = 'fixed';
+                    temp.style.left = '-9999px';
+                    document.body.appendChild(temp);
+                    temp.select();
+                    try {
+                        document.execCommand('copy');
+                        resolve();
+                    } catch (err) {
+                        reject(err);
+                    } finally {
+                        document.body.removeChild(temp);
+                    }
+                });
+
+            copyPromise.then(() => {
+                btn.innerHTML = `<svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                </svg>`;
+                btn.title = "Tersalin!";
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                    btn.title = "Copy Prefix Key";
+                }, 1500);
+            }).catch(err => {
+                alert('Gagal menyalin: ' + err);
             });
         }
 
