@@ -179,5 +179,42 @@ class AppServiceProvider extends ServiceProvider
             // 3. Fallback to checking logged-in administrator
             return $user && $user->role && $user->role->name === 'administrator';
         });
+
+        // Register Spatie Health Checks
+        if (class_exists(\Spatie\Health\Facades\Health::class)) {
+            \Spatie\Health\Facades\Health::checks([
+                \Spatie\Health\Checks\Checks\UsedDiskSpaceCheck::new()
+                    ->warnWhenUsedSpaceIsAbovePercentage(80)
+                    ->failWhenUsedSpaceIsAbovePercentage(90),
+                \Spatie\Health\Checks\Checks\DatabaseCheck::new(),
+                \Spatie\Health\Checks\Checks\DatabaseConnectionCountCheck::new()
+                    ->warnWhenMoreConnectionsThan(50)
+                    ->failWhenMoreConnectionsThan(100),
+                \Spatie\Health\Checks\Checks\CacheCheck::new(),
+                \Spatie\Health\Checks\Checks\OptimizedAppCheck::new(),
+                \Spatie\Health\Checks\Checks\DebugModeCheck::new(),
+                \Spatie\Health\Checks\Checks\EnvironmentCheck::new(),
+                \Spatie\Health\Checks\Checks\PingCheck::new()
+                    ->name('SAP B1 API Service')
+                    ->url(env('SAP_API_URL', 'http://103.18.133.187:3100'))
+                    ->timeout(3),
+            ]);
+        }
+
+        // Define gate for Opcodes Log Viewer
+        Gate::define('viewLogViewer', function (?User $user = null) {
+            if (session('pulse_authenticated') === true) {
+                return true;
+            }
+            return $user && $user->role && $user->role->name === 'administrator';
+        });
+
+        // Define gate for Spatie Health Check
+        Gate::define('viewHealth', function (?User $user = null) {
+            if (session('pulse_authenticated') === true) {
+                return true;
+            }
+            return $user && $user->role && $user->role->name === 'administrator';
+        });
     }
 }

@@ -192,6 +192,8 @@
         .badge-blue { background: #dbeafe; color: #1e40af; }
         .badge-amber { background: #fef3c7; color: #b45309; }
         .badge-green { background: #dcfce7; color: #15803d; }
+        .badge-rose { background: #ffe4e6; color: #e11d48; }
+        .badge-cyan { background: #cffafe; color: #0891b2; }
 
         .sidebar-footer {
             padding: 16px;
@@ -526,6 +528,8 @@
         .icon-box-blue { background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); color: #1d4ed8; }
         .icon-box-amber { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); color: #b45309; }
         .icon-box-emerald { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); color: #047857; }
+        .icon-box-rose { background: linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%); color: #e11d48; }
+        .icon-box-cyan { background: linear-gradient(135deg, #cffafe 0%, #a5f3fc 100%); color: #0891b2; }
 
         .card-title {
             font-size: 17px;
@@ -570,6 +574,8 @@
         .card-blue-action { color: #1d4ed8; }
         .card-amber-action { color: #b45309; }
         .card-emerald-action { color: #047857; }
+        .card-rose-action { color: #e11d48; }
+        .card-cyan-action { color: #0891b2; }
 
         .system-spec-bar {
             background: #ffffff;
@@ -725,6 +731,28 @@
                             </svg>
                             <span>B2B API Keys</span>
                             <span class="nav-badge badge-amber">Sec</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ url('/monitoringsm/health') }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                            </svg>
+                            <span>Server Health</span>
+                            <span class="nav-badge badge-rose">Health</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ url('/monitoringsm/logs') }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                                <polyline points="10 9 9 9 8 9"></polyline>
+                            </svg>
+                            <span>App Logs</span>
+                            <span class="nav-badge badge-cyan">Logs</span>
                         </a>
                     </li>
                 </ul>
@@ -974,6 +1002,54 @@
                             <span class="action-link-text card-emerald-action">
                                 <span>Buka Swagger Docs</span>
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>
+                            </span>
+                        </div>
+                    </a>
+
+                    <!-- Card 5: Server & Service Health Monitoring (Spatie) -->
+                    <a href="{{ url('/monitoringsm/health') }}" class="module-card">
+                        <div>
+                            <div class="card-top">
+                                <div class="module-icon-box icon-box-rose">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                                    </svg>
+                                </div>
+                                <span class="nav-badge badge-rose">Health Check</span>
+                            </div>
+                            <h2 class="card-title">Server & Service Health (Spatie)</h2>
+                            <p class="card-desc">Audit komprehensif kesehatan infrastruktur: kapasitas disk, koneksi database PostgreSQL, driver cache, optimasi konfigurasi, dan ping koneksi API SAP B1.</p>
+                        </div>
+                        <div class="card-bottom-action">
+                            <span class="action-link-text card-rose-action">
+                                <span>Buka Health Dashboard</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                            </span>
+                        </div>
+                    </a>
+
+                    <!-- Card 6: Application Log Viewer (Opcodes) -->
+                    <a href="{{ url('/monitoringsm/logs') }}" class="module-card">
+                        <div>
+                            <div class="card-top">
+                                <div class="module-icon-box icon-box-cyan">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                                        <polyline points="10 9 9 9 8 9"></polyline>
+                                    </svg>
+                                </div>
+                                <span class="nav-badge badge-cyan">Real-time Logs</span>
+                            </div>
+                            <h2 class="card-title">Application Log Viewer (Opcodes)</h2>
+                            <p class="card-desc">Inspeksi dan analisa berkas log Laravel (laravel.log) secara visual, filter tingkat keparahan (Emergency, Error, Warning, Info), pencarian query teks, dan stack trace interaktif.</p>
+                        </div>
+                        <div class="card-bottom-action">
+                            <span class="action-link-text card-cyan-action">
+                                <span>Buka Log Viewer</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
                             </span>
                         </div>
                     </a>

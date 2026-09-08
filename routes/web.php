@@ -97,6 +97,10 @@ Route::middleware('web')->prefix('monitoringsm')->group(function () {
 
         // ClickUp Task Reporting Dashboard
         Route::get('/reporting-tasks', [\App\Http\Controllers\ReportingTaskWebController::class, 'index']);
+
+        // Spatie Server & Service Health Monitoring Dashboard
+        Route::get('/health', \Spatie\Health\Http\Controllers\HealthCheckResultsController::class);
+        Route::get('/health/json', \Spatie\Health\Http\Controllers\HealthCheckJsonResultsController::class);
     });
 });
 
