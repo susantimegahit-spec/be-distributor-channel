@@ -155,7 +155,7 @@ class AppServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom([
             database_path('migrations/ekspedisi'),
             database_path('migrations/production'),
-            database_path('migrations/vendor'),
+            database_path('migrations/vendors'),
         ]);
 
         // Register Custom Pulse Component (Kill User Control Card)
