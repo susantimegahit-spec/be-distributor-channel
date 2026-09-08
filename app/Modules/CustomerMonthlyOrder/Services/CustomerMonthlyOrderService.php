@@ -113,16 +113,21 @@ class CustomerMonthlyOrderService
         $data['created_by'] = $userId;
         $data['updated_by'] = $userId;
 
-        // Auto-fill Dates if missing
+        // Auto-fill Dates
         $docDate = $data['doc_date'] ?? now()->toDateString();
         $data['doc_date'] = $docDate;
 
-        if (empty($data['doc_due_date'])) {
-            $data['doc_due_date'] = $docDate;
-        }
-
-        if (empty($data['eta_date'])) {
+        if (($data['created_via'] ?? null) === 'DISTRIBUTOR_API') {
+            $data['doc_due_date'] = Carbon::parse($docDate)->addDays(7)->toDateString();
             $data['eta_date'] = Carbon::parse($docDate)->addDays(7)->toDateString();
+        } else {
+            if (empty($data['doc_due_date'])) {
+                $data['doc_due_date'] = Carbon::parse($docDate)->addDays(7)->toDateString();
+            }
+
+            if (empty($data['eta_date'])) {
+                $data['eta_date'] = Carbon::parse($docDate)->addDays(7)->toDateString();
+            }
         }
 
         // Auto-fill Addresses from SAP if missing

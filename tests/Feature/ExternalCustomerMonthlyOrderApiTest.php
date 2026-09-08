@@ -82,7 +82,7 @@ class ExternalCustomerMonthlyOrderApiTest extends TestCase
         $payload = [
             'card_code' => 'CUST-TEST-001',
             'distributor_ref_no' => 'PO-DIST-2026-001',
-            'doc_date' => '2026-08-07',
+            'doc_date' => now()->toDateString(),
             'lines' => json_encode([
                 [
                     'item_code' => 'SKU-TEST-001',
@@ -109,6 +109,35 @@ class ExternalCustomerMonthlyOrderApiTest extends TestCase
         ]);
     }
 
+    public function test_fails_validation_when_doc_date_is_backdated(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+        $file = \Illuminate\Http\UploadedFile::fake()->create('po.pdf', 100, 'application/pdf');
+
+        $payload = [
+            'card_code' => 'CUST-TEST-001',
+            'distributor_ref_no' => 'PO-DIST-BACKDATE',
+            'doc_date' => now()->subDay()->toDateString(),
+            'lines' => json_encode([
+                [
+                    'item_code' => 'SKU-TEST-001',
+                    'quantity' => 5,
+                    'unit_price' => 50000,
+                ],
+            ]),
+            'attachment' => $file,
+        ];
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->rawApiKey)
+            ->post('/api/distributor-channel/v1/external/customer-monthly-orders', $payload);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+            ])
+            ->assertJsonPath('errors.doc_date.0', 'Tanggal dokumen (doc_date) tidak boleh backdate (harus tanggal hari ini atau tanggal mendatang).');
+    }
+
     public function test_idempotency_returns_existing_order_for_duplicate_ref_no(): void
     {
         \Illuminate\Support\Facades\Storage::fake('public');
@@ -117,7 +146,7 @@ class ExternalCustomerMonthlyOrderApiTest extends TestCase
         $payload = [
             'card_code' => 'CUST-TEST-001',
             'distributor_ref_no' => 'PO-DIST-2026-RETRY',
-            'doc_date' => '2026-08-07',
+            'doc_date' => now()->toDateString(),
             'lines' => json_encode([
                 [
                     'item_code' => 'SKU-TEST-001',
@@ -153,11 +182,12 @@ class ExternalCustomerMonthlyOrderApiTest extends TestCase
         $payload = [
             'card_code' => 'CUST-TEST-001',
             'distributor_ref_no' => 'PO-DIST-INVALID-SKU',
-            'doc_date' => '2026-08-07',
+            'doc_date' => now()->toDateString(),
             'lines' => json_encode([
                 [
                     'item_code' => 'SKU-NON-EXISTENT',
                     'quantity' => 10,
+                    'unit_price' => 50000,
                 ],
             ]),
             'attachment' => $file,
@@ -176,11 +206,13 @@ class ExternalCustomerMonthlyOrderApiTest extends TestCase
     {
         \Illuminate\Support\Facades\Storage::fake('public');
         $file = \Illuminate\Http\UploadedFile::fake()->create('po.pdf', 100, 'application/pdf');
+        $today = now()->toDateString();
+        $expectedHPlus7 = now()->addDays(7)->toDateString();
 
         $payload = [
             'card_code' => 'CUST-TEST-001',
             'distributor_ref_no' => 'PO-DIST-AUTO-POPULATE',
-            'doc_date' => '2026-08-10',
+            'doc_date' => $today,
             'lines' => json_encode([
                 [
                     'item_code' => 'SKU-TEST-001',
@@ -196,11 +228,12 @@ class ExternalCustomerMonthlyOrderApiTest extends TestCase
 
         $response->assertStatus(201);
 
-        // Verify eta_date is auto-calculated to doc_date + 7 days (2026-08-17)
+        // Verify doc_due_date and eta_date are auto-calculated to doc_date + 7 days
         $order = \App\Models\CustomerMonthlyOrder::where('distributor_ref_no', 'PO-DIST-AUTO-POPULATE')->first();
         $this->assertNotNull($order);
-        $this->assertEquals('2026-08-10', \Carbon\Carbon::parse($order->doc_date)->format('Y-m-d'));
-        $this->assertEquals('2026-08-17', \Carbon\Carbon::parse($order->eta_date)->format('Y-m-d'));
+        $this->assertEquals($today, \Carbon\Carbon::parse($order->doc_date)->format('Y-m-d'));
+        $this->assertEquals($expectedHPlus7, \Carbon\Carbon::parse($order->doc_due_date)->format('Y-m-d'));
+        $this->assertEquals($expectedHPlus7, \Carbon\Carbon::parse($order->eta_date)->format('Y-m-d'));
     }
 
     public function test_creates_cmo_with_attachment_upload(): void
@@ -212,7 +245,7 @@ class ExternalCustomerMonthlyOrderApiTest extends TestCase
         $payload = [
             'card_code' => 'CUST-TEST-001',
             'distributor_ref_no' => 'PO-DIST-WITH-ATTACHMENT',
-            'doc_date' => '2026-08-10',
+            'doc_date' => now()->toDateString(),
             'lines' => json_encode([
                 [
                     'item_code' => 'SKU-TEST-001',
@@ -243,7 +276,7 @@ class ExternalCustomerMonthlyOrderApiTest extends TestCase
         $payload = [
             'card_code' => 'CUST-TEST-001',
             'distributor_ref_no' => 'PO-DIST-NO-ATTACHMENT',
-            'doc_date' => '2026-08-10',
+            'doc_date' => now()->toDateString(),
             'lines' => json_encode([
                 [
                     'item_code' => 'SKU-TEST-001',
@@ -271,7 +304,7 @@ class ExternalCustomerMonthlyOrderApiTest extends TestCase
         $payload = [
             'card_code'          => 'CUST-TEST-001',
             'distributor_ref_no' => 'PO-ZERO-PRICE-001',
-            'doc_date'           => '2026-09-01',
+            'doc_date'           => now()->toDateString(),
             'lines'              => json_encode([
                 [
                     'item_code'  => 'SKU-TEST-001',
@@ -314,7 +347,7 @@ class ExternalCustomerMonthlyOrderApiTest extends TestCase
         $payload = [
             'card_code'          => 'CUST-TEST-001',
             'distributor_ref_no' => 'PO-ZERO-PRICE-FAIL',
-            'doc_date'           => '2026-09-01',
+            'doc_date'           => now()->toDateString(),
             'lines'              => json_encode([
                 [
                     'item_code'  => 'SKU-NO-PRICE',
@@ -345,7 +378,7 @@ class ExternalCustomerMonthlyOrderApiTest extends TestCase
         $payload = [
             'card_code'          => 'CUST-TEST-001',
             'distributor_ref_no' => 'PO-AUTO-ADJUST-PRICE',
-            'doc_date'           => '2026-09-01',
+            'doc_date'           => now()->toDateString(),
             'lines'              => json_encode([
                 [
                     'item_code'  => 'SKU-TEST-001',

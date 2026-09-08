@@ -113,9 +113,14 @@ class ExternalCustomerMonthlyOrderController extends Controller
             ];
         }
 
+        $docDate = $validatedData['doc_date'];
+        $hPlus7  = \Carbon\Carbon::parse($docDate)->addDays(7)->toDateString();
+
         $payload = array_merge($validatedData, [
             'distributor_ref_no' => $distributorRefNo,
             'created_via'        => 'DISTRIBUTOR_API',
+            'doc_due_date'       => $hPlus7,
+            'eta_date'           => $hPlus7,
             'lines'              => $normalizedLines,
         ]);
 
