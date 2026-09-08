@@ -1500,7 +1500,7 @@ paths:
   /v1/external/customer-monthly-orders:
     post:
       summary: Add Customer Monthly Order via External B2B API
-      description: Endpoint terproteksi API Key untuk sistem distributor (ERP/DMS) membuat CMO secara otomatis dari luar tanpa perlu double input di Customer Portal.
+      description: Endpoint terproteksi API Key untuk sistem distributor (ERP/DMS) membuat CMO secara otomatis dari luar tanpa perlu double input di Customer Portal. Field doc_date bertindak sebagai Posting Date dan tidak boleh backdate (harus tanggal hari ini atau mendatang). Field doc_due_date (Delivery Date) dan eta_date dihitung secara otomatis oleh backend sebagai H+7 dari doc_date (klien tidak perlu mengirimkan field tersebut).
       tags:
         - External B2B Integration
       security:
@@ -1529,16 +1529,8 @@ paths:
                 doc_date:
                   type: string
                   format: date
-                  example: "2026-08-07"
-                doc_due_date:
-                  type: string
-                  format: date
-                  example: "2026-08-30"
-                eta_date:
-                  type: string
-                  format: date
-                  example: "2026-08-14"
-                  description: Tanggal perkiraan tiba (otomatis diset ke doc_date + 7 hari jika kosong)
+                  example: "2026-09-08"
+                  description: Tanggal dokumen order / posting date (Format YYYY-MM-DD, tidak boleh backdate / harus hari ini atau tanggal mendatang)
                 po_number:
                   type: string
                   example: "PO-12345"
@@ -1570,7 +1562,8 @@ paths:
                 doc_date:
                   type: string
                   format: date
-                  example: "2026-08-07"
+                  example: "2026-09-08"
+                  description: Tanggal dokumen order / posting date (Format YYYY-MM-DD, tidak boleh backdate / harus hari ini atau tanggal mendatang)
                 attachment:
                   type: string
                   format: binary
