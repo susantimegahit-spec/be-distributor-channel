@@ -36,6 +36,7 @@ return new class extends Migration
                 $table->unsignedBigInteger('verified_by')->nullable()->comment('ID User legal yang memverifikasi dokumen');
                 $table->timestamp('verified_at')->nullable()->comment('Waktu verifikasi dokumen');
                 $table->text('verification_notes')->nullable()->comment('Catatan hasil verifikasi dokumen');
+                $table->text('notes')->nullable()->comment('Catatan keterangan per dokumen');
                 $table->timestamps();
             });
         }

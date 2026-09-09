@@ -85,6 +85,7 @@ class VendorRegistrationService
                         'file_size' => $file->getSize(),
                         'file_mime' => $file->getMimeType(),
                         'verification_status' => 'PENDING',
+                        'notes' => $data["{$fileKey}_notes"] ?? $data[strtolower($docType) . '_notes'] ?? null,
                     ]);
 
                     $processedDocTypes[] = $docType;

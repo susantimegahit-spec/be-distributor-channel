@@ -162,6 +162,7 @@ class VendorLegalApprovalService
                 $vendor->documents()->whereIn('document_type', $documentTypes)->update([
                     'verification_status' => 'NEEDS_REVISION',
                     'verification_notes' => $revisionNotes,
+                    'notes' => $revisionNotes,
                 ]);
             }
 
@@ -196,6 +197,7 @@ class VendorLegalApprovalService
                 'verified_by' => $actorId,
                 'verified_at' => $now,
                 'verification_notes' => $notes,
+                'notes' => $notes,
             ]);
 
             // Catat riwayat audit approval untuk dokumen ini

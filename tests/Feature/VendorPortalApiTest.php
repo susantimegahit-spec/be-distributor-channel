@@ -246,9 +246,11 @@ class VendorPortalApiTest extends TestCase
                     'id' => $doc->id,
                     'verification_status' => 'VALID',
                     'verification_notes' => 'NIB document is verified and valid.',
+                    'notes' => 'NIB document is verified and valid.',
                 ],
             ]);
 
         $this->assertEquals('VALID', $doc->fresh()->verification_status);
+        $this->assertEquals('NIB document is verified and valid.', $doc->fresh()->notes);
     }
 }

@@ -30,6 +30,7 @@ class VendorDocument extends Model
         'verified_by',
         'verified_at',
         'verification_notes',
+        'notes',
     ];
 
     protected $casts = [
@@ -39,7 +40,16 @@ class VendorDocument extends Model
 
     protected $appends = [
         'file_url',
+        'notes',
     ];
+
+    /**
+     * Get notes per document with fallback to verification_notes.
+     */
+    public function getNotesAttribute(): ?string
+    {
+        return $this->attributes['notes'] ?? ($this->attributes['verification_notes'] ?? null);
+    }
 
     /**
      * Get the public asset URL for the uploaded document file.

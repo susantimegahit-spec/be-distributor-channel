@@ -13900,18 +13900,47 @@ paths:
                   type: string
                   format: binary
                   description: Berkas Akta Pendirian / Perubahan (PDF/JPG/PNG, Max 10MB)
+                akta_notes:
+                  type: string
+                  description: Catatan / keterangan terkait berkas Akta
+                  example: Salinan akta perubahan direksi tahun 2025
                 nib:
                   type: string
                   format: binary
                   description: Berkas NIB / Izin Usaha (PDF/JPG/PNG, Max 10MB)
+                nib_notes:
+                  type: string
+                  description: Catatan / keterangan terkait berkas NIB
+                  example: NIB OSS RBA terbitan BKPM
                 npwp:
                   type: string
                   format: binary
                   description: Berkas NPWP Perusahaan (PDF/JPG/PNG, Max 10MB)
+                npwp_notes:
+                  type: string
+                  description: Catatan / keterangan terkait berkas NPWP
+                  example: NPWP 16 digit terdaftar di KPP Pratama
                 support:
                   type: string
                   format: binary
                   description: Berkas Dokumen Pendukung (PDF/JPG/PNG, Max 10MB)
+                support_notes:
+                  type: string
+                  description: Catatan / keterangan dokumen pendukung
+                pakta_integritas:
+                  type: string
+                  format: binary
+                  description: Berkas Pakta Integritas yang telah ditandatangani dan bermeterai (PDF/JPG/PNG, Max 10MB)
+                pakta_integritas_notes:
+                  type: string
+                  description: Catatan pakta integritas
+                perjanjian_kerjasama:
+                  type: string
+                  format: binary
+                  description: Berkas Dokumen Perjanjian Kerjasama (PKS) (PDF/JPG/PNG, Max 10MB)
+                perjanjian_kerjasama_notes:
+                  type: string
+                  description: Catatan dokumen perjanjian kerjasama
       responses:
         '201':
           description: Pendaftaran berhasil dikirim dan menunggu verifikasi legal.
@@ -14198,6 +14227,48 @@ paths:
       responses:
         '200':
           description: Status verifikasi dokumen berhasil diperbarui.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Document verification status updated successfully.
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      vendor_id:
+                        type: integer
+                        example: 1
+                      document_type:
+                        type: string
+                        example: NIB
+                      verification_status:
+                        type: string
+                        example: VALID
+                      verified_by:
+                        type: integer
+                        example: 5
+                      verified_at:
+                        type: string
+                        format: date-time
+                        example: "2026-09-09T09:54:00.000000Z"
+                      verification_notes:
+                        type: string
+                        example: NIB berkas terverifikasi asli dan terdaftar di OSS.
+                      notes:
+                        type: string
+                        example: NIB berkas terverifikasi asli dan terdaftar di OSS.
+                      file_url:
+                        type: string
+                        example: https://smesta-dev.susantimegah.com/storage/vendor_documents/VND-202609-0001/nib_oss.pdf
         '404':
           description: Dokumen tidak ditemukan.
         '422':
