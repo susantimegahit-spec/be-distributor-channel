@@ -74,7 +74,7 @@ class VendorRegistrationService
                     $file = $files[$fileKey];
                     $extension = $file->getClientOriginalExtension();
                     $safeFileName = sprintf('%s_%s_%s.%s', strtolower($docType), $vendorCode, Str::random(6), $extension);
-                    $path = $file->storeAs("vendor_documents/{$vendorCode}", $safeFileName, 'local');
+                    $path = $file->storeAs("vendor_documents/{$vendorCode}", $safeFileName, 'public');
 
                     VendorDocument::create([
                         'vendor_id' => $vendor->id,

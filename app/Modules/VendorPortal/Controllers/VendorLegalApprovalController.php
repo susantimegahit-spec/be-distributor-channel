@@ -194,4 +194,31 @@ class VendorLegalApprovalController extends Controller
             'data' => $verified,
         ]);
     }
+
+    /**
+     * Preview berkas dokumen legalitas (Streaming inline PDF / Image).
+     */
+    public function previewDocument($documentId)
+    {
+        $document = VendorDocument::find($documentId);
+        if (!$document) {
+            return response()->json(['success' => false, 'message' => 'Document not found.'], 404);
+        }
+
+        $publicPath = storage_path('app/public/' . $document->file_path);
+        $localPath = storage_path('app/' . $document->file_path);
+
+        $filePath = file_exists($publicPath) ? $publicPath : (file_exists($localPath) ? $localPath : null);
+
+        if (!$filePath || !file_exists($filePath)) {
+            return response()->json(['success' => false, 'message' => 'File not found on server storage.'], 404);
+        }
+
+        $mime = $document->file_mime ?: mime_content_type($filePath);
+
+        return response()->file($filePath, [
+            'Content-Type' => $mime,
+            'Content-Disposition' => 'inline; filename="' . $document->file_name . '"',
+        ]);
+    }
 }

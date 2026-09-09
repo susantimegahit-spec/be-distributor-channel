@@ -37,6 +37,21 @@ class VendorDocument extends Model
         'file_size' => 'integer',
     ];
 
+    protected $appends = [
+        'file_url',
+    ];
+
+    /**
+     * Get the public asset URL for the uploaded document file.
+     */
+    public function getFileUrlAttribute(): ?string
+    {
+        if (!$this->file_path) {
+            return null;
+        }
+        return asset('storage/' . $this->file_path);
+    }
+
     public function vendor()
     {
         return $this->belongsTo(Vendor::class, 'vendor_id');

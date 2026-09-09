@@ -61,6 +61,7 @@ $registerVendorRoutes = function () {
         Route::post('/registrations/{id}/reject', [VendorLegalApprovalController::class, 'reject']);
         Route::post('/registrations/{id}/request-revision', [VendorLegalApprovalController::class, 'requestRevision']);
         Route::post('/documents/{documentId}/verify', [VendorLegalApprovalController::class, 'verifyDocument']);
+        Route::get('/documents/{documentId}/preview', [VendorLegalApprovalController::class, 'previewDocument']);
     });
 };
 
