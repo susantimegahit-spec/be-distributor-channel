@@ -202,23 +202,49 @@ class VendorLegalApprovalController extends Controller
     {
         $document = VendorDocument::find($documentId);
         if (!$document) {
-            return response()->json(['success' => false, 'message' => 'Document not found.'], 404);
+            return response()->json([
+                'success' => false,
+                'message' => "Document with ID {$documentId} not found.",
+            ], 404);
         }
 
-        $publicPath = storage_path('app/public/' . $document->file_path);
-        $localPath = storage_path('app/' . $document->file_path);
+        $cleanPath = ltrim($document->file_path, '/');
+        $filePath = null;
 
-        $filePath = file_exists($publicPath) ? $publicPath : (file_exists($localPath) ? $localPath : null);
+        // Cek kandidat lokasi file pada disk storage server
+        $candidatePaths = [
+            storage_path('app/public/' . $cleanPath),
+            storage_path('app/' . $cleanPath),
+            public_path('storage/' . $cleanPath),
+            public_path($cleanPath),
+        ];
 
-        if (!$filePath || !file_exists($filePath)) {
-            return response()->json(['success' => false, 'message' => 'File not found on server storage.'], 404);
+        foreach ($candidatePaths as $candidate) {
+            if (file_exists($candidate) && is_file($candidate)) {
+                $filePath = $candidate;
+                break;
+            }
         }
 
-        $mime = $document->file_mime ?: mime_content_type($filePath);
+        if (!$filePath) {
+            return response()->json([
+                'success' => false,
+                'message' => "Physical file not found on server storage for document ID {$documentId}.",
+                'file_path' => $document->file_path,
+                'file_url' => $document->file_url,
+            ], 404);
+        }
+
+        $mime = $document->file_mime ?: (@mime_content_type($filePath) ?: 'application/octet-stream');
+        $fileName = $document->file_name ?: basename($filePath);
 
         return response()->file($filePath, [
             'Content-Type' => $mime,
-            'Content-Disposition' => 'inline; filename="' . $document->file_name . '"',
+            'Content-Disposition' => 'inline; filename="' . $fileName . '"',
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Allow-Methods' => 'GET, HEAD, OPTIONS',
+            'Access-Control-Allow-Headers' => '*',
+            'Cache-Control' => 'no-cache, private',
         ]);
     }
 }

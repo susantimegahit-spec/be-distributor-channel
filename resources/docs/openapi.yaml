@@ -14323,6 +14323,38 @@ paths:
         '422':
           description: Validasi input gagal.
 
+  /vendor-management/documents/{documentId}/preview:
+    get:
+      summary: Preview / Stream Berkas Dokumen Legalitas (Inline PDF / Image)
+      description: Menampilkan berkas dokumen legalitas secara streaming inline (PDF atau Image) di tab baru browser atau iframe/modal preview frontend tanpa harus download file.
+      tags:
+        - Vendor Management (Legal)
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Berkas dokumen berhasil di-stream secara inline.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Dokumen tidak ditemukan atau berkas fisik tidak ada di disk storage server.
+
 components:
   securitySchemes:
     BearerAuth:

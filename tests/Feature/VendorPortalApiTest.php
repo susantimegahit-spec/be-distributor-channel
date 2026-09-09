@@ -310,4 +310,46 @@ class VendorPortalApiTest extends TestCase
         $this->assertEquals('PENDING', $doc->fresh()->verification_status);
         $this->assertEquals('PENDING_LEGAL_APPROVAL', $vendor->fresh()->registration_status);
     }
+
+    public function test_preview_document_endpoint_returns_file_stream()
+    {
+        $vendor = Vendor::create([
+            'vendor_code' => 'VND-202609-0006',
+            'vendor_type' => 'EXPEDITION',
+            'company_name' => 'PT Preview Test',
+            'company_email' => 'preview@ekspedisi.com',
+            'pic_name' => 'Eko',
+            'pic_phone' => '081666666',
+            'terms_agreed' => true,
+            'registration_status' => 'PENDING_LEGAL_APPROVAL',
+            'legal_approval_status' => 'PENDING',
+        ]);
+
+        // Create a real temporary test file in storage
+        $testDir = storage_path('app/public/vendor_documents/VND-202609-0006');
+        if (!file_exists($testDir)) {
+            mkdir($testDir, 0755, true);
+        }
+        $testFilePath = $testDir . '/sample.pdf';
+        file_put_contents($testFilePath, '%PDF-1.4 sample test content');
+
+        $doc = \App\Modules\VendorPortal\Models\VendorDocument::create([
+            'vendor_id' => $vendor->id,
+            'document_type' => 'NIB',
+            'document_number' => 'NIB-999',
+            'file_path' => 'vendor_documents/VND-202609-0006/sample.pdf',
+            'file_name' => 'sample.pdf',
+            'file_mime' => 'application/pdf',
+            'verification_status' => 'PENDING',
+        ]);
+
+        $response = $this->get("/api/distributor-channel/v1/vendor-management/documents/{$doc->id}/preview");
+
+        $response->assertStatus(200);
+        $response->assertHeader('Content-Type', 'application/pdf');
+
+        // Cleanup test file
+        @unlink($testFilePath);
+        @rmdir($testDir);
+    }
 }
