@@ -13815,6 +13815,50 @@ paths:
         '200':
           description: Daftar Task Type berhasil diambil.
 
+  /customer-monthly-orders/{id}/post-to-so:
+    post:
+      summary: Post Customer Monthly Order (CMO) to Sales Order
+      description: Memproses CMO dari status DRAFT menjadi POSTED dan membuat Sales Order baru dengan status WAITING_OM. Mendukung pengiriman eta_date atau request_delivery_date / doc_due_date dari frontend untuk memperbarui tanggal permintaan pengiriman distributor pada CMO dan Sales Order yang terbentuk.
+      tags:
+        - Customer Monthly Order (CMO)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 26
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                eta_date:
+                  type: string
+                  format: date
+                  description: Tanggal estimasi tiba / jadwal pengiriman baru yang diajukan distributor
+                  example: "2026-09-26"
+                doc_due_date:
+                  type: string
+                  format: date
+                  description: Tanggal pengiriman yang diminta (Request Delivery Date)
+                  example: "2026-09-26"
+                request_delivery_date:
+                  type: string
+                  format: date
+                  description: Alias untuk doc_due_date
+                  example: "2026-09-26"
+      responses:
+        '201':
+          description: Customer monthly order berhasil diposting ke Sales Order dengan status WAITING_OM.
+        '400':
+          description: Validasi gagal atau order sudah diposting sebelumnya.
+        '404':
+          description: Customer monthly order tidak ditemukan.
+
   /vendor-portal/ping:
     get:
       summary: Health Check / Connectivity Test Vendor Portal API

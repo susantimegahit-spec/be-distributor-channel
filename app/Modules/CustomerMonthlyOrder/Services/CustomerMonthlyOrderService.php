@@ -256,10 +256,11 @@ class CustomerMonthlyOrderService
      * @param  int  $id
      * @param  int  $userId
      * @param  int|null  $distributorId
+     * @param  array  $overrides
      * @return SalesOrder
      * @throws \Exception
      */
-    public function postToSalesOrder(int $id, int $userId, ?int $distributorId = null): SalesOrder
+    public function postToSalesOrder(int $id, int $userId, ?int $distributorId = null, array $overrides = []): SalesOrder
     {
         $order = $this->getOrderById($id, $distributorId);
         if (!$order) {
@@ -270,9 +271,29 @@ class CustomerMonthlyOrderService
             throw new \Exception('Customer monthly order ini sudah pernah diposting sebelumnya.');
         }
 
-        return DB::transaction(function () use ($order, $userId) {
+        return DB::transaction(function () use ($order, $userId, $overrides) {
+            // Check if eta_date or request_delivery_date / doc_due_date is provided by frontend
+            $etaDate = $overrides['eta_date'] ?? null;
+            $deliveryDate = $overrides['request_delivery_date']
+                ?? $overrides['requested_delivery_date']
+                ?? $overrides['doc_due_date']
+                ?? $overrides['delivery_date']
+                ?? $etaDate;
+
+            $cmoUpdates = ['status' => 'POSTED'];
+
+            if (!empty($etaDate)) {
+                $cmoUpdates['eta_date'] = $etaDate;
+            }
+            if (!empty($deliveryDate)) {
+                $cmoUpdates['doc_due_date'] = $deliveryDate;
+            }
+
+            // Update the CMO Status to POSTED and update eta_date & doc_due_date if provided
+            $order->update($cmoUpdates);
+
             // 1. Prepare Sales Order Header Data
-            $cmoAttributes = $order->getAttributes();
+            $cmoAttributes = $order->fresh()->getAttributes();
             $soColumns = \Illuminate\Support\Facades\Schema::getColumnListing('sales_orders');
             
             $soData = [];
@@ -294,6 +315,13 @@ class CustomerMonthlyOrderService
             $soData['customer_monthly_order_id'] = $order->id; // Link SO back to its source CMO
             $soData['created_by'] = $userId;
             $soData['updated_by'] = $userId;
+
+            if (!empty($etaDate)) {
+                $soData['eta_date'] = $etaDate;
+            }
+            if (!empty($deliveryDate)) {
+                $soData['doc_due_date'] = $deliveryDate;
+            }
 
             // 2. Prepare Sales Order Details
             $soLineColumns = \Illuminate\Support\Facades\Schema::getColumnListing('sales_order_details');
