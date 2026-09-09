@@ -21,8 +21,8 @@ class LegalRejectRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'rejection_reason.required' => 'Alasan penolakan legal wajib diisi.',
-            'rejection_reason.min' => 'Alasan penolakan minimal 5 karakter.',
+            'rejection_reason.required' => 'Legal rejection reason is required.',
+            'rejection_reason.min' => 'Rejection reason must be at least 5 characters.',
         ];
     }
 }

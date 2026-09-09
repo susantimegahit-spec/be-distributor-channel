@@ -42,15 +42,15 @@ class RegisterVendorRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'vendor_type.required' => 'Tipe vendor wajib dipilih (misal: expedition atau distributor).',
-            'company_name.required' => 'Nama perusahaan wajib diisi.',
-            'company_email.required' => 'Email perusahaan wajib diisi.',
-            'company_email.email' => 'Format email perusahaan tidak valid.',
-            'pic_name.required' => 'Nama PIC wajib diisi.',
-            'pic_phone.required' => 'Nomor telepon PIC wajib diisi.',
-            'terms_agreed.required' => 'Persetujuan syarat dan kebijakan kemitraan wajib dicentang.',
-            '*.max' => 'Ukuran berkas dokumen maksimal 10 MB per file.',
-            '*.mimes' => 'Format berkas harus berupa PDF, JPG, JPEG, atau PNG.',
+            'vendor_type.required' => 'Vendor type is required (e.g. expedition or distributor).',
+            'company_name.required' => 'Company name is required.',
+            'company_email.required' => 'Company email is required.',
+            'company_email.email' => 'Company email must be a valid email address.',
+            'pic_name.required' => 'PIC name is required.',
+            'pic_phone.required' => 'PIC phone number is required.',
+            'terms_agreed.required' => 'Partnership terms and conditions must be accepted.',
+            '*.max' => 'Document file size may not exceed 10 MB per file.',
+            '*.mimes' => 'Document file format must be PDF, JPG, JPEG, or PNG.',
         ];
     }
 }

@@ -70,7 +70,7 @@ class VendorLegalApprovalController extends Controller
         $vendor = Vendor::with(['documents', 'users', 'approvalHistories', 'legalApprover'])->find($id);
 
         if (!$vendor) {
-            return response()->json(['success' => false, 'message' => 'Vendor tidak ditemukan.'], 404);
+            return response()->json(['success' => false, 'message' => 'Vendor not found.'], 404);
         }
 
         return response()->json([
@@ -86,13 +86,13 @@ class VendorLegalApprovalController extends Controller
     {
         $vendor = Vendor::find($id);
         if (!$vendor) {
-            return response()->json(['success' => false, 'message' => 'Vendor tidak ditemukan.'], 404);
+            return response()->json(['success' => false, 'message' => 'Vendor not found.'], 404);
         }
 
         if ($vendor->registration_status === 'APPROVED') {
             return response()->json([
                 'success' => false,
-                'message' => 'Vendor ini sudah disetujui sebelumnya.',
+                'message' => 'This vendor has already been approved.',
             ], 422);
         }
 
@@ -100,7 +100,7 @@ class VendorLegalApprovalController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Pendaftaran vendor berhasil disetujui. Kredensial akun login telah digenerate dan dikirimkan ke email vendor.',
+            'message' => 'Vendor registration approved successfully. Login credentials have been generated and dispatched.',
             'data' => [
                 'vendor_code' => $result['vendor']->vendor_code,
                 'company_name' => $result['vendor']->company_name,
@@ -119,14 +119,14 @@ class VendorLegalApprovalController extends Controller
     {
         $vendor = Vendor::find($id);
         if (!$vendor) {
-            return response()->json(['success' => false, 'message' => 'Vendor tidak ditemukan.'], 404);
+            return response()->json(['success' => false, 'message' => 'Vendor not found.'], 404);
         }
 
         $rejectedVendor = $this->approvalService->reject($vendor, $request->user(), $request->input('rejection_reason'));
 
         return response()->json([
             'success' => true,
-            'message' => 'Pendaftaran vendor berhasil ditolak.',
+            'message' => 'Vendor registration rejected successfully.',
             'data' => [
                 'vendor_code' => $rejectedVendor->vendor_code,
                 'registration_status' => $rejectedVendor->registration_status,
@@ -142,7 +142,7 @@ class VendorLegalApprovalController extends Controller
     {
         $vendor = Vendor::find($id);
         if (!$vendor) {
-            return response()->json(['success' => false, 'message' => 'Vendor tidak ditemukan.'], 404);
+            return response()->json(['success' => false, 'message' => 'Vendor not found.'], 404);
         }
 
         $revisedVendor = $this->approvalService->requestRevision(
@@ -154,7 +154,7 @@ class VendorLegalApprovalController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Instruksi revisi dokumen berhasil dikirim ke vendor.',
+            'message' => 'Document revision request sent successfully to vendor.',
             'data' => [
                 'vendor_code' => $revisedVendor->vendor_code,
                 'registration_status' => $revisedVendor->registration_status,

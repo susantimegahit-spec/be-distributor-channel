@@ -31,7 +31,7 @@ class VendorAuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Login vendor berhasil.',
+            'message' => 'Vendor login successful.',
             'data' => $result,
         ]);
     }
@@ -74,7 +74,7 @@ class VendorAuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Berhasil logout dari vendor portal.',
+            'message' => 'Successfully logged out from vendor portal.',
         ]);
     }
 }

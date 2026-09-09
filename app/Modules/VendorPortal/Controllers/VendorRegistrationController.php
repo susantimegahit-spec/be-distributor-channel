@@ -31,9 +31,9 @@ class VendorRegistrationController extends Controller
         if ($existing) {
             return response()->json([
                 'success' => false,
-                'message' => 'Email perusahaan ini sudah terdaftar dalam sistem vendor.',
+                'message' => 'Company email is already registered in the vendor system.',
                 'errors' => [
-                    'company_email' => ['Email perusahaan sudah digunakan oleh vendor dengan kode ' . $existing->vendor_code],
+                    'company_email' => ['Company email is already in use by vendor with code ' . $existing->vendor_code],
                 ],
             ], 422);
         }
@@ -42,7 +42,7 @@ class VendorRegistrationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Pendaftaran vendor berhasil dikirim. Menunggu verifikasi dokumen legalitas dari tim legal PT Susanti Megah.',
+            'message' => 'Vendor registration submitted successfully. Pending legal document verification by PT Susanti Megah legal team.',
             'data' => [
                 'vendor_code' => $vendor->vendor_code,
                 'company_name' => $vendor->company_name,
@@ -62,7 +62,7 @@ class VendorRegistrationController extends Controller
     {
         $email = strtolower(trim($request->query('email', '')));
         if (!$email) {
-            return response()->json(['available' => false, 'message' => 'Email parameter is required'], 400);
+            return response()->json(['available' => false, 'message' => 'Email parameter is required.'], 400);
         }
 
         $exists = Vendor::where('company_email', $email)->exists();
@@ -70,7 +70,7 @@ class VendorRegistrationController extends Controller
         return response()->json([
             'available' => !$exists,
             'email' => $email,
-            'message' => $exists ? 'Email sudah terdaftar' : 'Email tersedia',
+            'message' => $exists ? 'Email is already registered.' : 'Email is available.',
         ]);
     }
 }

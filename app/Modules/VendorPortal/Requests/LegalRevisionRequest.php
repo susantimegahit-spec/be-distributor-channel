@@ -22,8 +22,8 @@ class LegalRevisionRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'revision_notes.required' => 'Instruksi revisi dokumen wajib diisi.',
-            'revision_notes.min' => 'Instruksi revisi minimal 5 karakter.',
+            'revision_notes.required' => 'Document revision instructions are required.',
+            'revision_notes.min' => 'Revision instructions must be at least 5 characters.',
         ];
     }
 }

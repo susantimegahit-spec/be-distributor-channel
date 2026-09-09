@@ -18,7 +18,7 @@ class VendorAuthService
 
         if (!$user || !Hash::check($password, $user->password)) {
             throw ValidationException::withMessages([
-                'email' => ['Kombinasi email dan password vendor tidak cocok.'],
+                'email' => ['The provided email and password combination is incorrect.'],
             ]);
         }
 
@@ -26,19 +26,19 @@ class VendorAuthService
 
         if (!$vendor || $vendor->registration_status !== 'APPROVED') {
             throw ValidationException::withMessages([
-                'email' => ['Pendaftaran akun vendor Anda masih dalam proses verifikasi tim legal atau belum disetujui.'],
+                'email' => ['Your vendor registration is still pending verification by the legal team or has not been approved.'],
             ]);
         }
 
         if ($user->status !== 'ACTIVE') {
             throw ValidationException::withMessages([
-                'email' => ['Akun vendor Anda telah dinonaktifkan. Silakan hubungi administrator.'],
+                'email' => ['Your vendor account has been deactivated. Please contact the administrator.'],
             ]);
         }
 
         if ($vendorType && strtolower(trim($vendorType)) !== strtolower($vendor->vendor_type)) {
             throw ValidationException::withMessages([
-                'vendor_type' => ["Akun ini terdaftar sebagai tipe vendor {$vendor->vendor_type}, bukan {$vendorType}."],
+                'vendor_type' => ["This account is registered under vendor type {$vendor->vendor_type}, not {$vendorType}."],
             ]);
         }
 

@@ -98,8 +98,8 @@ class VendorRegistrationService
                 'from_status' => 'DRAFT',
                 'to_status' => 'PENDING_LEGAL_APPROVAL',
                 'actor_id' => null,
-                'actor_name' => $vendor->pic_name . ' (Calon Mitra)',
-                'notes' => 'Pendaftaran vendor berhasil dikirim. Menunggu verifikasi dokumen oleh tim legal.',
+                'actor_name' => $vendor->pic_name . ' (Prospective Partner)',
+                'notes' => 'Vendor registration submitted successfully. Pending legal document verification.',
                 'created_at' => Carbon::now(),
             ]);
 

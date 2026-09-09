@@ -28,8 +28,8 @@ class VendorLegalApprovalService
         return DB::connection($conn)->transaction(function () use ($vendor, $legalUser, $options) {
             $now = Carbon::now();
             $actorId = $legalUser?->id;
-            $actorName = $legalUser?->name ?? 'Tim Legal PT Susanti Megah';
-            $legalNotes = $options['legal_notes'] ?? 'Dokumen legalitas telah diverifikasi lengkap dan disetujui.';
+            $actorName = $legalUser?->name ?? 'PT Susanti Megah Legal Team';
+            $legalNotes = $options['legal_notes'] ?? 'Legal documents verified and approved.';
 
             // 1. Update status vendor
             $vendor->update([
@@ -84,7 +84,7 @@ class VendorLegalApprovalService
                 'to_status' => 'APPROVED',
                 'actor_id' => $actorId,
                 'actor_name' => $actorName,
-                'notes' => $legalNotes . ' Akun login vendor berhasil digenerate.',
+                'notes' => $legalNotes . ' Vendor login credentials generated successfully.',
                 'created_at' => $now,
             ]);
 
@@ -110,7 +110,7 @@ class VendorLegalApprovalService
         return DB::connection($conn)->transaction(function () use ($vendor, $legalUser, $rejectionReason) {
             $now = Carbon::now();
             $actorId = $legalUser?->id;
-            $actorName = $legalUser?->name ?? 'Tim Legal PT Susanti Megah';
+            $actorName = $legalUser?->name ?? 'PT Susanti Megah Legal Team';
 
             $fromStatus = $vendor->registration_status;
 
@@ -129,7 +129,7 @@ class VendorLegalApprovalService
                 'to_status' => 'REJECTED',
                 'actor_id' => $actorId,
                 'actor_name' => $actorName,
-                'notes' => 'Pendaftaran vendor ditolak. Alasan: ' . $rejectionReason,
+                'notes' => 'Vendor registration rejected. Reason: ' . $rejectionReason,
                 'created_at' => $now,
             ]);
 
@@ -146,7 +146,7 @@ class VendorLegalApprovalService
         return DB::connection($conn)->transaction(function () use ($vendor, $legalUser, $revisionNotes, $documentTypes) {
             $now = Carbon::now();
             $actorId = $legalUser?->id;
-            $actorName = $legalUser?->name ?? 'Tim Legal PT Susanti Megah';
+            $actorName = $legalUser?->name ?? 'PT Susanti Megah Legal Team';
 
             $fromStatus = $vendor->registration_status;
 
@@ -171,7 +171,7 @@ class VendorLegalApprovalService
                 'to_status' => 'REVISION_REQUIRED',
                 'actor_id' => $actorId,
                 'actor_name' => $actorName,
-                'notes' => 'Permintaan revisi dokumen diajukan oleh tim legal: ' . $revisionNotes,
+                'notes' => 'Document revision requested by legal team: ' . $revisionNotes,
                 'created_at' => $now,
             ]);
 
