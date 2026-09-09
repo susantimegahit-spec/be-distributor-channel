@@ -43,6 +43,7 @@ return new class extends Migration
                 $table->string('company_name', 200)->comment('Nama Resmi Perusahaan');
                 $table->string('company_email', 150)->index()->comment('Email Resmi Perusahaan');
                 $table->string('company_phone', 50)->nullable()->comment('Nomor Telepon Kantor');
+                $table->string('company_npwp', 50)->nullable()->comment('Nomor Pokok Wajib Pajak (NPWP) Perusahaan');
                 $table->text('address')->nullable()->comment('Alamat Domisili Perusahaan');
                 $table->string('city', 100)->nullable()->comment('Kota / Kabupaten');
                 $table->string('province', 100)->nullable()->comment('Provinsi');

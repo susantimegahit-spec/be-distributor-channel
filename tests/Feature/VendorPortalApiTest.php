@@ -38,6 +38,7 @@ class VendorPortalApiTest extends TestCase
             'company_name' => 'PT Cepat Aman Logistik',
             'company_email' => 'contact@cepataman.com',
             'company_phone' => '021-5551234',
+            'company_npwp' => '01.234.567.8-901.000',
             'address' => 'Jl. Daan Mogot KM 12',
             'city' => 'Jakarta Barat',
             'province' => 'DKI Jakarta',
@@ -58,6 +59,7 @@ class VendorPortalApiTest extends TestCase
                 'success' => true,
                 'data' => [
                     'company_name' => 'PT Cepat Aman Logistik',
+                    'company_npwp' => '01.234.567.8-901.000',
                     'vendor_type' => 'EXPEDITION',
                     'registration_status' => 'PENDING_LEGAL_APPROVAL',
                     'uploaded_documents_count' => 4,
@@ -67,6 +69,7 @@ class VendorPortalApiTest extends TestCase
         $conn = config('database.default') === 'sqlite' ? 'sqlite' : 'pgsql_vendor';
         $this->assertDatabaseHas('vendors', [
             'company_email' => 'contact@cepataman.com',
+            'company_npwp' => '01.234.567.8-901.000',
             'vendor_type' => 'EXPEDITION',
             'registration_status' => 'PENDING_LEGAL_APPROVAL',
         ], $conn);

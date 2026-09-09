@@ -25,6 +25,7 @@ class Vendor extends Model
         'company_name',
         'company_email',
         'company_phone',
+        'company_npwp',
         'address',
         'city',
         'province',

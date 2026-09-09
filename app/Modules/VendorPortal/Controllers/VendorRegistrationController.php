@@ -46,6 +46,7 @@ class VendorRegistrationController extends Controller
             'data' => [
                 'vendor_code' => $vendor->vendor_code,
                 'company_name' => $vendor->company_name,
+                'company_npwp' => $vendor->company_npwp,
                 'vendor_type' => $vendor->vendor_type,
                 'registration_status' => $vendor->registration_status,
                 'uploaded_documents_count' => $vendor->documents->count(),

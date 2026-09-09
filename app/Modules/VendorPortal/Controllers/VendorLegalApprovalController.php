@@ -42,6 +42,7 @@ class VendorLegalApprovalController extends Controller
                 $q->where('company_name', 'ILIKE', $search)
                   ->orWhere('vendor_code', 'ILIKE', $search)
                   ->orWhere('company_email', 'ILIKE', $search)
+                  ->orWhere('company_npwp', 'ILIKE', $search)
                   ->orWhere('pic_name', 'ILIKE', $search);
             });
         }

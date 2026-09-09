@@ -41,6 +41,7 @@ class VendorRegistrationService
                 'company_name' => trim($data['company_name']),
                 'company_email' => strtolower(trim($data['company_email'])),
                 'company_phone' => $data['company_phone'] ?? null,
+                'company_npwp' => $data['company_npwp'] ?? null,
                 'address' => $data['address'] ?? null,
                 'city' => $data['city'] ?? null,
                 'province' => $data['province'] ?? null,
