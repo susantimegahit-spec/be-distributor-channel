@@ -13965,6 +13965,55 @@ paths:
         '200':
           description: Status ketersediaan email berhasil diperiksa.
 
+  /vendor-portal/documents/{documentId}/reupload:
+    post:
+      summary: Upload Ulang Berkas Dokumen Revisi oleh Vendor
+      description: Mengunggah berkas pengganti untuk dokumen yang diminta revisi (status NEEDS_REVISION) oleh tim legal. File lama akan digantikan, status dokumen di-reset menjadi PENDING, dan riwayat revisi dicatat.
+      tags:
+        - Vendor Portal
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - vendor_code
+                - file
+              properties:
+                vendor_code:
+                  type: string
+                  description: Kode vendor resmi (contoh VND-202609-0001) untuk verifikasi otorisasi
+                  example: VND-202609-0001
+                file:
+                  type: string
+                  format: binary
+                  description: Berkas dokumen pengganti baru (PDF/JPG/PNG, Max 10MB)
+                notes:
+                  type: string
+                  description: Catatan klarifikasi / perbaikan dari pihak vendor
+                  example: Berkas scan akta perubahan direksi asli telah diunggah ulang lembar 1-5.
+                document_number:
+                  type: string
+                  description: Nomor identitas dokumen jika ada perubahan
+                  example: AHU-001234.AH.01.02.TAHUN 2025
+      responses:
+        '200':
+          description: Dokumen revisi berhasil diunggah ulang dan kembali ke antrean verifikasi legal.
+        '403':
+          description: Vendor code tidak cocok dengan kepemilikan dokumen.
+        '404':
+          description: Dokumen tidak ditemukan.
+        '422':
+          description: Validasi berkas gagal atau vendor sudah disetujui.
+
   /vendor-portal/login:
     post:
       summary: Otentikasi Login Vendor Portal

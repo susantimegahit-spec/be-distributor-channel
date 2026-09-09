@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\VendorPortal\Requests\RegisterVendorRequest;
 use App\Modules\VendorPortal\Services\VendorRegistrationService;
 use App\Modules\VendorPortal\Models\Vendor;
+use App\Modules\VendorPortal\Models\VendorDocument;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -71,6 +72,59 @@ class VendorRegistrationController extends Controller
             'available' => !$exists,
             'email' => $email,
             'message' => $exists ? 'Email is already registered.' : 'Email is available.',
+        ]);
+    }
+
+    /**
+     * Endpoint publik untuk mengunggah ulang dokumen revisi.
+     */
+    public function reuploadDocument(Request $request, $documentId): JsonResponse
+    {
+        $request->validate([
+            'vendor_code' => 'required|string',
+            'file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'notes' => 'nullable|string|max:1000',
+            'document_number' => 'nullable|string|max:100',
+        ], [
+            'vendor_code.required' => 'Vendor code is required.',
+            'file.required' => 'Replacement document file is required.',
+            'file.mimes' => 'Document file must be a PDF, JPG, JPEG, or PNG.',
+            'file.max' => 'Document file size must not exceed 10MB.',
+        ]);
+
+        $document = VendorDocument::with('vendor')->find($documentId);
+        if (!$document) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Document not found.',
+            ], 404);
+        }
+
+        if (!$document->vendor || strtoupper(trim($document->vendor->vendor_code)) !== strtoupper(trim($request->input('vendor_code')))) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid vendor code or unauthorized document access.',
+            ], 403);
+        }
+
+        if ($document->vendor->registration_status === 'APPROVED') {
+            return response()->json([
+                'success' => false,
+                'message' => 'This vendor has already been approved. Document replacement is not allowed.',
+            ], 422);
+        }
+
+        $reuploadedDoc = $this->registrationService->reuploadDocument(
+            $document,
+            $request->file('file'),
+            $request->input('notes'),
+            $request->input('document_number')
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Document re-uploaded successfully. Pending legal document verification.',
+            'data' => $reuploadedDoc,
         ]);
     }
 }

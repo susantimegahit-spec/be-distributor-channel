@@ -253,4 +253,54 @@ class VendorPortalApiTest extends TestCase
         $this->assertEquals('VALID', $doc->fresh()->verification_status);
         $this->assertEquals('NIB document is verified and valid.', $doc->fresh()->notes);
     }
+
+    public function test_vendor_can_reupload_revised_document()
+    {
+        Storage::fake('public');
+
+        $vendor = Vendor::create([
+            'vendor_code' => 'VND-202609-0005',
+            'vendor_type' => 'EXPEDITION',
+            'company_name' => 'PT Reupload Test',
+            'company_email' => 'reupload@ekspedisi.com',
+            'pic_name' => 'Candra',
+            'pic_phone' => '081555555',
+            'terms_agreed' => true,
+            'registration_status' => 'REVISION_REQUIRED',
+            'legal_approval_status' => 'REVISION',
+        ]);
+
+        $doc = \App\Modules\VendorPortal\Models\VendorDocument::create([
+            'vendor_id' => $vendor->id,
+            'document_type' => 'AKTA',
+            'document_number' => 'AKTA-001',
+            'file_path' => 'vendor_documents/old_akta.pdf',
+            'file_name' => 'old_akta.pdf',
+            'verification_status' => 'NEEDS_REVISION',
+            'notes' => 'Please upload the latest amendment page.',
+        ]);
+
+        $newFile = UploadedFile::fake()->create('akta_perubahan_2026.pdf', 500, 'application/pdf');
+
+        $response = $this->postJson("/api/distributor-channel/v1/vendor-portal/documents/{$doc->id}/reupload", [
+            'vendor_code' => 'VND-202609-0005',
+            'file' => $newFile,
+            'notes' => 'Uploaded the latest 2026 amendment page.',
+            'document_number' => 'AKTA-001-REV',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'id' => $doc->id,
+                    'verification_status' => 'PENDING',
+                    'notes' => 'Uploaded the latest 2026 amendment page.',
+                    'document_number' => 'AKTA-001-REV',
+                ],
+            ]);
+
+        $this->assertEquals('PENDING', $doc->fresh()->verification_status);
+        $this->assertEquals('PENDING_LEGAL_APPROVAL', $vendor->fresh()->registration_status);
+    }
 }

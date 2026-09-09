@@ -44,6 +44,7 @@ $registerVendorRoutes = function () {
         // Public Vendor Onboarding & Auth Endpoints
         Route::post('/register', [VendorRegistrationController::class, 'register']);
         Route::get('/check-email', [VendorRegistrationController::class, 'checkEmail']);
+        Route::post('/documents/{documentId}/reupload', [VendorRegistrationController::class, 'reuploadDocument']);
         Route::post('/login', [VendorAuthController::class, 'login']);
 
         // Authenticated Vendor Endpoints

@@ -107,4 +107,65 @@ class VendorRegistrationService
             return $vendor->load('documents');
         });
     }
+
+    /**
+     * Mengunggah ulang berkas dokumen yang diminta revisi oleh tim legal.
+     */
+    public function reuploadDocument(VendorDocument $document, $file, ?string $notes = null, ?string $documentNumber = null): VendorDocument
+    {
+        $conn = config('database.default') === 'sqlite' ? 'sqlite' : 'pgsql_vendor';
+        return DB::connection($conn)->transaction(function () use ($document, $file, $notes, $documentNumber) {
+            $vendor = $document->vendor;
+            $vendorCode = $vendor->vendor_code;
+            $docType = $document->document_type;
+
+            // Hapus file lama jika ada di disk public
+            if ($document->file_path && Storage::disk('public')->exists($document->file_path)) {
+                Storage::disk('public')->delete($document->file_path);
+            }
+
+            $extension = $file->getClientOriginalExtension();
+            $safeFileName = sprintf('%s_%s_%s.%s', strtolower($docType), $vendorCode, Str::random(6), $extension);
+            $path = $file->storeAs("vendor_documents/{$vendorCode}", $safeFileName, 'public');
+
+            $document->update([
+                'file_path' => $path,
+                'file_name' => $file->getClientOriginalName(),
+                'file_size' => $file->getSize(),
+                'file_mime' => $file->getMimeType(),
+                'document_number' => $documentNumber ?? $document->document_number,
+                'verification_status' => 'PENDING',
+                'notes' => $notes ?? $document->notes,
+                'verified_by' => null,
+                'verified_at' => null,
+            ]);
+
+            // Jika tidak ada lagi dokumen yang berstatus NEEDS_REVISION, kembalikan status vendor ke PENDING_LEGAL_APPROVAL
+            $hasUnresolvedRevision = $vendor->documents()
+                ->where('id', '!=', $document->id)
+                ->where('verification_status', 'NEEDS_REVISION')
+                ->exists();
+
+            if (!$hasUnresolvedRevision && in_array($vendor->registration_status, ['REVISION_REQUIRED', 'PENDING_LEGAL_APPROVAL'])) {
+                $vendor->update([
+                    'registration_status' => 'PENDING_LEGAL_APPROVAL',
+                    'legal_approval_status' => 'PENDING',
+                ]);
+            }
+
+            // Catat Riwayat Audit Re-upload
+            VendorApprovalHistory::create([
+                'vendor_id' => $vendor->id,
+                'action' => 'DOCUMENT_REUPLOADED',
+                'from_status' => 'REVISION_REQUIRED',
+                'to_status' => $vendor->registration_status,
+                'actor_id' => null,
+                'actor_name' => $vendor->pic_name . ' (Vendor Partner)',
+                'notes' => "Document {$docType} re-uploaded." . ($notes ? " Notes: {$notes}" : ''),
+                'created_at' => Carbon::now(),
+            ]);
+
+            return $document->fresh();
+        });
+    }
 }

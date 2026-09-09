@@ -218,7 +218,38 @@ Mencatat histori pengiriman akun login ke mitra setelah disetujui:
   }
   ```
 
-#### 3. Login Akun Vendor
+#### 3. Upload Ulang Berkas Dokumen Revisi (Re-Upload Per Berkas)
+Digunakan oleh calon vendor untuk mengunggah berkas pengganti yang diminta revisi (`NEEDS_REVISION`) oleh tim legal. File lama akan ditimpa, status dokumen di-reset ke `PENDING`, dan status registrasi vendor kembali ke `PENDING_LEGAL_APPROVAL`.
+
+- **Method & Path:** `POST /api/distributor-channel/v1/vendor-portal/documents/{documentId}/reupload` (atau tanpa `/v1/`)
+- **Content-Type:** `multipart/form-data`
+- **Request Parameters:**
+  | Field | Tipe | Wajib | Keterangan |
+  |:---|:---:|:---:|:---|
+  | `vendor_code` | string | Ya | Kode vendor resmi calon mitra (contoh: `VND-202609-0001`) |
+  | `file` | file | Ya | Berkas perbaikan baru (PDF/JPG/PNG, Max 10MB) |
+  | `notes` | string | Tidak | Catatan klarifikasi / perbaikan dari vendor |
+  | `document_number` | string | Tidak | Nomor dokumen legalitas jika ada koreksi nomor |
+- **Response `200 OK`:**
+  ```json
+  {
+    "success": true,
+    "message": "Document re-uploaded successfully. Pending legal document verification.",
+    "data": {
+      "id": 1,
+      "vendor_id": 1,
+      "document_type": "AKTA",
+      "document_number": "AKTA-001-REV",
+      "file_name": "akta_perubahan_2026.pdf",
+      "file_url": "https://smesta-dev.susantimegah.com/storage/vendor_documents/VND-202609-0001/akta_VND-202609-0001_abc123.pdf",
+      "verification_status": "PENDING",
+      "notes": "Berkas akta lembar perubahan direksi 2025 telah diunggah ulang.",
+      "verification_notes": null
+    }
+  }
+  ```
+
+#### 4. Login Akun Vendor
 - **Method & Path:** `POST /api/distributor-channel/vendor-portal/login`
 - **Request JSON:**
   ```json
