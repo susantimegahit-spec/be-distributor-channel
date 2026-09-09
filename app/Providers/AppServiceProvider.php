@@ -197,8 +197,9 @@ class AppServiceProvider extends ServiceProvider
                 \Spatie\Health\Checks\Checks\EnvironmentCheck::new(),
                 \Spatie\Health\Checks\Checks\PingCheck::new()
                     ->name('SAP B1 API Service')
-                    ->url(env('SAP_API_URL', 'http://103.18.133.187:3100'))
-                    ->timeout(3),
+                    ->url(rtrim(env('SAP_API_URL', 'http://103.18.133.187:3100'), '/') . '/api/ListItem')
+                    ->method('POST')
+                    ->timeout(5),
             ]);
         }
 
