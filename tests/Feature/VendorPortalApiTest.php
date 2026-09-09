@@ -210,4 +210,45 @@ class VendorPortalApiTest extends TestCase
         $this->assertEquals('REJECTED', $rejectedVendor->legal_approval_status);
         $this->assertEquals('Perusahaan tidak memiliki NIB valid.', $rejectedVendor->legal_notes);
     }
+
+    public function test_legal_team_can_verify_individual_document()
+    {
+        $vendor = Vendor::create([
+            'vendor_code' => 'VND-202609-0004',
+            'vendor_type' => 'EXPEDITION',
+            'company_name' => 'PT Mitra Terverifikasi',
+            'company_email' => 'verified@ekspedisi.com',
+            'pic_name' => 'Bambang',
+            'pic_phone' => '081222222',
+            'terms_agreed' => true,
+            'registration_status' => 'PENDING_LEGAL_APPROVAL',
+            'legal_approval_status' => 'PENDING',
+        ]);
+
+        $doc = \App\Modules\VendorPortal\Models\VendorDocument::create([
+            'vendor_id' => $vendor->id,
+            'document_type' => 'NIB',
+            'document_number' => '1234567890',
+            'file_path' => 'vendor_documents/test.pdf',
+            'file_name' => 'test.pdf',
+            'verification_status' => 'PENDING',
+        ]);
+
+        $response = $this->postJson("/api/distributor-channel/v1/vendor-management/documents/{$doc->id}/verify", [
+            'status' => 'VALID',
+            'notes' => 'NIB document is verified and valid.',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'id' => $doc->id,
+                    'verification_status' => 'VALID',
+                    'verification_notes' => 'NIB document is verified and valid.',
+                ],
+            ]);
+
+        $this->assertEquals('VALID', $doc->fresh()->verification_status);
+    }
 }

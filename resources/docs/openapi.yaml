@@ -14164,6 +14164,45 @@ paths:
         '404':
           description: Vendor tidak ditemukan.
 
+  /vendor-management/documents/{documentId}/verify:
+    post:
+      summary: Verifikasi Individual Berkas Dokumen Legalitas (Valid / Needs Revision / Invalid)
+      description: Memverifikasi satu berkas dokumen tertentu (Akta, NIB, NPWP, Pendukung) dengan opsi VALID, NEEDS_REVISION, atau INVALID beserta catatan review dari legal.
+      tags:
+        - Vendor Management (Legal)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [VALID, NEEDS_REVISION, INVALID]
+                  example: VALID
+                notes:
+                  type: string
+                  example: NIB berkas terverifikasi asli dan terdaftar di OSS.
+      responses:
+        '200':
+          description: Status verifikasi dokumen berhasil diperbarui.
+        '404':
+          description: Dokumen tidak ditemukan.
+        '422':
+          description: Validasi input gagal.
+
 components:
   securitySchemes:
     BearerAuth:

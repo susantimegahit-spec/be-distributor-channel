@@ -3,6 +3,7 @@
 namespace App\Modules\VendorPortal\Services;
 
 use App\Modules\VendorPortal\Models\Vendor;
+use App\Modules\VendorPortal\Models\VendorDocument;
 use App\Modules\VendorPortal\Models\VendorUser;
 use App\Modules\VendorPortal\Models\VendorApprovalHistory;
 use App\Modules\VendorPortal\Models\VendorCredentialsDispatchLog;
@@ -176,6 +177,40 @@ class VendorLegalApprovalService
             ]);
 
             return $vendor->fresh(['documents']);
+        });
+    }
+
+    /**
+     * Verifikasi status satu berkas dokumen tertentu (VALID, NEEDS_REVISION, INVALID).
+     */
+    public function verifyDocument(VendorDocument $document, ?User $legalUser, string $status, ?string $notes = null): VendorDocument
+    {
+        $conn = config('database.default') === 'sqlite' ? 'sqlite' : 'pgsql_vendor';
+        return DB::connection($conn)->transaction(function () use ($document, $legalUser, $status, $notes) {
+            $now = Carbon::now();
+            $actorId = $legalUser?->id;
+            $actorName = $legalUser?->name ?? 'PT Susanti Megah Legal Team';
+
+            $document->update([
+                'verification_status' => strtoupper(trim($status)),
+                'verified_by' => $actorId,
+                'verified_at' => $now,
+                'verification_notes' => $notes,
+            ]);
+
+            // Catat riwayat audit approval untuk dokumen ini
+            VendorApprovalHistory::create([
+                'vendor_id' => $document->vendor_id,
+                'action' => 'DOCUMENT_' . strtoupper(trim($status)),
+                'from_status' => $document->vendor?->registration_status ?? 'IN_REVIEW',
+                'to_status' => $document->vendor?->registration_status ?? 'IN_REVIEW',
+                'actor_id' => $actorId,
+                'actor_name' => $actorName,
+                'notes' => "Document {$document->document_type} verified as {$status}." . ($notes ? " Notes: {$notes}" : ''),
+                'created_at' => $now,
+            ]);
+
+            return $document->fresh();
         });
     }
 

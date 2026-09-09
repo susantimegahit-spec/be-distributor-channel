@@ -4,6 +4,7 @@ namespace App\Modules\VendorPortal\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\VendorPortal\Models\Vendor;
+use App\Modules\VendorPortal\Models\VendorDocument;
 use App\Modules\VendorPortal\Requests\LegalApprovalRequest;
 use App\Modules\VendorPortal\Requests\LegalRejectRequest;
 use App\Modules\VendorPortal\Requests\LegalRevisionRequest;
@@ -160,6 +161,37 @@ class VendorLegalApprovalController extends Controller
                 'registration_status' => $revisedVendor->registration_status,
                 'legal_notes' => $revisedVendor->legal_notes,
             ],
+        ]);
+    }
+
+    /**
+     * Verifikasi status berkas dokumen tertentu (VALID, NEEDS_REVISION, INVALID).
+     */
+    public function verifyDocument(Request $request, $documentId): JsonResponse
+    {
+        $request->validate([
+            'status' => 'required|string|in:VALID,NEEDS_REVISION,INVALID',
+            'notes' => 'nullable|string|max:1000',
+        ], [
+            'status.in' => 'Status must be VALID, NEEDS_REVISION, or INVALID.',
+        ]);
+
+        $document = VendorDocument::find($documentId);
+        if (!$document) {
+            return response()->json(['success' => false, 'message' => 'Document not found.'], 404);
+        }
+
+        $verified = $this->approvalService->verifyDocument(
+            $document,
+            $request->user(),
+            $request->input('status'),
+            $request->input('notes')
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Document verification status updated successfully.',
+            'data' => $verified,
         ]);
     }
 }
