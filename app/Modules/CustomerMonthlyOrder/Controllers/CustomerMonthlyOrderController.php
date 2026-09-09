@@ -297,23 +297,30 @@ class CustomerMonthlyOrderController extends Controller
      */
     public function postToSalesOrder(Request $request, int $id): JsonResponse
     {
+        $request->validate([
+            'eta_date' => 'nullable|date',
+            'doc_due_date' => 'nullable|date',
+            'request_delivery_date' => 'nullable|date',
+            'delivery_date' => 'nullable|date',
+        ]);
+
         $user = $request->user();
         $distributorId = null;
 
-        if ($user->code_customer) {
+        if ($user && $user->code_customer) {
             $custCodes = array_filter(array_map('trim', explode(',', $user->code_customer)));
             $distributorIds = Distributor::whereIn('code_customer', $custCodes)->pluck('id')->toArray();
 
             $order = \App\Models\CustomerMonthlyOrder::find($id);
             if (!$order || !in_array($order->distributor_id, $distributorIds)) {
-                return $this->errorResponse('Customer monthly order tidak ditemukan.', [], 404);
+                return $this->errorResponse('Customer monthly order not found.', [], 404);
             }
             $distributorId = $order->distributor_id;
         }
 
         try {
-            $salesOrder = $this->service->postToSalesOrder($id, $user->id, $distributorId);
-            return $this->successResponse($salesOrder, 'Customer monthly order berhasil diposting ke Sales Order dengan status WAITING_OM.', 201);
+            $salesOrder = $this->service->postToSalesOrder($id, $user ? $user->id : 1, $distributorId, $request->all());
+            return $this->successResponse($salesOrder, 'Customer monthly order successfully posted to Sales Order with status WAITING_OM.', 201);
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), [], 400);
         }

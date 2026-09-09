@@ -13827,6 +13827,590 @@ paths:
         '200':
           description: Daftar Timeline berhasil diambil.
 
+  /customer-monthly-orders/{id}/post-to-so:
+    post:
+      summary: Post Customer Monthly Order (CMO) to Sales Order
+      description: Memproses CMO dari status DRAFT menjadi POSTED dan membuat Sales Order baru dengan status WAITING_OM. Mendukung pengiriman eta_date atau request_delivery_date / doc_due_date dari frontend untuk memperbarui tanggal permintaan pengiriman distributor pada CMO dan Sales Order yang terbentuk.
+      tags:
+        - Customer Monthly Order (CMO)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 26
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                eta_date:
+                  type: string
+                  format: date
+                  description: Tanggal estimasi tiba / jadwal pengiriman baru yang diajukan distributor
+                  example: "2026-09-26"
+                doc_due_date:
+                  type: string
+                  format: date
+                  description: Tanggal pengiriman yang diminta (Request Delivery Date)
+                  example: "2026-09-26"
+                request_delivery_date:
+                  type: string
+                  format: date
+                  description: Alias untuk doc_due_date
+                  example: "2026-09-26"
+      responses:
+        '201':
+          description: Customer monthly order berhasil diposting ke Sales Order dengan status WAITING_OM.
+        '400':
+          description: Validasi gagal atau order sudah diposting sebelumnya.
+        '404':
+          description: Customer monthly order tidak ditemukan.
+
+  /vendor-portal/ping:
+    get:
+      summary: Health Check / Connectivity Test Vendor Portal API
+      description: Endpoint pengujian konektivitas backend Vendor Portal untuk frontend.
+      tags:
+        - Vendor Portal
+      responses:
+        '200':
+          description: API Vendor Portal aktif dan dapat diakses.
+
+  /vendor-portal/test:
+    get:
+      summary: Quick Test Ping Endpoint
+      tags:
+        - Vendor Portal
+      responses:
+        '200':
+          description: Test OK.
+
+  /vendor-portal/register:
+    post:
+      summary: Pendaftaran Calon Mitra Vendor (Ekspedisi, Distributor, dll)
+      description: Mendaftarkan profil perusahaan calon vendor dan mengunggah 4 berkas dokumen legalitas (Akta, NIB, NPWP, Pendukung).
+      tags:
+        - Vendor Portal
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - vendor_type
+                - company_name
+                - company_email
+                - pic_name
+                - pic_phone
+                - terms_agreed
+              properties:
+                vendor_type:
+                  type: string
+                  example: expedition
+                  description: Tipe vendor (expedition, distributor, raw_material, packaging, general_supplier)
+                company_name:
+                  type: string
+                  example: PT Trans Megah Logistik
+                company_email:
+                  type: string
+                  format: email
+                  example: vendor@transmegah.com
+                company_phone:
+                  type: string
+                  example: 031-8921122
+                company_npwp:
+                  type: string
+                  description: Nomor Pokok Wajib Pajak (NPWP) Perusahaan (Format 15/16 digit)
+                  example: "01.234.567.8-901.000"
+                address:
+                  type: string
+                  example: Jl. Rungkut Industri No. 45
+                city:
+                  type: string
+                  example: Surabaya
+                province:
+                  type: string
+                  example: Jawa Timur
+                postal_code:
+                  type: string
+                  example: "60293"
+                pic_name:
+                  type: string
+                  example: Budi Prasetyo
+                pic_phone:
+                  type: string
+                  example: "081234567890"
+                pic_email:
+                  type: string
+                  example: budi@transmegah.com
+                terms_agreed:
+                  type: boolean
+                  example: true
+                akta:
+                  type: string
+                  format: binary
+                  description: Berkas Akta Pendirian / Perubahan (PDF/JPG/PNG, Max 10MB)
+                akta_notes:
+                  type: string
+                  description: Catatan / keterangan terkait berkas Akta
+                  example: Salinan akta perubahan direksi tahun 2025
+                nib:
+                  type: string
+                  format: binary
+                  description: Berkas NIB / Izin Usaha (PDF/JPG/PNG, Max 10MB)
+                nib_notes:
+                  type: string
+                  description: Catatan / keterangan terkait berkas NIB
+                  example: NIB OSS RBA terbitan BKPM
+                npwp:
+                  type: string
+                  format: binary
+                  description: Berkas NPWP Perusahaan (PDF/JPG/PNG, Max 10MB)
+                npwp_notes:
+                  type: string
+                  description: Catatan / keterangan terkait berkas NPWP
+                  example: NPWP 16 digit terdaftar di KPP Pratama
+                support:
+                  type: string
+                  format: binary
+                  description: Berkas Dokumen Pendukung (PDF/JPG/PNG, Max 10MB)
+                support_notes:
+                  type: string
+                  description: Catatan / keterangan dokumen pendukung
+                pakta_integritas:
+                  type: string
+                  format: binary
+                  description: Berkas Pakta Integritas yang telah ditandatangani dan bermeterai (PDF/JPG/PNG, Max 10MB)
+                pakta_integritas_notes:
+                  type: string
+                  description: Catatan pakta integritas
+                perjanjian_kerjasama:
+                  type: string
+                  format: binary
+                  description: Berkas Dokumen Perjanjian Kerjasama (PKS) (PDF/JPG/PNG, Max 10MB)
+                perjanjian_kerjasama_notes:
+                  type: string
+                  description: Catatan dokumen perjanjian kerjasama
+      responses:
+        '201':
+          description: Pendaftaran berhasil dikirim dan menunggu verifikasi legal.
+        '422':
+          description: Validasi form gagal atau email sudah terdaftar.
+
+  /vendor-portal/check-email:
+    get:
+      summary: Pengecekan Ketersediaan Email Perusahaan Vendor
+      description: Memeriksa apakah email perusahaan sudah digunakan dalam sistem vendor.
+      tags:
+        - Vendor Portal
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: string
+            format: email
+            example: vendor@transmegah.com
+      responses:
+        '200':
+          description: Status ketersediaan email berhasil diperiksa.
+
+  /vendor-portal/documents/{documentId}/reupload:
+    post:
+      summary: Upload Ulang Berkas Dokumen Revisi oleh Vendor
+      description: Mengunggah berkas pengganti untuk dokumen yang diminta revisi (status NEEDS_REVISION) oleh tim legal. File lama akan digantikan, status dokumen di-reset menjadi PENDING, dan riwayat revisi dicatat.
+      tags:
+        - Vendor Portal
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - vendor_code
+                - file
+              properties:
+                vendor_code:
+                  type: string
+                  description: Kode vendor resmi (contoh VND-202609-0001) untuk verifikasi otorisasi
+                  example: VND-202609-0001
+                file:
+                  type: string
+                  format: binary
+                  description: Berkas dokumen pengganti baru (PDF/JPG/PNG, Max 10MB)
+                notes:
+                  type: string
+                  description: Catatan klarifikasi / perbaikan dari pihak vendor
+                  example: Berkas scan akta perubahan direksi asli telah diunggah ulang lembar 1-5.
+                document_number:
+                  type: string
+                  description: Nomor identitas dokumen jika ada perubahan
+                  example: AHU-001234.AH.01.02.TAHUN 2025
+      responses:
+        '200':
+          description: Dokumen revisi berhasil diunggah ulang dan kembali ke antrean verifikasi legal.
+        '403':
+          description: Vendor code tidak cocok dengan kepemilikan dokumen.
+        '404':
+          description: Dokumen tidak ditemukan.
+        '422':
+          description: Validasi berkas gagal atau vendor sudah disetujui.
+
+  /vendor-portal/login:
+    post:
+      summary: Otentikasi Login Vendor Portal
+      description: Masuk ke vendor portal menggunakan akun vendor yang telah disetujui tim legal.
+      tags:
+        - Vendor Portal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: vendor@transmegah.com
+                password:
+                  type: string
+                  example: secret123
+                vendor_type:
+                  type: string
+                  example: expedition
+      responses:
+        '200':
+          description: Login berhasil dan mengembalikan token akses Sanctum.
+        '422':
+          description: Kredensial tidak valid atau akun belum disetujui tim legal.
+
+  /vendor-portal/me:
+    get:
+      summary: Profil Vendor yang Sedang Login
+      description: Mengambil data profil institusi vendor dan data user aktif.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Profil vendor berhasil diambil.
+        '401':
+          description: Unauthenticated.
+
+  /vendor-portal/logout:
+    post:
+      summary: Logout Vendor Portal
+      description: Mencabut token akses sesi vendor.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Berhasil logout dari vendor portal.
+
+  /vendor-management/registrations:
+    get:
+      summary: Daftar Permohonan Registrasi Vendor (Backoffice Legal)
+      description: Menampilkan daftar permohonan mitra vendor dengan filter status, tipe vendor, dan pencarian.
+      tags:
+        - Vendor Management (Legal)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ALL, PENDING_LEGAL_APPROVAL, REVISION_REQUIRED, APPROVED, REJECTED]
+            example: PENDING_LEGAL_APPROVAL
+        - name: vendor_type
+          in: query
+          schema:
+            type: string
+            enum: [ALL, EXPEDITION, DISTRIBUTOR, RAW_MATERIAL, PACKAGING, GENERAL_SUPPLIER]
+            example: EXPEDITION
+        - name: search
+          in: query
+          schema:
+            type: string
+            example: Trans Megah
+        - name: page
+          in: query
+          schema:
+            type: integer
+            example: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            example: 15
+      responses:
+        '200':
+          description: Daftar permohonan vendor berhasil diambil.
+
+  /vendor-management/registrations/{id}:
+    get:
+      summary: Detail Lengkap Permohonan Vendor & Dokumen Legalitas
+      description: Menampilkan informasi institusi vendor, berkas dokumen yang diunggah, riwayat audit approval, dan akun user.
+      tags:
+        - Vendor Management (Legal)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Detail vendor berhasil diambil.
+        '404':
+          description: Vendor tidak ditemukan.
+
+  /vendor-management/registrations/{id}/approve:
+    post:
+      summary: Persetujuan Legal Permohonan Vendor
+      description: Menyetujui pendaftaran vendor, meng-generate akun user login di vendor_users, auto-sync ke master ekspedisi jika tipe EXPEDITION, dan mencatat log dispatch kredensial.
+      tags:
+        - Vendor Management (Legal)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                legal_notes:
+                  type: string
+                  example: Berkas legalitas lengkap dan diverifikasi valid.
+                sap_vendor_code:
+                  type: string
+                  example: V-100249
+                initial_password:
+                  type: string
+                  example: CustomPassword123!
+      responses:
+        '200':
+          description: Pendaftaran vendor disetujui dan kredensial akun berhasil digenerate.
+        '404':
+          description: Vendor tidak ditemukan.
+        '422':
+          description: Vendor sudah disetujui sebelumnya.
+
+  /vendor-management/registrations/{id}/reject:
+    post:
+      summary: Penolakan Permohonan Vendor
+      description: Menolak permohonan vendor dengan alasan penolakan wajib.
+      tags:
+        - Vendor Management (Legal)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rejection_reason
+              properties:
+                rejection_reason:
+                  type: string
+                  example: NIB izin usaha tidak sesuai dengan bidang logistik.
+      responses:
+        '200':
+          description: Pendaftaran vendor berhasil ditolak.
+        '404':
+          description: Vendor tidak ditemukan.
+
+  /vendor-management/registrations/{id}/request-revision:
+    post:
+      summary: Permintaan Revisi Dokumen Legalitas ke Vendor
+      description: Mengirim instruksi perbaikan berkas ke calon mitra vendor.
+      tags:
+        - Vendor Management (Legal)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - revision_notes
+              properties:
+                revision_notes:
+                  type: string
+                  example: Mohon lampirkan lembar akta perubahan susunan pengurus terbaru.
+                document_types:
+                  type: array
+                  items:
+                    type: string
+                  example: [AKTA]
+      responses:
+        '200':
+          description: Instruksi revisi berhasil dikirim ke vendor.
+        '404':
+          description: Vendor tidak ditemukan.
+
+  /vendor-management/documents/{documentId}/verify:
+    post:
+      summary: Verifikasi Individual Berkas Dokumen Legalitas (Valid / Needs Revision / Invalid)
+      description: Memverifikasi satu berkas dokumen tertentu (Akta, NIB, NPWP, Pendukung) dengan opsi VALID, NEEDS_REVISION, atau INVALID beserta catatan review dari legal.
+      tags:
+        - Vendor Management (Legal)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [VALID, NEEDS_REVISION, INVALID]
+                  example: VALID
+                notes:
+                  type: string
+                  example: NIB berkas terverifikasi asli dan terdaftar di OSS.
+      responses:
+        '200':
+          description: Status verifikasi dokumen berhasil diperbarui.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Document verification status updated successfully.
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      vendor_id:
+                        type: integer
+                        example: 1
+                      document_type:
+                        type: string
+                        example: NIB
+                      verification_status:
+                        type: string
+                        example: VALID
+                      verified_by:
+                        type: integer
+                        example: 5
+                      verified_at:
+                        type: string
+                        format: date-time
+                        example: "2026-09-09T09:54:00.000000Z"
+                      verification_notes:
+                        type: string
+                        example: NIB berkas terverifikasi asli dan terdaftar di OSS.
+                      notes:
+                        type: string
+                        example: NIB berkas terverifikasi asli dan terdaftar di OSS.
+                      file_url:
+                        type: string
+                        example: https://smesta-dev.susantimegah.com/storage/vendor_documents/VND-202609-0001/nib_oss.pdf
+        '404':
+          description: Dokumen tidak ditemukan.
+        '422':
+          description: Validasi input gagal.
+
+  /vendor-management/documents/{documentId}/preview:
+    get:
+      summary: Preview / Stream Berkas Dokumen Legalitas (Inline PDF / Image)
+      description: Menampilkan berkas dokumen legalitas secara streaming inline (PDF atau Image) di tab baru browser atau iframe/modal preview frontend tanpa harus download file.
+      tags:
+        - Vendor Management (Legal)
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Berkas dokumen berhasil di-stream secara inline.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Dokumen tidak ditemukan atau berkas fisik tidak ada di disk storage server.
+
 components:
   securitySchemes:
     BearerAuth:
