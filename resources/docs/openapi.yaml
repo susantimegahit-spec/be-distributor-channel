@@ -13815,6 +13815,25 @@ paths:
         '200':
           description: Daftar Task Type berhasil diambil.
 
+  /vendor-portal/ping:
+    get:
+      summary: Health Check / Connectivity Test Vendor Portal API
+      description: Endpoint pengujian konektivitas backend Vendor Portal untuk frontend.
+      tags:
+        - Vendor Portal
+      responses:
+        '200':
+          description: API Vendor Portal aktif dan dapat diakses.
+
+  /vendor-portal/test:
+    get:
+      summary: Quick Test Ping Endpoint
+      tags:
+        - Vendor Portal
+      responses:
+        '200':
+          description: Test OK.
+
   /vendor-portal/register:
     post:
       summary: Pendaftaran Calon Mitra Vendor (Ekspedisi, Distributor, dll)
