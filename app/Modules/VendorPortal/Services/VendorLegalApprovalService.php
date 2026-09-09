@@ -11,7 +11,10 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use App\Mail\VendorCredentialsMail;
 use Carbon\Carbon;
 
 class VendorLegalApprovalService
@@ -66,15 +69,28 @@ class VendorLegalApprovalService
                 $expeditionCreated = $this->syncToExpeditionMaster($vendor);
             }
 
-            // 4. Catat Log Dispatch Kredensial (Notifikasi Email / WA)
+            // 4. Kirim Email Kredensial Resmi ke Vendor & Catat Log Dispatch
+            $loginUrl = url('/vendor-portal');
+            $dispatchStatus = 'SENT';
+            $dispatchError = null;
+
+            try {
+                Mail::to($vendor->company_email)
+                    ->send(new VendorCredentialsMail($vendor, $vendorUser, $plainPassword, $loginUrl));
+            } catch (\Throwable $mailException) {
+                $dispatchStatus = 'FAILED';
+                $dispatchError = $mailException->getMessage();
+                Log::warning("Failed to dispatch vendor credentials email to {$vendor->company_email}: " . $mailException->getMessage());
+            }
+
             VendorCredentialsDispatchLog::create([
                 'vendor_user_id' => $vendorUser->id,
                 'vendor_id' => $vendor->id,
                 'recipient_email' => $vendor->company_email,
                 'dispatch_channel' => 'EMAIL',
-                'dispatch_status' => 'SENT',
+                'dispatch_status' => $dispatchStatus,
                 'sent_at' => $now,
-                'error_message' => null,
+                'error_message' => $dispatchError,
             ]);
 
             // 5. Catat Audit Trail Approval

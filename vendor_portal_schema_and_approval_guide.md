@@ -332,6 +332,9 @@ Digunakan oleh calon vendor untuk mengunggah berkas pengganti yang diminta revis
   }
   ```
 
+> ✉️ **Pengiriman Email Kredensial Otomatis:**
+> Saat endpoint approval dieksekusi, sistem secara otomatis mengirimkan email resmi (`App\Mail\VendorCredentialsMail` via template `resources/views/emails/vendor_credentials.blade.php`) ke `company_email` vendor yang berisi URL Portal, Email Login, Password Sementara, dan instruksi keamanan ganti password saat login pertama kali. Status pengiriman email dicatat di tabel `vendor.vendor_credentials_dispatch_logs` (`SENT` atau `FAILED` jika SMTP error tanpa menggagalkan transaksi approval).
+
 #### 4. Penolakan Legal (Reject)
 - **Method & Path:** `POST /api/distributor-channel/vendor-management/registrations/{id}/reject`
 - **Request JSON:**

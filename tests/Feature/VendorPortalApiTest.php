@@ -6,6 +6,7 @@ use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Mail;
 use App\Models\User;
 use App\Modules\VendorPortal\Models\Vendor;
 use App\Modules\VendorPortal\Models\VendorUser;
@@ -110,6 +111,8 @@ class VendorPortalApiTest extends TestCase
 
     public function test_legal_team_can_approve_vendor_and_generate_credentials()
     {
+        Mail::fake();
+
         $vendor = Vendor::create([
             'vendor_code' => 'VND-202609-0001',
             'vendor_type' => 'EXPEDITION',
@@ -133,6 +136,10 @@ class VendorPortalApiTest extends TestCase
         $this->assertNotNull($result['user']);
         $this->assertEquals('legal@samuderalogistik.com', $result['user']->email);
         $this->assertEquals('PassVendor123!', $result['generated_credentials']['initial_password']);
+
+        Mail::assertSent(\App\Mail\VendorCredentialsMail::class, function ($mail) {
+            return $mail->hasTo('legal@samuderalogistik.com') && $mail->plainPassword === 'PassVendor123!';
+        });
 
         // Test login with generated credentials
         $loginResponse = $this->postJson('/api/distributor-channel/vendor-portal/login', [
