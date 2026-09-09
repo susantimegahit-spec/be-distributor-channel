@@ -99,7 +99,12 @@ Route::middleware('web')->prefix('monitoringsm')->group(function () {
         Route::get('/reporting-tasks', [\App\Http\Controllers\ReportingTaskWebController::class, 'index']);
 
         // Spatie Server & Service Health Monitoring Dashboard
-        Route::get('/health', \Spatie\Health\Http\Controllers\HealthCheckResultsController::class);
+        Route::get('/health', function (\Illuminate\Http\Request $request, \Spatie\Health\ResultStores\ResultStore $resultStore, \Spatie\Health\Health $health) {
+            if ($request->has('fresh') || $resultStore->latestResults() === null) {
+                \Illuminate\Support\Facades\Artisan::call(\Spatie\Health\Commands\RunHealthChecksCommand::class);
+            }
+            return app(\Spatie\Health\Http\Controllers\HealthCheckResultsController::class)($request, $resultStore, $health);
+        });
         Route::get('/health/json', \Spatie\Health\Http\Controllers\HealthCheckJsonResultsController::class);
     });
 });
