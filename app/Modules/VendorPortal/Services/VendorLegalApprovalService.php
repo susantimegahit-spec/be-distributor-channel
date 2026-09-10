@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use App\Mail\VendorCredentialsMail;
+use App\Mail\VendorRegistrationRejectedMail;
 use Carbon\Carbon;
 
 class VendorLegalApprovalService
@@ -149,6 +150,14 @@ class VendorLegalApprovalService
                 'notes' => 'Vendor registration rejected. Reason: ' . $rejectionReason,
                 'created_at' => $now,
             ]);
+
+            // Kirim Email Notifikasi Penolakan Resmi ke Vendor
+            try {
+                Mail::to($vendor->company_email)
+                    ->send(new VendorRegistrationRejectedMail($vendor, $rejectionReason));
+            } catch (\Throwable $mailException) {
+                Log::warning("Failed to dispatch vendor rejection email to {$vendor->company_email}: " . $mailException->getMessage());
+            }
 
             return $vendor->fresh();
         });

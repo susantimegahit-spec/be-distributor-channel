@@ -343,6 +343,22 @@ Digunakan oleh calon vendor untuk mengunggah berkas pengganti yang diminta revis
     "rejection_reason": "Izin usaha NIB tidak sesuai dengan bidang pengiriman logistik garam konsumsi."
   }
   ```
+- **Response `200 OK`:**
+  ```json
+  {
+    "success": true,
+    "message": "Vendor registration rejected successfully.",
+    "data": {
+      "vendor_code": "VND-202609-0001",
+      "registration_status": "REJECTED",
+      "legal_notes": "Izin usaha NIB tidak sesuai dengan bidang pengiriman logistik garam konsumsi."
+    }
+  }
+  ```
+
+> ✉️ **Pengiriman Email Penolakan Otomatis (Rejection Notification):**
+> Saat endpoint rejection dieksekusi, sistem secara otomatis mengirimkan email resmi (`App\Mail\VendorRegistrationRejectedMail` via template `resources/views/emails/vendor_rejected.blade.php`) ke `company_email` calon vendor yang mencantumkan nama perusahaan, kode vendor, tanggal review, alasan penolakan (`rejection_reason`) dari tim legal, serta kontak klarifikasi divisi pengadaan/legal PT Susanti Megah.
+
 
 #### 5. Permintaan Revisi Berkas (Request Revision)
 - **Method & Path:** `POST /api/distributor-channel/vendor-management/registrations/{id}/request-revision`

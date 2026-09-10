@@ -198,6 +198,8 @@ class VendorPortalApiTest extends TestCase
 
     public function test_legal_team_can_reject_vendor()
     {
+        Mail::fake();
+
         $vendor = Vendor::create([
             'vendor_code' => 'VND-202609-0003',
             'vendor_type' => 'EXPEDITION',
@@ -216,6 +218,12 @@ class VendorPortalApiTest extends TestCase
         $this->assertEquals('REJECTED', $rejectedVendor->registration_status);
         $this->assertEquals('REJECTED', $rejectedVendor->legal_approval_status);
         $this->assertEquals('Perusahaan tidak memiliki NIB valid.', $rejectedVendor->legal_notes);
+
+        Mail::assertSent(\App\Mail\VendorRegistrationRejectedMail::class, function ($mail) use ($vendor) {
+            return $mail->hasTo('fake@ekspedisi.com') &&
+                   $mail->vendor->id === $vendor->id &&
+                   $mail->rejectionReason === 'Perusahaan tidak memiliki NIB valid.';
+        });
     }
 
     public function test_legal_team_can_verify_individual_document()

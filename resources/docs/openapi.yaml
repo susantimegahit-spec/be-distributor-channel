@@ -14218,7 +14218,7 @@ paths:
   /vendor-management/registrations/{id}/reject:
     post:
       summary: Penolakan Permohonan Vendor
-      description: Menolak permohonan vendor dengan alasan penolakan wajib.
+      description: Menolak permohonan pendaftaran vendor oleh tim legal dengan alasan penolakan wajib. Sistem secara otomatis mengirimkan email resmi pemberitahuan penolakan (beserta alasan penolakan dan kontak klarifikasi) ke alamat email perusahaan vendor.
       tags:
         - Vendor Management (Legal)
       security:
@@ -14244,7 +14244,30 @@ paths:
                   example: NIB izin usaha tidak sesuai dengan bidang logistik.
       responses:
         '200':
-          description: Pendaftaran vendor berhasil ditolak.
+          description: Pendaftaran vendor berhasil ditolak dan notifikasi email resmi telah dikirim ke vendor.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Vendor registration rejected successfully.
+                  data:
+                    type: object
+                    properties:
+                      vendor_code:
+                        type: string
+                        example: VND-202609-0001
+                      registration_status:
+                        type: string
+                        example: REJECTED
+                      legal_notes:
+                        type: string
+                        example: NIB izin usaha tidak sesuai dengan bidang logistik.
         '404':
           description: Vendor tidak ditemukan.
 
