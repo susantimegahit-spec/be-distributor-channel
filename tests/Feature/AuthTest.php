@@ -18,21 +18,36 @@ class AuthTest extends TestCase
     {
         parent::setUp();
 
+        // Create distributor
+        \App\Models\Distributor::create([
+            'code_customer' => 'DUMMY001',
+            'name' => 'Dummy Distributor',
+            'status' => 1,
+        ]);
+
+        $role = \App\Models\Role::create([
+            'name' => 'distributor',
+            'is_active' => true,
+        ]);
+
         // Create standard active user
         $this->user = User::create([
             'name' => 'Active User',
             'username' => 'activeuser',
             'email' => 'active@example.com',
             'password' => Hash::make($this->password),
+            'role_id' => $role->id,
+            'code_customer' => 'DUMMY001',
             'is_active' => true,
         ]);
     }
 
-    /**
-     * Test login success.
-     */
     public function test_login_success(): void
     {
+        $this->user->role->update([
+            'accessible_systems' => ['distributor', 'ekspedisi']
+        ]);
+
         $response = $this->postJson('/api/distributor-channel/v1/auth/login', [
             'username' => 'activeuser',
             'password' => $this->password,
@@ -43,7 +58,7 @@ class AuthTest extends TestCase
                 'success',
                 'message',
                 'data' => [
-                    'user' => ['id', 'name', 'username', 'email', 'is_active'],
+                    'user' => ['id', 'name', 'username', 'email', 'code_customer', 'is_active', 'accessible_systems'],
                     'access_token',
                     'token_type',
                 ]
@@ -54,6 +69,8 @@ class AuthTest extends TestCase
                 'data' => [
                     'user' => [
                         'username' => 'activeuser',
+                        'code_customer' => 'DUMMY001',
+                        'accessible_systems' => ['distributor', 'ekspedisi'],
                     ]
                 ]
             ]);
@@ -75,17 +92,11 @@ class AuthTest extends TestCase
             'password' => 'wrongpassword',
         ]);
 
-        $response->assertStatus(422)
-            ->assertJsonStructure([
-                'success',
-                'message',
-                'errors' => [
-                    'username'
-                ]
-            ])
+        $response->assertStatus(200)
             ->assertJson([
                 'success' => false,
-                'message' => 'Validation Error',
+                'status_code' => 422,
+                'message' => 'The username or password you entered is incorrect.',
             ]);
     }
 
@@ -99,6 +110,7 @@ class AuthTest extends TestCase
             'username' => 'inactiveuser',
             'email' => 'inactive@example.com',
             'password' => Hash::make($this->password),
+            'code_customer' => 'DUMMY001',
             'is_active' => false,
         ]);
 
@@ -107,12 +119,78 @@ class AuthTest extends TestCase
             'password' => $this->password,
         ]);
 
-        $response->assertStatus(422)
+        $response->assertStatus(200)
             ->assertJson([
                 'success' => false,
-                'message' => 'Validation Error',
-            ])
-            ->assertJsonValidationErrors(['username']);
+                'status_code' => 422,
+                'message' => 'Your account is inactive.',
+            ]);
+    }
+
+    /**
+     * Test login success for a user without code_customer (admin/non-distributor).
+     */
+    public function test_login_success_non_distributor(): void
+    {
+        $adminUser = User::create([
+            'name' => 'Admin User',
+            'username' => 'adminuser',
+            'email' => 'admin@example.com',
+            'password' => Hash::make($this->password),
+            'code_customer' => null,
+            'is_active' => true,
+        ]);
+
+        $response = $this->postJson('/api/distributor-channel/v1/auth/login', [
+            'username' => 'adminuser',
+            'password' => $this->password,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Login berhasil.',
+                'data' => [
+                    'user' => [
+                        'username' => 'adminuser',
+                        'code_customer' => null,
+                    ]
+                ]
+            ]);
+    }
+
+    /**
+     * Test login failure due to inactive distributor associated with the user.
+     */
+    public function test_login_failure_inactive_distributor(): void
+    {
+        // Create an inactive distributor
+        \App\Models\Distributor::create([
+            'code_customer' => 'INACTIVE_DIST',
+            'name' => 'Inactive Distributor',
+            'status' => 0, // Inactive
+        ]);
+
+        User::create([
+            'name' => 'Distributor User',
+            'username' => 'distuser',
+            'email' => 'dist@example.com',
+            'password' => Hash::make($this->password),
+            'code_customer' => 'INACTIVE_DIST',
+            'is_active' => true,
+        ]);
+
+        $response = $this->postJson('/api/distributor-channel/v1/auth/login', [
+            'username' => 'distuser',
+            'password' => $this->password,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => false,
+                'status_code' => 422,
+                'message' => 'Your associated customer/distributor account is inactive.',
+            ]);
     }
 
     /**
@@ -225,8 +303,12 @@ class AuthTest extends TestCase
             'new_password_confirmation' => 'newpassword123',
         ]);
 
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['old_password']);
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => false,
+                'status_code' => 422,
+                'message' => 'Password lama salah.',
+            ]);
     }
 
     /**
@@ -244,7 +326,81 @@ class AuthTest extends TestCase
             'new_password_confirmation' => $this->password,
         ]);
 
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['new_password']);
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => false,
+                'status_code' => 422,
+                'message' => 'Password baru tidak boleh sama dengan password lama.',
+            ]);
+    }
+
+    /**
+     * Test single login enforcement blocks new logins when an active session exists,
+     * but allows login and prunes if the session has expired.
+     */
+    public function test_single_login_enforcement(): void
+    {
+        // 1. Create first token (simulates first login)
+        $token1 = $this->user->createToken('auth_token');
+        $this->assertEquals(1, $this->user->tokens()->count());
+
+        // 2. Perform login request -> should be BLOCKED because of active session
+        $response = $this->postJson('/api/distributor-channel/v1/auth/login', [
+            'username' => 'activeuser',
+            'password' => $this->password,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => false,
+                'status_code' => 422,
+                'message' => 'Akun ini sedang aktif di perangkat lain. Silakan logout terlebih dahulu dari perangkat tersebut.',
+            ]);
+
+        // 3. Make token1 expired (simulate 1445 minutes/over 24 hours ago)
+        $token1->accessToken->created_at = now()->subMinutes(1445);
+        $token1->accessToken->save();
+
+        // 4. Perform login request again -> should SUCCESS because token1 has expired
+        $response2 = $this->postJson('/api/distributor-channel/v1/auth/login', [
+            'username' => 'activeuser',
+            'password' => $this->password,
+        ]);
+
+        $response2->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Login berhasil.',
+            ]);
+
+        // 5. Verify old expired token is deleted and only the new token exists
+        $this->assertEquals(1, $this->user->tokens()->count());
+    }
+
+    /**
+     * Test single login enforcement with force option.
+     */
+    public function test_single_login_enforcement_with_force(): void
+    {
+        // 1. Create first token (simulates first login)
+        $token1 = $this->user->createToken('auth_token');
+        $this->assertEquals(1, $this->user->tokens()->count());
+
+        // 2. Perform login request with force option
+        $response = $this->postJson('/api/distributor-channel/v1/auth/login', [
+            'username' => 'activeuser',
+            'password' => $this->password,
+            'force' => true,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Login berhasil.',
+            ]);
+
+        // 3. Verify old token is deleted and only the new token exists
+        $this->assertEquals(1, $this->user->tokens()->count());
+        $this->assertNotEquals($token1->accessToken->id, $this->user->tokens()->first()->id);
     }
 }

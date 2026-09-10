@@ -6,7 +6,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -20,11 +19,23 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
+        'role_id',
         'name',
         'username',
         'email',
         'password',
+        'code_customer',
+        'expedition_code',
+        'production_code',
+        'whs_code',
+        'units',
+        'ocr_code',
+        'ocr_code2',
+        'ocr_code3',
         'is_active',
+        'originator',
+        'stage',
+        'custom_permissions',
     ];
 
     /**
@@ -38,6 +49,17 @@ class User extends Authenticatable
     ];
 
     /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array
+     */
+    protected $appends = [
+        'accessible_systems',
+        'actions',
+        'organization_assignment',
+    ];
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -48,6 +70,457 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'custom_permissions' => 'array',
         ];
+    }
+
+    /**
+     * Get the role associated with the user.
+     */
+    public function role(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Role::class);
+    }
+
+    /**
+     * Get the distributor associated with the user.
+     */
+    public function distributor(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Distributor::class, 'code_customer', 'code_customer');
+    }
+
+    /**
+     * Get the expedition associated with the user.
+     */
+    public function expedition(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Expedition::class, 'expedition_code', 'expedition_code');
+    }
+
+    /**
+     * Get the organization assignments (distribution rules) associated with the user.
+     */
+    public function organizationAssignments(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(UserOrganizationAssignment::class, 'user_id');
+    }
+
+    /**
+     * Accessor for structured organizational assignments grouped by category.
+     *
+     * @return array
+     */
+    public function getOrganizationAssignmentAttribute(): array
+    {
+        $assignments = $this->relationLoaded('organizationAssignments')
+            ? $this->organizationAssignments
+            : $this->organizationAssignments()->get();
+
+        $grouped = [
+            'warehouses' => [],
+            'branches' => [],
+            'business_units' => [],
+            'departments' => [],
+            'expeditions' => [],
+            'distributors' => [],
+        ];
+
+        foreach ($assignments as $a) {
+            $type = strtolower((string) $a->type);
+            $val = (string) $a->value;
+
+            if (in_array($type, ['warehouse', 'warehouses', 'whs'])) {
+                $grouped['warehouses'][] = $val;
+            } elseif (in_array($type, ['branch', 'branches', 'cabang', 'ocr_code', 'ocr'])) {
+                $grouped['branches'][] = $val;
+            } elseif (in_array($type, ['business_unit', 'business_units', 'bisnis_unit', 'bu', 'ocr_code2'])) {
+                $grouped['business_units'][] = $val;
+            } elseif (in_array($type, ['department', 'departments', 'dept', 'ocr_code3'])) {
+                $grouped['departments'][] = $val;
+            } elseif (in_array($type, ['expedition', 'expeditions', 'ekspedisi'])) {
+                $grouped['expeditions'][] = $val;
+            } elseif (in_array($type, ['distributor', 'distributors', 'customer', 'code_customer'])) {
+                $grouped['distributors'][] = $val;
+            }
+        }
+
+        return $grouped;
+    }
+
+    /**
+     * Check if the user is an expedition user.
+     */
+    public function isEkspedisi(): bool
+    {
+        return !empty($this->expedition_code);
+    }
+
+    /**
+     * Check if the user is a production user.
+     */
+    public function isProduction(): bool
+    {
+        return !empty($this->production_code) || !empty($this->whs_code);
+    }
+
+    /**
+     * Generate the next production code.
+     */
+    public static function generateProductionCode(): string
+    {
+        $lastUser = self::where('production_code', 'LIKE', 'PRD%')
+            ->orderBy('id', 'desc')
+            ->first();
+
+        if (!$lastUser || !$lastUser->production_code) {
+            return 'PRD0001';
+        }
+
+        $lastNum = (int) preg_replace('/[^0-9]/', '', $lastUser->production_code);
+        $nextNum = $lastNum + 1;
+
+        return 'PRD' . str_pad((string)$nextNum, 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Check if the user is a customer portal user.
+     */
+    public function isCustomerPortal(): bool
+    {
+        return !empty($this->code_customer);
+    }
+
+    /**
+     * Get the accessible systems list as an array (delegated to Role).
+     */
+    public function getAccessibleSystemsAttribute(): array
+    {
+        return $this->role ? $this->role->accessible_systems : [];
+    }
+
+    /**
+     * Get all FCM device tokens for the user.
+     */
+    public function deviceTokens(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(UserDeviceToken::class);
+    }
+
+    /**
+     * Get all Telegram recipients / chat IDs associated with this user.
+     */
+    public function telegramRecipients(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(UserTelegramRecipient::class);
+    }
+
+    /**
+     * Route notifications for the Telegram channel.
+     * Returns an array of active Telegram Chat IDs.
+     *
+     * @return array<string>
+     */
+    public function routeNotificationForTelegram(): array
+    {
+        return $this->telegramRecipients()
+            ->where('is_active', true)
+            ->pluck('telegram_chat_id')
+            ->toArray();
+    }
+
+    /**
+     * Get normalized user-level custom permissions map:
+     * [
+     *   "sales-order" => ["create" => true, "read" => true, "update" => false, "delete" => false, "approve" => false, "export" => true]
+     * ]
+     */
+    public function getNormalizedCustomPermissionsAttribute(): array
+    {
+        $raw = $this->custom_permissions;
+        if (empty($raw)) {
+            return [];
+        }
+
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : [];
+        }
+
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($raw as $key => $val) {
+            $menuId = null;
+            $menuKey = null;
+            $actInput = [];
+
+            if (is_string($key) && is_array($val)) {
+                $menuKey = $key;
+                $actInput = $val;
+            } elseif (is_array($val)) {
+                $menuId = $val['menu_id'] ?? $val['id'] ?? null;
+                $menuKey = $val['menu_key'] ?? $val['key'] ?? (string) ($menuId ?? '');
+                $actInput = $val['actions'] ?? [];
+            }
+
+            if (empty($menuKey) && empty($menuId)) {
+                continue;
+            }
+
+            $actions = [
+                'create'  => false,
+                'read'    => true,
+                'update'  => false,
+                'delete'  => false,
+                'approve' => false,
+                'export'  => false,
+            ];
+
+            if (is_array($actInput) && isset($actInput[0]) && is_string($actInput[0])) {
+                $lowered = array_map('strtolower', $actInput);
+                $actions['create']  = in_array('add', $lowered) || in_array('create', $lowered);
+                $actions['read']    = in_array('view', $lowered) || in_array('read', $lowered) || in_array('show', $lowered);
+                $actions['update']  = in_array('edit', $lowered) || in_array('update', $lowered);
+                $actions['delete']  = in_array('delete', $lowered) || in_array('destroy', $lowered);
+                $actions['approve'] = in_array('approve', $lowered) || in_array('approval', $lowered);
+                $actions['export']  = in_array('download', $lowered) || in_array('upload', $lowered) || in_array('export', $lowered);
+
+                foreach ($lowered as $actStr) {
+                    $cleaned = trim($actStr);
+                    if ($cleaned !== '' && !isset($actions[$cleaned])) {
+                        $actions[$cleaned] = true;
+                    }
+                }
+            } elseif (is_array($actInput)) {
+                if (isset($actInput['add'])) {
+                    $actions['create'] = (bool) $actInput['add'];
+                }
+                if (isset($actInput['view'])) {
+                    $actions['read'] = (bool) $actInput['view'];
+                }
+                if (isset($actInput['edit'])) {
+                    $actions['update'] = (bool) $actInput['edit'];
+                }
+                if (isset($actInput['download']) || isset($actInput['upload'])) {
+                    $actions['export'] = (bool) ($actInput['export'] ?? $actInput['download'] ?? $actInput['upload'] ?? false);
+                }
+
+                foreach ($actInput as $actKey => $actVal) {
+                    if (is_string($actKey) && !in_array($actKey, ['add', 'view', 'edit', 'download', 'upload'])) {
+                        $actions[$actKey] = (bool) $actVal;
+                    }
+                }
+            }
+
+            $mKey = (string) ($menuKey ?: $menuId);
+            $result[$mKey] = $actions;
+
+            if ($menuId !== null) {
+                $result[(string)$menuId] = $result[$mKey];
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get custom permissions as standardized array list.
+     */
+    public function getCustomPermissionsListAttribute(): array
+    {
+        $raw = $this->custom_permissions;
+        if (empty($raw)) {
+            return [];
+        }
+
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : [];
+        }
+
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $list = [];
+        foreach ($raw as $key => $val) {
+            $menuId = null;
+            $menuKey = null;
+            $actInput = [];
+
+            if (is_string($key) && is_array($val)) {
+                $menuKey = $key;
+                $actInput = $val;
+            } elseif (is_array($val)) {
+                $menuId = $val['menu_id'] ?? $val['id'] ?? null;
+                $menuKey = $val['menu_key'] ?? $val['key'] ?? (string) ($menuId ?? '');
+                $actInput = $val['actions'] ?? [];
+            }
+
+            if (empty($menuKey) && empty($menuId)) {
+                continue;
+            }
+
+            $actions = [
+                'create'  => false,
+                'read'    => true,
+                'update'  => false,
+                'delete'  => false,
+                'approve' => false,
+                'export'  => false,
+            ];
+
+            if (is_array($actInput) && isset($actInput[0]) && is_string($actInput[0])) {
+                $lowered = array_map('strtolower', $actInput);
+                $actions['create']  = in_array('add', $lowered) || in_array('create', $lowered);
+                $actions['read']    = in_array('view', $lowered) || in_array('read', $lowered) || in_array('show', $lowered);
+                $actions['update']  = in_array('edit', $lowered) || in_array('update', $lowered);
+                $actions['delete']  = in_array('delete', $lowered) || in_array('destroy', $lowered);
+                $actions['approve'] = in_array('approve', $lowered) || in_array('approval', $lowered);
+                $actions['export']  = in_array('download', $lowered) || in_array('upload', $lowered) || in_array('export', $lowered);
+
+                foreach ($lowered as $actStr) {
+                    $cleaned = trim($actStr);
+                    if ($cleaned !== '' && !isset($actions[$cleaned])) {
+                        $actions[$cleaned] = true;
+                    }
+                }
+            } elseif (is_array($actInput)) {
+                if (isset($actInput['add'])) {
+                    $actions['create'] = (bool) $actInput['add'];
+                }
+                if (isset($actInput['view'])) {
+                    $actions['read'] = (bool) $actInput['view'];
+                }
+                if (isset($actInput['edit'])) {
+                    $actions['update'] = (bool) $actInput['edit'];
+                }
+                if (isset($actInput['download']) || isset($actInput['upload'])) {
+                    $actions['export'] = (bool) ($actInput['export'] ?? $actInput['download'] ?? $actInput['upload'] ?? false);
+                }
+
+                foreach ($actInput as $actKey => $actVal) {
+                    if (is_string($actKey) && !in_array($actKey, ['add', 'view', 'edit', 'download', 'upload'])) {
+                        $actions[$actKey] = (bool) $actVal;
+                    }
+                }
+            }
+
+            $item = [
+                'menu_key' => (string) ($menuKey ?: $menuId),
+                'actions'  => $actions,
+            ];
+
+            if ($menuId !== null) {
+                $item['menu_id'] = is_numeric($menuId) ? (int)$menuId : $menuId;
+            }
+
+            $list[] = $item;
+        }
+
+        return $list;
+    }
+
+    /**
+     * Check if user has permission to perform action on a specific menu.
+     * Precedence:
+     * 1. Superadmin / Admin bypass
+     * 2. User-level custom permissions (override)
+     * 3. Role-level default permissions
+     */
+    public function hasPermission(string $menuKey, string $action = 'read'): bool
+    {
+        // 1. Superadmin / Administrator bypass
+        $roleName = strtolower(trim($this->role?->name ?? ''));
+        if (in_array($roleName, ['super admin', 'superadmin', 'admin', 'administrator'])) {
+            return true;
+        }
+
+        // 2. User-level Custom Permission Override
+        $customMap = $this->normalized_custom_permissions;
+        if (!empty($customMap)) {
+            // Exact match
+            if (isset($customMap[$menuKey])) {
+                return !empty($customMap[$menuKey][$action]);
+            }
+            // Prefix / Suffix match
+            foreach ($customMap as $key => $actions) {
+                if ($key === $menuKey || str_ends_with($key, ".{$menuKey}") || str_starts_with($key, "{$menuKey}.")) {
+                    return !empty($actions[$action]);
+                }
+            }
+        }
+
+        // 3. Fallback to Role Default Permissions
+        $roleMenu = $this->role?->roleMenu;
+        if (!$roleMenu) {
+            return false;
+        }
+
+        return $roleMenu->hasAction($menuKey, $action);
+    }
+
+    /**
+     * Get effective combined permissions matrix mapped for the user.
+     */
+    public function getPermissionsMap(): array
+    {
+        $roleName = strtolower(trim($this->role?->name ?? ''));
+        $isSuper = in_array($roleName, ['super admin', 'superadmin', 'admin', 'administrator']);
+
+        $roleMenu = $this->role?->roleMenu;
+        $rolePerms = $roleMenu ? $roleMenu->normalized_permissions : [];
+        $customPerms = $this->normalized_custom_permissions;
+
+        // Merge: User custom permissions override Role permissions
+        $effectiveMap = $rolePerms;
+        foreach ($customPerms as $menuKey => $actions) {
+            $effectiveMap[$menuKey] = $actions;
+        }
+
+        // Standardized list of all effective permissions
+        $effectiveList = [];
+        foreach ($effectiveMap as $menuKey => $actions) {
+            $actList = [];
+            if (is_array($actions)) {
+                foreach ($actions as $actKey => $actVal) {
+                    $actList[$actKey] = (bool) $actVal;
+                }
+            }
+            $effectiveList[] = [
+                'menu_key' => $menuKey,
+                'actions'  => $actList,
+            ];
+        }
+
+        return [
+            'is_super_admin' => $isSuper,
+            'role_id' => $this->role_id,
+            'role_name' => $this->role?->name,
+            'has_custom_override' => !empty($customPerms),
+            'actions' => $this->custom_permissions_list,
+            'custom_permissions' => $this->custom_permissions_list,
+            'permissions' => $effectiveMap,
+            'permissions_list' => $effectiveList,
+        ];
+    }
+
+    /**
+     * Get actions accessor as alias for custom_permissions_list.
+     */
+    public function getActionsAttribute(): array
+    {
+        return $this->custom_permissions_list;
+    }
+
+    /**
+     * Get has_custom_override accessor.
+     */
+    public function getHasCustomOverrideAttribute(): bool
+    {
+        return !empty($this->normalized_custom_permissions);
     }
 }

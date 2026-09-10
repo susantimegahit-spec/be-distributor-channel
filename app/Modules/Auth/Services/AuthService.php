@@ -32,11 +32,12 @@ class AuthService
      *
      * @param  string  $username
      * @param  string  $password
+     * @param  bool  $force
      * @return array
      *
      * @throws ValidationException
      */
-    public function login(string $username, string $password): array
+    public function login(string $username, string $password, bool $force = false): array
     {
         $user = $this->userRepository->findByUsername($username);
 
@@ -50,6 +51,58 @@ class AuthService
             throw ValidationException::withMessages([
                 'username' => ['Your account is inactive.'],
             ]);
+        }
+
+        if ($user->code_customer) {
+            $codes = array_filter(array_map('trim', explode(',', $user->code_customer)));
+            if (!empty($codes)) {
+                $distributors = \App\Models\Distributor::whereIn('code_customer', $codes)->get();
+                $hasInactive = false;
+
+                if ($distributors->count() < count($codes)) {
+                    $hasInactive = true;
+                } else {
+                    foreach ($distributors as $distributor) {
+                        if ($distributor->status !== 1) {
+                            $hasInactive = true;
+                            break;
+                        }
+                    }
+                }
+
+                if ($hasInactive) {
+                    throw ValidationException::withMessages([
+                        'username' => ['Your associated customer/distributor account is inactive.'],
+                    ]);
+                }
+            }
+        }
+
+        $expiration = config('sanctum.expiration');
+
+        if ($expiration) {
+            // Prune expired tokens for this user
+            $user->tokens()
+                ->where(function ($query) use ($expiration) {
+                    $query->where(function ($q) use ($expiration) {
+                        $q->whereNotNull('last_used_at')
+                          ->where('last_used_at', '<', now()->subMinutes($expiration));
+                    })->orWhere(function ($q) use ($expiration) {
+                        $q->whereNull('last_used_at')
+                          ->where('created_at', '<', now()->subMinutes($expiration));
+                    });
+                })->delete();
+        }
+
+        // Block login if there is still an active (non-expired) session
+        if ($user->tokens()->exists()) {
+            if ($force) {
+                $user->tokens()->delete();
+            } else {
+                throw ValidationException::withMessages([
+                    'active_session' => ['Akun ini sedang aktif di perangkat lain. Silakan logout terlebih dahulu dari perangkat tersebut.'],
+                ]);
+            }
         }
 
         // Create token
@@ -74,7 +127,7 @@ class AuthService
      * @param  User  $user
      * @return void
      */
-    public function logout(User $user): void
+    public function logout(User $user, ?string $fcmToken = null): void
     {
         // Log to Audit Log BEFORE revoking token (or during)
         $this->auditLogService->log(
@@ -83,8 +136,13 @@ class AuthService
             "User {$user->username} logged out."
         );
 
+        // Delete FCM device token if passed during logout
+        if ($fcmToken) {
+            $user->deviceTokens()->where('fcm_token', $fcmToken)->delete();
+        }
+
         // Revoke the current access token
-        $user->currentAccessToken()->delete();
+        $user->currentAccessToken()?->delete();
     }
 
     /**

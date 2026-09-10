@@ -21,3 +21,8 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Ignore all markdown documentation / notes
+*.md
+!README.md
+!.agents/**/*.md
