@@ -31,6 +31,10 @@ class VendorRegistrationRejectedMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
+            from: new \Illuminate\Mail\Mailables\Address(
+                config('mail.from.address', 'noreply@susantimegah.com'),
+                'SMESTA Vendor & Logistics Partner Portal'
+            ),
             subject: '[SMESTA PT Susanti Megah] Vendor Registration Application Update (' . $this->vendor->vendor_code . ')',
         );
     }

@@ -182,10 +182,6 @@
                     <div class="info-label">Temporary Password</div>
                     <div class="info-value"><span class="password-highlight">{{ $plainPassword }}</span></div>
                 </div>
-                <div class="info-row">
-                    <div class="info-label">Assigned Role</div>
-                    <div class="info-value">{{ $vendorUser->role }}</div>
-                </div>
             </div>
 
             <div class="btn-container">
@@ -205,7 +201,9 @@
         </div>
 
         <div class="footer">
-            <p>
+            <p><strong>PT Susanti Megah</strong></p>
+            <p>Jl. Dupak Rukun No. 71-73, Asemrowo, Surabaya, Jawa Timur 60182</p>
+            <p style="margin-top: 10px;">
                 This is an automated notification from the <strong>SMESTA (Enterprise Management System)</strong> of PT Susanti Megah.<br>
                 &copy; {{ date('Y') }} PT Susanti Megah. All rights reserved.
             </p>
