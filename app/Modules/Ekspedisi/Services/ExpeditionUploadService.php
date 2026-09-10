@@ -127,7 +127,7 @@ class ExpeditionUploadService
      * @param UploadedFile $file
      * @return array
      */
-    public function uploadRates(UploadedFile $file): array
+    public function uploadRates(UploadedFile $file, ?int $forcedExpeditionId = null): array
     {
         $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getRealPath());
         $worksheet = $spreadsheet->getActiveSheet();
@@ -157,7 +157,7 @@ class ExpeditionUploadService
             'remarks'          => ['remarks', 'keterangan'],
         ]);
 
-        if (!isset($headerMap['expedition_code'])) {
+        if (!$forcedExpeditionId && !isset($headerMap['expedition_code'])) {
             throw new \Exception('Header "expedition_code" atau "kode_ekspedisi" wajib ada dalam file.');
         }
 
@@ -197,38 +197,42 @@ class ExpeditionUploadService
                     continue;
                 }
 
-                $rawExpInput = trim((string) ($this->getValueByMap($row, $headerMap, 'expedition_code') ?? ''));
-                $expUpper = strtoupper($rawExpInput);
-                $expClean = preg_replace('/[^A-Z0-9]/', '', $expUpper);
-                $expCodePart = str_contains($rawExpInput, '-') ? trim(explode('-', $rawExpInput)[0]) : $rawExpInput;
-                $expCodePartUpper = strtoupper($expCodePart);
-                $expCodePartClean = preg_replace('/[^A-Z0-9]/', '', $expCodePartUpper);
+                if ($forcedExpeditionId) {
+                    $expeditionId = $forcedExpeditionId;
+                } else {
+                    $rawExpInput = trim((string) ($this->getValueByMap($row, $headerMap, 'expedition_code') ?? ''));
+                    $expUpper = strtoupper($rawExpInput);
+                    $expClean = preg_replace('/[^A-Z0-9]/', '', $expUpper);
+                    $expCodePart = str_contains($rawExpInput, '-') ? trim(explode('-', $rawExpInput)[0]) : $rawExpInput;
+                    $expCodePartUpper = strtoupper($expCodePart);
+                    $expCodePartClean = preg_replace('/[^A-Z0-9]/', '', $expCodePartUpper);
 
-                // Find expedition ID
-                $expeditionId = $expeditionMap[$rawExpInput]
-                    ?? $expeditionMap[$expUpper]
-                    ?? $expeditionMap[$expClean]
-                    ?? $expeditionMap[$expCodePartUpper]
-                    ?? $expeditionMap[$expCodePartClean]
-                    ?? null;
+                    // Find expedition ID
+                    $expeditionId = $expeditionMap[$rawExpInput]
+                        ?? $expeditionMap[$expUpper]
+                        ?? $expeditionMap[$expClean]
+                        ?? $expeditionMap[$expCodePartUpper]
+                        ?? $expeditionMap[$expCodePartClean]
+                        ?? null;
 
-                if (!$expeditionId) {
-                    // Fallback: direct database search with LIKE / ILIKE
-                    $expObj = Expedition::where('expedition_code', $rawExpInput)
-                        ->orWhere('expedition_code', 'ILIKE', $expCodePart)
-                        ->orWhere('expedition_name', 'ILIKE', $rawExpInput)
-                        ->orWhere('expedition_name', 'ILIKE', "%{$rawExpInput}%")
-                        ->first();
+                    if (!$expeditionId) {
+                        // Fallback: direct database search with LIKE / ILIKE
+                        $expObj = Expedition::where('expedition_code', $rawExpInput)
+                            ->orWhere('expedition_code', 'ILIKE', $expCodePart)
+                            ->orWhere('expedition_name', 'ILIKE', $rawExpInput)
+                            ->orWhere('expedition_name', 'ILIKE', "%{$rawExpInput}%")
+                            ->first();
 
-                    if ($expObj) {
-                        $expeditionId = $expObj->id;
-                        $expeditionMap[$expUpper] = $expObj->id;
+                        if ($expObj) {
+                            $expeditionId = $expObj->id;
+                            $expeditionMap[$expUpper] = $expObj->id;
+                        }
                     }
-                }
 
-                if (!$expeditionId) {
-                    $errors[] = "Baris #{$rowNum}: Ekspedisi dengan kode/nama '{$rawExpInput}' belum terdaftar di Master Ekspedisi. Harap daftarkan ekspedisi ini terlebih dahulu di menu Master Ekspedisi.";
-                    continue;
+                    if (!$expeditionId) {
+                        $errors[] = "Baris #{$rowNum}: Ekspedisi dengan kode/nama '{$rawExpInput}' belum terdaftar di Master Ekspedisi. Harap daftarkan ekspedisi ini terlebih dahulu di menu Master Ekspedisi.";
+                        continue;
+                    }
                 }
 
                 $priceVal = $this->getValueByMap($row, $headerMap, 'price');
@@ -239,19 +243,21 @@ class ExpeditionUploadService
 
                 // Match warehouse ID by code, name, or warehouse_origins (whs_name_origin)
                 $whsInput = trim((string) ($this->getValueByMap($row, $headerMap, 'warehouse_code') ?? ''));
-                $whsCode = $whsInput;
-                if (str_contains($whsCode, '-')) {
-                    $whsCode = trim(explode('-', $whsCode)[0]);
-                }
                 
                 $warehouseId = null;
-                if (isset($warehouseMap[$whsCode])) {
-                    $warehouseId = $warehouseMap[$whsCode];
-                } elseif (is_numeric($whsCode) && in_array((int) $whsCode, $warehouseMap)) {
-                    $warehouseId = (int) $whsCode;
+                if (isset($warehouseMap[$whsInput])) {
+                    $warehouseId = $warehouseMap[$whsInput];
+                } elseif (str_contains($whsInput, ' - ') && isset($warehouseMap[trim(explode(' - ', $whsInput)[0])])) {
+                    $warehouseId = $warehouseMap[trim(explode(' - ', $whsInput)[0])];
+                } elseif (str_contains($whsInput, '-') && isset($warehouseMap[trim(explode('-', $whsInput)[0])])) {
+                    $warehouseId = $warehouseMap[trim(explode('-', $whsInput)[0])];
+                } elseif (is_numeric($whsInput) && in_array((int) $whsInput, $warehouseMap)) {
+                    $warehouseId = (int) $whsInput;
                 } else {
+                    $whsCodePart = str_contains($whsInput, '-') ? trim(explode('-', $whsInput)[0]) : $whsInput;
                     // Check directly in public.warehouses
-                    $whsObj = Warehouse::where('whs_code', $whsCode)
+                    $whsObj = Warehouse::where('whs_code', $whsInput)
+                        ->orWhere('whs_code', $whsCodePart)
                         ->orWhere('whs_name', $whsInput)
                         ->orWhere('whs_name', 'LIKE', "%{$whsInput}%")
                         ->first();
@@ -375,12 +381,14 @@ class ExpeditionUploadService
 
                 $existingRate = $existingRateQuery->first();
 
+                $internalUserId = (auth()->check() && auth()->user() instanceof \App\Models\User) ? auth()->id() : null;
+
                 if ($existingRate) {
-                    $ratePayload['updated_by'] = auth()->id();
+                    $ratePayload['updated_by'] = $internalUserId;
                     $existingRate->update($ratePayload);
                     $updated++;
                 } else {
-                    $ratePayload['created_by'] = auth()->id();
+                    $ratePayload['created_by'] = $internalUserId;
                     ExpeditionRate::create($ratePayload);
                     $created++;
                 }

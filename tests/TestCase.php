@@ -38,13 +38,19 @@ abstract class TestCase extends BaseTestCase
                 'database.connections.sqlite.database' => $defaultDb,
                 'database.connections.pgsql_ekspedisi' => [
                     'driver' => 'sqlite',
-                    'database' => $ekspedisiDb,
+                    'database' => $defaultDb,
                     'prefix' => '',
                     'foreign_key_constraints' => false,
                 ],
                 'database.connections.pgsql_production' => [
                     'driver' => 'sqlite',
-                    'database' => $productionDb,
+                    'database' => $defaultDb,
+                    'prefix' => '',
+                    'foreign_key_constraints' => false,
+                ],
+                'database.connections.pgsql_vendor' => [
+                    'driver' => 'sqlite',
+                    'database' => $defaultDb,
                     'prefix' => '',
                     'foreign_key_constraints' => false,
                 ],
@@ -70,12 +76,5 @@ abstract class TestCase extends BaseTestCase
         }
 
         parent::setUp();
-
-        if (config('database.default') === 'sqlite' && !empty($needsMigration)) {
-            $this->artisan('migrate', [
-                '--path' => 'database/migrations/production',
-                '--database' => 'pgsql_production',
-            ]);
-        }
     }
 }

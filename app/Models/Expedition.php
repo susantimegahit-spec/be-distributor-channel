@@ -18,12 +18,15 @@ class Expedition extends Model
      */
     protected $connection = 'pgsql_ekspedisi';
 
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
-    protected $table = 'ekspedisi.expeditions';
+    public function getConnectionName()
+    {
+        return config('database.default') === 'sqlite' ? 'sqlite' : 'pgsql_ekspedisi';
+    }
+
+    public function getTable()
+    {
+        return config('database.default') === 'sqlite' ? 'expeditions' : 'ekspedisi.expeditions';
+    }
 
     /**
      * The attributes that are mass assignable.
@@ -31,6 +34,7 @@ class Expedition extends Model
      * @var list<string>
      */
     protected $fillable = [
+        'vendor_id',
         'expedition_code',
         'expedition_name',
         'address',
@@ -47,6 +51,14 @@ class Expedition extends Model
         'created_by',
         'updated_by',
     ];
+
+    /**
+     * Get the vendor partner associated with this expedition.
+     */
+    public function vendor(): BelongsTo
+    {
+        return $this->belongsTo(\App\Modules\VendorPortal\Models\Vendor::class, 'vendor_id');
+    }
 
     /**
      * Get the rates for this expedition.

@@ -14116,6 +14116,177 @@ paths:
         '200':
           description: Berhasil logout dari vendor portal.
 
+  /vendor-portal/rates:
+    get:
+      summary: Daftar Tarif Pengiriman Vendor (Rate Card)
+      description: Mengambil daftar tarif pengiriman yang diajukan oleh mitra vendor ekspedisi yang sedang login, dilengkapi filter dan pagination.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: approval_status
+          in: query
+          description: Filter status persetujuan tarif (PENDING, APPROVED, REJECTED)
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED]
+        - name: transport_mode
+          in: query
+          description: Filter moda transportasi (DARAT, LAUT, UDARA)
+          schema:
+            type: string
+        - name: warehouse_id
+          in: query
+          description: Filter ID gudang asal
+          schema:
+            type: integer
+        - name: destination_id
+          in: query
+          description: Filter ID shipto tujuan
+          schema:
+            type: integer
+        - name: search
+          in: query
+          description: Pencarian nama gudang, nama tujuan, atau catatan
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          description: Jumlah data per halaman
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Vendor rates retrieved successfully.
+        '401':
+          description: Unauthenticated access.
+        '403':
+          description: Unauthorized access or vendor account not approved yet.
+        '422':
+          description: Vendor is not of type EXPEDITION.
+    post:
+      summary: Pengajuan Tarif Pengiriman Baru (Manual)
+      description: Mengajukan tarif pengiriman baru secara manual melalui form Vendor Portal. Tarif akan berstatus PENDING hingga disetujui tim logistik.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - price
+              properties:
+                warehouse_id:
+                  type: integer
+                  example: 1
+                origin:
+                  type: string
+                  example: WHS-GRS-01
+                destination_id:
+                  type: integer
+                  example: 12
+                destination:
+                  type: string
+                  example: CUST-SMG-01
+                transport_mode:
+                  type: string
+                  example: DARAT
+                service_type:
+                  type: string
+                  example: REGULER
+                min_tonnage:
+                  type: number
+                  example: 0
+                max_tonnage:
+                  type: number
+                  example: 15000
+                price:
+                  type: number
+                  example: 4500000
+                eta_days:
+                  type: integer
+                  example: 2
+                min_shipment_qty:
+                  type: number
+                  example: 1
+                max_shipment_qty:
+                  type: number
+                  example: 100
+                valid_from:
+                  type: string
+                  format: date
+                  example: 2026-09-10
+                valid_until:
+                  type: string
+                  format: date
+                  example: 2027-09-10
+                remarks:
+                  type: string
+                  example: Pengajuan penyesuaian tarif armada wingbox Q4
+      responses:
+        '201':
+          description: Expedition rate submitted successfully. Pending review by logistics team.
+        '401':
+          description: Unauthenticated access.
+        '403':
+          description: Unauthorized access or vendor account not approved yet.
+        '422':
+          description: Validation error.
+
+  /vendor-portal/rates/upload:
+    post:
+      summary: Upload Massal Pengajuan Tarif (Excel / CSV)
+      description: Mengunggah spreadsheet daftar tarif (.xlsx, .xls, .csv). Pengajuan tarif otomatis dikaitkan dengan vendor ekspedisi yang sedang login dan berstatus PENDING.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File Excel (.xlsx, .xls) atau CSV (Maksimal 10MB)
+      responses:
+        '200':
+          description: Rate spreadsheet uploaded and processed successfully. Submitted rates are pending review.
+        '401':
+          description: Unauthenticated access.
+        '403':
+          description: Unauthorized access or vendor account not approved yet.
+        '422':
+          description: Validation error or invalid file type.
+
+  /vendor-portal/rates/template:
+    get:
+      summary: Download Template CSV Pengajuan Tarif
+      description: Mengunduh template CSV resmi untuk pengajuan tarif pengiriman massal oleh mitra vendor ekspedisi.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: CSV template file download stream.
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+
   /vendor-management/registrations:
     get:
       summary: Daftar Permohonan Registrasi Vendor (Backoffice Legal)

@@ -11,6 +11,11 @@ return new class extends Migration
      */
     protected $connection = 'pgsql_ekspedisi';
 
+    public function getConnection()
+    {
+        return config('database.default') === 'sqlite' ? 'sqlite' : $this->connection;
+    }
+
     /**
      * Run the migrations.
      */

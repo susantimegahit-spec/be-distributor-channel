@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Modules\VendorPortal\Controllers\VendorRegistrationController;
 use App\Modules\VendorPortal\Controllers\VendorAuthController;
 use App\Modules\VendorPortal\Controllers\VendorLegalApprovalController;
+use App\Modules\VendorPortal\Controllers\VendorRateController;
 
 /*
 |--------------------------------------------------------------------------
@@ -51,6 +52,12 @@ $registerVendorRoutes = function () {
         Route::middleware('auth:sanctum')->group(function () {
             Route::get('/me', [VendorAuthController::class, 'me']);
             Route::post('/logout', [VendorAuthController::class, 'logout']);
+
+            // Vendor Rate Card Management & Submission (Expedition Partners)
+            Route::get('/rates/template', [VendorRateController::class, 'template']);
+            Route::get('/rates', [VendorRateController::class, 'index']);
+            Route::post('/rates', [VendorRateController::class, 'store']);
+            Route::post('/rates/upload', [VendorRateController::class, 'upload']);
         });
     });
 

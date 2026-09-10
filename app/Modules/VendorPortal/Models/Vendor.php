@@ -75,4 +75,9 @@ class Vendor extends Model
     {
         return $this->hasMany(VendorCredentialsDispatchLog::class, 'vendor_id')->orderBy('created_at', 'desc');
     }
+
+    public function expedition()
+    {
+        return $this->belongsTo(\App\Models\Expedition::class, 'expedition_id');
+    }
 }

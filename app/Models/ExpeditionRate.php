@@ -17,12 +17,15 @@ class ExpeditionRate extends Model
      */
     protected $connection = 'pgsql_ekspedisi';
 
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
-    protected $table = 'ekspedisi.expedition_rates';
+    public function getConnectionName()
+    {
+        return config('database.default') === 'sqlite' ? 'sqlite' : 'pgsql_ekspedisi';
+    }
+
+    public function getTable()
+    {
+        return config('database.default') === 'sqlite' ? 'expedition_rates' : 'ekspedisi.expedition_rates';
+    }
 
     /**
      * The attributes that are mass assignable.

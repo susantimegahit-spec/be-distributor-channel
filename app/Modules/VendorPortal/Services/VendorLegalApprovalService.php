@@ -8,6 +8,7 @@ use App\Modules\VendorPortal\Models\VendorUser;
 use App\Modules\VendorPortal\Models\VendorApprovalHistory;
 use App\Modules\VendorPortal\Models\VendorCredentialsDispatchLog;
 use App\Models\User;
+use App\Models\Expedition;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
@@ -244,29 +245,28 @@ class VendorLegalApprovalService
     /**
      * Sinkronisasi data vendor ke tabel master ekspedisi.expeditions.
      */
-    protected function syncToExpeditionMaster(Vendor $vendor): ?object
+    public function syncToExpeditionMaster(Vendor $vendor): ?Expedition
     {
         try {
             $ekspedisiConn = config('database.default') === 'sqlite' ? 'sqlite' : 'pgsql_ekspedisi';
-            if (!Schema::connection($ekspedisiConn)->hasTable('expeditions')) {
+            $hasTable = Schema::connection($ekspedisiConn)->hasTable('expeditions') 
+                || Schema::connection($ekspedisiConn)->hasTable('ekspedisi.expeditions');
+            if (!$hasTable) {
                 return null;
             }
 
             $expeditionCode = 'EXP-' . strtoupper(Str::slug(substr($vendor->company_name, 0, 8), '')) . '-' . sprintf('%04d', $vendor->id);
 
-            // Cek apakah sudah ada ekspedisi dengan email atau kode yang sama
-            $existing = DB::connection($ekspedisiConn)->table('expeditions')
-                ->where('email', $vendor->company_email)
-                ->orWhere('expedition_name', $vendor->company_name)
+            // Cek apakah sudah ada ekspedisi yang terhubung dengan vendor ini atau memiliki email/nama sama
+            $expedition = Expedition::where('vendor_id', $vendor->id)
+                ->orWhere(function ($q) use ($vendor) {
+                    $q->where('email', $vendor->company_email)
+                      ->orWhere('expedition_name', $vendor->company_name);
+                })
                 ->first();
 
-            if ($existing) {
-                $vendor->update(['expedition_id' => $existing->id]);
-                return $existing;
-            }
-
-            $expeditionId = DB::connection($ekspedisiConn)->table('expeditions')->insertGetId([
-                'expedition_code' => $expeditionCode,
+            $payload = [
+                'vendor_id' => $vendor->id,
                 'expedition_name' => $vendor->company_name,
                 'address' => $vendor->address,
                 'city' => $vendor->city,
@@ -275,20 +275,24 @@ class VendorLegalApprovalService
                 'pic_name' => $vendor->pic_name,
                 'pic_phone' => $vendor->pic_phone,
                 'email' => $vendor->company_email,
+                'npwp' => $vendor->company_npwp,
                 'status' => 'ACTIVE',
-                'created_at' => Carbon::now(),
-                'updated_at' => Carbon::now(),
-            ]);
-
-            $vendor->update(['expedition_id' => $expeditionId]);
-
-            return (object)[
-                'id' => $expeditionId,
-                'expedition_code' => $expeditionCode,
-                'expedition_name' => $vendor->company_name,
             ];
+
+            if ($expedition) {
+                $expedition->update($payload);
+            } else {
+                $payload['expedition_code'] = $expeditionCode;
+                $expedition = Expedition::create($payload);
+            }
+
+            if ($vendor->expedition_id !== $expedition->id) {
+                $vendor->update(['expedition_id' => $expedition->id]);
+            }
+
+            return $expedition;
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning("Auto-sync expedition failed for vendor {$vendor->id}: " . $e->getMessage());
+            Log::warning("Auto-sync expedition failed for vendor {$vendor->id}: " . $e->getMessage());
             return null;
         }
     }

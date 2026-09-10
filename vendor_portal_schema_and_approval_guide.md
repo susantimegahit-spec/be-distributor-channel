@@ -401,6 +401,237 @@ Digunakan oleh calon vendor untuk mengunggah berkas pengganti yang diminta revis
 
 ---
 
+## 🚚 5. Integrasi Vendor Ekspedisi & Pengajuan Tarif (Rate Card)
+
+Setelah calon vendor bertipe `EXPEDITION` disetujui (`APPROVED`) oleh tim legal, sistem secara otomatis menghubungkan vendor tersebut dengan master data ekspedisi (`ekspedisi.expeditions`). Vendor kemudian dapat mengakses menu **Rate Card Management** di Vendor Portal untuk melihat, mengajukan tarif baru secara manual, atau mengunggah spreadsheet daftar tarif secara massal.
+
+### 5.1 Relasi Dua Arah: `vendor.vendors` ↔ `ekspedisi.expeditions`
+
+Relasi antar skema PostgreSQL dibangun secara dua arah (bi-directional foreign keys) untuk menjaga integritas data lintas domain:
+- **`vendor.vendors.expedition_id`**: Menunjuk ke `ekspedisi.expeditions.id`.
+- **`ekspedisi.expeditions.vendor_id`**: Menunjuk ke `vendor.vendors.id`.
+- **Sinkronisasi Otomatis:** Saat tim legal menyetujui vendor ekspedisi, `VendorLegalApprovalService::syncToExpeditionMaster()` memastikan:
+  - `expedition_name` disamakan dengan `company_name`.
+  - `npwp` disinkronkan dari `company_npwp` vendor.
+  - Alamat, telepon, dan status aktif diselaraskan.
+  - Relasi dua arah (`vendor_id` & `expedition_id`) terisi penuh.
+
+```mermaid
+erDiagram
+    "vendor.vendors" ||--o| "ekspedisi.expeditions" : "1-to-1 bi-directional (vendor_id / expedition_id)"
+    "ekspedisi.expeditions" ||--o{ "ekspedisi.expedition_rates" : "has many rates"
+    "vendor.vendor_users" }o--|| "vendor.vendors" : "belongs to vendor"
+
+    "vendor.vendors" {
+        bigint id PK
+        string vendor_code UK
+        string vendor_type
+        string company_name
+        string company_npwp
+        string registration_status
+        bigint expedition_id FK
+    }
+
+    "ekspedisi.expeditions" {
+        bigint id PK
+        string expedition_code UK
+        string expedition_name
+        string npwp
+        bigint vendor_id FK
+        boolean is_active
+    }
+
+    "ekspedisi.expedition_rates" {
+        bigint id PK
+        bigint expedition_id FK
+        bigint warehouse_id FK
+        bigint destination_id FK
+        string transport_mode
+        string service_type
+        numeric min_tonnage
+        numeric max_tonnage
+        numeric price
+        string approval_status
+        boolean flag
+        string upload_batch_id
+    }
+```
+
+---
+
+### 5.2 Alur Bisnis Pengajuan & Verifikasi Tarif (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor V as Mitra Ekspedisi (Vendor Portal)
+    participant FE as Frontend (/vendor-portal/dashboard/expedition)
+    participant BE as Backend API (VendorRateController)
+    participant DB as PostgreSQL (ekspedisi.expedition_rates)
+    actor Log as Tim Logistik Internal (Backoffice)
+
+    V->>FE: Buka menu Pengajuan Tarif / Rate Card
+    FE->>BE: GET /api/distributor-channel/vendor-portal/rates
+    BE->>DB: Query tarif milik vendor.expedition_id
+    BE-->>FE: Daftar tarif & status (PENDING / APPROVED / REJECTED)
+
+    alt Pengajuan Manual Single Rate
+        V->>FE: Isi form tarif (Gudang Asal, Tujuan, Moda, Tonase, Harga)
+        FE->>BE: POST /api/distributor-channel/vendor-portal/rates
+        BE->>DB: INSERT expedition_rates (approval_status: PENDING, flag: false)
+        BE-->>FE: HTTP 201 Created
+    else Pengajuan Massal via File Spreadsheet
+        V->>FE: Download CSV Template
+        FE->>BE: GET /api/distributor-channel/vendor-portal/rates/template
+        BE-->>FE: File vendor_rate_submission_template.csv
+        V->>FE: Isi data tarif pada file & Upload
+        FE->>BE: POST /api/distributor-channel/vendor-portal/rates/upload (multipart)
+        BE->>DB: Bulk insert/update (expedition_id terkunci ke vendor aktif, status PENDING)
+        BE-->>FE: HTTP 200 OK (processed_count, created_count, updated_count)
+    end
+
+    Note over Log,DB: Tim Logistik Memeriksa Pengajuan di Master Tarif Ekspedisi
+    Log->>BE: Review pengajuan tarif PENDING
+    Log->>DB: Set approval_status = APPROVED, flag = true
+    Note over V,FE: Tarif yang disetujui kini aktif dan dapat dipilih untuk SPJ & Transfer Antargudang
+```
+
+---
+
+### 5.3 Spesifikasi Endpoint Pengajuan Tarif Vendor
+
+Seluruh endpoint di bawah ini mewajibkan header autentikasi `Authorization: Bearer <sanctum_token>` dari user vendor yang berstatus `APPROVED` dan memiliki `vendor_type == 'EXPEDITION'`.
+
+#### 1. Download Template CSV Pengajuan Tarif
+- **Method & Path:** `GET /api/distributor-channel/vendor-portal/rates/template` (atau `/v1/vendor-portal/rates/template`)
+- **Headers:** `Authorization: Bearer <token>`
+- **Response `200 OK`:** Stream file `vendor_rate_submission_template.csv` berisi header standar dan baris contoh data:
+  ```csv
+  warehouse_code,destination_id,transport_mode,service_type,min_tonnage,max_tonnage,price,eta_days,min_shipment_qty,max_shipment_qty,valid_from,valid_until,remarks
+  PRD01-01,1,DARAT,REGULER,0,1000,1500000,3,1,100,2026-09-10,2027-09-10,Pengajuan tarif reguler via vendor portal
+  ```
+
+#### 2. Ambil Riwayat Pengajuan Tarif Vendor
+- **Method & Path:** `GET /api/distributor-channel/vendor-portal/rates` (atau `/v1/vendor-portal/rates`)
+- **Headers:** `Authorization: Bearer <token>`
+- **Query Parameters:**
+  | Parameter | Tipe | Keterangan |
+  |:---|:---:|:---|
+  | `approval_status` | string | Filter status (`PENDING`, `APPROVED`, `REJECTED`) |
+  | `transport_mode` | string | Filter moda transportasi (`DARAT`, `LAUT`, `UDARA`) |
+  | `warehouse_id` | integer | Filter ID gudang asal |
+  | `destination_id`| integer | Filter ID customer shipto tujuan |
+  | `search` | string | Pencarian nama gudang, nama tujuan, atau catatan |
+  | `per_page` | integer | Data per halaman (default: 15) |
+- **Response `200 OK`:**
+  ```json
+  {
+    "success": true,
+    "message": "Vendor rates retrieved successfully.",
+    "data": [
+      {
+        "id": 142,
+        "expedition_id": 12,
+        "warehouse_id": 1,
+        "destination_id": 15,
+        "transport_mode": "DARAT",
+        "service_type": "WINGBOX",
+        "min_tonnage": 0,
+        "max_tonnage": 15000,
+        "price": 4500000,
+        "eta_days": 2,
+        "approval_status": "PENDING",
+        "flag": false,
+        "remarks": "Penyesuaian tarif Q4 2026",
+        "warehouse": {
+          "id": 1,
+          "whs_code": "PRD01-01",
+          "whs_name": "Gudang Manyar Gresik"
+        },
+        "destination": {
+          "id": 15,
+          "card_code": "CUST-SMG-01",
+          "name": "Distributor Semarang Makmur",
+          "city": "Semarang"
+        }
+      }
+    ],
+    "meta": {
+      "current_page": 1,
+      "last_page": 1,
+      "per_page": 15,
+      "total": 1
+    }
+  }
+  ```
+
+#### 3. Pengajuan Tarif Baru Secara Manual
+- **Method & Path:** `POST /api/distributor-channel/vendor-portal/rates` (atau `/v1/vendor-portal/rates`)
+- **Headers:** `Authorization: Bearer <token>`, `Content-Type: application/json`
+- **Request JSON:**
+  ```json
+  {
+    "origin": "PRD01-01",
+    "destination": "CUST-SMG-01",
+    "transport_mode": "DARAT",
+    "service_type": "COLD DIESEL DOUBLE (CDD)",
+    "min_tonnage": 0,
+    "max_tonnage": 5000,
+    "price": 2800000,
+    "eta_days": 2,
+    "min_shipment_qty": 1,
+    "max_shipment_qty": 50,
+    "valid_from": "2026-09-15",
+    "valid_until": "2027-09-15",
+    "remarks": "Tarif armada CDD rute Gresik ke Semarang"
+  }
+  ```
+  *(Catatan: Input origin menerima `warehouse_id` integer atau `origin` kode string. Input tujuan menerima `destination_id` integer atau `destination` card_code/nama)*.
+- **Response `201 Created`:**
+  ```json
+  {
+    "success": true,
+    "message": "Expedition rate submitted successfully. Pending review by logistics team.",
+    "data": {
+      "id": 143,
+      "expedition_id": 12,
+      "warehouse_id": 1,
+      "destination_id": 15,
+      "price": 2800000,
+      "approval_status": "PENDING",
+      "flag": false
+    }
+  }
+  ```
+
+#### 4. Upload Massal Spreadsheet Tarif (Excel / CSV)
+- **Method & Path:** `POST /api/distributor-channel/vendor-portal/rates/upload` (atau `/v1/vendor-portal/rates/upload`)
+- **Headers:** `Authorization: Bearer <token>`, `Content-Type: multipart/form-data`
+- **Request Body:**
+  | Field | Tipe | Wajib | Keterangan |
+  |:---|:---:|:---:|:---|
+  | `file` | file | Ya | File `.xlsx`, `.xls`, atau `.csv` (Maksimal 10MB) |
+- **Keamanan & Validasi Khusus Vendor:**
+  - Vendor tidak perlu menyertakan kolom `expedition_code`. Sistem secara otomatis mengunci seluruh baris tarif pada file ke `vendor.expedition_id` milik akun yang sedang login. Vendor tidak dapat mengunggah atau menimpa tarif ekspedisi lain.
+  - Seluruh baris tarif baru yang diproses otomatis diberi status `approval_status = 'PENDING'` dan `flag = false`.
+- **Response `200 OK`:**
+  ```json
+  {
+    "success": true,
+    "message": "Rate spreadsheet uploaded and processed successfully. Submitted rates are pending review.",
+    "data": {
+      "upload_batch_id": "BATCH-RATE-20260910-001",
+      "processed_count": 25,
+      "created_count": 20,
+      "updated_count": 5,
+      "skipped_count": 0,
+      "errors": []
+    }
+  }
+  ```
+
+---
+
 ## 🔗 Referensi Berkas Terkait
 - Dashboard Hub Dokumentasi: [[API_Documentation_Hub|SMESTA API Documentation Hub]]
 - Aturan Standar Pengembangan: [[standard_development_rules|Standard Development Rules]]
