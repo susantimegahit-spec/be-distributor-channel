@@ -478,6 +478,42 @@ Digunakan oleh calon vendor untuk mengunggah berkas pengganti yang diminta revis
   }
   ```
 
+#### 7. Unggah Ulang Berkas Revisi oleh Vendor (Re-upload Document)
+- **Method & Path:** `POST /api/distributor-channel/vendor-portal/documents/{documentId}/reupload` (atau `/v1/vendor-portal/documents/{documentId}/reupload`)
+- **Headers:** `Authorization: Bearer <token>` *(Opsional jika sudah login di portal)*, `Content-Type: multipart/form-data`
+- **Request Body (`multipart/form-data`):**
+  | Field | Tipe | Wajib | Keterangan |
+  |:---|:---:|:---:|:---|
+  | `file` | file | Ya | Berkas dokumen revisi (.pdf, .jpg, .jpeg, .png, maksimal 10MB) |
+  | `notes` | string | Tidak | Catatan klarifikasi atau penjelasan perbaikan dari vendor |
+  | `document_number` | string | Tidak | Nomor dokumen baru (jika ada pembaruan nomor dokumen) |
+  | `vendor_code` | string | Kondisional | Wajib jika request dilakukan tanpa Bearer Token (public). Otomatis dideteksi dari akun jika request menyertakan Bearer Token. |
+- **Perilaku Sistem:**
+  - Menghapus berkas lama dari media storage.
+  - Menyimpan file baru ke path aman `storage/vendor_documents/{vendor_code}/...`.
+  - Mengubah status dokumen menjadi `verification_status = 'PENDING'`.
+  - Mereset data verifier (`verified_by = null`, `verified_at = null`).
+  - Mencatat riwayat audit pada `vendor.vendor_approval_histories`.
+- **Response `200 OK`:**
+  ```json
+  {
+    "success": true,
+    "message": "Document re-uploaded successfully. Pending legal document verification.",
+    "data": {
+      "id": 1,
+      "vendor_id": 1,
+      "document_type": "AKTA",
+      "document_number": "AHU-00123-REV",
+      "file_name": "akta_perubahan_2026.pdf",
+      "file_size": 425120,
+      "file_mime": "application/pdf",
+      "verification_status": "PENDING",
+      "notes": "Sudah diunggah lembar akta perubahan modal terbaru.",
+      "file_url": "https://smesta-dev.susantimegah.com/storage/vendor_documents/VND-202609-0001/akta_VND-202609-0001_xyz123.pdf"
+    }
+  }
+  ```
+
 ---
 
 ## 🚚 5. Integrasi Vendor Ekspedisi & Pengajuan Tarif (Rate Card)

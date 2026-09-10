@@ -319,6 +319,65 @@ class VendorPortalApiTest extends TestCase
         $this->assertEquals('PENDING_LEGAL_APPROVAL', $vendor->fresh()->registration_status);
     }
 
+    public function test_authenticated_vendor_can_reupload_document_needing_revision()
+    {
+        Storage::fake('public');
+
+        $vendor = Vendor::create([
+            'vendor_code' => 'VND-202609-0007',
+            'vendor_type' => 'EXPEDITION',
+            'company_name' => 'PT Auth Reupload Test',
+            'company_email' => 'auth_reupload@ekspedisi.com',
+            'pic_name' => 'Dimas',
+            'pic_phone' => '081777777',
+            'terms_agreed' => true,
+            'registration_status' => 'APPROVED',
+            'legal_approval_status' => 'APPROVED',
+        ]);
+
+        $vendorUser = \App\Modules\VendorPortal\Models\VendorUser::create([
+            'vendor_id' => $vendor->id,
+            'name' => 'Dimas Vendor',
+            'email' => 'auth_reupload@ekspedisi.com',
+            'password' => \Illuminate\Support\Facades\Hash::make('password123'),
+            'role' => 'VENDOR_ADMIN',
+            'status' => 'ACTIVE',
+        ]);
+
+        $doc = \App\Modules\VendorPortal\Models\VendorDocument::create([
+            'vendor_id' => $vendor->id,
+            'document_type' => 'NIB',
+            'document_number' => 'NIB-888',
+            'file_path' => 'vendor_documents/old_nib.pdf',
+            'file_name' => 'old_nib.pdf',
+            'verification_status' => 'NEEDS_REVISION',
+            'notes' => 'Nomor NIB belum terdaftar di OSS.',
+        ]);
+
+        $newFile = UploadedFile::fake()->create('nib_revisi.pdf', 300, 'application/pdf');
+
+        // Authenticated vendor calls reupload without sending vendor_code
+        $response = $this->actingAs($vendorUser, 'sanctum')
+            ->postJson("/api/distributor-channel/v1/vendor-portal/documents/{$doc->id}/reupload", [
+                'file' => $newFile,
+                'notes' => 'Sudah diverifikasi dan diperbarui di OSS.',
+                'document_number' => 'NIB-888-REV',
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'id' => $doc->id,
+                    'verification_status' => 'PENDING',
+                    'notes' => 'Sudah diverifikasi dan diperbarui di OSS.',
+                    'document_number' => 'NIB-888-REV',
+                ],
+            ]);
+
+        $this->assertEquals('PENDING', $doc->fresh()->verification_status);
+    }
+
     public function test_preview_document_endpoint_returns_file_stream()
     {
         $vendor = Vendor::create([

@@ -80,13 +80,25 @@ class VendorRegistrationController extends Controller
      */
     public function reuploadDocument(Request $request, $documentId): JsonResponse
     {
-        $request->validate([
-            'vendor_code' => 'required|string',
+        $authUser = auth('sanctum')->user();
+        $vendorCodeInput = $request->input('vendor_code');
+
+        if (!$vendorCodeInput && $authUser && $authUser->vendor) {
+            $vendorCodeInput = $authUser->vendor->vendor_code;
+        }
+
+        $rules = [
             'file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'notes' => 'nullable|string|max:1000',
             'document_number' => 'nullable|string|max:100',
-        ], [
-            'vendor_code.required' => 'Vendor code is required.',
+        ];
+
+        if (!$authUser) {
+            $rules['vendor_code'] = 'required|string';
+        }
+
+        $request->validate($rules, [
+            'vendor_code.required' => 'Vendor code is required when unauthenticated.',
             'file.required' => 'Replacement document file is required.',
             'file.mimes' => 'Document file must be a PDF, JPG, JPEG, or PNG.',
             'file.max' => 'Document file size must not exceed 10MB.',
@@ -100,17 +112,24 @@ class VendorRegistrationController extends Controller
             ], 404);
         }
 
-        if (!$document->vendor || strtoupper(trim($document->vendor->vendor_code)) !== strtoupper(trim($request->input('vendor_code')))) {
+        if ($authUser && $authUser->vendor_id) {
+            if ($document->vendor_id !== $authUser->vendor_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized document access.',
+                ], 403);
+            }
+        } elseif (!$document->vendor || strtoupper(trim($document->vendor->vendor_code)) !== strtoupper(trim((string) $vendorCodeInput))) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid vendor code or unauthorized document access.',
             ], 403);
         }
 
-        if ($document->vendor->registration_status === 'APPROVED') {
+        if ($document->vendor->registration_status === 'APPROVED' && $document->verification_status !== 'NEEDS_REVISION') {
             return response()->json([
                 'success' => false,
-                'message' => 'This vendor has already been approved. Document replacement is not allowed.',
+                'message' => 'This document has already been verified and approved. Document re-upload is only allowed when revision is requested.',
             ], 422);
         }
 

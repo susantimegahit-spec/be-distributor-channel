@@ -65,6 +65,7 @@ class VendorAuthController extends Controller
                     'file_url'            => $doc->file_url,
                     'verification_status' => $doc->verification_status,
                     'notes'               => $doc->notes,
+                    'verification_notes'  => $doc->verification_notes ?? $doc->notes,
                     'verified_at'         => $doc->verified_at ? $doc->verified_at->toIso8601String() : null,
                 ];
             })->values()->all();

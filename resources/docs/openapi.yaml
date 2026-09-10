@@ -14155,11 +14155,66 @@ paths:
                               example: VALID
                             notes:
                               type: string
+                            verification_notes:
+                              type: string
+                              example: Mohon perbarui dengan akta perubahan modal terbaru.
                             verified_at:
                               type: string
                               format: date-time
         '401':
           description: Unauthenticated.
+
+  /vendor-portal/documents/{documentId}/reupload:
+    post:
+      summary: Upload Ulang Berkas Dokumen Revisi (Vendor Re-upload)
+      description: Mengunggah berkas pengganti untuk dokumen legalitas yang diminta revisi (status NEEDS_REVISION) oleh tim legal. Jika vendor sudah login via Bearer Token, vendor_code otomatis terdeteksi. Jika belum login, parameter vendor_code wajib disertakan.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+        - {}
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          description: ID berkas dokumen legalitas (vendor_documents.id)
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File dokumen revisi baru (.pdf, .jpg, .jpeg, .png, maksimal 10MB)
+                notes:
+                  type: string
+                  description: Catatan perbaikan dari pihak vendor
+                  example: Sudah diperbarui dengan lembar pengesahan Kemenkumham terbaru.
+                document_number:
+                  type: string
+                  description: Nomor dokumen baru jika ada perubahan nomor
+                  example: AHU-00123.AH.01.02.TAHUN 2026
+                vendor_code:
+                  type: string
+                  description: Kode vendor (Wajib jika request tanpa Authorization Bearer Token)
+                  example: VND-202609-0001
+      responses:
+        '200':
+          description: Document re-uploaded successfully. Pending legal document verification.
+        '403':
+          description: Unauthorized document access or invalid vendor code.
+        '404':
+          description: Document not found.
+        '422':
+          description: Validation error or document is already approved.
 
   /vendor-portal/change-password:
     post:
