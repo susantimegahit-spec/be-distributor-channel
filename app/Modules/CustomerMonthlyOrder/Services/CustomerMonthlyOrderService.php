@@ -475,7 +475,7 @@ class CustomerMonthlyOrderService
 
         // Populate Billing Address (pay_to_code & address)
         if (empty($data['pay_to_code'])) {
-            $data['pay_to_code'] = $billing['Address'] ?? 'MAIN';
+            $data['pay_to_code'] = $billing['Address'] ?? null;
         }
         if (empty($data['address'])) {
             $data['address'] = $billing['Street'] ?? $distributor->address ?? null;
@@ -483,7 +483,7 @@ class CustomerMonthlyOrderService
 
         // Populate Shipping Address (ship_to_code & address2)
         if (empty($data['ship_to_code'])) {
-            $data['ship_to_code'] = $shipping['Address'] ?? $billing['Address'] ?? 'MAIN';
+            $data['ship_to_code'] = $shipping['Address'] ?? $billing['Address'] ?? null;
         }
         if (empty($data['address2'])) {
             $data['address2'] = $shipping['Street'] ?? $distributor->mail_address ?? $distributor->address ?? null;
