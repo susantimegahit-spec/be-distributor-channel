@@ -14435,7 +14435,7 @@ paths:
                 file:
                   type: string
                   format: binary
-                  description: File Excel (.xlsx, .xls) atau CSV (Maksimal 10MB) dengan kolom No, Origin Code, Origin Name, Destination, Transport Mode, Min Weight (Kg), Max Weight (Kg), Service Type, Rate, Lead Time.
+                  description: File Excel (.xlsx, .xls) atau CSV (Maksimal 10MB) dengan kolom No, Origin Name, Destination, Transport Mode, Min Weight (Kg), Max Weight (Kg), Service Type, Rate, Lead Time.
                 valid_from:
                   type: string
                   format: date
@@ -14463,7 +14463,7 @@ paths:
   /vendor-portal/rates/template:
     get:
       summary: Download Template CSV Pengajuan Tarif
-      description: Mengunduh template CSV resmi (No, Origin Code, Origin Name, Destination, Transport Mode, Min Weight (Kg), Max Weight (Kg), Service Type, Rate, Lead Time) untuk pengajuan tarif pengiriman massal oleh mitra vendor ekspedisi.
+      description: Mengunduh template CSV resmi (No, Origin Name, Destination, Transport Mode, Min Weight (Kg), Max Weight (Kg), Service Type, Rate, Lead Time) untuk pengajuan tarif pengiriman massal oleh mitra vendor ekspedisi.
       tags:
         - Vendor Portal
       security:

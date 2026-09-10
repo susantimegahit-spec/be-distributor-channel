@@ -216,7 +216,6 @@ class VendorRateService
     {
         $headers = [
             'No',
-            'Origin Code',
             'Origin Name',
             'Destination',
             'Transport Mode',
@@ -229,7 +228,6 @@ class VendorRateService
 
         $sampleRow = [
             '1',
-            'PRD01-01',
             'Gudang Manyar Gresik',
             'CUST-SMG-01',
             'DARAT',

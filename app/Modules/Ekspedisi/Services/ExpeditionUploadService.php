@@ -244,7 +244,7 @@ class ExpeditionUploadService
                 }
 
                 // Match warehouse ID by code, name, or warehouse_origins (whs_name_origin)
-                $whsInput = trim((string) ($this->getValueByMap($row, $headerMap, 'warehouse_code') ?? ''));
+                $whsInput = trim((string) ($this->getValueByMap($row, $headerMap, 'warehouse_code') ?? $this->getValueByMap($row, $headerMap, 'origin_name') ?? ''));
                 
                 $warehouseId = null;
                 if (isset($warehouseMap[$whsInput])) {
