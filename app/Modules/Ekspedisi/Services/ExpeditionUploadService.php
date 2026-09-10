@@ -127,7 +127,7 @@ class ExpeditionUploadService
      * @param UploadedFile $file
      * @return array
      */
-    public function uploadRates(UploadedFile $file, ?int $forcedExpeditionId = null): array
+    public function uploadRates(UploadedFile $file, ?int $forcedExpeditionId = null, ?array $overridePeriod = null): array
     {
         $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getRealPath());
         $worksheet = $spreadsheet->getActiveSheet();
@@ -141,14 +141,16 @@ class ExpeditionUploadService
         $rawHeaders = array_shift($rows);
         $headerMap = $this->mapHeaders($rawHeaders, [
             'expedition_code'  => ['expedition_code', 'kode_ekspedisi', 'expedition_id', 'expedition'],
-            'warehouse_code'   => ['warehouse_code', 'whs_code', 'kode_gudang', 'warehouse_id', 'origin'],
-            'destination_id'   => ['destination_id', 'tujuan_id', 'tujuan', 'destination'],
-            'transport_mode'   => ['transport_mode', 'moda', 'moda_pengiriman'],
-            'service_type'     => ['service_type', 'jenis_layanan', 'layanan'],
-            'min_tonnage'      => ['min_tonnage', 'tonase_min', 'tonase_minimal', 'min_kg'],
-            'max_tonnage'      => ['max_tonnage', 'tonase_max', 'tonase_maksimal', 'max_kg'],
+            'warehouse_code'   => ['warehouse_code', 'whs_code', 'kode_gudang', 'warehouse_id', 'origin', 'origin_code', 'kode_asal'],
+            'origin_name'      => ['origin_name', 'nama_asal', 'whs_name', 'nama_gudang'],
+            'destination_id'   => ['destination_id', 'tujuan_id', 'tujuan', 'destination', 'destination_code', 'card_code'],
+            'destination_city' => ['destination_city', 'kota_tujuan', 'city', 'kota'],
+            'transport_mode'   => ['transport_mode', 'moda', 'moda_pengiriman', 'moda_transportasi'],
+            'service_type'     => ['service_type', 'jenis_layanan', 'layanan', 'tipe_layanan'],
+            'min_tonnage'      => ['min_tonnage', 'tonase_min', 'tonase_minimal', 'min_kg', 'min_weight_kg', 'min_weight', 'minimal_berat', 'berat_min'],
+            'max_tonnage'      => ['max_tonnage', 'tonase_max', 'tonase_maksimal', 'max_kg', 'max_weight_kg', 'max_weight', 'maksimal_berat', 'berat_max'],
             'price'            => ['price', 'harga', 'tarif', 'rate'],
-            'eta_days'         => ['eta_days', 'eta_hari', 'eta'],
+            'eta_days'         => ['eta_days', 'eta_hari', 'eta', 'leadtime', 'lead_time', 'lead_time_days'],
             'min_shipment_qty' => ['min_shipment_qty', 'minimal_pengiriman'],
             'max_shipment_qty' => ['max_shipment_qty', 'maksimal_pengiriman'],
             'valid_from'       => ['valid_from', 'berlaku_mulai'],
@@ -280,6 +282,16 @@ class ExpeditionUploadService
                     }
                 }
 
+                $originName = trim((string) ($this->getValueByMap($row, $headerMap, 'origin_name') ?? ''));
+                if (!$warehouseId && $originName !== '') {
+                    $whsObj = Warehouse::where('whs_name', $originName)
+                        ->orWhere('whs_name', 'LIKE', "%{$originName}%")
+                        ->first();
+                    if ($whsObj) {
+                        $warehouseId = $whsObj->id;
+                    }
+                }
+
                 $destId = $this->getValueByMap($row, $headerMap, 'destination_id');
                 $destinationId = null;
                 if ($destId !== null) {
@@ -348,8 +360,12 @@ class ExpeditionUploadService
                     'eta_days'         => is_numeric($this->getValueByMap($row, $headerMap, 'eta_days')) ? (int) $this->getValueByMap($row, $headerMap, 'eta_days') : null,
                     'min_shipment_qty' => floatval($this->getValueByMap($row, $headerMap, 'min_shipment_qty') ?? 0),
                     'max_shipment_qty' => floatval($this->getValueByMap($row, $headerMap, 'max_shipment_qty') ?? 0),
-                    'valid_from'       => $this->parseDate($this->getValueByMap($row, $headerMap, 'valid_from')),
-                    'valid_until'      => $this->parseDate($this->getValueByMap($row, $headerMap, 'valid_until')),
+                    'valid_from'       => !empty($overridePeriod['valid_from'])
+                                            ? $this->parseDate($overridePeriod['valid_from'])
+                                            : $this->parseDate($this->getValueByMap($row, $headerMap, 'valid_from')),
+                    'valid_until'      => !empty($overridePeriod['valid_until'])
+                                            ? $this->parseDate($overridePeriod['valid_until'])
+                                            : $this->parseDate($this->getValueByMap($row, $headerMap, 'valid_until')),
                     'status'           => strtoupper((string) ($this->getValueByMap($row, $headerMap, 'status') ?? 'ACTIVE')),
                     'flag'             => false,
                     'approval_status'  => 'PENDING',
@@ -422,9 +438,12 @@ class ExpeditionUploadService
             if (empty($raw)) {
                 continue;
             }
-            $clean = strtolower(trim(str_replace([' ', '-'], '_', (string) $raw)));
+            $rawClean = strtolower(trim((string) $raw));
+            $clean = strtolower(trim(str_replace([' ', '-', '(', ')', '[', ']'], '_', (string) $raw)));
+            $clean = preg_replace('/_+/', '_', $clean);
+            $clean = trim($clean, '_');
             foreach ($definitions as $key => $aliases) {
-                if (in_array($clean, $aliases)) {
+                if (in_array($clean, $aliases) || in_array($rawClean, $aliases)) {
                     $map[$key] = $index;
                     break;
                 }

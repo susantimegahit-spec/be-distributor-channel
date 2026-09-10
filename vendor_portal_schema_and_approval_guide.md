@@ -505,55 +505,33 @@ Seluruh endpoint di bawah ini mewajibkan header autentikasi `Authorization: Bear
 #### 1. Download Template CSV Pengajuan Tarif
 - **Method & Path:** `GET /api/distributor-channel/vendor-portal/rates/template` (atau `/v1/vendor-portal/rates/template`)
 - **Headers:** `Authorization: Bearer <token>`
-- **Response `200 OK`:** Stream file `vendor_rate_submission_template.csv` berisi header standar dan baris contoh data:
+- **Response `200 OK`:** Stream file `vendor_rate_submission_template.csv` berisi header resmi dan baris contoh data:
   ```csv
-  warehouse_code,destination_id,transport_mode,service_type,min_tonnage,max_tonnage,price,eta_days,min_shipment_qty,max_shipment_qty,valid_from,valid_until,remarks
-  PRD01-01,1,DARAT,REGULER,0,1000,1500000,3,1,100,2026-09-10,2027-09-10,Pengajuan tarif reguler via vendor portal
+  No,Origin Code,Origin Name,Destination,Destination City,Transport Mode,Min Weight (Kg),Max Weight (Kg),Service Type,Rate,leadtime
+  1,PRD01-01,Gudang Manyar Gresik,CUST-SMG-01,Semarang,DARAT,0,15000,REGULER,4500000,2
   ```
+  *(Catatan: Kolom `Expedition Code` dan `Expedition Name` tidak perlu diisi pada file upload karena otomatis dikaitkan ke vendor ekspedisi yang login)*.
 
-#### 2. Ambil Riwayat Pengajuan Tarif Vendor
-- **Method & Path:** `GET /api/distributor-channel/vendor-portal/rates` (atau `/v1/vendor-portal/rates`)
+#### 2. Daftar Header Pengajuan Tarif (Batch Summary untuk Tabel Utama FE)
+- **Method & Path:** `GET /api/distributor-channel/vendor-portal/rates/headers` (atau `/v1/vendor-portal/rates/headers`)
 - **Headers:** `Authorization: Bearer <token>`
-- **Query Parameters:**
-  | Parameter | Tipe | Keterangan |
-  |:---|:---:|:---|
-  | `approval_status` | string | Filter status (`PENDING`, `APPROVED`, `REJECTED`) |
-  | `transport_mode` | string | Filter moda transportasi (`DARAT`, `LAUT`, `UDARA`) |
-  | `warehouse_id` | integer | Filter ID gudang asal |
-  | `destination_id`| integer | Filter ID customer shipto tujuan |
-  | `search` | string | Pencarian nama gudang, nama tujuan, atau catatan |
-  | `per_page` | integer | Data per halaman (default: 15) |
+- **Query Parameters:** `approval_status` (`PENDING`, `APPROVED`, `REJECTED`), `search`, `date_from`, `date_to`, `page`, `per_page`.
 - **Response `200 OK`:**
   ```json
   {
     "success": true,
-    "message": "Vendor rates retrieved successfully.",
+    "message": "Rate submission headers retrieved successfully.",
     "data": [
       {
-        "id": 142,
-        "expedition_id": 12,
-        "warehouse_id": 1,
-        "destination_id": 15,
-        "transport_mode": "DARAT",
-        "service_type": "WINGBOX",
-        "min_tonnage": 0,
-        "max_tonnage": 15000,
-        "price": 4500000,
-        "eta_days": 2,
+        "batch_id": "BATCH-RATE-20260910-001",
+        "valid_from": "2026-08-15",
+        "valid_until": "2027-08-15",
+        "period_label": "2026-08-15 s/d 2027-08-15",
         "approval_status": "PENDING",
-        "flag": false,
-        "remarks": "Penyesuaian tarif Q4 2026",
-        "warehouse": {
-          "id": 1,
-          "whs_code": "PRD01-01",
-          "whs_name": "Gudang Manyar Gresik"
-        },
-        "destination": {
-          "id": 15,
-          "card_code": "CUST-SMG-01",
-          "name": "Distributor Semarang Makmur",
-          "city": "Semarang"
-        }
+        "status": "ACTIVE",
+        "total_routes": 25,
+        "remarks": "Pengajuan tarif periode 2026-2027",
+        "submitted_at": "2026-09-10 11:20:00"
       }
     ],
     "meta": {
@@ -565,7 +543,64 @@ Seluruh endpoint di bawah ini mewajibkan header autentikasi `Authorization: Bear
   }
   ```
 
-#### 3. Pengajuan Tarif Baru Secara Manual
+#### 3. Detail Batch Pengajuan Tarif (Header & Rincian Rute)
+- **Method & Path:** `GET /api/distributor-channel/vendor-portal/rates/headers/{batchId}` (atau `/v1/vendor-portal/rates/headers/{batchId}`)
+- **Headers:** `Authorization: Bearer <token>`
+- **Response `200 OK`:**
+  ```json
+  {
+    "success": true,
+    "message": "Rate batch details retrieved successfully.",
+    "data": {
+      "header": {
+        "batch_id": "BATCH-RATE-20260910-001",
+        "valid_from": "2026-08-15",
+        "valid_until": "2027-08-15",
+        "period_label": "2026-08-15 s/d 2027-08-15",
+        "approval_status": "PENDING",
+        "status": "ACTIVE",
+        "total_routes": 25,
+        "submitted_at": "2026-09-10 11:20:00",
+        "remarks": "Pengajuan tarif periode 2026-2027",
+        "expedition": {
+          "id": 12,
+          "expedition_code": "EXP-PTJAYATR-0001",
+          "expedition_name": "PT Jaya Trans Logistik"
+        }
+      },
+      "details": [
+        {
+          "no": 1,
+          "id": 142,
+          "origin_code": "PRD01-01",
+          "origin_name": "Gudang Manyar Gresik",
+          "destination_code": "CUST-SMG-01",
+          "destination_name": "Distributor Semarang Makmur",
+          "destination_city": "Semarang",
+          "transport_mode": "DARAT",
+          "service_type": "WINGBOX",
+          "min_weight_kg": 0,
+          "max_weight_kg": 15000,
+          "rate": 4500000,
+          "leadtime": 2,
+          "eta_days": 2,
+          "valid_from": "2026-08-15",
+          "valid_until": "2027-08-15",
+          "approval_status": "PENDING",
+          "flag": false,
+          "remarks": null
+        }
+      ]
+    }
+  }
+  ```
+
+#### 4. Ambil Riwayat Detail Tarif Per Rute
+- **Method & Path:** `GET /api/distributor-channel/vendor-portal/rates` (atau `/v1/vendor-portal/rates`)
+- **Headers:** `Authorization: Bearer <token>`
+- **Query Parameters:** `batch_id`, `approval_status`, `transport_mode`, `warehouse_id`, `destination_id`, `search`, `per_page`.
+
+#### 5. Pengajuan Tarif Baru Secara Manual
 - **Method & Path:** `POST /api/distributor-channel/vendor-portal/rates` (atau `/v1/vendor-portal/rates`)
 - **Headers:** `Authorization: Bearer <token>`, `Content-Type: application/json`
 - **Request JSON:**
@@ -578,42 +613,27 @@ Seluruh endpoint di bawah ini mewajibkan header autentikasi `Authorization: Bear
     "min_tonnage": 0,
     "max_tonnage": 5000,
     "price": 2800000,
-    "eta_days": 2,
+    "leadtime": 2,
     "min_shipment_qty": 1,
     "max_shipment_qty": 50,
-    "valid_from": "2026-09-15",
-    "valid_until": "2027-09-15",
+    "valid_from": "2026-08-15",
+    "valid_until": "2027-08-15",
     "remarks": "Tarif armada CDD rute Gresik ke Semarang"
   }
   ```
-  *(Catatan: Input origin menerima `warehouse_id` integer atau `origin` kode string. Input tujuan menerima `destination_id` integer atau `destination` card_code/nama)*.
-- **Response `201 Created`:**
-  ```json
-  {
-    "success": true,
-    "message": "Expedition rate submitted successfully. Pending review by logistics team.",
-    "data": {
-      "id": 143,
-      "expedition_id": 12,
-      "warehouse_id": 1,
-      "destination_id": 15,
-      "price": 2800000,
-      "approval_status": "PENDING",
-      "flag": false
-    }
-  }
-  ```
 
-#### 4. Upload Massal Spreadsheet Tarif (Excel / CSV)
+#### 6. Upload Massal Spreadsheet Tarif (Excel / CSV) dengan Periode Pop-up
 - **Method & Path:** `POST /api/distributor-channel/vendor-portal/rates/upload` (atau `/v1/vendor-portal/rates/upload`)
 - **Headers:** `Authorization: Bearer <token>`, `Content-Type: multipart/form-data`
-- **Request Body:**
+- **Request Body (`multipart/form-data`):**
   | Field | Tipe | Wajib | Keterangan |
   |:---|:---:|:---:|:---|
-  | `file` | file | Ya | File `.xlsx`, `.xls`, atau `.csv` (Maksimal 10MB) |
+  | `file` | file | Ya | File `.xlsx`, `.xls`, atau `.csv` (Maksimal 10MB) dengan header `No,Origin Code,Origin Name,Destination,Destination City,Transport Mode,Min Weight (Kg),Max Weight (Kg),Service Type,Rate,leadtime` |
+  | `valid_from` | date | Tidak | Tanggal mulai periode (YYYY-MM-DD) dari modal pop-up FE |
+  | `valid_until` | date | Tidak | Tanggal selesai periode (YYYY-MM-DD) dari modal pop-up FE |
+  | `periode` | string | Tidak | Input tanggal periode tunggal (misal `2026-08-15`, otomatis mengisi `valid_from` dan `valid_until`) |
 - **Keamanan & Validasi Khusus Vendor:**
-  - Vendor tidak perlu menyertakan kolom `expedition_code`. Sistem secara otomatis mengunci seluruh baris tarif pada file ke `vendor.expedition_id` milik akun yang sedang login. Vendor tidak dapat mengunggah atau menimpa tarif ekspedisi lain.
-  - Seluruh baris tarif baru yang diproses otomatis diberi status `approval_status = 'PENDING'` dan `flag = false`.
+  - Seluruh baris tarif yang diunggah dikunci ke `vendor.expedition_id` akun vendor aktif dan status otomatis `approval_status = 'PENDING'`, `flag = false`.
 - **Response `200 OK`:**
   ```json
   {

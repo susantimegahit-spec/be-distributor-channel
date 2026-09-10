@@ -14116,15 +14116,87 @@ paths:
         '200':
           description: Berhasil logout dari vendor portal.
 
-  /vendor-portal/rates:
+  /vendor-portal/rates/headers:
     get:
-      summary: Daftar Tarif Pengiriman Vendor (Rate Card)
-      description: Mengambil daftar tarif pengiriman yang diajukan oleh mitra vendor ekspedisi yang sedang login, dilengkapi filter dan pagination.
+      summary: Daftar Header Pengajuan Tarif Vendor (Batch Submissions)
+      description: Mengambil daftar ringkasan pengajuan tarif per batch upload/submission (periode valid_from/valid_until, status pengajuan, total rute) untuk tabel utama FE.
       tags:
         - Vendor Portal
       security:
         - BearerAuth: []
       parameters:
+        - name: approval_status
+          in: query
+          description: Filter status persetujuan tarif (PENDING, APPROVED, REJECTED)
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED]
+        - name: search
+          in: query
+          description: Pencarian kode batch atau catatan
+          schema:
+            type: string
+        - name: date_from
+          in: query
+          description: Filter tanggal mulai periode (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          description: Filter tanggal selesai periode (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: per_page
+          in: query
+          description: Jumlah data per halaman
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Rate submission headers retrieved successfully.
+        '401':
+          description: Unauthenticated access.
+        '403':
+          description: Unauthorized access or vendor account not approved yet.
+
+  /vendor-portal/rates/headers/{batchId}:
+    get:
+      summary: Detail Batch Pengajuan Tarif (Header & Rincian Rute)
+      description: Mengambil informasi header batch pengajuan tarif beserta array details (daftar rute pengiriman, lead time, tonase, dan tarif).
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: batchId
+          in: path
+          required: true
+          description: ID batch pengajuan tarif (misal BATCH-RATE-20260910-001 atau MANUAL-SUBMIT-...)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Rate batch details retrieved successfully.
+        '404':
+          description: Batch rate data not found.
+
+  /vendor-portal/rates:
+    get:
+      summary: Daftar Tarif Pengiriman Vendor (Rate Card Items)
+      description: Mengambil daftar tarif pengiriman per rute yang diajukan oleh mitra vendor ekspedisi yang sedang login, dilengkapi filter dan pagination.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: batch_id
+          in: query
+          description: Filter berdasarkan ID batch pengajuan tarif
+          schema:
+            type: string
         - name: approval_status
           in: query
           description: Filter status persetujuan tarif (PENDING, APPROVED, REJECTED)
@@ -14209,6 +14281,10 @@ paths:
                 price:
                   type: number
                   example: 4500000
+                leadtime:
+                  type: integer
+                  example: 2
+                  description: Estimasi waktu tempuh pengiriman dalam hari (alias eta_days)
                 eta_days:
                   type: integer
                   example: 2
@@ -14226,6 +14302,10 @@ paths:
                   type: string
                   format: date
                   example: 2027-09-10
+                periode:
+                  type: string
+                  example: 2026-09-10
+                  description: Input periode tunggal jika valid_from dan valid_until sama
                 remarks:
                   type: string
                   example: Pengajuan penyesuaian tarif armada wingbox Q4
@@ -14241,8 +14321,8 @@ paths:
 
   /vendor-portal/rates/upload:
     post:
-      summary: Upload Massal Pengajuan Tarif (Excel / CSV)
-      description: Mengunggah spreadsheet daftar tarif (.xlsx, .xls, .csv). Pengajuan tarif otomatis dikaitkan dengan vendor ekspedisi yang sedang login dan berstatus PENDING.
+      summary: Upload Massal Pengajuan Tarif (Excel / CSV) dengan Periode Pop-up
+      description: Mengunggah spreadsheet daftar tarif (.xlsx, .xls, .csv). Pengajuan tarif otomatis dikaitkan dengan vendor ekspedisi yang sedang login dan berstatus PENDING. Kolom periode diisi dari form pop-up FE.
       tags:
         - Vendor Portal
       security:
@@ -14259,7 +14339,21 @@ paths:
                 file:
                   type: string
                   format: binary
-                  description: File Excel (.xlsx, .xls) atau CSV (Maksimal 10MB)
+                  description: File Excel (.xlsx, .xls) atau CSV (Maksimal 10MB) dengan kolom No, Origin Code, Origin Name, Destination, Destination City, Transport Mode, Min Weight (Kg), Max Weight (Kg), Service Type, Rate, leadtime.
+                valid_from:
+                  type: string
+                  format: date
+                  example: 2026-08-15
+                  description: Tanggal mulai periode pengajuan (dari pop-up modal FE)
+                valid_until:
+                  type: string
+                  format: date
+                  example: 2027-08-15
+                  description: Tanggal selesai periode pengajuan (dari pop-up modal FE)
+                periode:
+                  type: string
+                  example: 2026-08-15
+                  description: Input periode tunggal (otomatis mengisi valid_from dan valid_until)
       responses:
         '200':
           description: Rate spreadsheet uploaded and processed successfully. Submitted rates are pending review.
@@ -14273,7 +14367,7 @@ paths:
   /vendor-portal/rates/template:
     get:
       summary: Download Template CSV Pengajuan Tarif
-      description: Mengunduh template CSV resmi untuk pengajuan tarif pengiriman massal oleh mitra vendor ekspedisi.
+      description: Mengunduh template CSV resmi (No, Origin Code, Origin Name, Destination, Destination City, Transport Mode, Min Weight (Kg), Max Weight (Kg), Service Type, Rate, leadtime) untuk pengajuan tarif pengiriman massal oleh mitra vendor ekspedisi.
       tags:
         - Vendor Portal
       security:

@@ -55,6 +55,8 @@ $registerVendorRoutes = function () {
 
             // Vendor Rate Card Management & Submission (Expedition Partners)
             Route::get('/rates/template', [VendorRateController::class, 'template']);
+            Route::get('/rates/headers', [VendorRateController::class, 'headers']);
+            Route::get('/rates/headers/{batchId}', [VendorRateController::class, 'showBatch']);
             Route::get('/rates', [VendorRateController::class, 'index']);
             Route::post('/rates', [VendorRateController::class, 'store']);
             Route::post('/rates/upload', [VendorRateController::class, 'upload']);

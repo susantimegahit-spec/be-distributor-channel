@@ -87,7 +87,12 @@ class VendorRateSubmissionTest extends TestCase
         $response->assertStatus(200)
             ->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
 
-        $this->assertStringContainsString('warehouse_code,destination_id,transport_mode', $response->getContent());
+        $content = $response->getContent();
+        $this->assertStringContainsString('Origin Code', $content);
+        $this->assertStringContainsString('Destination City', $content);
+        $this->assertStringContainsString('Min Weight (Kg)', $content);
+        $this->assertStringContainsString('Max Weight (Kg)', $content);
+        $this->assertStringContainsString('leadtime', $content);
     }
 
     public function test_approved_vendor_can_manually_submit_rate()
@@ -200,14 +205,16 @@ class VendorRateSubmissionTest extends TestCase
             'city'      => 'Semarang',
         ]);
 
-        $csvContent = "warehouse_code,destination_id,transport_mode,service_type,min_tonnage,max_tonnage,price,eta_days,remarks\n"
-                    . "WHS-GRS-01,{$shipto->id},DARAT,WINGBOX,0,15000,4500000,2,Pengajuan tarif Gresik - Semarang via batch upload\n";
+        $csvContent = "No,Origin Code,Origin Name,Destination,Destination City,Transport Mode,Min Weight (Kg),Max Weight (Kg),Service Type,Rate,leadtime\n"
+                    . "1,WHS-GRS-01,Gudang Manyar Gresik,{$shipto->card_code},Semarang,DARAT,0,15000,WINGBOX,4500000,2\n";
 
         $file = UploadedFile::fake()->createWithContent('rates_upload.csv', $csvContent);
 
+        // Upload with pop-up period '2026-08-15'
         $response = $this->actingAs($vendorUser, 'sanctum')
             ->post('/api/distributor-channel/vendor-portal/rates/upload', [
-                'file' => $file,
+                'file'    => $file,
+                'periode' => '2026-08-15',
             ]);
 
         $response->assertStatus(200)
@@ -219,14 +226,101 @@ class VendorRateSubmissionTest extends TestCase
                 ],
             ]);
 
-        $this->assertDatabaseHas('expedition_rates', [
+        $batchId = $response->json('data.upload_batch_id');
+        $this->assertNotEmpty($batchId);
+
+        $rate = ExpeditionRate::where('expedition_id', $vendor->expedition_id)->first();
+        $this->assertNotNull($rate);
+        $this->assertEquals($warehouse->id, $rate->warehouse_id);
+        $this->assertEquals($shipto->id, $rate->destination_id);
+        $this->assertEquals(4500000, $rate->price);
+        $this->assertEquals(2, $rate->eta_days);
+        $this->assertEquals('2026-08-15', $rate->valid_from->format('Y-m-d'));
+        $this->assertEquals('2026-08-15', $rate->valid_until->format('Y-m-d'));
+        $this->assertEquals('PENDING', $rate->approval_status);
+        $this->assertFalse((bool) $rate->flag);
+    }
+
+    public function test_approved_vendor_can_list_rate_headers_and_batch_details()
+    {
+        [$vendor, $vendorUser] = $this->createApprovedExpeditionVendor();
+
+        $warehouse = Warehouse::create([
+            'whs_code' => 'WHS-SBY-02',
+            'whs_name' => 'Gudang Margomulyo Surabaya',
+        ]);
+
+        $shipto = CustomerShipto::create([
+            'card_code' => 'CUST-SBY-01',
+            'name'      => 'Distributor Surabaya Timur',
+            'city'      => 'Surabaya',
+        ]);
+
+        $batchId = 'BATCH-RATE-TEST-001';
+
+        ExpeditionRate::create([
             'expedition_id'   => $vendor->expedition_id,
             'warehouse_id'    => $warehouse->id,
             'destination_id'  => $shipto->id,
-            'price'           => 4500000,
-            'approval_status' => 'PENDING',
+            'transport_mode'  => 'DARAT',
+            'service_type'    => 'CDD',
+            'min_tonnage'     => 0,
+            'max_tonnage'     => 5000,
+            'price'           => 1200000,
+            'eta_days'        => 1,
+            'valid_from'      => '2026-08-15',
+            'valid_until'     => '2027-08-15',
+            'status'          => 'ACTIVE',
             'flag'            => false,
+            'approval_status' => 'PENDING',
+            'remarks'         => 'Pengajuan rute batch test',
+            'upload_batch_id' => $batchId,
         ]);
+
+        // 1. Test GET /rates/headers
+        $headersResponse = $this->actingAs($vendorUser, 'sanctum')
+            ->getJson('/api/distributor-channel/vendor-portal/rates/headers');
+
+        $headersResponse->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Rate submission headers retrieved successfully.',
+                'meta'    => [
+                    'total' => 1,
+                ],
+            ]);
+
+        $headerItem = $headersResponse->json('data.0');
+        $this->assertEquals($batchId, $headerItem['batch_id']);
+        $this->assertEquals('2026-08-15', $headerItem['valid_from']);
+        $this->assertEquals('2027-08-15', $headerItem['valid_until']);
+        $this->assertEquals(1, $headerItem['total_routes']);
+        $this->assertEquals('PENDING', $headerItem['approval_status']);
+
+        // 2. Test GET /rates/headers/{batchId} (detail endpoint)
+        $detailResponse = $this->actingAs($vendorUser, 'sanctum')
+            ->getJson("/api/distributor-channel/vendor-portal/rates/headers/{$batchId}");
+
+        $detailResponse->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'header' => [
+                        'batch_id'        => $batchId,
+                        'valid_from'      => '2026-08-15',
+                        'valid_until'     => '2027-08-15',
+                        'approval_status' => 'PENDING',
+                        'total_routes'    => 1,
+                    ],
+                ],
+            ]);
+
+        $detailRow = $detailResponse->json('data.details.0');
+        $this->assertEquals('WHS-SBY-02', $detailRow['origin_code']);
+        $this->assertEquals('CUST-SBY-01', $detailRow['destination_code']);
+        $this->assertEquals('Surabaya', $detailRow['destination_city']);
+        $this->assertEquals(1, $detailRow['leadtime']);
+        $this->assertEquals(1200000, $detailRow['rate']);
     }
 
     public function test_unapproved_vendor_cannot_access_rates()

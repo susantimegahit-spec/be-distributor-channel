@@ -73,6 +73,7 @@ class VendorRateController extends Controller
             'transport_mode'  => $request->input('transport_mode'),
             'warehouse_id'    => $request->input('warehouse_id'),
             'destination_id'  => $request->input('destination_id'),
+            'batch_id'        => $request->input('batch_id'),
             'search'          => $request->input('search'),
         ];
 
@@ -89,6 +90,59 @@ class VendorRateController extends Controller
                 'total'        => $rates->total(),
             ],
         ]);
+    }
+
+    /**
+     * Get list of rate submission headers (batch summaries).
+     */
+    public function headers(Request $request): JsonResponse
+    {
+        $vendor = $this->resolveVendor($request);
+        $perPage = (int) $request->input('per_page', 15);
+
+        $filters = [
+            'approval_status' => $request->input('approval_status'),
+            'search'          => $request->input('search'),
+            'date_from'       => $request->input('date_from'),
+            'date_to'         => $request->input('date_to'),
+        ];
+
+        $headers = $this->rateService->listRateHeaders($vendor, $filters, $perPage);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Rate submission headers retrieved successfully.',
+            'data'    => $headers->items(),
+            'meta'    => [
+                'current_page' => $headers->currentPage(),
+                'last_page'    => $headers->lastPage(),
+                'per_page'     => $headers->perPage(),
+                'total'        => $headers->total(),
+            ],
+        ]);
+    }
+
+    /**
+     * Get single rate batch header with detail rate items.
+     */
+    public function showBatch(Request $request, string $batchId): JsonResponse
+    {
+        $vendor = $this->resolveVendor($request);
+
+        try {
+            $data = $this->rateService->getRateBatchDetail($vendor, $batchId);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Rate batch details retrieved successfully.',
+                'data'    => $data,
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 404);
+        }
     }
 
     /**
@@ -149,7 +203,11 @@ class VendorRateController extends Controller
         $vendor = $this->resolveVendor($request);
 
         $validator = Validator::make($request->all(), [
-            'file' => 'required|file|mimes:xlsx,xls,csv|max:10240',
+            'file'        => 'required|file|mimes:xlsx,xls,csv|max:10240',
+            'valid_from'  => 'nullable|date',
+            'valid_until' => 'nullable|date',
+            'periode'     => 'nullable|string',
+            'period'      => 'nullable|string',
         ], [
             'file.required' => 'Spreadsheet file is required.',
             'file.mimes'    => 'File must be an Excel spreadsheet (.xlsx, .xls) or CSV file.',
@@ -165,7 +223,22 @@ class VendorRateController extends Controller
         }
 
         try {
-            $result = $this->rateService->uploadRates($vendor, $request->file('file'), $request->user()->id);
+            $validFrom = $request->input('valid_from');
+            $validUntil = $request->input('valid_until');
+            $periode = $request->input('periode', $request->input('period'));
+
+            if ($periode && !$validFrom) {
+                $validFrom = trim($periode);
+            }
+            if ($periode && !$validUntil) {
+                $validUntil = trim($periode);
+            }
+
+            $overridePeriod = [];
+            if ($validFrom) $overridePeriod['valid_from'] = $validFrom;
+            if ($validUntil) $overridePeriod['valid_until'] = $validUntil;
+
+            $result = $this->rateService->uploadRates($vendor, $request->file('file'), $request->user()->id, $overridePeriod);
 
             return response()->json([
                 'success' => true,
