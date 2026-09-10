@@ -1,12 +1,12 @@
-<html lang="en" class="{{$theme == 'dark' ? 'dark' : ''}}">
+<!DOCTYPE html>
+<html lang="en" class="{{ $theme == 'dark' ? 'dark' : '' }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>{{ __('health::notifications.health_results') }}</title>
+    <title>{{ __('health::notifications.health_results') }} - PT Susanti Megah</title>
     <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        // Apply saved theme immediately to prevent flashing
         (function() {
             const savedTheme = localStorage.getItem('smesta_health_theme');
             if (savedTheme === 'light') {
@@ -16,51 +16,607 @@
             }
         })();
     </script>
-    {{$assets}}
+    <style>
+        :root {
+            --bg-body: #f1f5f9;
+            --bg-card: #ffffff;
+            --bg-subcard: #f8fafc;
+            --border-color: #e2e8f0;
+            --text-title: #0f172a;
+            --text-body: #334155;
+            --text-muted: #64748b;
+            --track-color: #e2e8f0;
+            --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+            --color-emerald: #10b981;
+            --color-emerald-bg: #ecfdf5;
+            --color-emerald-text: #047857;
+            --color-amber: #f59e0b;
+            --color-amber-bg: #fffbeb;
+            --color-amber-text: #b45309;
+            --color-rose: #f43f5e;
+            --color-rose-bg: #fff1f2;
+            --color-rose-text: #be123c;
+            --color-indigo: #6366f1;
+            --color-indigo-hover: #4f46e5;
+        }
+
+        html.dark {
+            --bg-body: #0b1120;
+            --bg-card: #151f32;
+            --bg-subcard: #0d1527;
+            --border-color: #243048;
+            --text-title: #f8fafc;
+            --text-body: #cbd5e1;
+            --text-muted: #8493a8;
+            --track-color: #243048;
+            --shadow-card: 0 10px 30px -5px rgba(0, 0, 0, 0.5);
+            --color-emerald-bg: rgba(16, 185, 129, 0.15);
+            --color-emerald-text: #34d399;
+            --color-amber-bg: rgba(245, 158, 11, 0.15);
+            --color-amber-text: #fbbf24;
+            --color-rose-bg: rgba(244, 63, 94, 0.15);
+            --color-rose-text: #fb7185;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-body);
+            min-height: 100vh;
+            padding: 24px 16px 48px;
+            transition: background-color 0.25s ease, color 0.25s ease;
+        }
+
+        .container {
+            max-width: 1240px;
+            margin: 0 auto;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 12px 20px;
+            margin-bottom: 28px;
+            box-shadow: var(--shadow-card);
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            background: var(--bg-card);
+            color: var(--text-title);
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            border-color: var(--color-indigo);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary {
+            background: var(--color-indigo);
+            border-color: var(--color-indigo);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-primary:hover {
+            background: var(--color-indigo-hover);
+            border-color: var(--color-indigo-hover);
+        }
+
+        /* Header */
+        .page-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .page-title {
+            font-size: 26px;
+            font-weight: 800;
+            color: var(--text-title);
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .pulse-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 10px 0;
+        }
+
+        .pulse-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        .pulse-status.danger {
+            color: var(--color-rose);
+            font-weight: 700;
+        }
+
+        .dot-pulse {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--color-emerald);
+        }
+
+        .pulse-status.danger .dot-pulse {
+            background-color: var(--color-rose);
+            animation: ping 1.5s infinite;
+        }
+
+        @keyframes ping {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.6); opacity: 0.4; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Card Container */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 28px;
+            box-shadow: var(--shadow-card);
+            margin-bottom: 36px;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 28px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .card-title-group h2 {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--text-title);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .badge-count {
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            background: rgba(99, 102, 241, 0.12);
+            color: var(--color-indigo);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+        }
+
+        /* Partition Grid */
+        .partition-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        @media (max-width: 980px) {
+            .partition-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .partition-card {
+            background: var(--bg-subcard);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: all 0.2s ease;
+        }
+
+        .partition-card:hover {
+            border-color: var(--color-indigo);
+            box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.1);
+        }
+
+        .p-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .p-title {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--text-title);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .p-mount {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: monospace;
+            display: block;
+            margin-top: 3px;
+        }
+
+        .p-status {
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .status-normal {
+            background: var(--color-emerald-bg);
+            color: var(--color-emerald-text);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .status-warning {
+            background: var(--color-amber-bg);
+            color: var(--color-amber-text);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .status-critical {
+            background: var(--color-rose-bg);
+            color: var(--color-rose-text);
+            border: 1px solid rgba(244, 63, 94, 0.3);
+        }
+
+        /* Donut Chart Container */
+        .chart-box {
+            position: relative;
+            width: 170px;
+            height: 170px;
+            margin: 10px auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chart-inner-text {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            text-align: center;
+        }
+
+        .chart-percent {
+            font-size: 26px;
+            font-weight: 900;
+            color: var(--text-title);
+            line-height: 1.1;
+        }
+
+        .chart-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Horizontal Allocation Bar */
+        .bar-chart-section {
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .bar-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 10px;
+            background: var(--track-color);
+            border-radius: 999px;
+            overflow: hidden;
+            display: flex;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 999px;
+            transition: width 0.6s ease;
+        }
+
+        /* Metric KPI Boxes */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .kpi-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 10px 12px;
+        }
+
+        .kpi-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+        }
+
+        .kpi-value {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--text-title);
+            margin-top: 2px;
+        }
+
+        .kpi-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* Table */
+        .table-wrap {
+            overflow-x: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            margin-top: 24px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 13px;
+        }
+
+        th {
+            background: var(--bg-subcard);
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-body);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: var(--bg-subcard);
+        }
+
+        .tb-storage-name {
+            font-weight: 700;
+            color: var(--text-title);
+        }
+
+        .tb-storage-sub {
+            font-size: 11px;
+            font-family: monospace;
+            color: var(--text-muted);
+        }
+
+        .tb-mono {
+            font-family: monospace;
+            font-weight: 700;
+            font-size: 13px;
+            color: var(--text-title);
+        }
+
+        /* Health Check Cards Grid */
+        .section-title-wrap {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding: 0 4px;
+        }
+
+        .section-title {
+            font-size: 13px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+        }
+
+        .health-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        @media (max-width: 980px) {
+            .health-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 640px) {
+            .health-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .health-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 18px;
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            box-shadow: var(--shadow-card);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .health-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px -4px rgba(0, 0, 0, 0.15);
+        }
+
+        .health-card-title {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--text-title);
+            margin-bottom: 4px;
+        }
+
+        .health-card-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.4;
+            word-break: break-word;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            max-width: 460px;
+            margin: 40px auto;
+        }
+
+        .empty-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--color-amber-bg);
+            color: var(--color-amber);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+
+        .empty-title {
+            font-size: 17px;
+            font-weight: 800;
+            color: var(--text-title);
+            margin-bottom: 8px;
+        }
+
+        .empty-desc {
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+    </style>
+    {{ $assets }}
 </head>
 
-<body class="antialiased bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen transition-colors duration-200">
-    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-        {{-- Top Navigation & Controls --}}
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-8">
-            <div class="flex items-center gap-3">
-                <a href="{{ url('/monitoringsm/hub') }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-xs font-semibold text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 shadow-sm transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+<body>
+    <div class="container">
+        {{-- Top Navigation Bar --}}
+        <div class="top-bar">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <a href="{{ url('/monitoringsm/hub') }}" class="btn" title="Kembali ke Admin Hub">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                     Admin Hub
                 </a>
             </div>
 
-            <div class="flex items-center gap-2.5">
-                {{-- Light / Dark Mode Toggle Button --}}
-                <button id="themeToggleBtn" type="button" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-xs font-semibold text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 shadow-sm transition" title="Ganti Mode Tampilan (Light / Dark)">
-                    <span id="themeIconSun" class="hidden dark:inline">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-400"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                {{-- Theme Switcher Button --}}
+                <button id="themeToggleBtn" type="button" class="btn" title="Ganti Mode Tampilan (Light / Dark)">
+                    <span id="themeIconSun" style="display: inline-flex; align-items: center;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #f59e0b;"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
                     </span>
-                    <span id="themeIconMoon" class="inline dark:hidden">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-600"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-                    </span>
-                    <span id="themeLabelText" class="hidden sm:inline font-medium">Mode</span>
+                    <span id="themeLabelText">Mode</span>
                 </button>
 
                 {{-- Refresh Button --}}
-                <a href="{{ url('/monitoringsm/health?fresh') }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold text-white shadow-md shadow-indigo-500/20 transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                <a href="{{ url('/monitoringsm/health?fresh') }}" class="btn btn-primary" title="Jalankan Uji Kesehatan Segar">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
                     Refresh Checks
                 </a>
             </div>
         </div>
 
-        {{-- Page Header --}}
-        <div class="flex flex-col items-center justify-center space-y-3 mb-10 text-center">
-            <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
-                {{ __('health::notifications.laravel_health') }}
-            </h1>
-            <div class="flex justify-center">
+        {{-- Main Page Header --}}
+        <div class="page-header">
+            <h1 class="page-title">{{ __('health::notifications.laravel_health') }}</h1>
+            <div class="pulse-container">
                 <x-health-logo/>
             </div>
             @if ($lastRanAt)
-                <div class="{{ $lastRanAt->diffInMinutes() > 5 ? 'text-rose-500 font-semibold' : 'text-gray-500 dark:text-gray-400' }} text-sm font-medium flex items-center gap-2">
-                    <span class="inline-block w-2 h-2 rounded-full {{ $lastRanAt->diffInMinutes() > 5 ? 'bg-rose-500 animate-ping' : 'bg-emerald-500' }}"></span>
+                <div class="pulse-status {{ $lastRanAt->diffInMinutes() > 5 ? 'danger' : '' }}">
+                    <span class="dot-pulse"></span>
                     {{ __('health::notifications.check_results_from') }} {{ $lastRanAt->diffForHumans() }}
                 </div>
             @endif
@@ -70,217 +626,173 @@
             $partitions = \App\Services\ServerStorageService::getStorageBreakdown(['/', '/home', '/tmp']);
         @endphp
 
-        {{-- Section 1: Spacious Partition Storage Breakdown & Dual Charts --}}
-        <section class="mb-12">
-            <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 sm:p-8 lg:p-10 shadow-lg shadow-gray-200/50 dark:shadow-black/30 border border-gray-200/80 dark:border-gray-700/80">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-6 border-b border-gray-200 dark:border-gray-700">
-                    <div>
-                        <h2 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2.5">
-                            <span class="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
-                            </span>
-                            Server Storage & Partition Analytics
-                        </h2>
-                        <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
-                            Pemantauan visual ruang penyimpanan sistem operasi, direktori user cPanel, dan berkas temporary
-                        </p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="px-3.5 py-1 text-xs font-bold rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/80">
-                            3 Partisi (/ , /home , /tmp)
-                        </span>
-                    </div>
+        {{-- Section 1: Server Storage & Partition Analytics --}}
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title-group">
+                    <h2>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-indigo);"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+                        Server Storage & Partition Analytics
+                    </h2>
+                    <p class="card-subtitle">Pemantauan visual ruang penyimpanan sistem operasi, direktori user cPanel, dan berkas temporary</p>
                 </div>
+                <span class="badge-count">3 Partisi Aktif</span>
+            </div>
 
-                {{-- Partition Cards Grid (Spacious 3 Columns with Dual Charts per Card) --}}
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 py-8 border-b border-gray-200 dark:border-gray-700">
-                    @foreach ($partitions as $idx => $p)
-                        <div class="flex flex-col justify-between p-6 sm:p-7 rounded-2xl bg-gray-50/70 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 hover:border-indigo-300 dark:hover:border-indigo-500/40 hover:shadow-md transition-all">
-                            {{-- Card Header --}}
+            {{-- Partition Cards Grid --}}
+            <div class="partition-grid">
+                @foreach ($partitions as $idx => $p)
+                    <div class="partition-card">
+                        {{-- Top Header --}}
+                        <div class="p-head">
                             <div>
-                                <div class="flex items-start justify-between gap-3 mb-4">
-                                    <div>
-                                        <div class="flex items-center gap-2">
-                                            <span class="w-2.5 h-2.5 rounded-full {{ $p['used_percent'] >= 90 ? 'bg-rose-500' : ($p['used_percent'] >= 80 ? 'bg-amber-500' : 'bg-emerald-500') }}"></span>
-                                            <h3 class="font-extrabold text-base text-gray-900 dark:text-white">
-                                                {{ $p['name'] }}
-                                            </h3>
-                                        </div>
-                                        <span class="text-xs font-mono text-gray-400 dark:text-gray-500 pl-4.5">Mount: {{ $p['path'] }}</span>
-                                    </div>
-                                    <span class="text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wider {{ $p['used_percent'] >= 90 ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400 border border-rose-200 dark:border-rose-800' : ($p['used_percent'] >= 80 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800') }}">
-                                        {{ $p['status'] }}
-                                    </span>
+                                <div class="p-title">
+                                    <span style="display:inline-block; width:9px; height:9px; border-radius:50%; background-color: {{ $p['used_percent'] >= 90 ? 'var(--color-rose)' : ($p['used_percent'] >= 80 ? 'var(--color-amber)' : 'var(--color-emerald)') }};"></span>
+                                    {{ $p['name'] }}
                                 </div>
-
-                                {{-- Primary Chart: Circular Pie/Donut Chart with Generous Breathing Space --}}
-                                <div class="py-4 my-2 flex flex-col items-center justify-center">
-                                    <div class="relative w-52 h-52 sm:w-56 sm:h-56 flex items-center justify-center">
-                                        <canvas id="donut-partition-{{ $idx }}"></canvas>
-                                        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                            <span class="text-3xl font-black text-gray-900 dark:text-white tracking-tight">
-                                                {{ $p['used_percent'] }}%
-                                            </span>
-                                            <span class="text-[11px] uppercase font-bold text-gray-400 dark:text-gray-400 tracking-wider mt-0.5">
-                                                Terpakai
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {{-- Secondary Chart: Linear Allocation Bar Chart per Partition --}}
-                                <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800/80">
-                                    <div class="flex items-center justify-between text-xs font-semibold mb-2">
-                                        <span class="text-gray-600 dark:text-gray-400">Distribusi Alokasi</span>
-                                        <span class="font-mono text-gray-500 dark:text-gray-400">Total: {{ $p['total_formatted'] }}</span>
-                                    </div>
-                                    <div class="h-6 w-full relative">
-                                        <canvas id="bar-partition-{{ $idx }}"></canvas>
-                                    </div>
-                                </div>
+                                <span class="p-mount">Mount: {{ $p['path'] }}</span>
                             </div>
+                            <span class="p-status {{ $p['used_percent'] >= 90 ? 'status-critical' : ($p['used_percent'] >= 80 ? 'status-warning' : 'status-normal') }}">
+                                {{ $p['status'] }}
+                            </span>
+                        </div>
 
-                            {{-- Detailed Metric Badges Grid --}}
-                            <div class="mt-6 pt-5 border-t border-gray-200 dark:border-gray-800/80">
-                                <div class="grid grid-cols-2 gap-2.5 text-xs">
-                                    <div class="p-3 rounded-xl bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/80">
-                                        <div class="text-gray-400 text-[10px] font-bold uppercase tracking-wider">Terpakai</div>
-                                        <div class="font-extrabold text-sm text-gray-900 dark:text-white mt-0.5">{{ $p['used_formatted'] }}</div>
-                                        <div class="text-[11px] font-mono text-gray-500 dark:text-gray-400">{{ $p['used_percent'] }}% dari total</div>
-                                    </div>
-                                    <div class="p-3 rounded-xl bg-white dark:bg-gray-800 border border-gray-200/80 dark:border-gray-700/80">
-                                        <div class="text-gray-400 text-[10px] font-bold uppercase tracking-wider">Sisa Ruang</div>
-                                        <div class="font-extrabold text-sm text-emerald-600 dark:text-emerald-400 mt-0.5">{{ $p['free_formatted'] }}</div>
-                                        <div class="text-[11px] font-mono text-gray-500 dark:text-gray-400">{{ $p['free_percent'] }}% tersisa</div>
-                                    </div>
-                                </div>
+                        {{-- Primary Circular Pie/Donut Chart --}}
+                        <div class="chart-box">
+                            <canvas id="donut-partition-{{ $idx }}"></canvas>
+                            <div class="chart-inner-text">
+                                <div class="chart-percent">{{ $p['used_percent'] }}%</div>
+                                <div class="chart-label">TERPAKAI</div>
                             </div>
                         </div>
-                    @endforeach
+
+                        {{-- Secondary Horizontal Linear Allocation Bar Chart --}}
+                        <div class="bar-chart-section">
+                            <div class="bar-header">
+                                <span>Distribusi Alokasi</span>
+                                <span style="font-family: monospace;">Total: {{ $p['total_formatted'] }}</span>
+                            </div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar-fill" style="width: {{ $p['used_percent'] }}%; background-color: {{ $p['used_percent'] >= 90 ? 'var(--color-rose)' : ($p['used_percent'] >= 80 ? 'var(--color-amber)' : 'var(--color-emerald)') }};"></div>
+                            </div>
+                        </div>
+
+                        {{-- Metric KPI Boxes --}}
+                        <div class="kpi-grid">
+                            <div class="kpi-item">
+                                <div class="kpi-label">Terpakai</div>
+                                <div class="kpi-value">{{ $p['used_formatted'] }}</div>
+                                <div class="kpi-sub">{{ $p['used_percent'] }}% dari total</div>
+                            </div>
+                            <div class="kpi-item">
+                                <div class="kpi-label">Sisa Ruang</div>
+                                <div class="kpi-value" style="color: var(--color-emerald);">{{ $p['free_formatted'] }}</div>
+                                <div class="kpi-sub">{{ $p['free_percent'] }}% tersisa</div>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+
+            {{-- Storage Breakdown Data Table --}}
+            <div style="margin-top: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                    <h3 style="font-size: 15px; font-weight: 800; color: var(--text-title);">Rincian Lengkap Kapasitas Partisi</h3>
+                    <span style="font-size: 12px; color: var(--text-muted);">Batas Aman: &lt; 80% | Warning: 80% | Kritis: 90%</span>
                 </div>
 
-                {{-- Table: Storage, Total, Terpakai, Sisa, Status --}}
-                <div class="mt-8">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-base font-bold text-gray-900 dark:text-white">Rincian Lengkap Kapasitas Partisi</h3>
-                        <span class="text-xs text-gray-500 dark:text-gray-400 font-medium">Batas Aman: &lt; 80% | Warning: 80% | Kritis: 90%</span>
-                    </div>
-
-                    <div class="overflow-x-auto rounded-2xl border border-gray-200 dark:border-gray-700">
-                        <table class="w-full text-left text-xs sm:text-sm">
-                            <thead class="bg-gray-50 dark:bg-gray-900/60">
-                                <tr class="text-gray-500 dark:text-gray-400 uppercase text-[11px] tracking-wider border-b border-gray-200 dark:border-gray-700">
-                                    <th class="py-3.5 px-4 font-bold">Storage</th>
-                                    <th class="py-3.5 px-4 font-bold">Total</th>
-                                    <th class="py-3.5 px-4 font-bold">Terpakai</th>
-                                    <th class="py-3.5 px-4 font-bold">Sisa</th>
-                                    <th class="py-3.5 px-4 font-bold text-center">Status</th>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Storage</th>
+                                <th>Total</th>
+                                <th>Terpakai</th>
+                                <th>Sisa</th>
+                                <th style="text-align: center;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($partitions as $p)
+                                <tr>
+                                    <td>
+                                        <div class="tb-storage-name">{{ $p['name'] }}</div>
+                                        <div class="tb-storage-sub">{{ $p['path'] }}</div>
+                                    </td>
+                                    <td>
+                                        <span class="tb-mono">{{ $p['total_formatted'] }}</span>
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span class="tb-mono">{{ $p['used_formatted'] }}</span>
+                                            <span style="font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 6px; background: {{ $p['used_percent'] >= 90 ? 'var(--color-rose-bg)' : ($p['used_percent'] >= 80 ? 'var(--color-amber-bg)' : 'var(--color-emerald-bg)') }}; color: {{ $p['used_percent'] >= 90 ? 'var(--color-rose-text)' : ($p['used_percent'] >= 80 ? 'var(--color-amber-text)' : 'var(--color-emerald-text)') }};">
+                                                {{ $p['used_percent'] }}%
+                                            </span>
+                                        </div>
+                                        <div style="width: 140px; height: 6px; background: var(--track-color); border-radius: 999px; margin-top: 6px; overflow: hidden;">
+                                            <div style="width: {{ $p['used_percent'] }}%; height: 100%; border-radius: 999px; background: {{ $p['used_percent'] >= 90 ? 'var(--color-rose)' : ($p['used_percent'] >= 80 ? 'var(--color-amber)' : 'var(--color-emerald)') }};"></div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="tb-mono" style="color: var(--color-emerald);">{{ $p['free_formatted'] }}</div>
+                                        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">{{ $p['free_percent'] }}% ruang bebas</div>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <span class="p-status {{ $p['used_percent'] >= 90 ? 'status-critical' : ($p['used_percent'] >= 80 ? 'status-warning' : 'status-normal') }}">
+                                            {{ $p['status'] }}
+                                        </span>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100 dark:divide-gray-800 bg-white dark:bg-gray-800">
-                                @foreach ($partitions as $p)
-                                    <tr class="hover:bg-gray-50/80 dark:hover:bg-gray-700/40 transition">
-                                        <td class="py-4 px-4 font-semibold text-gray-900 dark:text-white flex items-center gap-3">
-                                            <div class="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"></rect><rect width="20" height="8" x="2" y="14" rx="2" ry="2"></rect><line x1="6" x2="6.01" y1="6" y2="6"></line><line x1="6" x2="6.01" y1="18" y2="18"></line></svg>
-                                            </div>
-                                            <div>
-                                                <div class="font-bold">{{ $p['name'] }}</div>
-                                                <div class="text-xs font-mono text-gray-400 dark:text-gray-500">{{ $p['path'] }}</div>
-                                            </div>
-                                        </td>
-                                        <td class="py-4 px-4 font-mono font-bold text-gray-800 dark:text-gray-200">
-                                            {{ $p['total_formatted'] }}
-                                        </td>
-                                        <td class="py-4 px-4">
-                                            <div class="flex items-center gap-2">
-                                                <span class="font-mono font-extrabold text-gray-900 dark:text-white">{{ $p['used_formatted'] }}</span>
-                                                <span class="text-xs font-mono font-bold px-1.5 py-0.5 rounded {{ $p['used_percent'] >= 90 ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400' : ($p['used_percent'] >= 80 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400') }}">
-                                                    {{ $p['used_percent'] }}%
-                                                </span>
-                                            </div>
-                                            <div class="w-32 sm:w-44 h-2 bg-gray-200 dark:bg-gray-700 rounded-full mt-2 overflow-hidden">
-                                                <div class="h-full rounded-full {{ $p['used_percent'] >= 90 ? 'bg-rose-500' : ($p['used_percent'] >= 80 ? 'bg-amber-500' : 'bg-emerald-500') }}" style="width: {{ $p['used_percent'] }}%"></div>
-                                            </div>
-                                        </td>
-                                        <td class="py-4 px-4">
-                                            <div class="font-mono font-bold text-emerald-600 dark:text-emerald-400">{{ $p['free_formatted'] }}</div>
-                                            <div class="text-xs text-gray-400 font-mono">{{ $p['free_percent'] }}% ruang bebas</div>
-                                        </td>
-                                        <td class="py-4 px-4 text-center">
-                                            @if ($p['used_percent'] >= 90)
-                                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
-                                                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
-                                                    Critical
-                                                </span>
-                                            @elseif ($p['used_percent'] >= 80)
-                                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-                                                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
-                                                    Warning
-                                                </span>
-                                            @else
-                                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                                                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
-                                                    Normal
-                                                </span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
+                            @endforeach
+                        </tbody>
+                    </table>
                 </div>
             </div>
-        </section>
+        </div>
 
         {{-- Section 2: Spatie Health Check Cards --}}
-        <section>
-            <div class="flex items-center justify-between mb-5 px-1">
-                <h2 class="text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    System & Service Health Status
-                </h2>
-                <span class="text-xs text-gray-400 font-medium">
+        <div>
+            <div class="section-title-wrap">
+                <span class="section-title">System & Service Health Status</span>
+                <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">
                     Total: {{ count($checkResults?->storedCheckResults ?? []) }} Checks
                 </span>
             </div>
 
             @if (count($checkResults?->storedCheckResults ?? []))
-                <dl class="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-3">
+                <div class="health-grid">
                     @foreach ($checkResults->storedCheckResults as $result)
-                        <div class="flex items-start p-5 rounded-2xl bg-white dark:bg-gray-800 shadow-md shadow-gray-200/50 dark:shadow-black/25 border border-gray-200/80 dark:border-gray-700/80 space-x-3.5 hover:shadow-lg transition-shadow">
-                            <x-health-status-indicator :result="$result" />
-                            <div class="min-w-0 flex-1">
-                                <dd class="font-bold text-gray-900 dark:text-white text-base md:text-lg truncate">
-                                    {{ $result->label }}
-                                </dd>
-                                <dt class="mt-1 text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300 break-words">
+                        <div class="health-card">
+                            <div style="flex-shrink: 0; padding-top: 2px;">
+                                <x-health-status-indicator :result="$result" />
+                            </div>
+                            <div style="flex: 1; min-width: 0;">
+                                <div class="health-card-title">{{ $result->label }}</div>
+                                <div class="health-card-desc">
                                     @if (!empty($result->notificationMessage))
                                         {{ $result->notificationMessage }}
                                     @else
                                         {{ $result->shortSummary }}
                                     @endif
-                                </dt>
+                                </div>
                             </div>
                         </div>
                     @endforeach
-                </dl>
+                </div>
             @else
-                <div class="max-w-md mx-auto my-12 p-8 text-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl shadow-sm">
-                    <div class="inline-flex items-center justify-center w-12 h-12 mb-4 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+                <div class="empty-state">
+                    <div class="empty-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
                     </div>
-                    <h3 class="text-base font-bold text-gray-900 dark:text-white mb-2">No Health Checks Recorded Yet</h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
-                        Health metrics have not been run on this server yet. Click the button below to run all registered system checks immediately.
-                    </p>
-                    <a href="{{ url('/monitoringsm/health?fresh') }}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white shadow-md shadow-indigo-500/20 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-                        Run Health Checks Now
+                    <div class="empty-title">Belum Ada Riwayat Pemeriksaan</div>
+                    <div class="empty-desc">Pemeriksaan kesehatan sistem belum dijalankan pada server ini. Silakan klik tombol di bawah untuk menjalankan pemeriksaan.</div>
+                    <a href="{{ url('/monitoringsm/health?fresh') }}" class="btn btn-primary" style="display: inline-flex;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                        Jalankan Pemeriksaan Sekarang
                     </a>
                 </div>
             @endif
-        </section>
+        </div>
     </div>
 
     {{-- Chart.js Rendering & Theme Switcher Script --}}
@@ -288,49 +800,46 @@
         const partitionsData = @json($partitions);
         const chartInstances = [];
 
-        function getThemeColors() {
+        function getTrackColor() {
             const isDark = document.documentElement.classList.contains('dark');
-            return {
-                isDark: isDark,
-                freeBg: isDark ? '#334155' : '#e2e8f0', // slate-700 / slate-200
-                textMuted: isDark ? '#94a3b8' : '#64748b'
-            };
+            return isDark ? '#243048' : '#e2e8f0';
         }
 
         function renderAllCharts() {
-            // Destroy existing charts before re-rendering on theme change
             chartInstances.forEach(c => c.destroy());
             chartInstances.length = 0;
 
-            const theme = getThemeColors();
+            const trackColor = getTrackColor();
 
             partitionsData.forEach((p, idx) => {
-                let usedColor = '#10b981'; // emerald-500
+                let usedColor = '#10b981'; // normal
                 if (p.used_percent >= 90) {
-                    usedColor = '#f43f5e'; // rose-500
+                    usedColor = '#f43f5e'; // critical
                 } else if (p.used_percent >= 80) {
-                    usedColor = '#f59e0b'; // amber-500
+                    usedColor = '#f59e0b'; // warning
                 }
 
-                // 1. Primary Donut / Pie Chart
-                const donutCanvas = document.getElementById(`donut-partition-${idx}`);
-                if (donutCanvas) {
-                    const donutChart = new Chart(donutCanvas, {
+                // If 0% used, provide a tiny slice for visual aesthetics
+                const chartUsedBytes = p.used_bytes > 0 ? p.used_bytes : (p.total_bytes * 0.001);
+
+                const canvas = document.getElementById(`donut-partition-${idx}`);
+                if (canvas) {
+                    const donutChart = new Chart(canvas, {
                         type: 'doughnut',
                         data: {
                             labels: ['Terpakai (' + p.used_formatted + ')', 'Sisa (' + p.free_formatted + ')'],
                             datasets: [{
-                                data: [p.used_bytes, p.free_bytes],
-                                backgroundColor: [usedColor, theme.freeBg],
+                                data: [chartUsedBytes, p.free_bytes],
+                                backgroundColor: [usedColor, trackColor],
                                 borderWidth: 0,
-                                hoverOffset: 6
+                                hoverOffset: 4
                             }]
                         },
                         options: {
                             responsive: true,
                             maintainAspectRatio: true,
-                            cutout: '74%',
-                            animation: { duration: 600 },
+                            cutout: '76%',
+                            animation: { duration: 500 },
                             plugins: {
                                 legend: { display: false },
                                 tooltip: {
@@ -347,57 +856,10 @@
                     });
                     chartInstances.push(donutChart);
                 }
-
-                // 2. Secondary Horizontal Distribution Bar Chart
-                const barCanvas = document.getElementById(`bar-partition-${idx}`);
-                if (barCanvas) {
-                    const barChart = new Chart(barCanvas, {
-                        type: 'bar',
-                        data: {
-                            labels: ['Kapasitas'],
-                            datasets: [
-                                {
-                                    label: 'Terpakai (' + p.used_formatted + ' - ' + p.used_percent + '%)',
-                                    data: [p.used_bytes],
-                                    backgroundColor: usedColor,
-                                    borderRadius: { topLeft: 6, bottomLeft: 6, topRight: 0, bottomRight: 0 },
-                                    barThickness: 14
-                                },
-                                {
-                                    label: 'Sisa (' + p.free_formatted + ' - ' + p.free_percent + '%)',
-                                    data: [p.free_bytes],
-                                    backgroundColor: theme.freeBg,
-                                    borderRadius: { topLeft: 0, bottomLeft: 0, topRight: 6, bottomRight: 6 },
-                                    barThickness: 14
-                                }
-                            ]
-                        },
-                        options: {
-                            indexAxis: 'y',
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            scales: {
-                                x: { stacked: true, display: false },
-                                y: { stacked: true, display: false }
-                            },
-                            plugins: {
-                                legend: { display: false },
-                                tooltip: {
-                                    callbacks: {
-                                        label: function (context) {
-                                            return ' ' + context.dataset.label;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                    chartInstances.push(barChart);
-                }
             });
         }
 
-        // Theme Toggle Handler
+        // Theme Toggle Controller
         document.addEventListener('DOMContentLoaded', function () {
             renderAllCharts();
 
