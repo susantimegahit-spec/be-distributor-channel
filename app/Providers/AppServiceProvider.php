@@ -184,9 +184,21 @@ class AppServiceProvider extends ServiceProvider
         // Register Spatie Health Checks
         if (class_exists(\Spatie\Health\Facades\Health::class)) {
             \Spatie\Health\Facades\Health::checks([
-                \Spatie\Health\Checks\Checks\UsedDiskSpaceCheck::new()
-                    ->warnWhenUsedSpaceIsAbovePercentage(80)
-                    ->failWhenUsedSpaceIsAbovePercentage(90),
+                \App\Health\Checks\PartitionDiskCheck::new()
+                    ->name('Storage Root (/)')
+                    ->partition('/')
+                    ->warnWhenAbove(80)
+                    ->failWhenAbove(90),
+                \App\Health\Checks\PartitionDiskCheck::new()
+                    ->name('Storage User Data (/home)')
+                    ->partition('/home')
+                    ->warnWhenAbove(80)
+                    ->failWhenAbove(90),
+                \App\Health\Checks\PartitionDiskCheck::new()
+                    ->name('Storage Temporary (/tmp)')
+                    ->partition('/tmp')
+                    ->warnWhenAbove(80)
+                    ->failWhenAbove(90),
                 \Spatie\Health\Checks\Checks\DatabaseCheck::new(),
                 \Spatie\Health\Checks\Checks\DatabaseConnectionCountCheck::new()
                     ->warnWhenMoreConnectionsThan(50)
