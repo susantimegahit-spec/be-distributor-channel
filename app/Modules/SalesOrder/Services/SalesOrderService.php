@@ -538,6 +538,62 @@ class SalesOrderService
             }
         }
 
+        // Sanitize and resolve PayToCode & ShipToCode from SAP if empty or legacy dummy 'MAIN'
+        $payToCode = $salesOrder->pay_to_code;
+        $shipToCode = $salesOrder->ship_to_code;
+        $address = $salesOrder->address;
+        $address2 = $salesOrder->address2;
+
+        if ($payToCode === 'MAIN' || $shipToCode === 'MAIN' || empty($shipToCode) || empty($payToCode)) {
+            try {
+                $distributorService = app(\App\Modules\Distributor\Services\DistributorService::class);
+                $sapAddresses = $distributorService->getAddressesFromSap($salesOrder->card_code);
+
+                $billing = null;
+                $shipping = null;
+
+                if (is_array($sapAddresses)) {
+                    foreach ($sapAddresses as $item) {
+                        $type = $item['AdresType'] ?? '';
+                        if ($type === 'B' && !$billing) {
+                            $billing = $item;
+                        } elseif ($type === 'S' && !$shipping) {
+                            $shipping = $item;
+                        }
+                    }
+                    if (!$shipping && count($sapAddresses) > 1) {
+                        $shipping = $sapAddresses[1];
+                    }
+                }
+
+                if ($payToCode === 'MAIN' || empty($payToCode)) {
+                    $payToCode = $billing['Address'] ?? null;
+                    if (empty($address) && !empty($billing['Street'])) {
+                        $address = $billing['Street'];
+                    }
+                }
+
+                if ($shipToCode === 'MAIN' || empty($shipToCode)) {
+                    $shipToCode = $shipping['Address'] ?? $billing['Address'] ?? null;
+                    if (empty($address2) && !empty($shipping['Street'])) {
+                        $address2 = $shipping['Street'];
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Failed to resolve SAP address for SO #{$salesOrder->id}: " . $e->getMessage());
+            }
+
+            if ($payToCode === 'MAIN') $payToCode = null;
+            if ($shipToCode === 'MAIN') $shipToCode = null;
+
+            $salesOrder->update([
+                'pay_to_code' => $payToCode,
+                'ship_to_code' => $shipToCode,
+                'address' => $address,
+                'address2' => $address2,
+            ]);
+        }
+
         // Prepare SAP payload mapping
         $payload = [
             'CardCode' => $salesOrder->card_code,
@@ -546,10 +602,10 @@ class SalesOrderService
             'DocDueDate' => $salesOrder->doc_due_date ? $salesOrder->doc_due_date->format('Y-m-d') : null,
             'SlpCode' => (int)$salesOrder->slp_code,
             'CntctCode' => (int)$salesOrder->cntct_code,
-            'PayToCode' => $salesOrder->pay_to_code,
-            'Address' => $salesOrder->address,
-            'ShipToCode' => $salesOrder->ship_to_code,
-            'Address2' => $salesOrder->address2,
+            'PayToCode' => $payToCode,
+            'Address' => $address,
+            'ShipToCode' => $shipToCode,
+            'Address2' => $address2,
             'Comments' => $salesOrder->comments,
             'IdDiskon' => $salesOrder->id_discount,
             'UserId' => $salesOrder->sales_pic_id ? (int)$salesOrder->sales_pic_id : null,
