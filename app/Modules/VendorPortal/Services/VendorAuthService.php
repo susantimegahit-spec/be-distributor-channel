@@ -79,4 +79,32 @@ class VendorAuthService
             'dashboard_url' => $targetDashboard,
         ];
     }
+
+    /**
+     * Change vendor user password.
+     */
+    public function changePassword(VendorUser $user, string $currentPassword, string $newPassword): array
+    {
+        if (!Hash::check($currentPassword, $user->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => ['Current password does not match our records.'],
+            ]);
+        }
+
+        if (Hash::check($newPassword, $user->password)) {
+            throw ValidationException::withMessages([
+                'new_password' => ['New password cannot be the same as your current password.'],
+            ]);
+        }
+
+        $user->password = Hash::make($newPassword);
+        $user->must_change_password = false;
+        $user->save();
+
+        return [
+            'user_id'              => $user->id,
+            'email'                => $user->email,
+            'must_change_password' => false,
+        ];
+    }
 }

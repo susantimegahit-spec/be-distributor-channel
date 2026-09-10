@@ -287,6 +287,85 @@ Digunakan oleh calon vendor untuk mengunggah berkas pengganti yang diminta revis
   }
   ```
 
+#### 5. Profil Vendor & Berkas Dokumen Terunggah
+- **Method & Path:** `GET /api/distributor-channel/vendor-portal/me` (atau `/v1/vendor-portal/me`)
+- **Headers:** `Authorization: Bearer <sanctum_token>`
+- **Response `200 OK`:**
+  ```json
+  {
+    "success": true,
+    "message": "Vendor profile and documents retrieved successfully.",
+    "data": {
+      "user": {
+        "id": 1,
+        "name": "Budi Santoso",
+        "email": "vendor@perusahaan.com",
+        "role": "VENDOR_ADMIN",
+        "must_change_password": true
+      },
+      "vendor": {
+        "id": 1,
+        "vendor_code": "VND-202609-0001",
+        "vendor_type": "EXPEDITION",
+        "company_name": "PT Jaya Trans Logistik",
+        "company_email": "vendor@perusahaan.com",
+        "company_npwp": "01.234.567.8-901.000",
+        "expedition_id": 12
+      },
+      "documents": [
+        {
+          "id": 1,
+          "document_type": "AKTA",
+          "document_number": "AKTA-001",
+          "file_name": "akta_pendirian.pdf",
+          "file_size": 1048576,
+          "file_mime": "application/pdf",
+          "file_url": "https://smesta-dev.susantimegah.com/storage/vendor_documents/VND-202609-0001/akta.pdf",
+          "verification_status": "VALID",
+          "notes": "Akta pendirian dan SK Kemenkumham sah.",
+          "verified_at": "2026-09-09T08:00:00.000000Z"
+        },
+        {
+          "id": 2,
+          "document_type": "NIB",
+          "document_number": "NIB-123456",
+          "file_name": "nib_oss.pdf",
+          "file_size": 524288,
+          "file_mime": "application/pdf",
+          "file_url": "https://smesta-dev.susantimegah.com/storage/vendor_documents/VND-202609-0001/nib.pdf",
+          "verification_status": "VALID",
+          "notes": null,
+          "verified_at": "2026-09-09T08:00:00.000000Z"
+        }
+      ]
+    }
+  }
+  ```
+
+#### 6. Ganti Kata Sandi (Change Password)
+- **Method & Path:** `POST /api/distributor-channel/vendor-portal/change-password` (atau `/v1/vendor-portal/change-password`)
+- **Headers:** `Authorization: Bearer <sanctum_token>`, `Content-Type: application/json`
+- **Request JSON:**
+  ```json
+  {
+    "current_password": "TemporaryPassword123!",
+    "new_password": "NewSecurePassword456!",
+    "new_password_confirmation": "NewSecurePassword456!"
+  }
+  ```
+- **Response `200 OK`:**
+  ```json
+  {
+    "success": true,
+    "message": "Password changed successfully.",
+    "data": {
+      "user_id": 1,
+      "email": "vendor@perusahaan.com",
+      "must_change_password": false
+    }
+  }
+  ```
+
 ---
 
 ### 4.2 Endpoint Backoffice (Tim Legal & Manajemen Vendor)

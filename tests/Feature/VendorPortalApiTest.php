@@ -360,4 +360,139 @@ class VendorPortalApiTest extends TestCase
         @unlink($testFilePath);
         @rmdir($testDir);
     }
+
+    public function test_me_endpoint_returns_vendor_profile_with_uploaded_documents()
+    {
+        $vendor = Vendor::create([
+            'vendor_code'           => 'VND-202609-0010',
+            'vendor_type'           => 'EXPEDITION',
+            'company_name'          => 'PT Profil Test',
+            'company_email'         => 'profil@test.com',
+            'pic_name'              => 'Budi',
+            'pic_phone'             => '0812345678',
+            'terms_agreed'          => true,
+            'registration_status'   => 'APPROVED',
+            'legal_approval_status' => 'APPROVED',
+        ]);
+
+        \App\Modules\VendorPortal\Models\VendorDocument::create([
+            'vendor_id'           => $vendor->id,
+            'document_type'       => 'AKTA',
+            'document_number'     => 'AKTA-001',
+            'file_path'           => 'vendor_documents/VND-202609-0010/akta.pdf',
+            'file_name'           => 'akta.pdf',
+            'file_mime'           => 'application/pdf',
+            'file_size'           => 1024,
+            'verification_status' => 'VALID',
+        ]);
+
+        \App\Modules\VendorPortal\Models\VendorDocument::create([
+            'vendor_id'           => $vendor->id,
+            'document_type'       => 'NIB',
+            'document_number'     => 'NIB-001',
+            'file_path'           => 'vendor_documents/VND-202609-0010/nib.pdf',
+            'file_name'           => 'nib.pdf',
+            'file_mime'           => 'application/pdf',
+            'file_size'           => 2048,
+            'verification_status' => 'VALID',
+        ]);
+
+        $user = VendorUser::create([
+            'vendor_id'            => $vendor->id,
+            'name'                 => 'Budi PIC',
+            'email'                => 'profil@test.com',
+            'password'             => \Illuminate\Support\Facades\Hash::make('OldPassword123!'),
+            'role'                 => 'VENDOR_ADMIN',
+            'status'               => 'ACTIVE',
+            'must_change_password' => true,
+        ]);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->getJson('/api/distributor-channel/vendor-portal/me');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'user' => [
+                        'id'                   => $user->id,
+                        'name'                 => 'Budi PIC',
+                        'email'                => 'profil@test.com',
+                        'must_change_password' => true,
+                    ],
+                    'vendor' => [
+                        'vendor_code' => 'VND-202609-0010',
+                    ],
+                ],
+            ]);
+
+        $docs = $response->json('data.documents');
+        $this->assertIsArray($docs);
+        $this->assertCount(2, $docs);
+        $this->assertEquals('AKTA', $docs[0]['document_type']);
+        $this->assertEquals('NIB', $docs[1]['document_type']);
+    }
+
+    public function test_can_change_vendor_password()
+    {
+        $vendor = Vendor::create([
+            'vendor_code'           => 'VND-202609-0011',
+            'vendor_type'           => 'EXPEDITION',
+            'company_name'          => 'PT Password Test',
+            'company_email'         => 'pwd@test.com',
+            'pic_name'              => 'Andi',
+            'pic_phone'             => '0812345678',
+            'terms_agreed'          => true,
+            'registration_status'   => 'APPROVED',
+            'legal_approval_status' => 'APPROVED',
+        ]);
+
+        $user = VendorUser::create([
+            'vendor_id'            => $vendor->id,
+            'name'                 => 'Andi PIC',
+            'email'                => 'pwd@test.com',
+            'password'             => \Illuminate\Support\Facades\Hash::make('OldPassword123!'),
+            'role'                 => 'VENDOR_ADMIN',
+            'status'               => 'ACTIVE',
+            'must_change_password' => true,
+        ]);
+
+        // 1. Wrong current password -> fails
+        $failResponse = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/distributor-channel/vendor-portal/change-password', [
+                'current_password'          => 'WrongPass123!',
+                'new_password'              => 'NewPassword123!',
+                'new_password_confirmation' => 'NewPassword123!',
+            ]);
+        $failResponse->assertStatus(422);
+
+        // 2. Same password -> fails
+        $sameResponse = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/distributor-channel/vendor-portal/change-password', [
+                'current_password'          => 'OldPassword123!',
+                'new_password'              => 'OldPassword123!',
+                'new_password_confirmation' => 'OldPassword123!',
+            ]);
+        $sameResponse->assertStatus(422);
+
+        // 3. Valid password change -> success
+        $successResponse = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/distributor-channel/vendor-portal/change-password', [
+                'current_password'          => 'OldPassword123!',
+                'new_password'              => 'NewPassword123!',
+                'new_password_confirmation' => 'NewPassword123!',
+            ]);
+
+        $successResponse->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Password changed successfully.',
+                'data' => [
+                    'must_change_password' => false,
+                ],
+            ]);
+
+        $this->assertFalse((bool) $user->fresh()->must_change_password);
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('NewPassword123!', $user->fresh()->password));
+    }
 }

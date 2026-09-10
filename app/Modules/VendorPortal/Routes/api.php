@@ -51,6 +51,7 @@ $registerVendorRoutes = function () {
         // Authenticated Vendor Endpoints
         Route::middleware('auth:sanctum')->group(function () {
             Route::get('/me', [VendorAuthController::class, 'me']);
+            Route::post('/change-password', [VendorAuthController::class, 'changePassword']);
             Route::post('/logout', [VendorAuthController::class, 'logout']);
 
             // Vendor Rate Card Management & Submission (Expedition Partners)
