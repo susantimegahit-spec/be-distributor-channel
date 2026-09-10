@@ -586,8 +586,8 @@ Seluruh endpoint di bawah ini mewajibkan header autentikasi `Authorization: Bear
 - **Headers:** `Authorization: Bearer <token>`
 - **Response `200 OK`:** Stream file `vendor_rate_submission_template.csv` berisi header resmi dan baris contoh data:
   ```csv
-  No,Origin Code,Origin Name,Destination,Destination City,Transport Mode,Min Weight (Kg),Max Weight (Kg),Service Type,Rate,leadtime
-  1,PRD01-01,Gudang Manyar Gresik,CUST-SMG-01,Semarang,DARAT,0,15000,REGULER,4500000,2
+  No,Origin Code,Origin Name,Destination,Transport Mode,Min Weight (Kg),Max Weight (Kg),Service Type,Rate,Lead Time
+  1,PRD01-01,Gudang Manyar Gresik,CUST-SMG-01,DARAT,0,15000,REGULER,4500000,2
   ```
   *(Catatan: Kolom `Expedition Code` dan `Expedition Name` tidak perlu diisi pada file upload karena otomatis dikaitkan ke vendor ekspedisi yang login)*.
 
@@ -707,7 +707,7 @@ Seluruh endpoint di bawah ini mewajibkan header autentikasi `Authorization: Bear
 - **Request Body (`multipart/form-data`):**
   | Field | Tipe | Wajib | Keterangan |
   |:---|:---:|:---:|:---|
-  | `file` | file | Ya | File `.xlsx`, `.xls`, atau `.csv` (Maksimal 10MB) dengan header `No,Origin Code,Origin Name,Destination,Destination City,Transport Mode,Min Weight (Kg),Max Weight (Kg),Service Type,Rate,leadtime` |
+  | `file` | file | Ya | File `.xlsx`, `.xls`, atau `.csv` (Maksimal 10MB) dengan header `No,Origin Code,Origin Name,Destination,Transport Mode,Min Weight (Kg),Max Weight (Kg),Service Type,Rate,Lead Time` |
   | `valid_from` | date | Tidak | Tanggal mulai periode (YYYY-MM-DD) dari modal pop-up FE |
   | `valid_until` | date | Tidak | Tanggal selesai periode (YYYY-MM-DD) dari modal pop-up FE |
   | `periode` | string | Tidak | Input tanggal periode tunggal (misal `2026-08-15`, otomatis mengisi `valid_from` dan `valid_until`) |

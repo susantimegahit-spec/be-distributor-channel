@@ -219,13 +219,12 @@ class VendorRateService
             'Origin Code',
             'Origin Name',
             'Destination',
-            'Destination City',
             'Transport Mode',
             'Min Weight (Kg)',
             'Max Weight (Kg)',
             'Service Type',
             'Rate',
-            'leadtime',
+            'Lead Time',
         ];
 
         $sampleRow = [
@@ -233,7 +232,6 @@ class VendorRateService
             'PRD01-01',
             'Gudang Manyar Gresik',
             'CUST-SMG-01',
-            'Semarang',
             'DARAT',
             '0',
             '15000',

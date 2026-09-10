@@ -89,10 +89,10 @@ class VendorRateSubmissionTest extends TestCase
 
         $content = $response->getContent();
         $this->assertStringContainsString('Origin Code', $content);
-        $this->assertStringContainsString('Destination City', $content);
+        $this->assertStringNotContainsString('Destination City', $content);
         $this->assertStringContainsString('Min Weight (Kg)', $content);
         $this->assertStringContainsString('Max Weight (Kg)', $content);
-        $this->assertStringContainsString('leadtime', $content);
+        $this->assertStringContainsString('Lead Time', $content);
     }
 
     public function test_approved_vendor_can_manually_submit_rate()
@@ -205,8 +205,8 @@ class VendorRateSubmissionTest extends TestCase
             'city'      => 'Semarang',
         ]);
 
-        $csvContent = "No,Origin Code,Origin Name,Destination,Destination City,Transport Mode,Min Weight (Kg),Max Weight (Kg),Service Type,Rate,leadtime\n"
-                    . "1,WHS-GRS-01,Gudang Manyar Gresik,{$shipto->card_code},Semarang,DARAT,0,15000,WINGBOX,4500000,2\n";
+        $csvContent = "No,Origin Code,Origin Name,Destination,Transport Mode,Min Weight (Kg),Max Weight (Kg),Service Type,Rate,Lead Time\n"
+                    . "1,WHS-GRS-01,Gudang Manyar Gresik,{$shipto->card_code},DARAT,0,15000,WINGBOX,4500000,2\n";
 
         $file = UploadedFile::fake()->createWithContent('rates_upload.csv', $csvContent);
 
