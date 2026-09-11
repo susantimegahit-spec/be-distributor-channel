@@ -27,15 +27,24 @@ class RegisterVendorRequest extends FormRequest
             'pic_phone' => 'required|string|max:50',
             'pic_email' => 'nullable|email|max:150',
             'terms_agreed' => 'required',
-            // Dokumen files (mendukung key langsung seperti 'akta' maupun prefix 'document_akta')
-            'akta' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
-            'document_akta' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
-            'nib' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
-            'document_nib' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
-            'npwp' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
-            'document_npwp' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
-            'support' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
-            'document_support' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            // Format array dinamis: documents[i][document_type], documents[i][file], documents[i][notes], documents[i][document_number]
+            'documents' => 'nullable|array',
+            'documents.*.document_type' => 'nullable|string|max:100',
+            'documents.*.file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
+            'documents.*.notes' => 'nullable|string|max:1000',
+            'documents.*.document_number' => 'nullable|string|max:100',
+
+            // Dokumen files format flat (mendukung key langsung seperti 'akta' maupun format dinamis)
+            'akta' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
+            'document_akta' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
+            'nib' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
+            'document_nib' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
+            'npwp' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
+            'document_npwp' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
+            'support' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
+            'document_support' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
+            'pakta_integritas' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
+            'peraturan_kerjasama' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
         ];
     }
 
@@ -50,7 +59,7 @@ class RegisterVendorRequest extends FormRequest
             'pic_phone.required' => 'PIC phone number is required.',
             'terms_agreed.required' => 'Partnership terms and conditions must be accepted.',
             '*.max' => 'Document file size may not exceed 10 MB per file.',
-            '*.mimes' => 'Document file format must be PDF, JPG, JPEG, or PNG.',
+            '*.mimes' => 'Document file format must be PDF, JPG, JPEG, PNG, DOC, or DOCX.',
         ];
     }
 }

@@ -81,6 +81,59 @@ class VendorPortalApiTest extends TestCase
         $this->assertCount(1, $vendor->approvalHistories);
     }
 
+    public function test_can_register_new_vendor_with_dynamic_documents_array()
+    {
+        $payload = [
+            'vendor_type' => 'expedition',
+            'company_name' => 'PT Tukang Kirim',
+            'company_email' => 'ogaming.otong@gmail.com',
+            'company_npwp' => '24234535345',
+            'address' => 'Street',
+            'pic_name' => 'Bro Cahyo',
+            'pic_phone' => '08123424234',
+            'terms_agreed' => 1,
+            'documents' => [
+                ['document_type' => 'akta', 'file' => UploadedFile::fake()->create('akta.pdf', 100, 'application/pdf')],
+                ['document_type' => 'sk_akta_pendirian', 'file' => UploadedFile::fake()->create('sk_pendirian.pdf', 100, 'application/pdf')],
+                ['document_type' => 'akta_perubahan', 'file' => UploadedFile::fake()->create('akta_perubahan.pdf', 100, 'application/pdf')],
+                ['document_type' => 'sk_akta_perubahan', 'file' => UploadedFile::fake()->create('sk_perubahan.pdf', 100, 'application/pdf')],
+                ['document_type' => 'nib', 'file' => UploadedFile::fake()->create('nib.pdf', 100, 'application/pdf')],
+                ['document_type' => 'npwp', 'file' => UploadedFile::fake()->create('npwp.png', 100, 'image/png')],
+                ['document_type' => 'ktp_direktur', 'file' => UploadedFile::fake()->create('ktp.jpg', 100, 'image/jpeg')],
+                ['document_type' => 'sertifikat_halal', 'file' => UploadedFile::fake()->create('halal.pdf', 100, 'application/pdf')],
+                ['document_type' => 'pakta_integritas', 'file' => UploadedFile::fake()->create('pakta.docx', 100, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')],
+                ['document_type' => 'peraturan_kerjasama', 'file' => UploadedFile::fake()->create('pks.docx', 100, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')],
+            ],
+        ];
+
+        $response = $this->postJson('/api/distributor-channel/vendor-portal/register', $payload);
+
+        $response->assertStatus(201)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'company_name' => 'PT Tukang Kirim',
+                    'uploaded_documents_count' => 10,
+                ],
+            ]);
+
+        $vendor = Vendor::where('company_email', 'ogaming.otong@gmail.com')->first();
+        $this->assertNotNull($vendor);
+        $this->assertCount(10, $vendor->documents);
+
+        $uploadedTypes = $vendor->documents->pluck('document_type')->toArray();
+        $this->assertContains('AKTA', $uploadedTypes);
+        $this->assertContains('SK_AKTA_PENDIRIAN', $uploadedTypes);
+        $this->assertContains('AKTA_PERUBAHAN', $uploadedTypes);
+        $this->assertContains('SK_AKTA_PERUBAHAN', $uploadedTypes);
+        $this->assertContains('NIB', $uploadedTypes);
+        $this->assertContains('NPWP', $uploadedTypes);
+        $this->assertContains('KTP_DIREKTUR', $uploadedTypes);
+        $this->assertContains('SERTIFIKAT_HALAL', $uploadedTypes);
+        $this->assertContains('PAKTA_INTEGRITAS', $uploadedTypes);
+        $this->assertContains('PERATURAN_KERJASAMA', $uploadedTypes);
+    }
+
     public function test_registration_fails_for_duplicate_active_email()
     {
         Vendor::create([

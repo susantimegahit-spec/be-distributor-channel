@@ -56,23 +56,78 @@ class VendorRegistrationService
             ]);
 
             // Simpan Dokumen Legalitas yang diunggah
-            $documentKeys = [
-                'akta' => 'AKTA',
-                'document_akta' => 'AKTA',
-                'nib' => 'NIB',
-                'document_nib' => 'NIB',
-                'npwp' => 'NPWP',
-                'document_npwp' => 'NPWP',
-                'support' => 'SUPPORT',
-                'document_support' => 'SUPPORT',
-            ];
+            $processedFiles = [];
 
-            $processedDocTypes = [];
+            // 1. Format Array Dinamis dari FE:
+            // documents[0][document_type] = 'akta', documents[0][file] = binary, documents[0][notes] = '...'
+            $documentsInput = $data['documents'] ?? [];
+            if (is_string($documentsInput)) {
+                $documentsInput = json_decode($documentsInput, true) ?: [];
+            }
+            $documentsFiles = $files['documents'] ?? [];
 
-            foreach ($documentKeys as $fileKey => $docType) {
-                if (isset($files[$fileKey]) && $files[$fileKey]->isValid() && !in_array($docType, $processedDocTypes)) {
-                    $file = $files[$fileKey];
-                    $extension = $file->getClientOriginalExtension();
+            if (is_array($documentsInput) || is_array($documentsFiles)) {
+                $allIndices = array_unique(array_merge(
+                    is_array($documentsInput) ? array_keys($documentsInput) : [],
+                    is_array($documentsFiles) ? array_keys($documentsFiles) : []
+                ));
+
+                foreach ($allIndices as $idx) {
+                    $meta = is_array($documentsInput) && isset($documentsInput[$idx]) ? $documentsInput[$idx] : [];
+                    $fileEntry = is_array($documentsFiles) && isset($documentsFiles[$idx]) ? $documentsFiles[$idx] : null;
+
+                    $uploadedFile = null;
+                    if ($fileEntry instanceof \Illuminate\Http\UploadedFile) {
+                        $uploadedFile = $fileEntry;
+                    } elseif (is_array($fileEntry) && isset($fileEntry['file']) && $fileEntry['file'] instanceof \Illuminate\Http\UploadedFile) {
+                        $uploadedFile = $fileEntry['file'];
+                    } elseif (isset($meta['file']) && $meta['file'] instanceof \Illuminate\Http\UploadedFile) {
+                        $uploadedFile = $meta['file'];
+                    }
+
+                    if ($uploadedFile && $uploadedFile->isValid()) {
+                        $rawType = $meta['document_type'] ?? (is_string($idx) && !is_numeric($idx) ? $idx : 'OTHER');
+                        $docType = strtoupper(trim((string) $rawType));
+                        if (!$docType) {
+                            $docType = 'OTHER';
+                        }
+
+                        $extension = $uploadedFile->getClientOriginalExtension() ?: $uploadedFile->guessExtension() ?: 'bin';
+                        $safeFileName = sprintf('%s_%s_%s.%s', strtolower($docType), $vendorCode, Str::random(6), $extension);
+                        $path = $uploadedFile->storeAs("vendor_documents/{$vendorCode}", $safeFileName, 'public');
+
+                        VendorDocument::create([
+                            'vendor_id' => $vendor->id,
+                            'document_type' => $docType,
+                            'document_number' => $meta['document_number'] ?? null,
+                            'file_path' => $path,
+                            'file_name' => $uploadedFile->getClientOriginalName(),
+                            'file_size' => $uploadedFile->getSize(),
+                            'file_mime' => $uploadedFile->getMimeType(),
+                            'verification_status' => 'PENDING',
+                            'notes' => $meta['notes'] ?? null,
+                        ]);
+
+                        $processedFiles[] = spl_object_hash($uploadedFile);
+                    }
+                }
+            }
+
+            // 2. Format Flat File Uploads (misal: $files['akta'], $files['sk_akta_pendirian'], dll)
+            foreach ($files as $fileKey => $file) {
+                if ($fileKey === 'documents') {
+                    continue;
+                }
+
+                if ($file instanceof \Illuminate\Http\UploadedFile && $file->isValid()) {
+                    if (in_array(spl_object_hash($file), $processedFiles)) {
+                        continue;
+                    }
+
+                    $cleanKey = preg_replace('/^document_/', '', $fileKey);
+                    $docType = strtoupper(trim($cleanKey));
+
+                    $extension = $file->getClientOriginalExtension() ?: $file->guessExtension() ?: 'bin';
                     $safeFileName = sprintf('%s_%s_%s.%s', strtolower($docType), $vendorCode, Str::random(6), $extension);
                     $path = $file->storeAs("vendor_documents/{$vendorCode}", $safeFileName, 'public');
 
@@ -88,7 +143,7 @@ class VendorRegistrationService
                         'notes' => $data["{$fileKey}_notes"] ?? $data[strtolower($docType) . '_notes'] ?? null,
                     ]);
 
-                    $processedDocTypes[] = $docType;
+                    $processedFiles[] = spl_object_hash($file);
                 }
             }
 

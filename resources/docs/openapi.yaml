@@ -13940,6 +13940,26 @@ paths:
                 terms_agreed:
                   type: boolean
                   example: true
+                documents:
+                  type: array
+                  description: Daftar berkas dokumen legalitas dinamis dari form FE.
+                  items:
+                    type: object
+                    properties:
+                      document_type:
+                        type: string
+                        example: akta
+                        description: Tipe berkas (akta, sk_akta_pendirian, akta_perubahan, sk_akta_perubahan, nib, npwp, ktp_direktur, sertifikat_halal, pakta_integritas, peraturan_kerjasama, support)
+                      file:
+                        type: string
+                        format: binary
+                        description: File binary dokumen (PDF, JPG, PNG, DOC, DOCX - Maks 10MB)
+                      notes:
+                        type: string
+                        example: Keterangan tambahan dokumen
+                      document_number:
+                        type: string
+                        example: AHU-0012345.AH.01.01.2025
                 akta:
                   type: string
                   format: binary

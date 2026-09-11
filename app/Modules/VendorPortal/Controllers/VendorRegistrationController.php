@@ -39,7 +39,8 @@ class VendorRegistrationController extends Controller
             ], 422);
         }
 
-        $vendor = $this->registrationService->register($request->validated(), $request->allFiles());
+        $payload = array_merge($request->all(), $request->validated());
+        $vendor = $this->registrationService->register($payload, $request->allFiles());
 
         return response()->json([
             'success' => true,
@@ -51,6 +52,15 @@ class VendorRegistrationController extends Controller
                 'vendor_type' => $vendor->vendor_type,
                 'registration_status' => $vendor->registration_status,
                 'uploaded_documents_count' => $vendor->documents->count(),
+                'uploaded_documents' => $vendor->documents->map(function ($doc) {
+                    return [
+                        'id' => $doc->id,
+                        'document_type' => $doc->document_type,
+                        'file_name' => $doc->file_name,
+                        'file_size' => $doc->file_size,
+                        'verification_status' => $doc->verification_status,
+                    ];
+                }),
                 'created_at' => $vendor->created_at->toISOString(),
             ],
         ], 201);
