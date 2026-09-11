@@ -50,6 +50,8 @@ class VendorRateSubmissionTest extends TestCase
         $approvalService = app(VendorLegalApprovalService::class);
         $result = $approvalService->approve($vendor, null, [
             'initial_password' => 'PassNusantara123!',
+            'skip_sap_sync'    => true,
+            'sap_vendor_code'  => 'VN10001',
         ]);
 
         $vendor->refresh();

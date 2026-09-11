@@ -837,20 +837,19 @@ File template Word (`.docx`) dapat ditaruh manual di salah satu direktori beriku
 Saat tim legal melakukan approval permohonan vendor (`POST /api/distributor-channel/vendor-management/registrations/{id}/approve`), sistem backend secara otomatis menyinkronkan profil vendor ke API SAP Business One:
 
 ### 5.1 Spesifikasi Endpoint SAP B1
-- **Target URL:** `http://103.18.133.187:3100/api/addvendor` (dapat disesuaikan via env `SAP_API_URL`)
+- **Target Endpoint:** `{SAP_API_URL}/api/addvendor` (Wajib diatur via environment variable `SAP_API_URL` di file `.env`, tidak ada fallback hardcoded IP)
 - **Method:** `POST`
 - **Content-Type:** `application/json`
 
 ### 5.2 Format Request Payload (JSON)
 ```json
 {
-  "CardCode": "V10001",
   "CardName": "PT Sumber Makmur Sejahtera",
-  "Phone1": "0215551234",
+  "Phone1": "081234567890",
   "Cellular": "081234567890",
   "EmailAddress": "contact@sumbermakmur.com",
   "FederalTaxID": "0123456789012345",
-  "AddonId": "ADDON01",
+  "AddonId": "02",
   "UserId": "USR101",
   "NIK": "0000000000000000",
   "Street": "Jl. Industri Raya No. 45",
@@ -862,35 +861,54 @@ Saat tim legal melakukan approval permohonan vendor (`POST /api/distributor-chan
 }
 ```
 
+> **Catatan Penting Integrasi SAP:**
+> * `CardCode` **tidak dikirim** pada request body ke SAP karena kode vendor dibuat otomatis oleh sistem SAP.
+> * `AddonId` **di-hardcode `"02"`**.
+> * `UserId` **diisi ID user legal yang sedang login** (contoh: `"1"` / `(string) $legalUser->id`).
+> * **Tidak ada data yang di-hardcode selain AddonId dan UserId:** Jika suatu field tidak memiliki data di database / profil vendor, backend akan mengirimkan nilai `null` (bukan string kosong atau nilai dummy seperti `'0000000000000000'` atau `'ID'`) agar memudahkan pelacakan jika terjadi error pada field tertentu di SAP.
+> * `Phone1` dan `Cellular` diisi nilai nomor kontak yang sama jika salah satu tersedia, atau `null` jika keduanya kosong.
+
 #### Pemetaan Field dari Tabel `vendor.vendors`:
 | Field SAP | Sumber Data di Backend | Keterangan |
 |---|---|---|
-| `CardCode` | `$options['sap_vendor_code']` / auto `'V' . (10000 + id)` | Kode unik Vendor di SAP B1 |
-| `CardName` | `$vendor->company_name` | Nama resmi perusahaan |
-| `Phone1` | `$vendor->company_phone` | Nomor telepon kantor |
-| `Cellular` | `$vendor->pic_phone` | No HP / WA PIC |
-| `EmailAddress` | `$vendor->company_email` | Email resmi perusahaan |
-| `FederalTaxID` | Sanitasi angka dari `$vendor->company_npwp` | NPWP 15/16 digit |
-| `AddonId` | `config('services.sap.addon_id', 'ADDON01')` | ID Addon SAP |
-| `UserId` | `config('services.sap.user_id', 'USR101')` | ID User SAP |
-| `NIK` | `$vendor->nik` (Default hardcode: `'0000000000000000'`) | Nomor Induk Kependudukan |
-| `Street` | `$vendor->address` | Alamat jalan domisili |
-| `City` | `$vendor->city` / `$vendor->regencies` | Kota / Kabupaten |
-| `ZipCode` | `$vendor->postal_code` | Kode pos |
-| `Country` | `'ID'` | Kode negara Indonesia |
-| `FirstName` | `$vendor->pic_name` | Nama PIC vendor |
-| `PhoneNumber`| `$vendor->pic_phone` / `$vendor->company_phone` | Nomor telepon PIC |
+| `CardName` | `$vendor->company_name ?: null` | Nama resmi perusahaan |
+| `Phone1` | `$contactPhone ?: null` | Nomor kontak PIC / kantor |
+| `Cellular` | `$contactPhone ?: null` | Nomor kontak PIC / kantor (sama dengan Phone1) |
+| `EmailAddress` | `$vendor->company_email ?: null` | Email resmi perusahaan |
+| `FederalTaxID` | Sanitasi angka NPWP atau `null` | NPWP 15/16 digit |
+| `AddonId` | `'02'` (Hardcoded) | ID Addon SAP |
+| `UserId` | `(string) ($legalUser?->id ?? '')` | ID User legal yang login & approve |
+| `NIK` | `$vendor->nik ?: '0000000000000000'` | NIK (Hardcode `'0000000000000000'`) |
+| `Street` | `$vendor->address ?: null` | Alamat jalan domisili |
+| `City` | `$vendor->city ?: ($vendor->regencies ?: null)` | Kota / Kabupaten |
+| `ZipCode` | `$vendor->postal_code ?: null` | Kode pos |
+| `Country` | `$vendor->country ?? null` | Kode negara (null jika tidak diisi) |
+| `FirstName` | `$vendor->pic_name ?: null` | Nama PIC vendor |
+| `PhoneNumber`| `$contactPhone ?: null` | Nomor kontak PIC / kantor |
 
 ### 5.3 Respon Sukses SAP (200 OK)
 ```json
 {
   "ErrorCode": 0,
-  "Message": "Success - [AddVendor]. CardCode: V10001"
+  "Message": "Success - [AddVendor]. CardCode: VN10001"
 }
 ```
-Ketika respon mengembalikan `ErrorCode: 0`, sistem mengekstrak `CardCode` dari pesan dan menyimpannya secara otomatis ke kolom `vendor.vendors.sap_vendor_code`.
+Ketika respon mengembalikan `ErrorCode: 0`, sistem mengekstrak `CardCode` (contoh: `VN10001` / `V10001`) dari respon dan menyimpannya secara otomatis ke kolom `vendor.vendors.sap_vendor_code`.
 
-### 5.4 Akses Data Kode Vendor SAP pada Endpoint GET
+### 5.4 Pencegatan Approval Jika Gagal Masuk SAP (Strict Rollback)
+Jika proses pengiriman ke SAP **gagal** (misalnya `ErrorCode !== 0`, field ditolak oleh SAP, atau koneksi timeout):
+1. **Approval Dicegat & Dibatalkan:** Transaksi database dibatalkan secara menyeluruh (*atomic rollback*).
+2. **Status Vendor Tidak Berubah:** Status vendor tetap `PENDING_LEGAL_APPROVAL` (tidak menjadi `APPROVED`).
+3. **Kredensial Tidak Dibuat:** Akun user vendor (`vendor_users`) tidak dibuat, dan email kredensial login **tidak dikirimkan** ke vendor.
+4. **Respon API HTTP 422:** Endpoint approval mengembalikan pesan error transparan ke tim legal:
+   ```json
+   {
+     "success": false,
+     "message": "Failed to sync vendor to SAP: Failed - [AddVendor] 10 : Invalid field name"
+   }
+   ```
+
+### 5.5 Akses Data Kode Vendor SAP pada Endpoint GET
 Kode vendor SAP (`sap_vendor_code`) secara konsisten ditampilkan dan dapat diakses pada seluruh endpoint pengambilan data vendor:
 1. **Daftar Registrasi Vendor (`GET /api/distributor-channel/vendor-management/registrations`):**
    - Setiap item vendor memuat `sap_vendor_code`.

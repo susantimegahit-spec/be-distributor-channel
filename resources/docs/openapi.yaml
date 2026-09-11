@@ -14727,7 +14727,7 @@ paths:
                         example: APPROVED
                       sap_vendor_code:
                         type: string
-                        example: V10001
+                        example: VN10001
                       sap_sync:
                         type: object
                         properties:
@@ -14736,10 +14736,10 @@ paths:
                             example: true
                           card_code:
                             type: string
-                            example: V10001
+                            example: VN10001
                           message:
                             type: string
-                            example: "Success - [AddVendor]. CardCode: V10001"
+                            example: "Success - [AddVendor]. CardCode: VN10001"
                       credentials:
                         type: object
                       expedition_linked:
@@ -14747,7 +14747,7 @@ paths:
         '404':
           description: Vendor tidak ditemukan.
         '422':
-          description: Vendor sudah disetujui sebelumnya.
+          description: Permohonan gagal diproses (misal vendor sudah di-approve sebelumnya atau sinkronisasi ke SAP gagal/ditolak).
 
   /vendor-management/registrations/{id}/reject:
     post:

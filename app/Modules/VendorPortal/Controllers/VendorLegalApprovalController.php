@@ -11,6 +11,7 @@ use App\Modules\VendorPortal\Requests\LegalRevisionRequest;
 use App\Modules\VendorPortal\Services\VendorLegalApprovalService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class VendorLegalApprovalController extends Controller
 {
@@ -99,7 +100,16 @@ class VendorLegalApprovalController extends Controller
             ], 422);
         }
 
-        $result = $this->approvalService->approve($vendor, $request->user(), $request->validated());
+        try {
+            $result = $this->approvalService->approve($vendor, $request->user(), $request->validated());
+        } catch (\Throwable $e) {
+            Log::error("Vendor legal approval failed for vendor {$vendor->id}: " . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
 
         return response()->json([
             'success' => true,

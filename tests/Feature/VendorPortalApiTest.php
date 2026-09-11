@@ -89,7 +89,7 @@ class VendorPortalApiTest extends TestCase
         $this->assertEquals('Cengkareng', $vendor->district);
         $this->assertEquals('Jakarta Barat', $vendor->city);
         $this->assertEquals('Jakarta Barat', $vendor->regencies);
-        $this->assertEquals('0000000000000000', $vendor->nik);
+        $this->assertNull($vendor->nik);
         $this->assertCount(4, $vendor->documents);
     }
 
@@ -224,7 +224,7 @@ class VendorPortalApiTest extends TestCase
         Http::fake([
             '*/api/addvendor' => Http::response([
                 'ErrorCode' => 0,
-                'Message' => 'Success - [AddVendor]. CardCode: V10001',
+                'Message' => 'Success - [AddVendor]. CardCode: VN10001',
             ], 200),
         ]);
 
@@ -236,20 +236,20 @@ class VendorPortalApiTest extends TestCase
 
         $this->assertEquals('APPROVED', $result['vendor']->registration_status);
         $this->assertEquals('APPROVED', $result['vendor']->legal_approval_status);
-        $this->assertEquals('V10001', $result['vendor']->sap_vendor_code);
+        $this->assertEquals('VN10001', $result['vendor']->sap_vendor_code);
         $this->assertTrue($result['sap_sync']['success']);
-        $this->assertEquals('V10001', $result['sap_sync']['card_code']);
+        $this->assertEquals('VN10001', $result['sap_sync']['card_code']);
         $this->assertNotNull($result['user']);
         $this->assertEquals('legal@samuderalogistik.com', $result['user']->email);
         $this->assertEquals('PassVendor123!', $result['generated_credentials']['initial_password']);
 
         Http::assertSent(function ($request) {
             return str_contains($request->url(), '/api/addvendor')
+                && !isset($request['CardCode'])
                 && $request['CardName'] === 'PT Samudera Logistik Nusantara'
+                && $request['AddonId'] === '02'
                 && $request['NIK'] === '0000000000000000'
-                && $request['Country'] === 'ID'
-                && $request['AddonId'] === 'ADDON01'
-                && $request['UserId'] === 'USR101';
+                && $request['Country'] === null;
         });
 
         Mail::assertSent(\App\Mail\VendorCredentialsMail::class, function ($mail) {
@@ -274,6 +274,90 @@ class VendorPortalApiTest extends TestCase
                     ],
                 ],
             ]);
+    }
+
+    public function test_legal_approval_is_blocked_and_rolled_back_when_sap_sync_fails()
+    {
+        Mail::fake();
+
+        $vendor = Vendor::create([
+            'vendor_code' => 'VND-202609-0099',
+            'vendor_type' => 'EXPEDITION',
+            'company_name' => 'PT Gagal Sinkron SAP',
+            'company_email' => 'fail.sap@ekspedisi.com',
+            'company_phone' => '021777888',
+            'pic_name' => 'Doni',
+            'pic_phone' => '081333444555',
+            'terms_agreed' => true,
+            'registration_status' => 'PENDING_LEGAL_APPROVAL',
+            'legal_approval_status' => 'PENDING',
+        ]);
+
+        Http::fake([
+            '*/api/addvendor' => Http::response([
+                'ErrorCode' => 2,
+                'Message' => 'Failed - [AddVendor] 10 : Invalid field name',
+                'Result' => null,
+            ], 200),
+        ]);
+
+        $response = $this->postJson("/api/distributor-channel/vendor-management/registrations/{$vendor->id}/approve", [
+            'legal_notes' => 'Attempting approval with failing SAP',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+            ]);
+
+        $this->assertStringContainsString('Failed to sync vendor to SAP', $response->json('message'));
+
+        // Pastikan status vendor TIDAK berubah dan tidak ter-approve
+        $vendor->refresh();
+        $this->assertEquals('PENDING_LEGAL_APPROVAL', $vendor->registration_status);
+        $this->assertEquals('PENDING', $vendor->legal_approval_status);
+        $this->assertNull($vendor->sap_vendor_code);
+
+        // Pastikan akun user vendor TIDAK dibuat
+        $this->assertDatabaseMissing('vendor_users', [
+            'email' => 'fail.sap@ekspedisi.com',
+        ]);
+
+        // Pastikan email kredensial TIDAK dikirim
+        Mail::assertNotSent(\App\Mail\VendorCredentialsMail::class);
+    }
+
+    public function test_legal_approval_fails_when_sap_api_url_is_not_configured_in_env()
+    {
+        config(['services.sap.url' => null]);
+        putenv('SAP_API_URL');
+        unset($_ENV['SAP_API_URL'], $_SERVER['SAP_API_URL']);
+
+        $vendor = Vendor::create([
+            'vendor_code' => 'VND-202609-0098',
+            'vendor_type' => 'EXPEDITION',
+            'company_name' => 'PT Missing SAP Env',
+            'company_email' => 'no.env@ekspedisi.com',
+            'pic_name' => 'Budi',
+            'pic_phone' => '081234567890',
+            'terms_agreed' => true,
+            'registration_status' => 'PENDING_LEGAL_APPROVAL',
+            'legal_approval_status' => 'PENDING',
+        ]);
+
+        $response = $this->postJson("/api/distributor-channel/vendor-management/registrations/{$vendor->id}/approve", [
+            'legal_notes' => 'Attempting approval without SAP_API_URL configured',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+            ]);
+
+        $this->assertStringContainsString('SAP_API_URL', $response->json('message'));
+
+        $vendor->refresh();
+        $this->assertEquals('PENDING_LEGAL_APPROVAL', $vendor->registration_status);
     }
 
     public function test_vendor_login_fails_when_pending_approval()

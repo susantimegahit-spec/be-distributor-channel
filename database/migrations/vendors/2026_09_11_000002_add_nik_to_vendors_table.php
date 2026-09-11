@@ -24,7 +24,7 @@ return new class extends Migration
         $conn = $this->getConnection();
         if (Schema::connection($conn)->hasTable('vendors') && !Schema::connection($conn)->hasColumn('vendors', 'nik')) {
             Schema::connection($conn)->table('vendors', function (Blueprint $table) {
-                $table->string('nik', 50)->default('0000000000000000')->nullable()->after('company_npwp')->comment('Nomor Induk Kependudukan (NIK)');
+                $table->string('nik', 50)->nullable()->after('company_npwp')->comment('Nomor Induk Kependudukan (NIK)');
             });
         }
     }
