@@ -547,6 +547,7 @@ class VendorPortalApiTest extends TestCase
             'terms_agreed'          => true,
             'registration_status'   => 'APPROVED',
             'legal_approval_status' => 'APPROVED',
+            'sap_vendor_code'       => 'V10010',
         ]);
 
         \App\Modules\VendorPortal\Models\VendorDocument::create([
@@ -594,8 +595,10 @@ class VendorPortalApiTest extends TestCase
                         'email'                => 'profil@test.com',
                         'must_change_password' => true,
                     ],
+                    'sap_vendor_code' => 'V10010',
                     'vendor' => [
-                        'vendor_code' => 'VND-202609-0010',
+                        'vendor_code'     => 'VND-202609-0010',
+                        'sap_vendor_code' => 'V10010',
                     ],
                 ],
             ]);
@@ -605,6 +608,56 @@ class VendorPortalApiTest extends TestCase
         $this->assertCount(2, $docs);
         $this->assertEquals('AKTA', $docs[0]['document_type']);
         $this->assertEquals('NIB', $docs[1]['document_type']);
+    }
+
+    public function test_get_registrations_and_detail_returns_sap_vendor_code()
+    {
+        $internalUser = User::factory()->create([
+            'email' => 'legal.admin@test.com',
+        ]);
+
+        $approvedVendor = Vendor::create([
+            'vendor_code'           => 'VND-202609-0099',
+            'vendor_type'           => 'EXPEDITION',
+            'company_name'          => 'PT Ekspedisi SAP Sukses',
+            'company_email'         => 'sap.sukses@test.com',
+            'pic_name'              => 'Doni',
+            'pic_phone'             => '08123456789',
+            'terms_agreed'          => true,
+            'registration_status'   => 'APPROVED',
+            'legal_approval_status' => 'APPROVED',
+            'sap_vendor_code'       => 'V10099',
+        ]);
+
+        // 1. Test GET /vendor-management/registrations
+        $listResponse = $this->actingAs($internalUser, 'sanctum')
+            ->getJson('/api/distributor-channel/vendor-management/registrations?search=V10099');
+
+        $listResponse->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'meta' => [
+                    'total' => 1,
+                ],
+            ]);
+
+        $firstItem = $listResponse->json('data.0');
+        $this->assertEquals('V10099', $firstItem['sap_vendor_code']);
+        $this->assertEquals('PT Ekspedisi SAP Sukses', $firstItem['company_name']);
+
+        // 2. Test GET /vendor-management/registrations/{id}
+        $detailResponse = $this->actingAs($internalUser, 'sanctum')
+            ->getJson("/api/distributor-channel/vendor-management/registrations/{$approvedVendor->id}");
+
+        $detailResponse->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'id'              => $approvedVendor->id,
+                    'vendor_code'     => 'VND-202609-0099',
+                    'sap_vendor_code' => 'V10099',
+                ],
+            ]);
     }
 
     public function test_can_change_vendor_password()

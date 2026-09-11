@@ -66,16 +66,17 @@ class VendorLegalApprovalService
                 ]
             );
 
-            // 3. Auto-sync ke tabel ekspedisi.expeditions jika tipe vendor adalah EXPEDITION
+            // 3. Sinkronisasi data vendor ke SAP B1 (/api/addvendor)
+            $sapSyncResult = $this->syncVendorToSap($vendor, $options);
+            if (!empty($sapSyncResult['card_code'])) {
+                $vendor->update(['sap_vendor_code' => $sapSyncResult['card_code']]);
+                $vendor->sap_vendor_code = $sapSyncResult['card_code'];
+            }
+
+            // 4. Auto-sync ke tabel ekspedisi.expeditions jika tipe vendor adalah EXPEDITION
             $expeditionCreated = null;
             if (strtoupper($vendor->vendor_type) === 'EXPEDITION') {
                 $expeditionCreated = $this->syncToExpeditionMaster($vendor);
-            }
-
-            // 4. Sinkronisasi data vendor ke SAP B1 (/api/addvendor)
-            $sapSyncResult = $this->syncVendorToSap($vendor, $options);
-            if (!empty($sapSyncResult['card_code']) && $vendor->sap_vendor_code !== $sapSyncResult['card_code']) {
-                $vendor->update(['sap_vendor_code' => $sapSyncResult['card_code']]);
             }
 
             // 5. Kirim Email Kredensial Resmi ke Vendor & Catat Log Dispatch

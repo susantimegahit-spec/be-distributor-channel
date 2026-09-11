@@ -82,8 +82,9 @@ class VendorAuthController extends Controller
                     'role'                 => $user->role,
                     'must_change_password' => (bool) $user->must_change_password,
                 ],
-                'vendor'    => $vendor,
-                'documents' => $documents,
+                'vendor'          => $vendor,
+                'sap_vendor_code' => $vendor?->sap_vendor_code,
+                'documents'       => $documents,
             ],
         ]);
     }

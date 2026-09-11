@@ -890,6 +890,20 @@ Saat tim legal melakukan approval permohonan vendor (`POST /api/distributor-chan
 ```
 Ketika respon mengembalikan `ErrorCode: 0`, sistem mengekstrak `CardCode` dari pesan dan menyimpannya secara otomatis ke kolom `vendor.vendors.sap_vendor_code`.
 
+### 5.4 Akses Data Kode Vendor SAP pada Endpoint GET
+Kode vendor SAP (`sap_vendor_code`) secara konsisten ditampilkan dan dapat diakses pada seluruh endpoint pengambilan data vendor:
+1. **Daftar Registrasi Vendor (`GET /api/distributor-channel/vendor-management/registrations`):**
+   - Setiap item vendor memuat `sap_vendor_code`.
+   - Parameter query `search` mendukung pencarian langsung berdasarkan kode SAP vendor (misal `?search=V10001`).
+   - Menyertakan relasi `expedition`.
+2. **Detail Vendor (`GET /api/distributor-channel/vendor-management/registrations/{id}`):**
+   - Menampilkan `sap_vendor_code` bersama seluruh profil dan dokumen legalitas.
+3. **Profil Vendor Login (`GET /api/distributor-channel/vendor-portal/me`):**
+   - Menampilkan `sap_vendor_code` baik pada objek `data.vendor` maupun field langsung `data.sap_vendor_code`.
+4. **Master Ekspedisi (`GET /api/distributor-channel/ekspedisi/expeditions` & `{id}`):**
+   - Eager-load relasi `vendor` yang memuat `sap_vendor_code`.
+   - Parameter query `search` pada ekspedisi juga dapat mencari berdasarkan kode SAP vendor.
+
 ---
 
 ## 🔗 Referensi Berkas Terkait

@@ -26,7 +26,7 @@ class VendorLegalApprovalController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Vendor::with(['documents', 'users', 'legalApprover'])
+        $query = Vendor::with(['documents', 'users', 'legalApprover', 'expedition'])
             ->orderBy('created_at', 'desc');
 
         if ($request->has('status') && $request->input('status') !== 'ALL') {
@@ -39,12 +39,14 @@ class VendorLegalApprovalController extends Controller
 
         if ($request->has('search') && !empty($request->input('search'))) {
             $search = '%' . $request->input('search') . '%';
-            $query->where(function ($q) use ($search) {
-                $q->where('company_name', 'ILIKE', $search)
-                  ->orWhere('vendor_code', 'ILIKE', $search)
-                  ->orWhere('company_email', 'ILIKE', $search)
-                  ->orWhere('company_npwp', 'ILIKE', $search)
-                  ->orWhere('pic_name', 'ILIKE', $search);
+            $likeOp = config('database.default') === 'sqlite' ? 'LIKE' : 'ILIKE';
+            $query->where(function ($q) use ($search, $likeOp) {
+                $q->where('company_name', $likeOp, $search)
+                  ->orWhere('vendor_code', $likeOp, $search)
+                  ->orWhere('sap_vendor_code', $likeOp, $search)
+                  ->orWhere('company_email', $likeOp, $search)
+                  ->orWhere('company_npwp', $likeOp, $search)
+                  ->orWhere('pic_name', $likeOp, $search);
             });
         }
 
@@ -68,7 +70,7 @@ class VendorLegalApprovalController extends Controller
      */
     public function show($id): JsonResponse
     {
-        $vendor = Vendor::with(['documents', 'users', 'approvalHistories', 'legalApprover'])->find($id);
+        $vendor = Vendor::with(['documents', 'users', 'approvalHistories', 'legalApprover', 'expedition'])->find($id);
 
         if (!$vendor) {
             return response()->json(['success' => false, 'message' => 'Vendor not found.'], 404);

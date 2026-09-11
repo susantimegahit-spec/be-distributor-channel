@@ -14251,6 +14251,10 @@ paths:
                             type: boolean
                       vendor:
                         type: object
+                      sap_vendor_code:
+                        type: string
+                        description: Kode akun vendor di SAP Business One (CardCode)
+                        example: V10001
                       documents:
                         type: array
                         items:
