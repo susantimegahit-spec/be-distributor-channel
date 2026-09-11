@@ -7,6 +7,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Http;
 use App\Models\User;
 use App\Modules\VendorPortal\Models\Vendor;
 use App\Modules\VendorPortal\Models\VendorUser;
@@ -88,6 +89,7 @@ class VendorPortalApiTest extends TestCase
         $this->assertEquals('Cengkareng', $vendor->district);
         $this->assertEquals('Jakarta Barat', $vendor->city);
         $this->assertEquals('Jakarta Barat', $vendor->regencies);
+        $this->assertEquals('0000000000000000', $vendor->nik);
         $this->assertCount(4, $vendor->documents);
     }
 
@@ -219,6 +221,13 @@ class VendorPortalApiTest extends TestCase
             'legal_approval_status' => 'PENDING',
         ]);
 
+        Http::fake([
+            '*/api/addvendor' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => 'Success - [AddVendor]. CardCode: V10001',
+            ], 200),
+        ]);
+
         $approvalService = new VendorLegalApprovalService();
         $result = $approvalService->approve($vendor, null, [
             'legal_notes' => 'Dokumen NIB dan Akta terverifikasi sah.',
@@ -227,9 +236,21 @@ class VendorPortalApiTest extends TestCase
 
         $this->assertEquals('APPROVED', $result['vendor']->registration_status);
         $this->assertEquals('APPROVED', $result['vendor']->legal_approval_status);
+        $this->assertEquals('V10001', $result['vendor']->sap_vendor_code);
+        $this->assertTrue($result['sap_sync']['success']);
+        $this->assertEquals('V10001', $result['sap_sync']['card_code']);
         $this->assertNotNull($result['user']);
         $this->assertEquals('legal@samuderalogistik.com', $result['user']->email);
         $this->assertEquals('PassVendor123!', $result['generated_credentials']['initial_password']);
+
+        Http::assertSent(function ($request) {
+            return str_contains($request->url(), '/api/addvendor')
+                && $request['CardName'] === 'PT Samudera Logistik Nusantara'
+                && $request['NIK'] === '0000000000000000'
+                && $request['Country'] === 'ID'
+                && $request['AddonId'] === 'ADDON01'
+                && $request['UserId'] === 'USR101';
+        });
 
         Mail::assertSent(\App\Mail\VendorCredentialsMail::class, function ($mail) {
             return $mail->hasTo('legal@samuderalogistik.com') && $mail->plainPassword === 'PassVendor123!';

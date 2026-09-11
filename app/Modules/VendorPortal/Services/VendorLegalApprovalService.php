@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use App\Mail\VendorCredentialsMail;
 use App\Mail\VendorRegistrationRejectedMail;
@@ -71,7 +72,13 @@ class VendorLegalApprovalService
                 $expeditionCreated = $this->syncToExpeditionMaster($vendor);
             }
 
-            // 4. Kirim Email Kredensial Resmi ke Vendor & Catat Log Dispatch
+            // 4. Sinkronisasi data vendor ke SAP B1 (/api/addvendor)
+            $sapSyncResult = $this->syncVendorToSap($vendor, $options);
+            if (!empty($sapSyncResult['card_code']) && $vendor->sap_vendor_code !== $sapSyncResult['card_code']) {
+                $vendor->update(['sap_vendor_code' => $sapSyncResult['card_code']]);
+            }
+
+            // 5. Kirim Email Kredensial Resmi ke Vendor & Catat Log Dispatch
             $loginUrl = url('/vendor-portal');
             $dispatchStatus = 'SENT';
             $dispatchError = null;
@@ -95,7 +102,12 @@ class VendorLegalApprovalService
                 'error_message' => $dispatchError,
             ]);
 
-            // 5. Catat Audit Trail Approval
+            // 6. Catat Audit Trail Approval
+            $auditNotes = $legalNotes . ' Vendor login credentials generated successfully.';
+            if (!empty($sapSyncResult['card_code'])) {
+                $auditNotes .= ' SAP CardCode: ' . $sapSyncResult['card_code'] . ' (' . ($sapSyncResult['success'] ? 'Synced' : 'Failed/Skipped') . ').';
+            }
+
             VendorApprovalHistory::create([
                 'vendor_id' => $vendor->id,
                 'action' => 'APPROVED',
@@ -103,7 +115,7 @@ class VendorLegalApprovalService
                 'to_status' => 'APPROVED',
                 'actor_id' => $actorId,
                 'actor_name' => $actorName,
-                'notes' => $legalNotes . ' Vendor login credentials generated successfully.',
+                'notes' => $auditNotes,
                 'created_at' => $now,
             ]);
 
@@ -116,6 +128,12 @@ class VendorLegalApprovalService
                     'portal_login_url' => url('/vendor-portal'),
                 ],
                 'expedition_linked' => $expeditionCreated,
+                'sap_sync' => [
+                    'success'    => $sapSyncResult['success'],
+                    'card_code'  => $sapSyncResult['card_code'],
+                    'message'    => $sapSyncResult['message'],
+                    'error_code' => $sapSyncResult['error_code'],
+                ],
             ];
         });
     }
@@ -294,6 +312,85 @@ class VendorLegalApprovalService
         } catch (\Throwable $e) {
             Log::warning("Auto-sync expedition failed for vendor {$vendor->id}: " . $e->getMessage());
             return null;
+        }
+    }
+
+    /**
+     * Sinkronisasi data vendor ke SAP Business One API endpoint (/api/addvendor).
+     */
+    public function syncVendorToSap(Vendor $vendor, array $options = []): array
+    {
+        $sapUrl = config('services.sap.url') ?: env('SAP_API_URL', 'http://103.18.133.187:3100');
+        $endpoint = rtrim($sapUrl, '/') . '/api/addvendor';
+
+        $cardCode = !empty($options['sap_vendor_code'])
+            ? trim($options['sap_vendor_code'])
+            : (!empty($options['CardCode'])
+                ? trim($options['CardCode'])
+                : (!empty($vendor->sap_vendor_code)
+                    ? $vendor->sap_vendor_code
+                    : ('V' . (10000 + (int) $vendor->id))));
+
+        $taxId = preg_replace('/[^0-9]/', '', (string) ($vendor->company_npwp ?? ''));
+        if (empty($taxId)) {
+            $taxId = $vendor->company_npwp ?? '';
+        }
+
+        $sapPayload = [
+            'CardCode'     => $cardCode,
+            'CardName'     => $vendor->company_name,
+            'Phone1'       => $vendor->company_phone ?? '',
+            'Cellular'     => $vendor->pic_phone ?? '',
+            'EmailAddress' => $vendor->company_email,
+            'FederalTaxID' => $taxId,
+            'AddonId'      => config('services.sap.addon_id', 'ADDON01'),
+            'UserId'       => config('services.sap.user_id', 'USR101'),
+            'NIK'          => $vendor->nik ?: '0000000000000000',
+            'Street'       => $vendor->address ?? '',
+            'City'         => $vendor->city ?? ($vendor->regencies ?? ''),
+            'ZipCode'      => $vendor->postal_code ?? '',
+            'Country'      => 'ID',
+            'FirstName'    => $vendor->pic_name ?? '',
+            'PhoneNumber'  => $vendor->pic_phone ?? ($vendor->company_phone ?? ''),
+        ];
+
+        try {
+            $response = Http::timeout(20)->post($endpoint, $sapPayload);
+            $body = $response->json();
+            $statusCode = $response->status();
+
+            $isSuccess = $response->successful() && isset($body['ErrorCode']) && (int) $body['ErrorCode'] === 0;
+            $message = (string) ($body['Message'] ?? $body['message'] ?? '');
+
+            $returnedCardCode = $cardCode;
+            if (preg_match('/CardCode\s*[:=]\s*([A-Za-z0-9_-]+)/i', $message, $matches)) {
+                $returnedCardCode = $matches[1];
+            }
+
+            Log::info("SAP AddVendor response for vendor {$vendor->id}:", [
+                'status' => $statusCode,
+                'body'   => $body,
+            ]);
+
+            return [
+                'success'    => $isSuccess,
+                'card_code'  => $returnedCardCode,
+                'message'    => $message ?: ($isSuccess ? 'Success - [AddVendor]' : 'Failed to add vendor to SAP'),
+                'error_code' => $body['ErrorCode'] ?? ($isSuccess ? 0 : -1),
+                'payload'    => $sapPayload,
+                'raw'        => $body,
+            ];
+        } catch (\Throwable $e) {
+            Log::warning("SAP AddVendor connection error for vendor {$vendor->id}: " . $e->getMessage());
+
+            return [
+                'success'    => false,
+                'card_code'  => $cardCode,
+                'message'    => 'Could not connect to SAP API: ' . $e->getMessage(),
+                'error_code' => -999,
+                'payload'    => $sapPayload,
+                'raw'        => null,
+            ];
         }
     }
 }

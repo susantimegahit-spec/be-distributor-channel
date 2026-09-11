@@ -13916,6 +13916,10 @@ paths:
                   type: string
                   description: Nomor Pokok Wajib Pajak (NPWP) Perusahaan (Format 15/16 digit)
                   example: "01.234.567.8-901.000"
+                nik:
+                  type: string
+                  description: Nomor Induk Kependudukan (NIK) penanggung jawab / perusahaan (Default: "0000000000000000")
+                  example: "0000000000000000"
                 address:
                   type: string
                   description: Alamat jalan domisili perusahaan
@@ -14661,7 +14665,7 @@ paths:
   /vendor-management/registrations/{id}/approve:
     post:
       summary: Persetujuan Legal Permohonan Vendor
-      description: Menyetujui pendaftaran vendor, meng-generate akun user login di vendor_users, auto-sync ke master ekspedisi jika tipe EXPEDITION, dan mencatat log dispatch kredensial.
+      description: Menyetujui pendaftaran vendor, meng-generate akun user login di vendor_users, auto-sync ke master ekspedisi jika tipe EXPEDITION, sinkronisasi vendor baru ke SAP B1 via POST /api/addvendor, dan mencatat log dispatch kredensial.
       tags:
         - Vendor Management (Legal)
       security:
@@ -14684,13 +14688,58 @@ paths:
                   example: Berkas legalitas lengkap dan diverifikasi valid.
                 sap_vendor_code:
                   type: string
-                  example: V-100249
+                  example: V10001
                 initial_password:
                   type: string
                   example: CustomPassword123!
       responses:
         '200':
-          description: Pendaftaran vendor disetujui dan kredensial akun berhasil digenerate.
+          description: Pendaftaran vendor disetujui, disinkronkan ke SAP, dan kredensial akun berhasil digenerate.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Vendor registration approved successfully. Login credentials have been generated and dispatched.
+                  data:
+                    type: object
+                    properties:
+                      vendor_code:
+                        type: string
+                        example: VND-202609-0001
+                      company_name:
+                        type: string
+                        example: PT Sumber Makmur Sejahtera
+                      registration_status:
+                        type: string
+                        example: APPROVED
+                      legal_approval_status:
+                        type: string
+                        example: APPROVED
+                      sap_vendor_code:
+                        type: string
+                        example: V10001
+                      sap_sync:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                            example: true
+                          card_code:
+                            type: string
+                            example: V10001
+                          message:
+                            type: string
+                            example: "Success - [AddVendor]. CardCode: V10001"
+                      credentials:
+                        type: object
+                      expedition_linked:
+                        type: object
         '404':
           description: Vendor tidak ditemukan.
         '422':

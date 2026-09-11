@@ -41,7 +41,9 @@ return [
     ],
 
     'sap' => [
-        'url' => env('SAP_API_URL'),
+        'url' => env('SAP_API_URL', 'http://103.18.133.187:3100'),
+        'addon_id' => env('SAP_ADDON_ID', 'ADDON01'),
+        'user_id' => env('SAP_USER_ID', 'USR101'),
     ],
 
     'firebase' => [

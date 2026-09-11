@@ -41,6 +41,7 @@ class RegisterVendorRequest extends FormRequest
             'company_email' => 'required|email|max:150',
             'company_phone' => 'nullable|string|max:50',
             'company_npwp' => 'nullable|string|max:50',
+            'nik' => 'nullable|string|max:50',
             'address' => 'nullable|string',
             'village' => 'nullable|string|max:100',
             'district' => 'nullable|string|max:100',

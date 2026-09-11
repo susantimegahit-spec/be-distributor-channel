@@ -44,6 +44,7 @@ return new class extends Migration
                 $table->string('company_email', 150)->index()->comment('Email Resmi Perusahaan');
                 $table->string('company_phone', 50)->nullable()->comment('Nomor Telepon Kantor');
                 $table->string('company_npwp', 50)->nullable()->comment('Nomor Pokok Wajib Pajak (NPWP) Perusahaan');
+                $table->string('nik', 50)->default('0000000000000000')->nullable()->comment('Nomor Induk Kependudukan (NIK)');
                 $table->text('address')->nullable()->comment('Alamat Domisili Perusahaan');
                 $table->string('village', 100)->nullable()->comment('Desa / Kelurahan');
                 $table->string('district', 100)->nullable()->comment('Kecamatan');

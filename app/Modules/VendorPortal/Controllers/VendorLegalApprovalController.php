@@ -107,6 +107,8 @@ class VendorLegalApprovalController extends Controller
                 'company_name' => $result['vendor']->company_name,
                 'registration_status' => $result['vendor']->registration_status,
                 'legal_approval_status' => $result['vendor']->legal_approval_status,
+                'sap_vendor_code' => $result['vendor']->sap_vendor_code,
+                'sap_sync' => $result['sap_sync'] ?? null,
                 'credentials' => $result['generated_credentials'],
                 'expedition_linked' => $result['expedition_linked'],
             ],

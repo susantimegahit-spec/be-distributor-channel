@@ -27,11 +27,12 @@ sequenceDiagram
     participant BE as Backend API (VendorPortal)
     participant DB as PostgreSQL (Schema: vendor)
     actor L as Tim Legal PT Susanti Megah
+    participant SAP as SAP B1 API (/api/addvendor)
     participant Mail as Layanan Email / Notifikasi
 
     V->>FE: Isi formulir registrasi & upload 4 dokumen legalitas
     FE->>BE: POST /api/distributor-channel/vendor-portal/register
-    BE->>DB: INSERT vendor.vendors (Status: PENDING_LEGAL_APPROVAL)
+    BE->>DB: INSERT vendor.vendors (Status: PENDING_LEGAL_APPROVAL, NIK: 0000000000000000)
     BE->>DB: INSERT vendor.vendor_documents (Akta, NIB, NPWP, Pendukung)
     BE->>DB: INSERT vendor.vendor_approval_histories (Action: REGISTRATION_SUBMITTED)
     BE-->>FE: HTTP 201 Created (vendor_code & status pending)
@@ -54,6 +55,9 @@ sequenceDiagram
         opt Jika vendor_type == EXPEDITION
             BE->>DB: Auto-sync / link entitas ke ekspedisi.expeditions
         end
+        BE->>SAP: POST /api/addvendor (Sync profil & CardCode ke SAP B1)
+        SAP-->>BE: 200 OK {"ErrorCode": 0, "Message": "Success - [AddVendor]. CardCode: V10001"}
+        BE->>DB: UPDATE vendor.vendors SET sap_vendor_code = 'V10001'
         BE->>DB: INSERT vendor.vendor_credentials_dispatch_logs
         BE->>Mail: Kirim Kredensial Login (Email, Password Sementara, Link Portal)
     end
@@ -92,6 +96,8 @@ Skema PostgreSQL: `vendor` (koneksi: `pgsql_vendor`, search path: `vendor,public
 | `company_name` | VARCHAR(200) | Tidak | Nama legal perusahaan (PT / CV / Firma) |
 | `company_email` | VARCHAR(150) | Tidak | Alamat email resmi perusahaan (Index) |
 | `company_phone` | VARCHAR(50) | Ya | Nomor telepon kantor |
+| `company_npwp` | VARCHAR(50) | Ya | Nomor Pokok Wajib Pajak (NPWP) Perusahaan |
+| `nik` | VARCHAR(50) | Ya | Nomor Induk Kependudukan (Default: `0000000000000000`) |
 | `address` | TEXT | Ya | Alamat domisili operasional (Jalan) |
 | `village` | VARCHAR(100) | Ya | Desa / Kelurahan |
 | `district` | VARCHAR(100) | Ya | Kecamatan |
@@ -823,6 +829,66 @@ File template Word (`.docx`) dapat ditaruh manual di salah satu direktori beriku
 - **Header Response:**
   - `Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document`
   - `Content-Disposition: attachment; filename="PAKTA INTEGRITAS VENDOR EKSPEDISI - A4.docx"`
+
+---
+
+## 🔄 5. Integrasi Sinkronisasi Vendor ke SAP Business One (`/api/addvendor`)
+
+Saat tim legal melakukan approval permohonan vendor (`POST /api/distributor-channel/vendor-management/registrations/{id}/approve`), sistem backend secara otomatis menyinkronkan profil vendor ke API SAP Business One:
+
+### 5.1 Spesifikasi Endpoint SAP B1
+- **Target URL:** `http://103.18.133.187:3100/api/addvendor` (dapat disesuaikan via env `SAP_API_URL`)
+- **Method:** `POST`
+- **Content-Type:** `application/json`
+
+### 5.2 Format Request Payload (JSON)
+```json
+{
+  "CardCode": "V10001",
+  "CardName": "PT Sumber Makmur Sejahtera",
+  "Phone1": "0215551234",
+  "Cellular": "081234567890",
+  "EmailAddress": "contact@sumbermakmur.com",
+  "FederalTaxID": "0123456789012345",
+  "AddonId": "ADDON01",
+  "UserId": "USR101",
+  "NIK": "0000000000000000",
+  "Street": "Jl. Industri Raya No. 45",
+  "City": "Jakarta Barat",
+  "ZipCode": "11510",
+  "Country": "ID",
+  "FirstName": "Budi",
+  "PhoneNumber": "081234567890"
+}
+```
+
+#### Pemetaan Field dari Tabel `vendor.vendors`:
+| Field SAP | Sumber Data di Backend | Keterangan |
+|---|---|---|
+| `CardCode` | `$options['sap_vendor_code']` / auto `'V' . (10000 + id)` | Kode unik Vendor di SAP B1 |
+| `CardName` | `$vendor->company_name` | Nama resmi perusahaan |
+| `Phone1` | `$vendor->company_phone` | Nomor telepon kantor |
+| `Cellular` | `$vendor->pic_phone` | No HP / WA PIC |
+| `EmailAddress` | `$vendor->company_email` | Email resmi perusahaan |
+| `FederalTaxID` | Sanitasi angka dari `$vendor->company_npwp` | NPWP 15/16 digit |
+| `AddonId` | `config('services.sap.addon_id', 'ADDON01')` | ID Addon SAP |
+| `UserId` | `config('services.sap.user_id', 'USR101')` | ID User SAP |
+| `NIK` | `$vendor->nik` (Default hardcode: `'0000000000000000'`) | Nomor Induk Kependudukan |
+| `Street` | `$vendor->address` | Alamat jalan domisili |
+| `City` | `$vendor->city` / `$vendor->regencies` | Kota / Kabupaten |
+| `ZipCode` | `$vendor->postal_code` | Kode pos |
+| `Country` | `'ID'` | Kode negara Indonesia |
+| `FirstName` | `$vendor->pic_name` | Nama PIC vendor |
+| `PhoneNumber`| `$vendor->pic_phone` / `$vendor->company_phone` | Nomor telepon PIC |
+
+### 5.3 Respon Sukses SAP (200 OK)
+```json
+{
+  "ErrorCode": 0,
+  "Message": "Success - [AddVendor]. CardCode: V10001"
+}
+```
+Ketika respon mengembalikan `ErrorCode: 0`, sistem mengekstrak `CardCode` dari pesan dan menyimpannya secara otomatis ke kolom `vendor.vendors.sap_vendor_code`.
 
 ---
 
