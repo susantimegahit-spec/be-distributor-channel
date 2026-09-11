@@ -11,6 +11,28 @@ class RegisterVendorRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $merge = [];
+        if (!$this->has('regencies') && $this->has('regency')) {
+            $merge['regencies'] = $this->input('regency');
+        } elseif (!$this->has('regencies') && $this->has('kabupaten')) {
+            $merge['regencies'] = $this->input('kabupaten');
+        }
+
+        if (!$this->has('village') && $this->has('desa')) {
+            $merge['village'] = $this->input('desa');
+        }
+
+        if (!$this->has('district') && $this->has('kecamatan')) {
+            $merge['district'] = $this->input('kecamatan');
+        }
+
+        if (!empty($merge)) {
+            $this->merge($merge);
+        }
+    }
+
     public function rules(): array
     {
         return [
@@ -20,7 +42,10 @@ class RegisterVendorRequest extends FormRequest
             'company_phone' => 'nullable|string|max:50',
             'company_npwp' => 'nullable|string|max:50',
             'address' => 'nullable|string',
+            'village' => 'nullable|string|max:100',
+            'district' => 'nullable|string|max:100',
             'city' => 'nullable|string|max:100',
+            'regencies' => 'nullable|string|max:100',
             'province' => 'nullable|string|max:100',
             'postal_code' => 'nullable|string|max:20',
             'pic_name' => 'required|string|max:150',

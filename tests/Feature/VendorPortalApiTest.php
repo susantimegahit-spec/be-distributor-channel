@@ -41,7 +41,10 @@ class VendorPortalApiTest extends TestCase
             'company_phone' => '021-5551234',
             'company_npwp' => '01.234.567.8-901.000',
             'address' => 'Jl. Daan Mogot KM 12',
+            'village' => 'Cengkareng Barat',
+            'district' => 'Cengkareng',
             'city' => 'Jakarta Barat',
+            'regencies' => 'Jakarta Barat',
             'province' => 'DKI Jakarta',
             'postal_code' => '11840',
             'pic_name' => 'Hendro Wijaya',
@@ -71,13 +74,51 @@ class VendorPortalApiTest extends TestCase
         $this->assertDatabaseHas('vendors', [
             'company_email' => 'contact@cepataman.com',
             'company_npwp' => '01.234.567.8-901.000',
+            'village' => 'Cengkareng Barat',
+            'district' => 'Cengkareng',
+            'city' => 'Jakarta Barat',
+            'regencies' => 'Jakarta Barat',
             'vendor_type' => 'EXPEDITION',
             'registration_status' => 'PENDING_LEGAL_APPROVAL',
         ], $conn);
 
         $vendor = Vendor::where('company_email', 'contact@cepataman.com')->first();
         $this->assertNotNull($vendor);
+        $this->assertEquals('Cengkareng Barat', $vendor->village);
+        $this->assertEquals('Cengkareng', $vendor->district);
+        $this->assertEquals('Jakarta Barat', $vendor->city);
+        $this->assertEquals('Jakarta Barat', $vendor->regencies);
         $this->assertCount(4, $vendor->documents);
+    }
+
+    public function test_can_register_vendor_with_regency_and_indonesian_aliases()
+    {
+        $payload = [
+            'vendor_type' => 'distributor',
+            'company_name' => 'PT Mitra Daerah Sejahtera',
+            'company_email' => 'mitra.daerah@example.com',
+            'address' => 'Jl. Ahmad Yani No. 10',
+            'desa' => 'Kutisari',
+            'kecamatan' => 'Tenggilis Mejoyo',
+            'kota' => 'Surabaya',
+            'regency' => 'Surabaya',
+            'province' => 'Jawa Timur',
+            'postal_code' => '60291',
+            'pic_name' => 'Siti Rahma',
+            'pic_phone' => '081333444555',
+            'terms_agreed' => true,
+        ];
+
+        $response = $this->postJson('/api/distributor-channel/vendor-portal/register', $payload);
+
+        $response->assertStatus(201);
+
+        $vendor = Vendor::where('company_email', 'mitra.daerah@example.com')->first();
+        $this->assertNotNull($vendor);
+        $this->assertEquals('Kutisari', $vendor->village);
+        $this->assertEquals('Tenggilis Mejoyo', $vendor->district);
+        $this->assertEquals('Surabaya', $vendor->city);
+        $this->assertEquals('Surabaya', $vendor->regencies);
         $this->assertCount(1, $vendor->approvalHistories);
     }
 

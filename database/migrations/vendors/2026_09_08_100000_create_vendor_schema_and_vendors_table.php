@@ -45,7 +45,10 @@ return new class extends Migration
                 $table->string('company_phone', 50)->nullable()->comment('Nomor Telepon Kantor');
                 $table->string('company_npwp', 50)->nullable()->comment('Nomor Pokok Wajib Pajak (NPWP) Perusahaan');
                 $table->text('address')->nullable()->comment('Alamat Domisili Perusahaan');
-                $table->string('city', 100)->nullable()->comment('Kota / Kabupaten');
+                $table->string('village', 100)->nullable()->comment('Desa / Kelurahan');
+                $table->string('district', 100)->nullable()->comment('Kecamatan');
+                $table->string('city', 100)->nullable()->comment('Kota');
+                $table->string('regencies', 100)->nullable()->comment('Kabupaten / Kota');
                 $table->string('province', 100)->nullable()->comment('Provinsi');
                 $table->string('postal_code', 20)->nullable()->comment('Kode Pos');
                 $table->string('pic_name', 150)->comment('Nama PIC / Penanggung Jawab');

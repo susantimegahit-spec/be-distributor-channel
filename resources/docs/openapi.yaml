@@ -13918,15 +13918,31 @@ paths:
                   example: "01.234.567.8-901.000"
                 address:
                   type: string
+                  description: Alamat jalan domisili perusahaan
                   example: Jl. Rungkut Industri No. 45
+                village:
+                  type: string
+                  description: Desa / Kelurahan
+                  example: Rungkut Menanggal
+                district:
+                  type: string
+                  description: Kecamatan
+                  example: Gunung Anyar
                 city:
                   type: string
+                  description: Kota
+                  example: Surabaya
+                regencies:
+                  type: string
+                  description: Kabupaten / Kota (juga mendukung alias regency)
                   example: Surabaya
                 province:
                   type: string
+                  description: Provinsi
                   example: Jawa Timur
                 postal_code:
                   type: string
+                  description: Kode Pos
                   example: "60293"
                 pic_name:
                   type: string

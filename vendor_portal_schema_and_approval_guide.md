@@ -92,9 +92,11 @@ Skema PostgreSQL: `vendor` (koneksi: `pgsql_vendor`, search path: `vendor,public
 | `company_name` | VARCHAR(200) | Tidak | Nama legal perusahaan (PT / CV / Firma) |
 | `company_email` | VARCHAR(150) | Tidak | Alamat email resmi perusahaan (Index) |
 | `company_phone` | VARCHAR(50) | Ya | Nomor telepon kantor |
-| `company_npwp` | VARCHAR(50) | Ya | Nomor Pokok Wajib Pajak (NPWP) Perusahaan |
-| `address` | TEXT | Ya | Alamat domisili operasional |
-| `city` | VARCHAR(100) | Ya | Kota / Kabupaten |
+| `address` | TEXT | Ya | Alamat domisili operasional (Jalan) |
+| `village` | VARCHAR(100) | Ya | Desa / Kelurahan |
+| `district` | VARCHAR(100) | Ya | Kecamatan |
+| `city` | VARCHAR(100) | Ya | Kota |
+| `regencies` | VARCHAR(100) | Ya | Kabupaten / Kota |
 | `province` | VARCHAR(100) | Ya | Provinsi |
 | `postal_code` | VARCHAR(20) | Ya | Kode pos |
 | `pic_name` | VARCHAR(150) | Tidak | Nama lengkap penanggung jawab (PIC) |
