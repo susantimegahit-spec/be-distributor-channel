@@ -146,4 +146,107 @@ class VendorRegistrationController extends Controller
             'data' => $reuploadedDoc,
         ]);
     }
+
+    /**
+     * Get list of downloadable vendor document templates.
+     */
+    public function listTemplates(Request $request): JsonResponse
+    {
+        $templates = [
+            [
+                'slug' => 'pakta-integritas',
+                'title' => 'Pakta Integritas Vendor Ekspedisi',
+                'filename' => 'PAKTA INTEGRITAS VENDOR EKSPEDISI - A4.docx',
+                'format' => 'docx',
+                'description' => 'Template resmi Pakta Integritas bermeterai untuk calon mitra ekspedisi.',
+            ],
+            [
+                'slug' => 'peraturan-kerjasama',
+                'title' => 'Peraturan Kerjasama Ekspedisi',
+                'filename' => 'PERATURAN KERJASAMA EKSPEDISI.docx',
+                'format' => 'docx',
+                'description' => 'Dokumen panduan regulasi & SOP kerjasama operasional armada ekspedisi PT Susanti Megah.',
+            ],
+        ];
+
+        $items = array_map(function ($tpl) {
+            $filePath = $this->resolveTemplatePath($tpl['filename']);
+            $isAvailable = $filePath && file_exists($filePath);
+
+            return [
+                'slug' => $tpl['slug'],
+                'title' => $tpl['title'],
+                'filename' => $tpl['filename'],
+                'format' => $tpl['format'],
+                'description' => $tpl['description'],
+                'is_available' => $isAvailable,
+                'file_size' => $isAvailable ? filesize($filePath) : null,
+                'download_url' => url("/api/distributor-channel/v1/vendor-portal/templates/{$tpl['slug']}"),
+                'static_url' => url("/templates/vendor/" . rawurlencode($tpl['filename'])),
+            ];
+        }, $templates);
+
+        return response()->json([
+            'success' => true,
+            'status_code' => 200,
+            'message' => 'Vendor document templates retrieved successfully.',
+            'data' => $items,
+        ]);
+    }
+
+    /**
+     * Download specific vendor template by slug or filename.
+     */
+    public function downloadTemplate(string $slug)
+    {
+        $map = [
+            'pakta-integritas' => 'PAKTA INTEGRITAS VENDOR EKSPEDISI - A4.docx',
+            'pakta_integritas' => 'PAKTA INTEGRITAS VENDOR EKSPEDISI - A4.docx',
+            'pakta' => 'PAKTA INTEGRITAS VENDOR EKSPEDISI - A4.docx',
+            'peraturan-kerjasama' => 'PERATURAN KERJASAMA EKSPEDISI.docx',
+            'peraturan_kerjasama' => 'PERATURAN KERJASAMA EKSPEDISI.docx',
+            'pks' => 'PERATURAN KERJASAMA EKSPEDISI.docx',
+        ];
+
+        $filename = $map[strtolower(trim($slug))] ?? $slug;
+
+        // Prevent directory traversal
+        $filename = basename($filename);
+
+        $filePath = $this->resolveTemplatePath($filename);
+
+        if (!$filePath || !file_exists($filePath)) {
+            return response()->json([
+                'success' => false,
+                'status_code' => 404,
+                'message' => "Template file '{$filename}' is not yet uploaded on the server.",
+                'errors' => (object) [],
+            ], 404);
+        }
+
+        return response()->download($filePath, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ]);
+    }
+
+    /**
+     * Resolve template file path from public or storage folder.
+     */
+    protected function resolveTemplatePath(string $filename): ?string
+    {
+        // 1. Check in public/templates/vendor/
+        $publicPath = public_path("templates/vendor/{$filename}");
+        if (file_exists($publicPath)) {
+            return $publicPath;
+        }
+
+        // 2. Check in storage/app/public/templates/vendor/
+        $storagePath = storage_path("app/public/templates/vendor/{$filename}");
+        if (file_exists($storagePath)) {
+            return $storagePath;
+        }
+
+        return null;
+    }
 }
+

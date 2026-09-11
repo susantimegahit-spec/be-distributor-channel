@@ -767,6 +767,63 @@ Seluruh endpoint di bawah ini mewajibkan header autentikasi `Authorization: Bear
 
 ---
 
+## 📥 6. Berkas Template Dokumen Legalitas Vendor (Pakta Integritas & Peraturan Kerjasama)
+
+Untuk memudahkan calon mitra vendor dalam mengunggah berkas yang sah, sistem menyediakan direktori dan endpoint publik untuk mengunduh template resmi:
+
+### 6.1 Lokasi Direktori di Server
+File template Word (`.docx`) dapat ditaruh manual di salah satu direktori berikut di server:
+1. `public/templates/vendor/`
+2. `storage/app/public/templates/vendor/`
+
+**Nama Berkas Resmi:**
+1. `PAKTA INTEGRITAS VENDOR EKSPEDISI - A4.docx`
+2. `PERATURAN KERJASAMA EKSPEDISI.docx`
+
+### 6.2 Endpoint API Download
+
+#### A. Ambil Daftar Template yang Tersedia
+- **Endpoint:** `GET /api/distributor-channel/v1/vendor-portal/templates`
+- **Response:**
+  ```json
+  {
+    "success": true,
+    "status_code": 200,
+    "message": "Vendor document templates retrieved successfully.",
+    "data": [
+      {
+        "slug": "pakta-integritas",
+        "title": "Pakta Integritas Vendor Ekspedisi",
+        "filename": "PAKTA INTEGRITAS VENDOR EKSPEDISI - A4.docx",
+        "format": "docx",
+        "description": "Template resmi Pakta Integritas bermeterai untuk calon mitra ekspedisi.",
+        "is_available": true,
+        "download_url": "https://api.domain.com/api/distributor-channel/v1/vendor-portal/templates/pakta-integritas",
+        "static_url": "https://api.domain.com/templates/vendor/PAKTA%20INTEGRITAS%20VENDOR%20EKSPEDISI%20-%20A4.docx"
+      },
+      {
+        "slug": "peraturan-kerjasama",
+        "title": "Peraturan Kerjasama Ekspedisi",
+        "filename": "PERATURAN KERJASAMA EKSPEDISI.docx",
+        "format": "docx",
+        "description": "Dokumen panduan regulasi & SOP kerjasama operasional armada ekspedisi PT Susanti Megah.",
+        "is_available": true,
+        "download_url": "https://api.domain.com/api/distributor-channel/v1/vendor-portal/templates/peraturan-kerjasama",
+        "static_url": "https://api.domain.com/templates/vendor/PERATURAN%20KERJASAMA%20EKSPEDISI.docx"
+      }
+    ]
+  }
+  ```
+
+#### B. Download File Berkas Langsung
+- **Endpoint:** `GET /api/distributor-channel/v1/vendor-portal/templates/{slug}`
+  - Slug: `pakta-integritas` atau `peraturan-kerjasama` (atau langsung nama file).
+- **Header Response:**
+  - `Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document`
+  - `Content-Disposition: attachment; filename="PAKTA INTEGRITAS VENDOR EKSPEDISI - A4.docx"`
+
+---
+
 ## 🔗 Referensi Berkas Terkait
 - Dashboard Hub Dokumentasi: [[API_Documentation_Hub|SMESTA API Documentation Hub]]
 - Aturan Standar Pengembangan: [[standard_development_rules|Standard Development Rules]]

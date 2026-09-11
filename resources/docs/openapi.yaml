@@ -14009,6 +14009,88 @@ paths:
         '200':
           description: Status ketersediaan email berhasil diperiksa.
 
+  /vendor-portal/templates:
+    get:
+      summary: Daftar Template Dokumen Legalitas Calon Mitra Vendor
+      description: Mengambil daftar berkas template resmi (Pakta Integritas, Peraturan Kerjasama, dll) yang dapat diunduh oleh calon vendor beserta link download dan status ketersediaannya di server.
+      tags:
+        - Vendor Portal
+      responses:
+        '200':
+          description: Daftar template berkas berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Vendor document templates retrieved successfully.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        slug:
+                          type: string
+                          example: pakta-integritas
+                        title:
+                          type: string
+                          example: Pakta Integritas Vendor Ekspedisi
+                        filename:
+                          type: string
+                          example: PAKTA INTEGRITAS VENDOR EKSPEDISI - A4.docx
+                        format:
+                          type: string
+                          example: docx
+                        description:
+                          type: string
+                          example: Template resmi Pakta Integritas bermeterai untuk calon mitra ekspedisi.
+                        is_available:
+                          type: boolean
+                          example: true
+                        file_size:
+                          type: integer
+                          example: 45200
+                        download_url:
+                          type: string
+                          example: https://api.domain.com/api/distributor-channel/v1/vendor-portal/templates/pakta-integritas
+                        static_url:
+                          type: string
+                          example: https://api.domain.com/templates/vendor/PAKTA%20INTEGRITAS%20VENDOR%20EKSPEDISI%20-%20A4.docx
+
+  /vendor-portal/templates/{slug}:
+    get:
+      summary: Download Berkas Template Dokumen Vendor (.docx)
+      description: Mengunduh file template fisik dokumen berdasarkan slug (pakta-integritas, peraturan-kerjasama) atau nama file langsung.
+      tags:
+        - Vendor Portal
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [pakta-integritas, peraturan-kerjasama]
+          example: pakta-integritas
+          description: Slug atau nama file template dokumen yang akan diunduh.
+      responses:
+        '200':
+          description: Berkas dokumen Word (.docx) berhasil diunduh.
+          content:
+            application/vnd.openxmlformats-officedocument.wordprocessingml.document:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: File template belum diunggah di server.
+
   /vendor-portal/documents/{documentId}/reupload:
     post:
       summary: Upload Ulang Berkas Dokumen Revisi oleh Vendor
