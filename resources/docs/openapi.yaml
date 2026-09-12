@@ -8179,6 +8179,233 @@ paths:
         '401':
           description: Tidak terautentikasi
 
+  /v1/ekspedisi/nama-ekspedisi:
+    get:
+      summary: Get List of Expedition Names from SAP
+      description: Mengambil daftar nama ekspedisi langsung dari API SAP B1 (/api/getNamaEkspedisi). Jika kosong/dummy, mengembalikan "Data not found."
+      tags:
+        - Ekspedisi - SAP Master Data
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter pencarian kode atau nama ekspedisi
+      responses:
+        '200':
+          description: Daftar nama ekspedisi berhasil diambil dari SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Expedition list retrieved successfully from SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Code:
+                          type: string
+                          example: "01"
+                        U_NamaEkspedisi:
+                          type: string
+                          example: Internal
+                        U_VendorEkspedisi:
+                          type: string
+                          example: Internal
+        '401':
+          description: Unauthenticated
+    post:
+      summary: Get List of Expedition Names from SAP (POST)
+      description: Mengambil daftar nama ekspedisi langsung dari API SAP B1 (/api/getNamaEkspedisi) via method POST.
+      tags:
+        - Ekspedisi - SAP Master Data
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Expedition list retrieved successfully from SAP.
+
+  /v1/ekspedisi/nama-checker:
+    get:
+      summary: Get List of Warehouse Checkers from SAP
+      description: Mengambil daftar nama checker gudang langsung dari API SAP B1 (/api/getNamaChecker). Jika kosong/dummy, mengembalikan "Data not found."
+      tags:
+        - Ekspedisi - SAP Master Data
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter pencarian kode atau nama checker
+      responses:
+        '200':
+          description: Daftar nama checker berhasil diambil dari SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Checker list retrieved successfully from SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Code:
+                          type: string
+                          example: "001"
+                        Name:
+                          type: string
+                          example: AZHAR
+        '401':
+          description: Unauthenticated
+    post:
+      summary: Get List of Warehouse Checkers from SAP (POST)
+      description: Mengambil daftar nama checker gudang langsung dari API SAP B1 (/api/getNamaChecker) via method POST.
+      tags:
+        - Ekspedisi - SAP Master Data
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Checker list retrieved successfully from SAP.
+
+  /v1/ekspedisi/kendaraan:
+    get:
+      summary: Get List of Vehicles from SAP
+      description: Mengambil daftar master kendaraan/armada beserta kapasitas tonase dan kubikasi dari API SAP B1 (/api/getKendaraan). Jika kosong/dummy, mengembalikan "Data not found."
+      tags:
+        - Ekspedisi - SAP Master Data
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter pencarian nopol atau merk kendaraan
+      responses:
+        '200':
+          description: Daftar kendaraan berhasil diambil dari SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Vehicle list retrieved successfully from SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Nopol:
+                          type: string
+                          example: L9870CE
+                        U_Merk:
+                          type: string
+                          example: HINO DUTRO
+                        U_KapasitasKg:
+                          type: string
+                          example: "6000.000000"
+                        U_KapasitasM3:
+                          type: string
+                          example: "13.600000"
+        '401':
+          description: Unauthenticated
+    post:
+      summary: Get List of Vehicles from SAP (POST)
+      description: Mengambil daftar master kendaraan dari API SAP B1 (/api/getKendaraan) via method POST.
+      tags:
+        - Ekspedisi - SAP Master Data
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Vehicle list retrieved successfully from SAP.
+
+  /v1/ekspedisi/sopir:
+    get:
+      summary: Get List of Drivers from SAP
+      description: Mengambil daftar supir/driver beserta cabang operasional dari API SAP B1 (/api/getSopir). Jika kosong/dummy, mengembalikan "Data not found."
+      tags:
+        - Ekspedisi - SAP Master Data
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter pencarian nama sopir
+        - name: cabang
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter kode cabang (misal SBY)
+      responses:
+        '200':
+          description: Daftar sopir berhasil diambil dari SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Driver list retrieved successfully from SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Name:
+                          type: string
+                          example: TEGUH
+                        U_Cabang:
+                          type: string
+                          example: SBY
+        '401':
+          description: Unauthenticated
+    post:
+      summary: Get List of Drivers from SAP (POST)
+      description: Mengambil daftar supir dari API SAP B1 (/api/getSopir) via method POST.
+      tags:
+        - Ekspedisi - SAP Master Data
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Driver list retrieved successfully from SAP.
+
   /v1/ekspedisi/expeditions/upload:
     post:
       summary: Upload master expeditions file (Excel/CSV)

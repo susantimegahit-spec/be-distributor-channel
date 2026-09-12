@@ -4,9 +4,15 @@ use App\Modules\Ekspedisi\Controllers\ExpeditionController;
 use App\Modules\Ekspedisi\Controllers\ExpeditionRateController;
 use App\Modules\Ekspedisi\Controllers\WilayahController;
 use App\Modules\Ekspedisi\Controllers\WarehouseOriginController;
+use App\Modules\Ekspedisi\Controllers\SapEkspedisiController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/ekspedisi')->middleware('auth:sanctum')->group(function () {
+    // SAP Master Logistics Endpoints (getNamaEkspedisi, getNamaChecker, getKendaraan, getSopir)
+    Route::match(['get', 'post'], 'nama-ekspedisi', [SapEkspedisiController::class, 'getNamaEkspedisi']);
+    Route::match(['get', 'post'], 'nama-checker', [SapEkspedisiController::class, 'getNamaChecker']);
+    Route::match(['get', 'post'], 'kendaraan', [SapEkspedisiController::class, 'getKendaraan']);
+    Route::match(['get', 'post'], 'sopir', [SapEkspedisiController::class, 'getSopir']);
     // Master Wilayah
     Route::prefix('wilayah')->group(function () {
         Route::get('/provinces', [WilayahController::class, 'getProvinces']);
