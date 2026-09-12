@@ -714,6 +714,16 @@
                             <span>ClickUp Tasks</span>
                             <span class="nav-badge badge-purple">Baru</span>
                         </a>
+                    <li class="nav-item">
+                        <a href="{{ url('/monitoringsm/master-data') }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                            </svg>
+                            <span>Master Data</span>
+                            <span class="nav-badge" style="background: rgba(99, 102, 241, 0.15); color: #818cf8;">CRUD</span>
+                        </a>
                     </li>
                     <li class="nav-item">
                         <a href="{{ url('/monitoringsm') }}">
@@ -934,6 +944,30 @@
                         <div class="card-bottom-action">
                             <span class="action-link-text card-purple-action">
                                 <span>Buka Dashboard Task Reporting</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                            </span>
+                        </div>
+                    </a>
+
+                    <!-- Card: Dynamic Master Data Management -->
+                    <a href="{{ url('/monitoringsm/master-data') }}" class="module-card">
+                        <div>
+                            <div class="card-top">
+                                <div class="module-icon-box" style="background: rgba(99, 102, 241, 0.15); color: #818cf8;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                                    </svg>
+                                </div>
+                                <span class="nav-badge" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3);">Dynamic CRUD</span>
+                            </div>
+                            <h2 class="card-title">Master Data Management (Dynamic CRUD)</h2>
+                            <p class="card-desc">Kelola data master sistem logistik secara dinamis: Master Leadtime, Warehouse Origins, dan Ekspedisi. Tabel data dan form tambah/edit menyesuaikan otomatis sesuai entitas yang dipilih.</p>
+                        </div>
+                        <div class="card-bottom-action">
+                            <span class="action-link-text" style="color: #818cf8;">
+                                <span>Buka Master Data CRUD</span>
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
                             </span>
                         </div>

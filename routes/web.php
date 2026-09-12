@@ -98,6 +98,12 @@ Route::middleware('web')->prefix('monitoringsm')->group(function () {
         // ClickUp Task Reporting Dashboard
         Route::get('/reporting-tasks', [\App\Http\Controllers\ReportingTaskWebController::class, 'index']);
 
+        // Dynamic Master Data CRUD Management
+        Route::get('/master-data', [\App\Http\Controllers\MasterDataWebController::class, 'index']);
+        Route::post('/master-data/{table}', [\App\Http\Controllers\MasterDataWebController::class, 'store']);
+        Route::post('/master-data/{table}/{id}/update', [\App\Http\Controllers\MasterDataWebController::class, 'update']);
+        Route::post('/master-data/{table}/{id}/delete', [\App\Http\Controllers\MasterDataWebController::class, 'destroy']);
+
         // Spatie Server & Service Health Monitoring Dashboard
         Route::get('/health', function (\Illuminate\Http\Request $request, \Spatie\Health\ResultStores\ResultStore $resultStore, \Spatie\Health\Health $health) {
             if ($request->has('fresh') || $resultStore->latestResults() === null) {
