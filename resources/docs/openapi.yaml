@@ -14250,7 +14250,7 @@ paths:
                           must_change_password:
                             type: boolean
                       vendor:
-                        type: object
+                        $ref: '#/components/schemas/VendorDetail'
                       sap_vendor_code:
                         type: string
                         description: Kode akun vendor di SAP Business One (CardCode)
@@ -14662,7 +14662,17 @@ paths:
             example: 1
       responses:
         '200':
-          description: Detail vendor berhasil diambil.
+          description: Detail vendor berhasil diambil beserta dokumen dan nama wilayah administratif.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/VendorDetail'
         '404':
           description: Vendor tidak ditemukan.
 
@@ -17990,5 +18000,172 @@ components:
           type: string
           format: date-time
 
-
-
+    VendorDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        vendor_code:
+          type: string
+          example: VND-202609-0001
+        vendor_type:
+          type: string
+          example: EXPEDITION
+        company_name:
+          type: string
+          example: PT Cepat Aman Logistik
+        company_email:
+          type: string
+          example: contact@cepataman.com
+        company_phone:
+          type: string
+          nullable: true
+          example: 021-5551234
+        company_npwp:
+          type: string
+          nullable: true
+          example: 01.234.567.8-901.000
+        nik:
+          type: string
+          nullable: true
+          example: "3173010101900001"
+        address:
+          type: string
+          nullable: true
+          example: Jl. Daan Mogot KM 12
+        province:
+          type: string
+          nullable: true
+          description: Kode ID provinsi
+          example: "31"
+        province_name:
+          type: string
+          nullable: true
+          description: Nama provinsi ter-resolve
+          example: DKI JAKARTA
+        city:
+          type: string
+          nullable: true
+          description: Kode ID kabupaten / kota
+          example: "3173"
+        city_name:
+          type: string
+          nullable: true
+          description: Nama kabupaten / kota ter-resolve
+          example: KOTA ADM. JAKARTA BARAT
+        regencies:
+          type: string
+          nullable: true
+          description: Kode ID kabupaten / kota
+          example: "3173"
+        regency_name:
+          type: string
+          nullable: true
+          description: Nama kabupaten / kota ter-resolve
+          example: KOTA ADM. JAKARTA BARAT
+        regencies_name:
+          type: string
+          nullable: true
+          description: Nama kabupaten / kota ter-resolve
+          example: KOTA ADM. JAKARTA BARAT
+        district:
+          type: string
+          nullable: true
+          description: Kode ID kecamatan
+          example: "317301"
+        district_name:
+          type: string
+          nullable: true
+          description: Nama kecamatan ter-resolve
+          example: CENGKARENG
+        village:
+          type: string
+          nullable: true
+          description: Kode ID desa / kelurahan
+          example: "3173011001"
+        village_name:
+          type: string
+          nullable: true
+          description: Nama desa / kelurahan ter-resolve
+          example: CENGKARENG BARAT
+        region_info:
+          type: object
+          nullable: true
+          description: Keterangan terstruktur id dan name seluruh tingkatan wilayah administratif
+          properties:
+            village:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: "3173011001"
+                name:
+                  type: string
+                  example: CENGKARENG BARAT
+            district:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: "317301"
+                name:
+                  type: string
+                  example: CENGKARENG
+            regency:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: "3173"
+                name:
+                  type: string
+                  example: KOTA ADM. JAKARTA BARAT
+            province:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: "31"
+                name:
+                  type: string
+                  example: DKI JAKARTA
+        postal_code:
+          type: string
+          nullable: true
+          example: "11840"
+        pic_name:
+          type: string
+          example: Hendro Wijaya
+        pic_phone:
+          type: string
+          example: 081298765432
+        pic_email:
+          type: string
+          nullable: true
+          example: hendro@cepataman.com
+        terms_agreed:
+          type: boolean
+          example: true
+        registration_status:
+          type: string
+          example: APPROVED
+        legal_approval_status:
+          type: string
+          example: APPROVED
+        sap_vendor_code:
+          type: string
+          nullable: true
+          example: VN10001
+        documents:
+          type: array
+          items:
+            type: object
+        users:
+          type: array
+          items:
+            type: object
+        approval_histories:
+          type: array
+          items:
+            type: object

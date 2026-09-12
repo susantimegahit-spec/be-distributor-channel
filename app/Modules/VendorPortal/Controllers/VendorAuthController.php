@@ -3,6 +3,7 @@
 namespace App\Modules\VendorPortal\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\VendorPortal\Models\Vendor;
 use App\Modules\VendorPortal\Requests\VendorLoginRequest;
 use App\Modules\VendorPortal\Services\VendorAuthService;
 use Illuminate\Http\JsonResponse;
@@ -54,6 +55,7 @@ class VendorAuthController extends Controller
 
         if ($vendor) {
             $vendor->load(['documents', 'expedition']);
+            Vendor::preloadRegionNames([$vendor]);
             $documents = $vendor->documents->map(function ($doc) {
                 return [
                     'id'                  => $doc->id,

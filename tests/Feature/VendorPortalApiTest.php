@@ -806,4 +806,144 @@ class VendorPortalApiTest extends TestCase
         $this->assertFalse((bool) $user->fresh()->must_change_password);
         $this->assertTrue(\Illuminate\Support\Facades\Hash::check('NewPassword123!', $user->fresh()->password));
     }
+
+    public function test_get_vendor_detail_returns_region_names_and_region_info_from_master_codes()
+    {
+        $internalUser = User::factory()->create([
+            'email' => 'legal.officer@test.com',
+        ]);
+
+        \App\Models\Province::create(['id' => 31, 'name' => 'DKI JAKARTA']);
+        \App\Models\Regency::create(['id' => 3173, 'province_id' => 31, 'name' => 'KOTA ADM. JAKARTA BARAT']);
+        \App\Models\District::create(['id' => 317301, 'regency_id' => 3173, 'name' => 'CENGKARENG']);
+        \App\Models\Village::create(['id' => 3173011001, 'district_id' => 317301, 'name' => 'CENGKARENG BARAT']);
+
+        $vendor = Vendor::create([
+            'vendor_code'           => 'VND-202609-0088',
+            'vendor_type'           => 'EXPEDITION',
+            'company_name'          => 'PT Region Test',
+            'company_email'         => 'region.test@ekspedisi.com',
+            'pic_name'              => 'Surya',
+            'pic_phone'             => '081233445566',
+            'terms_agreed'          => true,
+            'registration_status'   => 'PENDING_LEGAL_APPROVAL',
+            'legal_approval_status' => 'PENDING',
+            'province'              => '31',
+            'city'                  => '3173',
+            'regencies'             => '3173',
+            'district'              => '317301',
+            'village'               => '3173011001',
+        ]);
+
+        $response = $this->actingAs($internalUser, 'sanctum')
+            ->getJson("/api/distributor-channel/vendor-management/registrations/{$vendor->id}");
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'id'            => $vendor->id,
+                    'province'      => '31',
+                    'province_name' => 'DKI JAKARTA',
+                    'regencies'     => '3173',
+                    'regency_name'  => 'KOTA ADM. JAKARTA BARAT',
+                    'district'      => '317301',
+                    'district_name' => 'CENGKARENG',
+                    'village'       => '3173011001',
+                    'village_name'  => 'CENGKARENG BARAT',
+                    'region_info'   => [
+                        'village' => [
+                            'id'   => '3173011001',
+                            'name' => 'CENGKARENG BARAT',
+                        ],
+                        'district' => [
+                            'id'   => '317301',
+                            'name' => 'CENGKARENG',
+                        ],
+                        'regency' => [
+                            'id'   => '3173',
+                            'name' => 'KOTA ADM. JAKARTA BARAT',
+                        ],
+                        'province' => [
+                            'id'   => '31',
+                            'name' => 'DKI JAKARTA',
+                        ],
+                    ],
+                ],
+            ]);
+    }
+
+    public function test_vendor_portal_me_endpoint_returns_region_names_and_region_info()
+    {
+        \App\Models\Province::create(['id' => 35, 'name' => 'JAWA TIMUR']);
+        \App\Models\Regency::create(['id' => 3578, 'province_id' => 35, 'name' => 'KOTA SURABAYA']);
+        \App\Models\District::create(['id' => 357801, 'regency_id' => 3578, 'name' => 'TENGGILIS MEJOYO']);
+        \App\Models\Village::create(['id' => 3578011001, 'district_id' => 357801, 'name' => 'KUTISARI']);
+
+        $vendor = Vendor::create([
+            'vendor_code'           => 'VND-202609-0089',
+            'vendor_type'           => 'EXPEDITION',
+            'company_name'          => 'PT Vendor Portal Region',
+            'company_email'         => 'me.region@ekspedisi.com',
+            'pic_name'              => 'Rudi',
+            'pic_phone'             => '081299887766',
+            'terms_agreed'          => true,
+            'registration_status'   => 'APPROVED',
+            'legal_approval_status' => 'APPROVED',
+            'province'              => '35',
+            'city'                  => '3578',
+            'regencies'             => '3578',
+            'district'              => '357801',
+            'village'               => '3578011001',
+        ]);
+
+        $user = VendorUser::create([
+            'vendor_id'            => $vendor->id,
+            'name'                 => 'Rudi PIC',
+            'email'                => 'me.region@ekspedisi.com',
+            'password'             => \Illuminate\Support\Facades\Hash::make('Secret123!'),
+            'role'                 => 'VENDOR_ADMIN',
+            'status'               => 'ACTIVE',
+            'must_change_password' => false,
+        ]);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->getJson('/api/distributor-channel/vendor-portal/me');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'vendor' => [
+                        'id'            => $vendor->id,
+                        'province'      => '35',
+                        'province_name' => 'JAWA TIMUR',
+                        'regencies'     => '3578',
+                        'regency_name'  => 'KOTA SURABAYA',
+                        'district'      => '357801',
+                        'district_name' => 'TENGGILIS MEJOYO',
+                        'village'       => '3578011001',
+                        'village_name'  => 'KUTISARI',
+                        'region_info'   => [
+                            'village' => [
+                                'id'   => '3578011001',
+                                'name' => 'KUTISARI',
+                            ],
+                            'district' => [
+                                'id'   => '357801',
+                                'name' => 'TENGGILIS MEJOYO',
+                            ],
+                            'regency' => [
+                                'id'   => '3578',
+                                'name' => 'KOTA SURABAYA',
+                            ],
+                            'province' => [
+                                'id'   => '35',
+                                'name' => 'JAWA TIMUR',
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
+    }
 }

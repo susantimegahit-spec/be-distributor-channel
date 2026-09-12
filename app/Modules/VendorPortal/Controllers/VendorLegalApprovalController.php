@@ -53,6 +53,7 @@ class VendorLegalApprovalController extends Controller
 
         $perPage = (int)$request->input('per_page', 15);
         $vendors = $query->paginate($perPage);
+        Vendor::preloadRegionNames($vendors->items());
 
         return response()->json([
             'success' => true,
@@ -76,6 +77,8 @@ class VendorLegalApprovalController extends Controller
         if (!$vendor) {
             return response()->json(['success' => false, 'message' => 'Vendor not found.'], 404);
         }
+
+        Vendor::preloadRegionNames([$vendor]);
 
         return response()->json([
             'success' => true,
