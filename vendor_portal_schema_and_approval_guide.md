@@ -120,6 +120,23 @@ Skema PostgreSQL: `vendor` (koneksi: `pgsql_vendor`, search path: `vendor,public
 | `distributor_code` | VARCHAR(50) | Ya | Kode relasi ke master distributor (jika distributor) |
 | `created_at`, `updated_at`, `deleted_at` | TIMESTAMPS | Ya | Soft deletes |
 
+#### 3.1.1 Atribut Dinamis Nama Wilayah Administratif (Enrichment Respon Detail)
+Selain kode ID mentah yang tersimpan di kolom database (`village`, `district`, `city`, `regencies`, `province`), backend secara otomatis me-resolve dan menambahkan atribut nama wilayah yang mudah dibaca (*human-readable*) ke dalam JSON respon Vendor:
+- `village_name`: Nama Desa / Kelurahan (contoh: `"CENGKARENG BARAT"`).
+- `district_name`: Nama Kecamatan (contoh: `"CENGKARENG"`).
+- `regency_name` & `regencies_name` & `city_name`: Nama Kabupaten / Kota (contoh: `"KOTA ADM. JAKARTA BARAT"`).
+- `province_name`: Nama Provinsi (contoh: `"DKI JAKARTA"`).
+- `region_info`: Objek terstruktur berisi pasangan `{ id, name }` untuk seluruh tingkatan wilayah:
+  ```json
+  "region_info": {
+    "village": { "id": "3173011001", "name": "CENGKARENG BARAT" },
+    "district": { "id": "317301", "name": "CENGKARENG" },
+    "regency": { "id": "3173", "name": "KOTA ADM. JAKARTA BARAT" },
+    "province": { "id": "31", "name": "DKI JAKARTA" }
+  }
+  ```
+> **Catatan:** Jika data vendor diisi dengan nama teks langsung (bukan kode numerik) atau kode tidak terdaftar di master wilayah, sistem memiliki *graceful fallback* yang otomatis mengembalikan teks aslinya tanpa menghasilkan error/null.
+
 ---
 
 ### 3.2 Tabel `vendor.vendor_documents`
@@ -383,7 +400,50 @@ Digunakan oleh calon vendor untuk mengunggah berkas pengganti yang diminta revis
 - **Query Params:** `status` (`ALL`, `PENDING_LEGAL_APPROVAL`, `APPROVED`), `vendor_type`, `search`, `page`, `per_page`.
 
 #### 2. Detail Vendor & Berkas Legalitas
-- **Method & Path:** `GET /api/distributor-channel/vendor-management/registrations/{id}`
+- **Method & Path:** `GET /api/distributor-channel/vendor-management/registrations/{id}` (atau `/v1/vendor-management/registrations/{id}`)
+- **Headers:** `Authorization: Bearer <token>`
+- **Response `200 OK`:**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "id": 1,
+      "vendor_code": "VND-202609-0001",
+      "vendor_type": "EXPEDITION",
+      "company_name": "PT Cepat Aman Logistik",
+      "company_email": "contact@cepataman.com",
+      "company_phone": "021-5551234",
+      "company_npwp": "01.234.567.8-901.000",
+      "nik": "3173010101900001",
+      "address": "Jl. Daan Mogot KM 12",
+      "province": "31",
+      "province_name": "DKI JAKARTA",
+      "city": "3173",
+      "city_name": "KOTA ADM. JAKARTA BARAT",
+      "regencies": "3173",
+      "regency_name": "KOTA ADM. JAKARTA BARAT",
+      "district": "317301",
+      "district_name": "CENGKARENG",
+      "village": "3173011001",
+      "village_name": "CENGKARENG BARAT",
+      "region_info": {
+        "village": { "id": "3173011001", "name": "CENGKARENG BARAT" },
+        "district": { "id": "317301", "name": "CENGKARENG" },
+        "regency": { "id": "3173", "name": "KOTA ADM. JAKARTA BARAT" },
+        "province": { "id": "31", "name": "DKI JAKARTA" }
+      },
+      "postal_code": "11840",
+      "pic_name": "Hendro Wijaya",
+      "pic_phone": "081298765432",
+      "registration_status": "APPROVED",
+      "legal_approval_status": "APPROVED",
+      "sap_vendor_code": "VN10001",
+      "documents": [],
+      "users": [],
+      "approval_histories": []
+    }
+  }
+  ```
 
 #### 3. Persetujuan Legal (Approval) & Auto-Generate Kredensial
 - **Method & Path:** `POST /api/distributor-channel/vendor-management/registrations/{id}/approve`
