@@ -27,7 +27,7 @@ Route::post('/docs/login', function (Request $request) {
             'docs_authenticated' => true,
             'docs_last_activity' => time(),
         ]);
-        return redirect('/docs');
+        return redirect()->intended('/docs');
     }
 
     return redirect('/docs/login')->with('error', 'Username atau password yang Anda masukkan salah!');
@@ -139,6 +139,29 @@ Route::middleware([DocsAuthSession::class])->group(function () {
 
     Route::get('/docs/index.html', function () {
         $path = resource_path('docs/index.html');
+        if (!file_exists($path)) {
+            abort(404);
+        }
+        return response()->file($path, [
+            'Content-Type' => 'text/html',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+        ]);
+    });
+
+    // Halaman Dokumentasi API Modern / Next-Gen (Scalar)
+    Route::get('/docsnew', function () {
+        $path = resource_path('docs/docsnew.html');
+        if (!file_exists($path)) {
+            abort(404);
+        }
+        return response()->file($path, [
+            'Content-Type' => 'text/html',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+        ]);
+    });
+
+    Route::get('/docsnew/index.html', function () {
+        $path = resource_path('docs/docsnew.html');
         if (!file_exists($path)) {
             abort(404);
         }
