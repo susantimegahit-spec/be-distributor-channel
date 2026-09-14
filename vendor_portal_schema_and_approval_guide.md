@@ -874,7 +874,41 @@ Khusus untuk akun karyawan / backoffice SMETSA (`App\Models\User`) yang login me
         "status": "INACTIVE",
         "total_routes": 25,
         "remarks": "Pengajuan tarif periode 2026-2027",
-        "submitted_at": "2026-09-10 11:20:00"
+        "submitted_at": "2026-09-10 11:20:00",
+        "expedition": {
+          "id": 12,
+          "expedition_code": "EXP-PTJAYATR-0001",
+          "expedition_name": "PT Jaya Trans Logistik"
+        },
+        "vendor": {
+          "id": 1,
+          "vendor_code": "VND-202609-0001",
+          "vendor_type": "EXPEDITION",
+          "company_name": "PT Jaya Trans Logistik",
+          "company_email": "contact@jayatrans.com",
+          "company_phone": "081234567890",
+          "company_npwp": "01.234.567.8-999.000",
+          "nik": null,
+          "address": "Jl. Raya Logistik No. 1",
+          "village": "3173011001",
+          "village_name": "CENGKARENG BARAT",
+          "district": "317301",
+          "district_name": "CENGKARENG",
+          "city": "3173",
+          "city_name": "KOTA ADM. JAKARTA BARAT",
+          "regencies": "3173",
+          "regency_name": "KOTA ADM. JAKARTA BARAT",
+          "province": "31",
+          "province_name": "DKI JAKARTA",
+          "postal_code": "11840",
+          "pic_name": "Budi Santoso",
+          "pic_phone": "081298765432",
+          "pic_email": null,
+          "registration_status": "APPROVED",
+          "legal_approval_status": "APPROVED",
+          "sap_vendor_code": "VN10001",
+          "expedition_id": 12
+        }
       }
     ],
     "meta": {
@@ -910,6 +944,28 @@ Khusus untuk akun karyawan / backoffice SMETSA (`App\Models\User`) yang login me
           "id": 12,
           "expedition_code": "EXP-PTJAYATR-0001",
           "expedition_name": "PT Jaya Trans Logistik"
+        },
+        "vendor": {
+          "id": 1,
+          "vendor_code": "VND-202609-0001",
+          "vendor_type": "EXPEDITION",
+          "company_name": "PT Jaya Trans Logistik",
+          "company_email": "contact@jayatrans.com",
+          "company_phone": "081234567890",
+          "company_npwp": "01.234.567.8-999.000",
+          "nik": null,
+          "address": "Jl. Raya Logistik No. 1",
+          "village_name": "CENGKARENG BARAT",
+          "district_name": "CENGKARENG",
+          "city_name": "KOTA ADM. JAKARTA BARAT",
+          "province_name": "DKI JAKARTA",
+          "postal_code": "11840",
+          "pic_name": "Budi Santoso",
+          "pic_phone": "081298765432",
+          "registration_status": "APPROVED",
+          "legal_approval_status": "APPROVED",
+          "sap_vendor_code": "VN10001",
+          "expedition_id": 12
         }
       },
       "details": [

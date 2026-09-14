@@ -3,6 +3,7 @@
 namespace App\Modules\VendorPortal\Services;
 
 use App\Models\CustomerShipto;
+use App\Models\Expedition;
 use App\Models\ExpeditionRate;
 use App\Models\Warehouse;
 use App\Modules\Ekspedisi\Services\ExpeditionUploadService;
@@ -259,6 +260,46 @@ class VendorRateService
     }
 
     /**
+     * Format vendor detail payload consistently across rate endpoints.
+     */
+    public function formatVendorDetail(?Vendor $vendor): ?array
+    {
+        if (!$vendor) {
+            return null;
+        }
+
+        return [
+            'id'                    => $vendor->id,
+            'vendor_code'           => $vendor->vendor_code,
+            'vendor_type'           => $vendor->vendor_type,
+            'company_name'          => $vendor->company_name,
+            'company_email'         => $vendor->company_email,
+            'company_phone'         => $vendor->company_phone,
+            'company_npwp'          => $vendor->company_npwp,
+            'nik'                   => $vendor->nik,
+            'address'               => $vendor->address,
+            'village'               => $vendor->village,
+            'village_name'          => $vendor->village_name,
+            'district'              => $vendor->district,
+            'district_name'         => $vendor->district_name,
+            'city'                  => $vendor->city,
+            'city_name'             => $vendor->city_name,
+            'regencies'             => $vendor->regencies,
+            'regency_name'          => $vendor->regency_name,
+            'province'              => $vendor->province,
+            'province_name'         => $vendor->province_name,
+            'postal_code'           => $vendor->postal_code,
+            'pic_name'              => $vendor->pic_name,
+            'pic_phone'             => $vendor->pic_phone,
+            'pic_email'             => $vendor->pic_email,
+            'registration_status'   => $vendor->registration_status,
+            'legal_approval_status' => $vendor->legal_approval_status,
+            'sap_vendor_code'       => $vendor->sap_vendor_code,
+            'expedition_id'         => $vendor->expedition_id,
+        ];
+    }
+
+    /**
      * Get paginated batch submission headers for vendor portal dashboard/table.
      */
     public function listRateHeaders(?Vendor $vendor = null, array $filters = [], int $perPage = 15)
@@ -281,6 +322,7 @@ class VendorRateService
 
         $query->selectRaw("
                 COALESCE(upload_batch_id, 'BATCH-' || id) as batch_id,
+                MAX(expedition_id) as expedition_id,
                 MIN(valid_from) as valid_from,
                 MAX(valid_until) as valid_until,
                 MAX(approval_status) as approval_status,
@@ -312,7 +354,34 @@ class VendorRateService
 
         $paginator = $query->paginate($perPage);
 
-        $paginator->getCollection()->transform(function ($item) {
+        $expeditionIds = $paginator->getCollection()->pluck('expedition_id')->filter()->unique()->values()->all();
+
+        $expeditions = !empty($expeditionIds)
+            ? Expedition::with('vendor')->whereIn('id', $expeditionIds)->get()->keyBy('id')
+            : collect();
+
+        $vendorsByExpeditionId = collect();
+        foreach ($expeditions as $expId => $exp) {
+            if ($exp->vendor) {
+                $vendorsByExpeditionId[$expId] = $exp->vendor;
+            }
+        }
+
+        $missingExpIds = array_values(array_diff($expeditionIds, $vendorsByExpeditionId->keys()->all()));
+        if (!empty($missingExpIds)) {
+            $directVendors = Vendor::whereIn('expedition_id', $missingExpIds)->get();
+            foreach ($directVendors as $v) {
+                $vendorsByExpeditionId[$v->expedition_id] = $v;
+            }
+        }
+
+        if ($vendor && $vendor->expedition_id) {
+            $vendorsByExpeditionId[$vendor->expedition_id] = $vendor;
+        }
+
+        Vendor::preloadRegionNames($vendorsByExpeditionId->values()->all());
+
+        $paginator->getCollection()->transform(function ($item) use ($vendor, $expeditions, $vendorsByExpeditionId) {
             $validFrom = $item->valid_from ? date('Y-m-d', strtotime((string)$item->valid_from)) : null;
             $validUntil = $item->valid_until ? date('Y-m-d', strtotime((string)$item->valid_until)) : null;
             $periodLabel = ($validFrom && $validUntil) ? "{$validFrom} s/d {$validUntil}" : ($validFrom ?? $validUntil ?? '-');
@@ -321,6 +390,19 @@ class VendorRateService
             $status = ($approvalStatus === 'APPROVED' && strtoupper((string) ($item->status ?? '')) === 'ACTIVE')
                 ? 'ACTIVE'
                 : 'INACTIVE';
+
+            $expeditionId = $item->expedition_id ? (int) $item->expedition_id : null;
+            $expedition = $expeditionId ? ($expeditions[$expeditionId] ?? null) : null;
+            $itemVendor = $vendor ?? ($expeditionId ? ($vendorsByExpeditionId[$expeditionId] ?? null) : null);
+
+            $expeditionData = null;
+            if ($expedition || $expeditionId) {
+                $expeditionData = [
+                    'id'              => $expedition ? $expedition->id : $expeditionId,
+                    'expedition_code' => $expedition ? $expedition->expedition_code : null,
+                    'expedition_name' => $expedition ? $expedition->expedition_name : ($itemVendor ? $itemVendor->company_name : null),
+                ];
+            }
 
             return [
                 'batch_id'        => $item->batch_id,
@@ -332,6 +414,8 @@ class VendorRateService
                 'total_routes'    => (int) $item->total_routes,
                 'remarks'         => $item->remarks,
                 'submitted_at'    => $item->created_at ? date('Y-m-d H:i:s', strtotime((string)$item->created_at)) : null,
+                'expedition'      => $expeditionData,
+                'vendor'          => $this->formatVendorDetail($itemVendor),
             ];
         });
 
@@ -360,7 +444,7 @@ class VendorRateService
                     $q->orWhere('id', (int) substr($batchId, 6));
                 }
             })
-            ->with(['warehouse', 'destination', 'expedition'])
+            ->with(['warehouse', 'destination', 'expedition.vendor'])
             ->get();
 
         if ($rates->isEmpty()) {
@@ -378,10 +462,17 @@ class VendorRateService
             ? 'ACTIVE'
             : 'INACTIVE';
 
+        $batchExpedition = $first->expedition;
+        $batchVendor = $vendor ?? ($batchExpedition?->vendor ?? ($first->expedition_id ? Vendor::where('expedition_id', $first->expedition_id)->first() : null));
+
+        if ($batchVendor) {
+            Vendor::preloadRegionNames([$batchVendor]);
+        }
+
         $headerExpedition = [
-            'id'              => $first->expedition->id ?? ($vendor ? ($vendor->expedition->id ?? $vendor->expedition_id) : null),
-            'expedition_code' => $first->expedition->expedition_code ?? ($vendor ? ($vendor->expedition->expedition_code ?? null) : null),
-            'expedition_name' => $first->expedition->expedition_name ?? ($vendor ? ($vendor->expedition->expedition_name ?? $vendor->company_name) : 'N/A'),
+            'id'              => $batchExpedition->id ?? ($vendor ? ($vendor->expedition->id ?? $vendor->expedition_id) : $first->expedition_id),
+            'expedition_code' => $batchExpedition->expedition_code ?? ($vendor ? ($vendor->expedition->expedition_code ?? null) : null),
+            'expedition_name' => $batchExpedition->expedition_name ?? ($batchVendor ? $batchVendor->company_name : 'N/A'),
         ];
 
         $header = [
@@ -395,6 +486,7 @@ class VendorRateService
             'submitted_at'    => $first->created_at ? $first->created_at->format('Y-m-d H:i:s') : null,
             'remarks'         => $first->remarks,
             'expedition'      => $headerExpedition,
+            'vendor'          => $this->formatVendorDetail($batchVendor),
         ];
 
         $details = $rates->map(function ($rate, $index) {

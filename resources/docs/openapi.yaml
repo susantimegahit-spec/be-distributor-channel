@@ -15245,7 +15245,7 @@ paths:
             default: 15
       responses:
         '200':
-          description: Rate submission headers retrieved successfully.
+          description: Rate submission headers retrieved successfully with vendor details and expedition info.
         '401':
           description: Unauthenticated access.
         '403':
@@ -15254,7 +15254,7 @@ paths:
   /vendor-management/rates/headers/{batchId}:
     get:
       summary: Detail Batch Pengajuan Tarif (SMETSA Internal)
-      description: Mengambil informasi header batch pengajuan tarif beserta array details (daftar rute pengiriman, lead time, tonase, dan tarif) untuk staf internal SMETSA Backoffice.
+      description: Mengambil informasi header batch pengajuan tarif beserta vendor detail, expedition info, dan array details (daftar rute pengiriman, lead time, tonase, dan tarif) untuk staf internal SMETSA Backoffice.
       tags:
         - Vendor Management (Rates)
       security:
@@ -15268,7 +15268,7 @@ paths:
             type: string
       responses:
         '200':
-          description: Rate batch details retrieved successfully.
+          description: Rate batch details retrieved successfully with header, expedition, and vendor detail.
         '401':
           description: Unauthenticated access.
         '403':

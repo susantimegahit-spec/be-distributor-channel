@@ -516,6 +516,13 @@ class VendorRateSubmissionTest extends TestCase
                 'message' => 'Rate submission headers retrieved successfully.',
             ]);
         $this->assertEquals(1, $headersResponse->json('meta.total'));
+        $this->assertNotNull($headersResponse->json('data.0.vendor'));
+        $this->assertEquals($vendor->id, $headersResponse->json('data.0.vendor.id'));
+        $this->assertEquals($vendor->vendor_code, $headersResponse->json('data.0.vendor.vendor_code'));
+        $this->assertEquals($vendor->company_name, $headersResponse->json('data.0.vendor.company_name'));
+        $this->assertEquals($vendor->company_email, $headersResponse->json('data.0.vendor.company_email'));
+        $this->assertNotNull($headersResponse->json('data.0.expedition'));
+        $this->assertEquals($vendor->expedition_id, $headersResponse->json('data.0.expedition.id'));
 
         // 4. Internal user accesses GET /vendor-management/rates/headers/{batchId}
         $detailResponse = $this->actingAs($internalUser, 'sanctum')
@@ -530,5 +537,8 @@ class VendorRateSubmissionTest extends TestCase
                     ],
                 ],
             ]);
+        $this->assertNotNull($detailResponse->json('data.header.vendor'));
+        $this->assertEquals($vendor->id, $detailResponse->json('data.header.vendor.id'));
+        $this->assertEquals($vendor->company_name, $detailResponse->json('data.header.vendor.company_name'));
     }
 }
