@@ -3,6 +3,7 @@
 use App\Modules\Ekspedisi\Controllers\ExpeditionController;
 use App\Modules\Ekspedisi\Controllers\ExpeditionRateController;
 use App\Modules\Ekspedisi\Controllers\WilayahController;
+use App\Modules\Ekspedisi\Controllers\MasterLeadtimeController;
 use App\Modules\Ekspedisi\Controllers\WarehouseOriginController;
 use App\Modules\Ekspedisi\Controllers\SapEkspedisiController;
 use Illuminate\Support\Facades\Route;
@@ -38,6 +39,9 @@ Route::prefix('v1/ekspedisi')->middleware('auth:sanctum')->group(function () {
 
     // Master Origin/Gudang Asal (Warehouse Origins)
     Route::apiResource('origins', WarehouseOriginController::class);
+
+    // Master Leadtime (Logistics Route Benchmark Lead Time)
+    Route::apiResource('leadtimes', MasterLeadtimeController::class);
 });
 
 // Logistic & Sales Order Delivery Monitoring Routes

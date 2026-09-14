@@ -15342,6 +15342,361 @@ paths:
         '403':
           description: Unauthorized access. Only internal users can access this endpoint.
 
+  /v1/ekspedisi/leadtimes:
+    get:
+      summary: Daftar Master Leadtime Pengiriman (CRUD)
+      description: Mengambil daftar benchmark durasi/lead time pengiriman antar gudang asal ke tujuan/kota distributor. Mendukung filter pencarian rute, kode gudang asal, kota tujuan, moda transportasi, status, dan pagination.
+      tags:
+        - Ekspedisi - Master Leadtime
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          description: Pencarian nama gudang asal, kode gudang, kota asal, nama tujuan, kode tujuan, atau catatan
+          schema:
+            type: string
+        - name: origin_warehouse_code
+          in: query
+          description: Filter kode gudang asal (contoh WHS-SUB, WHS-JKT)
+          schema:
+            type: string
+        - name: destination_city
+          in: query
+          description: Filter nama kota/kabupaten tujuan (contoh SEMARANG, BANDUNG)
+          schema:
+            type: string
+        - name: destination_code
+          in: query
+          description: Filter kode tujuan spesifik
+          schema:
+            type: string
+        - name: transport_mode
+          in: query
+          description: Filter moda transportasi (LAND, SEA, AIR)
+          schema:
+            type: string
+            enum: [LAND, SEA, AIR]
+        - name: status
+          in: query
+          description: Filter status master leadtime (ACTIVE, INACTIVE)
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE]
+        - name: per_page
+          in: query
+          description: Jumlah baris data per halaman (default 15)
+          schema:
+            type: integer
+            default: 15
+        - name: page
+          in: query
+          description: Halaman data yang diminta
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Master lead times retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Master lead times retrieved successfully.
+                  data:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                        example: 1
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MasterLeadtimeItem'
+                      total:
+                        type: integer
+                        example: 45
+        '401':
+          description: Unauthenticated access.
+    post:
+      summary: Tambah Master Leadtime Rute Baru
+      description: Menambahkan rute dan benchmark estimasi lead time pengiriman baru dari gudang asal ke titik/kota tujuan.
+      tags:
+        - Ekspedisi - Master Leadtime
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - destination_name
+                - avg_lead_time_days
+              properties:
+                warehouse_origin_id:
+                  type: integer
+                  description: ID master warehouse origin (opsional)
+                  example: 1
+                origin_warehouse_code:
+                  type: string
+                  description: Kode gudang asal pengiriman (contoh WHS-SUB)
+                  example: "WHS-SUB"
+                origin_warehouse_name:
+                  type: string
+                  description: Nama gudang asal pengiriman
+                  example: "Gudang Utama Surabaya Waru"
+                origin_city:
+                  type: string
+                  description: Kota gudang asal
+                  example: "SURABAYA"
+                destination_id:
+                  type: integer
+                  description: ID entitas tujuan / customer shipto
+                  example: 12
+                destination_regency_id:
+                  type: integer
+                  description: ID master kabupaten/kota tujuan
+                  example: 3578
+                destination_code:
+                  type: string
+                  description: Kode titik tujuan / CardCode / shipto
+                  example: "DEST-BDG"
+                destination_name:
+                  type: string
+                  description: Nama tujuan pengiriman
+                  example: "Gudang Distributor Bandung"
+                destination_city:
+                  type: string
+                  description: Kota/kabupaten tujuan
+                  example: "BANDUNG"
+                destination_province:
+                  type: string
+                  description: Provinsi tujuan
+                  example: "JAWA BARAT"
+                avg_lead_time_days:
+                  type: number
+                  format: float
+                  description: Rata-rata durasi lead time pengiriman dalam hari
+                  example: 2.50
+                min_lead_time_days:
+                  type: number
+                  format: float
+                  description: Minimal durasi lead time dalam hari
+                  example: 2.00
+                max_lead_time_days:
+                  type: number
+                  format: float
+                  description: Maksimal durasi lead time dalam hari
+                  example: 3.00
+                lead_time_unit:
+                  type: string
+                  enum: [DAYS, HOURS]
+                  default: DAYS
+                  example: "DAYS"
+                transport_mode:
+                  type: string
+                  enum: [LAND, SEA, AIR]
+                  default: LAND
+                  example: "LAND"
+                distance_km:
+                  type: number
+                  format: float
+                  description: Jarak rute dalam kilometer
+                  example: 680.00
+                status:
+                  type: string
+                  enum: [ACTIVE, INACTIVE]
+                  default: ACTIVE
+                  example: "ACTIVE"
+                remarks:
+                  type: string
+                  description: Catatan tambahan rute operasional
+                  example: "Truk Fuso reguler via tol Trans Jawa"
+      responses:
+        '201':
+          description: Master lead time created successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Master lead time created successfully.
+                  data:
+                    $ref: '#/components/schemas/MasterLeadtimeItem'
+        '422':
+          description: Validation error.
+
+  /v1/ekspedisi/leadtimes/{id}:
+    get:
+      summary: Detail Master Leadtime Rute
+      description: Mengambil data detail satu baris master leadtime berdasarkan ID.
+      tags:
+        - Ekspedisi - Master Leadtime
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Master Leadtime
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Master lead time detail retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Master lead time detail retrieved successfully.
+                  data:
+                    $ref: '#/components/schemas/MasterLeadtimeItem'
+        '404':
+          description: Master lead time not found.
+    put:
+      summary: Update Master Leadtime
+      description: Memperbarui data rute, benchmark lead time, status, atau catatan rute pengiriman.
+      tags:
+        - Ekspedisi - Master Leadtime
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Master Leadtime
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                origin_warehouse_code:
+                  type: string
+                  example: "WHS-SUB"
+                origin_warehouse_name:
+                  type: string
+                  example: "Gudang Utama Surabaya Waru"
+                origin_city:
+                  type: string
+                  example: "SURABAYA"
+                destination_name:
+                  type: string
+                  example: "Gudang Distributor Bandung"
+                destination_city:
+                  type: string
+                  example: "BANDUNG"
+                destination_province:
+                  type: string
+                  example: "JAWA BARAT"
+                avg_lead_time_days:
+                  type: number
+                  format: float
+                  example: 3.00
+                min_lead_time_days:
+                  type: number
+                  format: float
+                  example: 2.50
+                max_lead_time_days:
+                  type: number
+                  format: float
+                  example: 4.00
+                lead_time_unit:
+                  type: string
+                  enum: [DAYS, HOURS]
+                  example: "DAYS"
+                transport_mode:
+                  type: string
+                  enum: [LAND, SEA, AIR]
+                  example: "LAND"
+                distance_km:
+                  type: number
+                  format: float
+                  example: 680.00
+                status:
+                  type: string
+                  enum: [ACTIVE, INACTIVE]
+                  example: "ACTIVE"
+                remarks:
+                  type: string
+                  example: "Penyesuaian perbaikan jalan tol"
+      responses:
+        '200':
+          description: Master lead time updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Master lead time updated successfully.
+                  data:
+                    $ref: '#/components/schemas/MasterLeadtimeItem'
+        '404':
+          description: Master lead time not found.
+        '422':
+          description: Validation error.
+    delete:
+      summary: Hapus Master Leadtime
+      description: Menghapus data rute benchmark master leadtime dari sistem.
+      tags:
+        - Ekspedisi - Master Leadtime
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Master Leadtime
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Master lead time deleted successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Master lead time deleted successfully.
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+        '404':
+          description: Master lead time not found.
+
   /v1/logistic/orders:
     get:
       summary: List Sales Orders for Logistics Delivery Readiness
@@ -18940,4 +19295,98 @@ components:
             username:
               type: string
               example: logistic_user
+
+    MasterLeadtimeItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        warehouse_origin_id:
+          type: integer
+          nullable: true
+          example: 1
+        origin_warehouse_code:
+          type: string
+          nullable: true
+          example: "WHS-SUB"
+        origin_warehouse_name:
+          type: string
+          example: "Gudang Utama Surabaya Waru"
+        origin_city:
+          type: string
+          nullable: true
+          example: "SURABAYA"
+        destination_id:
+          type: integer
+          nullable: true
+          example: 12
+        destination_regency_id:
+          type: integer
+          nullable: true
+          example: 3578
+        destination_code:
+          type: string
+          nullable: true
+          example: "DEST-BDG"
+        destination_name:
+          type: string
+          example: "Gudang Distributor Bandung"
+        destination_city:
+          type: string
+          nullable: true
+          example: "BANDUNG"
+        destination_province:
+          type: string
+          nullable: true
+          example: "JAWA BARAT"
+        avg_lead_time_days:
+          type: number
+          format: float
+          example: 2.50
+        min_lead_time_days:
+          type: number
+          format: float
+          nullable: true
+          example: 2.00
+        max_lead_time_days:
+          type: number
+          format: float
+          nullable: true
+          example: 3.00
+        lead_time_unit:
+          type: string
+          example: "DAYS"
+        transport_mode:
+          type: string
+          example: "LAND"
+        distance_km:
+          type: number
+          format: float
+          nullable: true
+          example: 680.00
+        status:
+          type: string
+          example: "ACTIVE"
+        remarks:
+          type: string
+          nullable: true
+          example: "Truk Fuso reguler via tol Trans Jawa"
+        created_by:
+          type: integer
+          nullable: true
+          example: 1
+        updated_by:
+          type: integer
+          nullable: true
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-09-14T10:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-09-14T10:00:00.000000Z"
+
 
