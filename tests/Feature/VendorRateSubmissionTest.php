@@ -419,4 +419,77 @@ class VendorRateSubmissionTest extends TestCase
 
         $response->assertStatus(403);
     }
+
+    public function test_internal_smetsa_user_can_access_vendor_portal_rates_and_headers()
+    {
+        [$vendor, $vendorUser] = $this->createApprovedExpeditionVendor();
+
+        $warehouse = Warehouse::create([
+            'whs_code' => 'WHS-MLG-01',
+            'whs_name' => 'Gudang Malang',
+        ]);
+
+        $shipto = CustomerShipto::create([
+            'card_code' => 'CUST-MLG-01',
+            'name'      => 'Toko Malang Sejahtera',
+            'city'      => 'Malang',
+        ]);
+
+        $batchId = 'BATCH-INTERNAL-VIEW-01';
+
+        ExpeditionRate::create([
+            'expedition_id'   => $vendor->expedition_id,
+            'warehouse_id'    => $warehouse->id,
+            'destination_id'  => $shipto->id,
+            'transport_mode'  => 'DARAT',
+            'service_type'    => 'TRONTON',
+            'min_tonnage'     => 0,
+            'max_tonnage'     => 10000,
+            'price'           => 3500000,
+            'eta_days'        => 2,
+            'valid_from'      => '2026-09-01',
+            'valid_until'     => '2027-09-01',
+            'status'          => 'INACTIVE',
+            'flag'            => false,
+            'approval_status' => 'PENDING',
+            'upload_batch_id' => $batchId,
+        ]);
+
+        $internalUser = \App\Models\User::factory()->create();
+
+        // 1. Internal user accesses GET /vendor-portal/rates without 403 error
+        $ratesResponse = $this->actingAs($internalUser, 'sanctum')
+            ->getJson('/api/distributor-channel/vendor-portal/rates');
+
+        $ratesResponse->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Vendor rates retrieved successfully.',
+            ]);
+        $this->assertGreaterThanOrEqual(1, $ratesResponse->json('meta.total'));
+
+        // 2. Internal user accesses GET /vendor-portal/rates/headers
+        $headersResponse = $this->actingAs($internalUser, 'sanctum')
+            ->getJson('/api/distributor-channel/vendor-portal/rates/headers');
+
+        $headersResponse->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Rate submission headers retrieved successfully.',
+            ]);
+
+        // 3. Internal user accesses GET /vendor-portal/rates/headers/{batchId}
+        $detailResponse = $this->actingAs($internalUser, 'sanctum')
+            ->getJson("/api/distributor-channel/vendor-portal/rates/headers/{$batchId}");
+
+        $detailResponse->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'header' => [
+                        'batch_id' => $batchId,
+                    ],
+                ],
+            ]);
+    }
 }

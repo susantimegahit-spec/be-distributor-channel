@@ -22,18 +22,28 @@ class VendorRateService
     }
 
     /**
-     * Get paginated rates submitted by the vendor.
+     * Get paginated rates submitted by the vendor or all vendors for internal admin.
      */
-    public function listRates(Vendor $vendor, array $filters = [], int $perPage = 15): LengthAwarePaginator
+    public function listRates(?Vendor $vendor = null, array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
-        if (!$vendor->expedition_id) {
+        if ($vendor && !$vendor->expedition_id) {
             throw ValidationException::withMessages([
                 'vendor' => ['Vendor is not linked to an expedition master record yet.'],
             ]);
         }
 
-        $query = ExpeditionRate::with(['warehouse', 'destination', 'approver'])
-            ->where('expedition_id', $vendor->expedition_id);
+        $query = ExpeditionRate::with(['warehouse', 'destination', 'approver', 'expedition']);
+
+        if ($vendor && $vendor->expedition_id) {
+            $query->where('expedition_id', $vendor->expedition_id);
+        } elseif (!empty($filters['expedition_id'])) {
+            $query->where('expedition_id', $filters['expedition_id']);
+        } elseif (!empty($filters['vendor_id'])) {
+            $expId = Vendor::where('id', $filters['vendor_id'])->value('expedition_id');
+            if ($expId) {
+                $query->where('expedition_id', $expId);
+            }
+        }
 
         if (!empty($filters['approval_status'])) {
             $query->where('approval_status', strtoupper(trim($filters['approval_status'])));
@@ -251,14 +261,25 @@ class VendorRateService
     /**
      * Get paginated batch submission headers for vendor portal dashboard/table.
      */
-    public function listRateHeaders(Vendor $vendor, array $filters = [], int $perPage = 15)
+    public function listRateHeaders(?Vendor $vendor = null, array $filters = [], int $perPage = 15)
     {
-        if (!$vendor->expedition_id) {
-            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage);
+        $query = ExpeditionRate::query();
+
+        if ($vendor) {
+            if (!$vendor->expedition_id) {
+                return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage);
+            }
+            $query->where('expedition_id', $vendor->expedition_id);
+        } elseif (!empty($filters['expedition_id'])) {
+            $query->where('expedition_id', $filters['expedition_id']);
+        } elseif (!empty($filters['vendor_id'])) {
+            $expId = Vendor::where('id', $filters['vendor_id'])->value('expedition_id');
+            if ($expId) {
+                $query->where('expedition_id', $expId);
+            }
         }
 
-        $query = ExpeditionRate::where('expedition_id', $vendor->expedition_id)
-            ->selectRaw("
+        $query->selectRaw("
                 COALESCE(upload_batch_id, 'BATCH-' || id) as batch_id,
                 MIN(valid_from) as valid_from,
                 MAX(valid_until) as valid_until,
@@ -320,16 +341,20 @@ class VendorRateService
     /**
      * Get single batch header with detail rate routes.
      */
-    public function getRateBatchDetail(Vendor $vendor, string $batchId): array
+    public function getRateBatchDetail(?Vendor $vendor = null, string $batchId = ''): array
     {
-        if (!$vendor->expedition_id) {
-            throw ValidationException::withMessages([
-                'vendor' => ['Vendor is not linked to an expedition master record yet.'],
-            ]);
+        $query = ExpeditionRate::query();
+
+        if ($vendor) {
+            if (!$vendor->expedition_id) {
+                throw ValidationException::withMessages([
+                    'vendor' => ['Vendor is not linked to an expedition master record yet.'],
+                ]);
+            }
+            $query->where('expedition_id', $vendor->expedition_id);
         }
 
-        $rates = ExpeditionRate::where('expedition_id', $vendor->expedition_id)
-            ->where(function ($q) use ($batchId) {
+        $rates = $query->where(function ($q) use ($batchId) {
                 $q->where('upload_batch_id', $batchId);
                 if (str_starts_with($batchId, 'BATCH-') && is_numeric(substr($batchId, 6))) {
                     $q->orWhere('id', (int) substr($batchId, 6));
@@ -353,6 +378,12 @@ class VendorRateService
             ? 'ACTIVE'
             : 'INACTIVE';
 
+        $headerExpedition = [
+            'id'              => $first->expedition->id ?? ($vendor ? ($vendor->expedition->id ?? $vendor->expedition_id) : null),
+            'expedition_code' => $first->expedition->expedition_code ?? ($vendor ? ($vendor->expedition->expedition_code ?? null) : null),
+            'expedition_name' => $first->expedition->expedition_name ?? ($vendor ? ($vendor->expedition->expedition_name ?? $vendor->company_name) : 'N/A'),
+        ];
+
         $header = [
             'batch_id'        => $batchId,
             'valid_from'      => $validFromStr,
@@ -363,11 +394,7 @@ class VendorRateService
             'total_routes'    => $rates->count(),
             'submitted_at'    => $first->created_at ? $first->created_at->format('Y-m-d H:i:s') : null,
             'remarks'         => $first->remarks,
-            'expedition'      => [
-                'id'              => $vendor->expedition->id ?? $vendor->expedition_id,
-                'expedition_code' => $vendor->expedition->expedition_code ?? null,
-                'expedition_name' => $vendor->expedition->expedition_name ?? $vendor->company_name,
-            ],
+            'expedition'      => $headerExpedition,
         ];
 
         $details = $rates->map(function ($rate, $index) {

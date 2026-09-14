@@ -14570,12 +14570,24 @@ paths:
   /vendor-portal/rates/headers:
     get:
       summary: Daftar Header Pengajuan Tarif Vendor (Batch Submissions)
-      description: Mengambil daftar ringkasan pengajuan tarif per batch upload/submission (periode valid_from/valid_until, status pengajuan, total rute) untuk tabel utama FE.
+      description: Mengambil daftar ringkasan pengajuan tarif per batch upload/submission (periode valid_from/valid_until, status pengajuan, total rute) untuk tabel utama FE. Mendukung autentikasi akun Vendor Portal (terkunci ke vendornya) maupun akun internal Dashboard SMETSA (dapat melihat seluruh vendor atau filter per vendor).
       tags:
         - Vendor Portal
       security:
         - BearerAuth: []
       parameters:
+        - name: vendor_id
+          in: query
+          required: false
+          description: Filter ID vendor (khusus admin internal SMETSA)
+          schema:
+            type: integer
+        - name: expedition_id
+          in: query
+          required: false
+          description: Filter ID master ekspedisi (khusus admin internal SMETSA)
+          schema:
+            type: integer
         - name: approval_status
           in: query
           description: Filter status persetujuan tarif (PENDING, APPROVED, REJECTED)
@@ -14616,7 +14628,7 @@ paths:
   /vendor-portal/rates/headers/{batchId}:
     get:
       summary: Detail Batch Pengajuan Tarif (Header & Rincian Rute)
-      description: Mengambil informasi header batch pengajuan tarif beserta array details (daftar rute pengiriman, lead time, tonase, dan tarif).
+      description: Mengambil informasi header batch pengajuan tarif beserta array details (daftar rute pengiriman, lead time, tonase, dan tarif). Mendukung akses mitra vendor dan admin internal SMETSA.
       tags:
         - Vendor Portal
       security:
@@ -14637,12 +14649,24 @@ paths:
   /vendor-portal/rates:
     get:
       summary: Daftar Tarif Pengiriman Vendor (Rate Card Items)
-      description: Mengambil daftar tarif pengiriman per rute yang diajukan oleh mitra vendor ekspedisi yang sedang login, dilengkapi filter dan pagination.
+      description: Mengambil daftar tarif pengiriman per rute. Jika diakses oleh akun mitra vendor portal otomatis terkunci ke vendor miliknya, dan jika diakses oleh akun internal Dashboard SMETSA dapat melihat seluruh tarif atau memfilter berdasarkan vendor_id / expedition_id.
       tags:
         - Vendor Portal
       security:
         - BearerAuth: []
       parameters:
+        - name: vendor_id
+          in: query
+          required: false
+          description: Filter ID vendor (khusus admin internal SMETSA)
+          schema:
+            type: integer
+        - name: expedition_id
+          in: query
+          required: false
+          description: Filter ID master ekspedisi (khusus admin internal SMETSA)
+          schema:
+            type: integer
         - name: batch_id
           in: query
           description: Filter berdasarkan ID batch pengajuan tarif

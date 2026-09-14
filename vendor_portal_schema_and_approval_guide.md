@@ -688,7 +688,9 @@ sequenceDiagram
 
 ### 5.3 Spesifikasi Endpoint Pengajuan Tarif Vendor
 
-Seluruh endpoint di bawah ini mewajibkan header autentikasi `Authorization: Bearer <sanctum_token>` dari user vendor yang berstatus `APPROVED` dan memiliki `vendor_type == 'EXPEDITION'`.
+Seluruh endpoint di bawah ini mewajibkan header autentikasi `Authorization: Bearer <sanctum_token>`. Sistem mendukung dua jenis akun:
+1. **Mitra Vendor (`VendorUser`):** Wajib berstatus `APPROVED` dan bertipe `EXPEDITION`. Data yang diakses terkunci 100% ke data ekspedisi miliknya sendiri.
+2. **Karyawan / Admin Internal SMETSA (`App\Models\User`):** Dapat mengakses endpoint pengajuan tarif untuk melihat seluruh data pengajuan vendor portal atau memfilter berdasarkan `vendor_id` / `expedition_id` langsung dari dashboard SMETSA.
 
 #### 1. Download Template CSV Pengajuan Tarif
 - **Method & Path:** `GET /api/distributor-channel/vendor-portal/rates/template` (atau `/v1/vendor-portal/rates/template`)
