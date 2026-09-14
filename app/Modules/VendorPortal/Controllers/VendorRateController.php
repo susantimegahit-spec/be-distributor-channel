@@ -26,84 +26,38 @@ class VendorRateController extends Controller
 
     /**
      * Resolve the authenticated expedition vendor.
-     * Supports both VendorUser (Vendor Portal) and User (Internal SMETSA Dashboard).
      */
-    protected function resolveVendor(Request $request, bool $required = true): ?Vendor
+    protected function resolveVendor(Request $request): Vendor
     {
         $user = $request->user();
 
-        // 1. If authenticated as a Vendor Partner (Vendor Portal)
-        if ($user instanceof VendorUser) {
-            $vendor = $user->vendor;
-
-            if (!$vendor || $vendor->registration_status !== 'APPROVED') {
-                throw new \Illuminate\Http\Exceptions\HttpResponseException(
-                    response()->json(['success' => false, 'message' => 'Vendor account is not approved by the legal team yet.'], 403)
-                );
-            }
-
-            if (strtoupper((string) $vendor->vendor_type) !== 'EXPEDITION') {
-                throw new \Illuminate\Http\Exceptions\HttpResponseException(
-                    response()->json(['success' => false, 'message' => 'Rate card submission is only available for expedition vendor partners.'], 422)
-                );
-            }
-
-            // Auto-link expedition if missing
-            if (!$vendor->expedition_id) {
-                $this->approvalService->syncToExpeditionMaster($vendor);
-                $vendor->refresh();
-            }
-
-            return $vendor;
+        if (!$user instanceof VendorUser) {
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json(['success' => false, 'message' => 'Unauthorized access. Only vendor users can access this endpoint.'], 403)
+            );
         }
 
-        // 2. If authenticated as an internal user (Dashboard SMETSA / Admin)
-        if ($user instanceof \App\Models\User) {
-            $vendorId = $request->input('vendor_id') ?? $request->query('vendor_id');
-            $expeditionId = $request->input('expedition_id') ?? $request->query('expedition_id');
+        $vendor = $user->vendor;
 
-            if ($vendorId) {
-                $vendor = Vendor::find($vendorId);
-                if (!$vendor) {
-                    throw new \Illuminate\Http\Exceptions\HttpResponseException(
-                        response()->json(['success' => false, 'message' => "Vendor with ID {$vendorId} not found."], 404)
-                    );
-                }
-                if (!$vendor->expedition_id) {
-                    $this->approvalService->syncToExpeditionMaster($vendor);
-                    $vendor->refresh();
-                }
-                return $vendor;
-            }
-
-            if ($expeditionId) {
-                $vendor = Vendor::where('expedition_id', $expeditionId)->first();
-                if (!$vendor) {
-                    $expedition = \App\Models\Expedition::find($expeditionId);
-                    if ($expedition && $expedition->vendor_id) {
-                        $vendor = Vendor::find($expedition->vendor_id);
-                    }
-                }
-                if ($vendor) {
-                    return $vendor;
-                }
-                throw new \Illuminate\Http\Exceptions\HttpResponseException(
-                    response()->json(['success' => false, 'message' => "Vendor associated with expedition ID {$expeditionId} not found."], 404)
-                );
-            }
-
-            if ($required) {
-                throw new \Illuminate\Http\Exceptions\HttpResponseException(
-                    response()->json(['success' => false, 'message' => 'Please provide vendor_id or expedition_id for this action.'], 422)
-                );
-            }
-
-            return null;
+        if (!$vendor || $vendor->registration_status !== 'APPROVED') {
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json(['success' => false, 'message' => 'Vendor account is not approved by the legal team yet.'], 403)
+            );
         }
 
-        throw new \Illuminate\Http\Exceptions\HttpResponseException(
-            response()->json(['success' => false, 'message' => 'Unauthorized access.'], 403)
-        );
+        if (strtoupper((string) $vendor->vendor_type) !== 'EXPEDITION') {
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                response()->json(['success' => false, 'message' => 'Rate card submission is only available for expedition vendor partners.'], 422)
+            );
+        }
+
+        // Auto-link expedition if missing
+        if (!$vendor->expedition_id) {
+            $this->approvalService->syncToExpeditionMaster($vendor);
+            $vendor->refresh();
+        }
+
+        return $vendor;
     }
 
     /**
@@ -111,7 +65,7 @@ class VendorRateController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $vendor = $this->resolveVendor($request, false);
+        $vendor = $this->resolveVendor($request);
         $perPage = (int) $request->input('per_page', 15);
 
         $filters = [
@@ -121,8 +75,6 @@ class VendorRateController extends Controller
             'destination_id'  => $request->input('destination_id'),
             'batch_id'        => $request->input('batch_id'),
             'search'          => $request->input('search'),
-            'expedition_id'   => $request->input('expedition_id'),
-            'vendor_id'       => $request->input('vendor_id'),
         ];
 
         $rates = $this->rateService->listRates($vendor, $filters, $perPage);
@@ -145,7 +97,7 @@ class VendorRateController extends Controller
      */
     public function headers(Request $request): JsonResponse
     {
-        $vendor = $this->resolveVendor($request, false);
+        $vendor = $this->resolveVendor($request);
         $perPage = (int) $request->input('per_page', 15);
 
         $filters = [
@@ -153,8 +105,6 @@ class VendorRateController extends Controller
             'search'          => $request->input('search'),
             'date_from'       => $request->input('date_from'),
             'date_to'         => $request->input('date_to'),
-            'expedition_id'   => $request->input('expedition_id'),
-            'vendor_id'       => $request->input('vendor_id'),
         ];
 
         $headers = $this->rateService->listRateHeaders($vendor, $filters, $perPage);
@@ -177,7 +127,7 @@ class VendorRateController extends Controller
      */
     public function showBatch(Request $request, string $batchId): JsonResponse
     {
-        $vendor = $this->resolveVendor($request, false);
+        $vendor = $this->resolveVendor($request);
 
         try {
             $data = $this->rateService->getRateBatchDetail($vendor, $batchId);

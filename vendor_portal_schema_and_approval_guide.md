@@ -686,11 +686,9 @@ sequenceDiagram
 
 ---
 
-### 5.3 Spesifikasi Endpoint Pengajuan Tarif Vendor
+### 5.3 Spesifikasi Endpoint Pengajuan Tarif Mitra Vendor (`/vendor-portal/rates`)
 
-Seluruh endpoint di bawah ini mewajibkan header autentikasi `Authorization: Bearer <sanctum_token>`. Sistem mendukung dua jenis akun:
-1. **Mitra Vendor (`VendorUser`):** Wajib berstatus `APPROVED` dan bertipe `EXPEDITION`. Data yang diakses terkunci 100% ke data ekspedisi miliknya sendiri.
-2. **Karyawan / Admin Internal SMETSA (`App\Models\User`):** Dapat mengakses endpoint pengajuan tarif untuk melihat seluruh data pengajuan vendor portal atau memfilter berdasarkan `vendor_id` / `expedition_id` langsung dari dashboard SMETSA.
+Seluruh endpoint di bawah ini mewajibkan header autentikasi `Authorization: Bearer <sanctum_token>` dan **khusus untuk mitra vendor (`VendorUser`)** yang sudah berstatus `APPROVED` dan bertipe `EXPEDITION`. Seluruh data terkunci 100% ke data ekspedisi miliknya sendiri. Jika diakses oleh akun karyawan internal SMETSA (`User`), sistem akan mengembalikan respon error `403 Forbidden`.
 
 #### 1. Download Template CSV Pengajuan Tarif
 - **Method & Path:** `GET /api/distributor-channel/vendor-portal/rates/template` (atau `/v1/vendor-portal/rates/template`)
@@ -837,6 +835,155 @@ Seluruh endpoint di bawah ini mewajibkan header autentikasi `Authorization: Bear
       "updated_count": 5,
       "skipped_count": 0,
       "errors": []
+    }
+  }
+  ```
+
+---
+
+### 5.4 Spesifikasi Endpoint Monitoring Tarif Staf Internal SMETSA (`/vendor-management/rates`)
+
+Khusus untuk akun karyawan / backoffice SMETSA (`App\Models\User`) yang login melalui dashboard internal SMETSA. Endpoint ini memisahkan jalur internal dari Vendor Portal, memungkinkan staf logistik / legal untuk memonitor, mengaudit, dan memfilter pengajuan tarif berdasarkan ID Vendor atau ID Ekspedisi tertentu.
+
+#### 1. Daftar Header Pengajuan Tarif Vendor (Internal Backoffice)
+- **Method & Path:** `GET /api/distributor-channel/vendor-management/rates/headers` (atau `/v1/vendor-management/rates/headers`)
+- **Headers:** `Authorization: Bearer <token>`
+- **Query Parameters:**
+  | Parameter | Tipe | Keterangan |
+  |:---|:---:|:---|
+  | `vendor_id` | integer | Filter berdasarkan ID master vendor |
+  | `expedition_id` | integer | Filter berdasarkan ID master ekspedisi |
+  | `approval_status` | string | Filter status (`PENDING`, `APPROVED`, `REJECTED`) |
+  | `search` | string | Pencarian kode batch / catatan |
+  | `date_from` | date | Filter awal periode (YYYY-MM-DD) |
+  | `date_to` | date | Filter akhir periode (YYYY-MM-DD) |
+  | `page` | integer | Halaman pagination (default: 1) |
+  | `per_page` | integer | Limit per halaman (default: 15) |
+- **Response `200 OK`:**
+  ```json
+  {
+    "success": true,
+    "message": "Rate submission headers retrieved successfully.",
+    "data": [
+      {
+        "batch_id": "BATCH-RATE-20260910-001",
+        "valid_from": "2026-08-15",
+        "valid_until": "2027-08-15",
+        "period_label": "2026-08-15 s/d 2027-08-15",
+        "approval_status": "PENDING",
+        "status": "INACTIVE",
+        "total_routes": 25,
+        "remarks": "Pengajuan tarif periode 2026-2027",
+        "submitted_at": "2026-09-10 11:20:00"
+      }
+    ],
+    "meta": {
+      "current_page": 1,
+      "last_page": 1,
+      "per_page": 15,
+      "total": 1
+    }
+  }
+  ```
+
+#### 2. Detail Batch Pengajuan Tarif (Header & Detail Rute untuk Internal Backoffice)
+- **Method & Path:** `GET /api/distributor-channel/vendor-management/rates/headers/{batchId}` (atau `/v1/vendor-management/rates/headers/{batchId}`)
+- **Headers:** `Authorization: Bearer <token>`
+- **Path Parameter:** `batchId` (contoh: `BATCH-RATE-20260910-001` atau `MANUAL-SUBMIT-142`)
+- **Response `200 OK`:**
+  ```json
+  {
+    "success": true,
+    "message": "Rate batch details retrieved successfully.",
+    "data": {
+      "header": {
+        "batch_id": "BATCH-RATE-20260910-001",
+        "valid_from": "2026-08-15",
+        "valid_until": "2027-08-15",
+        "period_label": "2026-08-15 s/d 2027-08-15",
+        "approval_status": "PENDING",
+        "status": "INACTIVE",
+        "total_routes": 25,
+        "submitted_at": "2026-09-10 11:20:00",
+        "remarks": "Pengajuan tarif periode 2026-2027",
+        "expedition": {
+          "id": 12,
+          "expedition_code": "EXP-PTJAYATR-0001",
+          "expedition_name": "PT Jaya Trans Logistik"
+        }
+      },
+      "details": [
+        {
+          "no": 1,
+          "id": 142,
+          "origin_code": "PRD01-01",
+          "origin_name": "Gudang Manyar Gresik",
+          "destination_code": "CUST-SMG-01",
+          "destination_name": "Distributor Semarang Makmur",
+          "destination_city": "Semarang",
+          "transport_mode": "DARAT",
+          "service_type": "WINGBOX",
+          "min_weight_kg": 0,
+          "max_weight_kg": 15000,
+          "rate": 4500000,
+          "leadtime": 2,
+          "eta_days": 2,
+          "valid_from": "2026-08-15",
+          "valid_until": "2027-08-15",
+          "approval_status": "PENDING",
+          "status": "INACTIVE",
+          "flag": false,
+          "remarks": null
+        }
+      ]
+    }
+  }
+  ```
+
+#### 3. Daftar Seluruh Item Tarif Vendor (Internal Backoffice)
+- **Method & Path:** `GET /api/distributor-channel/vendor-management/rates` (atau `/v1/vendor-management/rates`)
+- **Headers:** `Authorization: Bearer <token>`
+- **Query Parameters:**
+  | Parameter | Tipe | Keterangan |
+  |:---|:---:|:---|
+  | `vendor_id` | integer | Filter berdasarkan ID master vendor |
+  | `expedition_id` | integer | Filter berdasarkan ID master ekspedisi |
+  | `batch_id` | string | Filter berdasarkan kode batch pengajuan |
+  | `approval_status` | string | Filter status (`PENDING`, `APPROVED`, `REJECTED`) |
+  | `transport_mode` | string | Filter moda transportasi (`DARAT`, `LAUT`, `UDARA`) |
+  | `warehouse_id` | integer | Filter ID gudang asal |
+  | `destination_id` | integer | Filter ID customer shipto tujuan |
+  | `search` | string | Pencarian nama gudang, nama tujuan, atau catatan |
+  | `page` | integer | Halaman pagination (default: 1) |
+  | `per_page` | integer | Limit per halaman (default: 15) |
+- **Response `200 OK`:**
+  ```json
+  {
+    "success": true,
+    "message": "Vendor rates retrieved successfully.",
+    "data": [
+      {
+        "id": 142,
+        "expedition_id": 12,
+        "warehouse_id": 1,
+        "destination_id": 88,
+        "transport_mode": "DARAT",
+        "service_type": "WINGBOX",
+        "min_tonnage": 0,
+        "max_tonnage": 15000,
+        "price": 4500000,
+        "eta_days": 2,
+        "approval_status": "PENDING",
+        "status": "INACTIVE",
+        "flag": false,
+        "upload_batch_id": "BATCH-RATE-20260910-001"
+      }
+    ],
+    "meta": {
+      "current_page": 1,
+      "last_page": 1,
+      "per_page": 15,
+      "total": 1
     }
   }
   ```

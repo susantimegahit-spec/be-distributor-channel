@@ -5,6 +5,7 @@ use App\Modules\VendorPortal\Controllers\VendorRegistrationController;
 use App\Modules\VendorPortal\Controllers\VendorAuthController;
 use App\Modules\VendorPortal\Controllers\VendorLegalApprovalController;
 use App\Modules\VendorPortal\Controllers\VendorRateController;
+use App\Modules\VendorPortal\Controllers\VendorManagementRateController;
 
 /*
 |--------------------------------------------------------------------------
@@ -75,6 +76,13 @@ $registerVendorRoutes = function () {
         Route::post('/registrations/{id}/request-revision', [VendorLegalApprovalController::class, 'requestRevision']);
         Route::post('/documents/{documentId}/verify', [VendorLegalApprovalController::class, 'verifyDocument']);
         Route::get('/documents/{documentId}/preview', [VendorLegalApprovalController::class, 'previewDocument']);
+
+        // Backoffice Rate Management & Monitoring (SMETSA Internal)
+        Route::middleware('auth:sanctum')->group(function () {
+            Route::get('/rates/headers', [VendorManagementRateController::class, 'headers']);
+            Route::get('/rates/headers/{batchId}', [VendorManagementRateController::class, 'showBatch']);
+            Route::get('/rates', [VendorManagementRateController::class, 'index']);
+        });
     });
 };
 

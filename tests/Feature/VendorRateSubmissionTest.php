@@ -420,7 +420,35 @@ class VendorRateSubmissionTest extends TestCase
         $response->assertStatus(403);
     }
 
-    public function test_internal_smetsa_user_can_access_vendor_portal_rates_and_headers()
+    public function test_internal_user_is_forbidden_from_vendor_portal_rates()
+    {
+        $internalUser = \App\Models\User::factory()->create();
+
+        $response = $this->actingAs($internalUser, 'sanctum')
+            ->getJson('/api/distributor-channel/vendor-portal/rates');
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Unauthorized access. Only vendor users can access this endpoint.',
+            ]);
+    }
+
+    public function test_vendor_user_is_forbidden_from_vendor_management_rates()
+    {
+        [$vendor, $vendorUser] = $this->createApprovedExpeditionVendor();
+
+        $response = $this->actingAs($vendorUser, 'sanctum')
+            ->getJson('/api/distributor-channel/vendor-management/rates');
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Unauthorized access. Only internal users can access this endpoint.',
+            ]);
+    }
+
+    public function test_internal_smetsa_user_can_access_vendor_management_rates_with_filters()
     {
         [$vendor, $vendorUser] = $this->createApprovedExpeditionVendor();
 
@@ -457,30 +485,41 @@ class VendorRateSubmissionTest extends TestCase
 
         $internalUser = \App\Models\User::factory()->create();
 
-        // 1. Internal user accesses GET /vendor-portal/rates without 403 error
+        // 1. Internal user accesses GET /vendor-management/rates with vendor_id filter
         $ratesResponse = $this->actingAs($internalUser, 'sanctum')
-            ->getJson('/api/distributor-channel/vendor-portal/rates');
+            ->getJson("/api/distributor-channel/vendor-management/rates?vendor_id={$vendor->id}");
 
         $ratesResponse->assertStatus(200)
             ->assertJson([
                 'success' => true,
                 'message' => 'Vendor rates retrieved successfully.',
             ]);
-        $this->assertGreaterThanOrEqual(1, $ratesResponse->json('meta.total'));
+        $this->assertEquals(1, $ratesResponse->json('meta.total'));
 
-        // 2. Internal user accesses GET /vendor-portal/rates/headers
+        // 2. Filter by expedition_id
+        $expFilterResponse = $this->actingAs($internalUser, 'sanctum')
+            ->getJson("/api/distributor-channel/vendor-management/rates?expedition_id={$vendor->expedition_id}");
+
+        $expFilterResponse->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+            ]);
+        $this->assertEquals(1, $expFilterResponse->json('meta.total'));
+
+        // 3. Internal user accesses GET /vendor-management/rates/headers with vendor_id filter
         $headersResponse = $this->actingAs($internalUser, 'sanctum')
-            ->getJson('/api/distributor-channel/vendor-portal/rates/headers');
+            ->getJson("/api/distributor-channel/vendor-management/rates/headers?vendor_id={$vendor->id}");
 
         $headersResponse->assertStatus(200)
             ->assertJson([
                 'success' => true,
                 'message' => 'Rate submission headers retrieved successfully.',
             ]);
+        $this->assertEquals(1, $headersResponse->json('meta.total'));
 
-        // 3. Internal user accesses GET /vendor-portal/rates/headers/{batchId}
+        // 4. Internal user accesses GET /vendor-management/rates/headers/{batchId}
         $detailResponse = $this->actingAs($internalUser, 'sanctum')
-            ->getJson("/api/distributor-channel/vendor-portal/rates/headers/{$batchId}");
+            ->getJson("/api/distributor-channel/vendor-management/rates/headers/{$batchId}");
 
         $detailResponse->assertStatus(200)
             ->assertJson([

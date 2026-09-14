@@ -14570,24 +14570,12 @@ paths:
   /vendor-portal/rates/headers:
     get:
       summary: Daftar Header Pengajuan Tarif Vendor (Batch Submissions)
-      description: Mengambil daftar ringkasan pengajuan tarif per batch upload/submission (periode valid_from/valid_until, status pengajuan, total rute) untuk tabel utama FE. Mendukung autentikasi akun Vendor Portal (terkunci ke vendornya) maupun akun internal Dashboard SMETSA (dapat melihat seluruh vendor atau filter per vendor).
+      description: Mengambil daftar ringkasan pengajuan tarif per batch upload/submission (periode valid_from/valid_until, status pengajuan, total rute) untuk tabel utama FE Vendor Portal. Hanya dapat diakses oleh akun mitra Vendor Portal (`VendorUser`). Untuk staf internal SMETSA, gunakan endpoint `/vendor-management/rates/headers`.
       tags:
         - Vendor Portal
       security:
         - BearerAuth: []
       parameters:
-        - name: vendor_id
-          in: query
-          required: false
-          description: Filter ID vendor (khusus admin internal SMETSA)
-          schema:
-            type: integer
-        - name: expedition_id
-          in: query
-          required: false
-          description: Filter ID master ekspedisi (khusus admin internal SMETSA)
-          schema:
-            type: integer
         - name: approval_status
           in: query
           description: Filter status persetujuan tarif (PENDING, APPROVED, REJECTED)
@@ -14628,7 +14616,7 @@ paths:
   /vendor-portal/rates/headers/{batchId}:
     get:
       summary: Detail Batch Pengajuan Tarif (Header & Rincian Rute)
-      description: Mengambil informasi header batch pengajuan tarif beserta array details (daftar rute pengiriman, lead time, tonase, dan tarif). Mendukung akses mitra vendor dan admin internal SMETSA.
+      description: Mengambil informasi header batch pengajuan tarif beserta array details (daftar rute pengiriman, lead time, tonase, dan tarif) untuk mitra Vendor Portal (`VendorUser`). Untuk staf internal SMETSA, gunakan endpoint `/vendor-management/rates/headers/{batchId}`.
       tags:
         - Vendor Portal
       security:
@@ -14649,24 +14637,12 @@ paths:
   /vendor-portal/rates:
     get:
       summary: Daftar Tarif Pengiriman Vendor (Rate Card Items)
-      description: Mengambil daftar tarif pengiriman per rute. Jika diakses oleh akun mitra vendor portal otomatis terkunci ke vendor miliknya, dan jika diakses oleh akun internal Dashboard SMETSA dapat melihat seluruh tarif atau memfilter berdasarkan vendor_id / expedition_id.
+      description: Mengambil daftar tarif pengiriman per rute untuk mitra vendor yang login (`VendorUser`). Otomatis terkunci ke vendor miliknya. Untuk staf internal SMETSA, gunakan endpoint `/vendor-management/rates`.
       tags:
         - Vendor Portal
       security:
         - BearerAuth: []
       parameters:
-        - name: vendor_id
-          in: query
-          required: false
-          description: Filter ID vendor (khusus admin internal SMETSA)
-          schema:
-            type: integer
-        - name: expedition_id
-          in: query
-          required: false
-          description: Filter ID master ekspedisi (khusus admin internal SMETSA)
-          schema:
-            type: integer
         - name: batch_id
           in: query
           description: Filter berdasarkan ID batch pengajuan tarif
@@ -15216,6 +15192,155 @@ paths:
                 format: binary
         '404':
           description: Dokumen tidak ditemukan atau berkas fisik tidak ada di disk storage server.
+
+  /vendor-management/rates/headers:
+    get:
+      summary: Daftar Header Pengajuan Tarif Vendor (SMETSA Internal)
+      description: Mengambil daftar ringkasan pengajuan tarif per batch upload/submission untuk staf internal SMETSA Backoffice. Mendukung filter berdasarkan vendor_id, expedition_id, approval_status, search, tanggal, dan pagination.
+      tags:
+        - Vendor Management (Rates)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: vendor_id
+          in: query
+          required: false
+          description: Filter ID master vendor
+          schema:
+            type: integer
+        - name: expedition_id
+          in: query
+          required: false
+          description: Filter ID master ekspedisi
+          schema:
+            type: integer
+        - name: approval_status
+          in: query
+          description: Filter status persetujuan tarif (PENDING, APPROVED, REJECTED)
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED]
+        - name: search
+          in: query
+          description: Pencarian kode batch atau catatan
+          schema:
+            type: string
+        - name: date_from
+          in: query
+          description: Filter tanggal mulai periode (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          description: Filter tanggal selesai periode (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: per_page
+          in: query
+          description: Jumlah data per halaman
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Rate submission headers retrieved successfully.
+        '401':
+          description: Unauthenticated access.
+        '403':
+          description: Unauthorized access. Only internal users can access this endpoint.
+
+  /vendor-management/rates/headers/{batchId}:
+    get:
+      summary: Detail Batch Pengajuan Tarif (SMETSA Internal)
+      description: Mengambil informasi header batch pengajuan tarif beserta array details (daftar rute pengiriman, lead time, tonase, dan tarif) untuk staf internal SMETSA Backoffice.
+      tags:
+        - Vendor Management (Rates)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: batchId
+          in: path
+          required: true
+          description: ID batch pengajuan tarif (misal BATCH-RATE-20260910-001)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Rate batch details retrieved successfully.
+        '401':
+          description: Unauthenticated access.
+        '403':
+          description: Unauthorized access. Only internal users can access this endpoint.
+        '404':
+          description: Batch rate data not found.
+
+  /vendor-management/rates:
+    get:
+      summary: Daftar Tarif Pengiriman Vendor (SMETSA Internal)
+      description: Mengambil daftar tarif pengiriman per rute untuk staf internal SMETSA Backoffice. Mendukung filter by vendor_id, expedition_id, batch_id, approval_status, transport_mode, warehouse_id, destination_id, search, dan pagination.
+      tags:
+        - Vendor Management (Rates)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: vendor_id
+          in: query
+          required: false
+          description: Filter ID master vendor
+          schema:
+            type: integer
+        - name: expedition_id
+          in: query
+          required: false
+          description: Filter ID master ekspedisi
+          schema:
+            type: integer
+        - name: batch_id
+          in: query
+          description: Filter berdasarkan ID batch pengajuan tarif
+          schema:
+            type: string
+        - name: approval_status
+          in: query
+          description: Filter status persetujuan tarif (PENDING, APPROVED, REJECTED)
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED]
+        - name: transport_mode
+          in: query
+          description: Filter moda transportasi (DARAT, LAUT, UDARA)
+          schema:
+            type: string
+        - name: warehouse_id
+          in: query
+          description: Filter ID gudang asal
+          schema:
+            type: integer
+        - name: destination_id
+          in: query
+          description: Filter ID customer shipto tujuan
+          schema:
+            type: integer
+        - name: search
+          in: query
+          description: Pencarian nama gudang, nama tujuan, atau catatan
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          description: Jumlah data per halaman
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Vendor rates retrieved successfully.
+        '401':
+          description: Unauthenticated access.
+        '403':
+          description: Unauthorized access. Only internal users can access this endpoint.
 
 components:
   securitySchemes:
