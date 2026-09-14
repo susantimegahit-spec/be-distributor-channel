@@ -39,3 +39,12 @@ Route::prefix('v1/ekspedisi')->middleware('auth:sanctum')->group(function () {
     // Master Origin/Gudang Asal (Warehouse Origins)
     Route::apiResource('origins', WarehouseOriginController::class);
 });
+
+// Logistic & Sales Order Delivery Monitoring Routes
+Route::prefix('v1/logistic/orders')->middleware('auth:sanctum')->group(function () {
+    Route::get('/', [\App\Modules\Ekspedisi\Controllers\LogisticOrderController::class, 'index']);
+    Route::get('/{id}/logs', [\App\Modules\Ekspedisi\Controllers\LogisticOrderController::class, 'logs']);
+    Route::post('/{id}/reschedule', [\App\Modules\Ekspedisi\Controllers\LogisticOrderController::class, 'reschedule']);
+    Route::post('/{id}/approve', [\App\Modules\Ekspedisi\Controllers\LogisticOrderController::class, 'approve']);
+});
+

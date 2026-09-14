@@ -113,21 +113,27 @@ class CustomerMonthlyOrderService
         $data['created_by'] = $userId;
         $data['updated_by'] = $userId;
 
-        // Auto-fill Dates
+        // Auto-fill Dates with Master Leadtime support
         $docDate = $data['doc_date'] ?? now()->toDateString();
         $data['doc_date'] = $docDate;
 
-        if (($data['created_via'] ?? null) === 'DISTRIBUTOR_API') {
-            $data['doc_due_date'] = Carbon::parse($docDate)->addDays(7)->toDateString();
-            $data['eta_date'] = Carbon::parse($docDate)->addDays(7)->toDateString();
-        } else {
-            if (empty($data['doc_due_date'])) {
-                $data['doc_due_date'] = Carbon::parse($docDate)->addDays(7)->toDateString();
-            }
+        $leadTimeDays = $this->resolveLeadTimeDays($data, $distributor);
 
-            if (empty($data['eta_date'])) {
-                $data['eta_date'] = Carbon::parse($docDate)->addDays(7)->toDateString();
-            }
+        if (!empty($data['eta_date']) && empty($data['doc_due_date'])) {
+            // Distributor only specified Target Arrival Date (eta_date):
+            // Calculate loading/delivery date backward: doc_due_date = eta_date - leadTimeDays
+            $calculatedDueDate = Carbon::parse($data['eta_date'])->subDays($leadTimeDays)->toDateString();
+            $data['doc_due_date'] = Carbon::parse($calculatedDueDate)->lt(Carbon::parse($docDate))
+                ? $docDate
+                : $calculatedDueDate;
+        } elseif (!empty($data['doc_due_date']) && empty($data['eta_date'])) {
+            // doc_due_date provided without eta_date:
+            // Calculate forward: eta_date = doc_due_date + leadTimeDays
+            $data['eta_date'] = Carbon::parse($data['doc_due_date'])->addDays($leadTimeDays)->toDateString();
+        } elseif (empty($data['doc_due_date']) && empty($data['eta_date'])) {
+            // Neither provided, fallback
+            $data['doc_due_date'] = Carbon::parse($docDate)->toDateString();
+            $data['eta_date'] = Carbon::parse($docDate)->addDays($leadTimeDays > 0 ? $leadTimeDays : 3)->toDateString();
         }
 
         // Auto-fill Addresses from SAP if missing
@@ -321,7 +327,11 @@ class CustomerMonthlyOrderService
             }
             if (!empty($deliveryDate)) {
                 $soData['doc_due_date'] = $deliveryDate;
+                $soData['req_due_date'] = $deliveryDate;
+            } elseif (!empty($soData['doc_due_date'])) {
+                $soData['req_due_date'] = $soData['doc_due_date'];
             }
+            $soData['logistic_status'] = 'PENDING';
 
             // 2. Prepare Sales Order Details
             $soLineColumns = \Illuminate\Support\Facades\Schema::getColumnListing('sales_order_details');
@@ -707,5 +717,46 @@ class CustomerMonthlyOrderService
         $response->headers->set('Cache-Control', 'max-age=0');
 
         return $response;
+    }
+
+    /**
+     * Resolve lead time in days between origin warehouse and customer destination using MasterLeadtime.
+     */
+    public function resolveLeadTimeDays(array $data, ?Distributor $distributor = null): int
+    {
+        try {
+            $destCode = $data['ship_to_code'] ?? ($distributor ? $distributor->code_customer : ($data['card_code'] ?? null));
+            $destCity = $distributor ? $distributor->city : null;
+
+            $originCode = null;
+            if (!empty($data['lines']) && is_array($data['lines'])) {
+                $originCode = $data['lines'][0]['whs_code'] ?? null;
+            }
+
+            $query = \App\Models\MasterLeadtime::where('status', 'ACTIVE');
+
+            if ($originCode) {
+                $query->where('origin_warehouse_code', $originCode);
+            }
+
+            if ($destCode) {
+                $leadtime = (clone $query)->where('destination_code', $destCode)->first();
+                if ($leadtime && (float) $leadtime->avg_lead_time_days > 0) {
+                    return (int) round((float) $leadtime->avg_lead_time_days);
+                }
+            }
+
+            if ($destCity) {
+                $likeOp = config('database.default') === 'sqlite' ? 'LIKE' : 'ILIKE';
+                $leadtime = (clone $query)->where('destination_city', $likeOp, "%{$destCity}%")->first();
+                if ($leadtime && (float) $leadtime->avg_lead_time_days > 0) {
+                    return (int) round((float) $leadtime->avg_lead_time_days);
+                }
+            }
+        } catch (\Throwable $e) {
+            // Fallback gracefully on exception
+        }
+
+        return 3;
     }
 }

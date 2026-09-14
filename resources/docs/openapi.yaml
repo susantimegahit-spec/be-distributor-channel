@@ -15342,6 +15342,242 @@ paths:
         '403':
           description: Unauthorized access. Only internal users can access this endpoint.
 
+  /v1/logistic/orders:
+    get:
+      summary: List Sales Orders for Logistics Delivery Readiness
+      description: |
+        Mengambil daftar Sales Order dengan status `WAITING_FINANCE` atau `ORDER_APPROVED` untuk pemantauan kesiapan armada logistik.
+        Dilengkapi data benchmark lead time dari master leadtime, kalkulasi lead time usulan, dan flag kesiapan aksi logistik / sales.
+      tags:
+        - Logistic - Order Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          description: Pencarian nomor dokumen (doc_num), DocEntry SAP, atau nama distributor
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Filter status Sales Order (WAITING_FINANCE, ORDER_APPROVED)
+          schema:
+            type: string
+            enum: [WAITING_FINANCE, ORDER_APPROVED]
+        - name: logistic_status
+          in: query
+          description: Filter status kesiapan logistik (PENDING, APPROVED, RESCHEDULE_REQUESTED, RESCHEDULE_APPROVED, REJECTED)
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, RESCHEDULE_REQUESTED, RESCHEDULE_APPROVED, REJECTED]
+        - name: date_from
+          in: query
+          description: Filter tanggal pengiriman mulai (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          description: Filter tanggal pengiriman akhir (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: per_page
+          in: query
+          description: Jumlah data per halaman
+          schema:
+            type: integer
+            default: 15
+        - name: page
+          in: query
+          description: Halaman data
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Orders retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Orders retrieved successfully.
+                  data:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                        example: 1
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/LogisticOrderListItem'
+                      total:
+                        type: integer
+                        example: 25
+        '401':
+          description: Unauthenticated access.
+
+  /v1/logistic/orders/{id}/reschedule:
+    post:
+      summary: Propose Delivery Reschedule by Logistics
+      description: |
+        Digunakan oleh tim logistik untuk mengajukan penyesuaian tanggal kirim (`proposed_delivery_date`) dan/atau estimasi tiba (`proposed_eta_date`) apabila armada belum siap atau kapasitas penuh.
+        Hanya dapat diajukan jika status SO sudah `ORDER_APPROVED`.
+        Akan mengubah `logistic_status` menjadi `RESCHEDULE_REQUESTED` dan mencatat riwayat aktivitas ke monitoring log.
+      tags:
+        - Logistic - Order Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Sales Order
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - proposed_delivery_date
+                - notes
+              properties:
+                proposed_delivery_date:
+                  type: string
+                  format: date
+                  description: Usulan tanggal pengiriman baru dari logistik (YYYY-MM-DD)
+                  example: "2026-09-20"
+                proposed_eta_date:
+                  type: string
+                  format: date
+                  description: Usulan estimasi barang tiba di distributor (YYYY-MM-DD, opsional)
+                  example: "2026-09-23"
+                notes:
+                  type: string
+                  description: Alasan penjadwalan ulang dari logistik
+                  example: "Armada wingbox ke area Jawa Tengah sedang jadwal servis rutin, pengiriman diundur 2 hari."
+      responses:
+        '200':
+          description: Delivery reschedule requested successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Delivery reschedule requested successfully.
+                  data:
+                    $ref: '#/components/schemas/LogisticOrderListItem'
+        '404':
+          description: Sales Order not found.
+        '422':
+          description: Unprocessable entity / validation error.
+
+  /v1/logistic/orders/{id}/approve:
+    post:
+      summary: Approve Order Schedule (Logistics Fleet Confirmation or Sales Reschedule Approval)
+      description: |
+        Menangani dua jenis persetujuan jadwal:
+        1. **Persetujuan Kesiapan Logistik:** Jika `logistic_status = PENDING` dan SO `ORDER_APPROVED`, tim logistik mengonfirmasi kesiapan armada/jadwal -> status berubah ke `APPROVED`.
+        2. **Persetujuan Reschedule Admin Sales:** Jika `logistic_status = RESCHEDULE_REQUESTED`, Admin Sales menyetujui tanggal baru usulan logistik -> status berubah ke `RESCHEDULE_APPROVED`, dan sistem otomatis memperbarui `req_due_date`, `doc_due_date`, serta `eta_date` pada Sales Order.
+      tags:
+        - Logistic - Order Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Sales Order
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes:
+                  type: string
+                  description: Catatan persetujuan
+                  example: "Armada siap, jadwal pengiriman disetujui."
+      responses:
+        '200':
+          description: Order schedule approved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Order delivery schedule approved successfully.
+                  data:
+                    $ref: '#/components/schemas/LogisticOrderListItem'
+        '404':
+          description: Sales Order not found.
+        '422':
+          description: Unprocessable entity / validation error.
+
+  /v1/logistic/orders/{id}/logs:
+    get:
+      summary: Get Logistic Monitoring Logs for Sales Order
+      description: Mengambil detail Sales Order beserta seluruh riwayat aktivitas pemantauan logistik secara kronologis.
+      tags:
+        - Logistic - Order Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Sales Order
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Logistic order logs retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Logistic order logs retrieved successfully.
+                  data:
+                    type: object
+                    properties:
+                      order:
+                        $ref: '#/components/schemas/LogisticOrderListItem'
+                      logs:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/LogisticOrderLog'
+        '404':
+          description: Sales Order not found.
+
 components:
   securitySchemes:
     BearerAuth:
@@ -18545,3 +18781,163 @@ components:
           type: array
           items:
             type: object
+
+    LogisticOrderListItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 101
+        doc_num:
+          type: string
+          example: "SO-2026-00045"
+        doc_entry:
+          type: integer
+          nullable: true
+          example: 98124
+        customer_id:
+          type: integer
+          example: 5
+        customer_shipto_id:
+          type: integer
+          nullable: true
+          example: 12
+        doc_date:
+          type: string
+          format: date
+          example: "2026-09-14"
+        doc_due_date:
+          type: string
+          format: date
+          example: "2026-09-17"
+        req_due_date:
+          type: string
+          format: date
+          example: "2026-09-17"
+        eta_date:
+          type: string
+          format: date
+          example: "2026-09-20"
+        status:
+          type: string
+          example: ORDER_APPROVED
+        logistic_status:
+          type: string
+          example: PENDING
+        proposed_delivery_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-09-19"
+        proposed_eta_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-09-22"
+        logistic_notes:
+          type: string
+          nullable: true
+          example: "Armada wingbox siap."
+        logistic_action_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-09-14T10:00:00.000000Z"
+        logistic_action_by:
+          type: integer
+          nullable: true
+          example: 3
+        benchmark_lead_time_days:
+          type: integer
+          example: 3
+        calculated_lead_time_days:
+          type: integer
+          example: 3
+        is_urgent:
+          type: boolean
+          example: false
+        can_logistic_action:
+          type: boolean
+          example: true
+        can_sales_approve:
+          type: boolean
+          example: false
+        customer:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 5
+            name:
+              type: string
+              example: PT Maju Jaya Bersama
+            code_customer:
+              type: string
+              example: C110000100
+        customer_shipto:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+              example: 12
+            name:
+              type: string
+              example: Gudang Distribusi Solo
+            city:
+              type: string
+              example: SURAKARTA
+        latest_logistic_log:
+          $ref: '#/components/schemas/LogisticOrderLog'
+
+    LogisticOrderLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        sales_order_id:
+          type: integer
+          example: 101
+        action:
+          type: string
+          example: APPROVE_SCHEDULE
+        previous_status:
+          type: string
+          nullable: true
+          example: PENDING
+        new_status:
+          type: string
+          example: APPROVED
+        proposed_delivery_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-09-17"
+        proposed_eta_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-09-20"
+        notes:
+          type: string
+          nullable: true
+          example: "Armada wingbox siap berangkat sesuai jadwal."
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-09-14T10:30:00.000000Z"
+        user:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+              example: 3
+            name:
+              type: string
+              example: Tim Logistik
+            username:
+              type: string
+              example: logistic_user
+
