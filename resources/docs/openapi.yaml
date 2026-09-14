@@ -9207,8 +9207,8 @@ paths:
 
   /v1/ekspedisi/rates/{id}/approve:
     post:
-      summary: Approve expedition rate (Set Flag True)
-      description: Menyetujui tarif ekspedisi oleh Atasan/Supervisor sehingga Flag aktif dan tarif siap digunakan dalam perankingan kalkulasi pengiriman.
+      summary: Approve expedition rate (Set Flag True & Status ACTIVE)
+      description: Menyetujui tarif ekspedisi oleh Atasan/Supervisor sehingga Status menjadi ACTIVE, Flag aktif (true), dan tarif siap digunakan dalam perankingan kalkulasi pengiriman.
       tags:
         - Master Tarif Ekspedisi
       security:
@@ -9232,14 +9232,14 @@ paths:
                   example: "Tarif disetujui sesuai kontrak Q3 2026"
       responses:
         '200':
-          description: Tarif ekspedisi berhasil disetujui (Flag Aktif)
+          description: Tarif ekspedisi berhasil disetujui (Status ACTIVE & Flag Aktif)
         '404':
           description: Data tarif tidak ditemukan
 
   /v1/ekspedisi/rates/{id}/reject:
     post:
-      summary: Reject expedition rate (Set Flag False)
-      description: Menolak tarif ekspedisi oleh Atasan/Supervisor dengan mencantumkan alasan penolakan.
+      summary: Reject expedition rate (Set Flag False & Status INACTIVE)
+      description: Menolak tarif ekspedisi oleh Atasan/Supervisor sehingga Status menjadi INACTIVE, Flag non-aktif (false), dengan mencantumkan alasan penolakan.
       tags:
         - Master Tarif Ekspedisi
       security:
@@ -9263,12 +9263,12 @@ paths:
                   example: "Harga per kg terlalu mahal, mohon negosiasi ulang."
       responses:
         '200':
-          description: Tarif ekspedisi ditolak
+          description: Tarif ekspedisi ditolak (Status INACTIVE)
 
   /v1/ekspedisi/rates/bulk-approve:
     post:
-      summary: Bulk approve expedition rates
-      description: Menyetujui banyak tarif ekspedisi sekaligus berdasarkan array ID.
+      summary: Bulk approve expedition rates (Set Flag True & Status ACTIVE)
+      description: Menyetujui banyak tarif ekspedisi sekaligus berdasarkan array ID (Status menjadi ACTIVE, Flag true).
       tags:
         - Master Tarif Ekspedisi
       security:

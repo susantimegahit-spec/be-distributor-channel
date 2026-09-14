@@ -148,6 +148,7 @@ class VendorRateSubmissionTest extends TestCase
             'destination_id'  => $shipto->id,
             'price'           => 1850000,
             'approval_status' => 'PENDING',
+            'status'          => 'INACTIVE',
             'flag'            => false,
         ]);
     }
@@ -241,6 +242,7 @@ class VendorRateSubmissionTest extends TestCase
         $this->assertEquals('2026-08-15', $rate->valid_from->format('Y-m-d'));
         $this->assertEquals('2026-08-15', $rate->valid_until->format('Y-m-d'));
         $this->assertEquals('PENDING', $rate->approval_status);
+        $this->assertEquals('INACTIVE', $rate->status);
         $this->assertFalse((bool) $rate->flag);
     }
 
@@ -273,7 +275,7 @@ class VendorRateSubmissionTest extends TestCase
             'eta_days'        => 1,
             'valid_from'      => '2026-08-15',
             'valid_until'     => '2027-08-15',
-            'status'          => 'ACTIVE',
+            'status'          => 'INACTIVE',
             'flag'            => false,
             'approval_status' => 'PENDING',
             'remarks'         => 'Pengajuan rute batch test',
@@ -299,6 +301,7 @@ class VendorRateSubmissionTest extends TestCase
         $this->assertEquals('2027-08-15', $headerItem['valid_until']);
         $this->assertEquals(1, $headerItem['total_routes']);
         $this->assertEquals('PENDING', $headerItem['approval_status']);
+        $this->assertEquals('INACTIVE', $headerItem['status']);
 
         // 2. Test GET /rates/headers/{batchId} (detail endpoint)
         $detailResponse = $this->actingAs($vendorUser, 'sanctum')
@@ -313,6 +316,7 @@ class VendorRateSubmissionTest extends TestCase
                         'valid_from'      => '2026-08-15',
                         'valid_until'     => '2027-08-15',
                         'approval_status' => 'PENDING',
+                        'status'          => 'INACTIVE',
                         'total_routes'    => 1,
                     ],
                 ],
@@ -324,6 +328,67 @@ class VendorRateSubmissionTest extends TestCase
         $this->assertEquals('Surabaya', $detailRow['destination_city']);
         $this->assertEquals(1, $detailRow['leadtime']);
         $this->assertEquals(1200000, $detailRow['rate']);
+        $this->assertEquals('INACTIVE', $detailRow['status']);
+    }
+
+    public function test_rate_status_transitions_to_active_on_approval_and_inactive_on_rejection()
+    {
+        [$vendor, $vendorUser] = $this->createApprovedExpeditionVendor();
+
+        $warehouse = Warehouse::create([
+            'whs_code' => 'WHS-TGR-01',
+            'whs_name' => 'Gudang Tangerang',
+        ]);
+
+        $shipto = CustomerShipto::create([
+            'card_code' => 'CUST-TGR-01',
+            'name'      => 'Toko Mitra Tangerang',
+            'city'      => 'Tangerang',
+        ]);
+
+        // Create pending rate (uploaded or submitted by vendor)
+        $rate = ExpeditionRate::create([
+            'expedition_id'   => $vendor->expedition_id,
+            'warehouse_id'    => $warehouse->id,
+            'destination_id'  => $shipto->id,
+            'transport_mode'  => 'DARAT',
+            'service_type'    => 'ENGKEL',
+            'min_tonnage'     => 0,
+            'max_tonnage'     => 2000,
+            'price'           => 900000,
+            'eta_days'        => 1,
+            'status'          => 'INACTIVE',
+            'flag'            => false,
+            'approval_status' => 'PENDING',
+        ]);
+
+        $this->assertEquals('INACTIVE', $rate->status);
+        $this->assertFalse((bool) $rate->flag);
+
+        // Internal user approves rate
+        $admin = \App\Models\User::factory()->create();
+        $approveResponse = $this->actingAs($admin, 'sanctum')
+            ->postJson("/api/distributor-channel/v1/ekspedisi/rates/{$rate->id}/approve", [
+                'notes' => 'Approved rate for Q3',
+            ]);
+
+        $approveResponse->assertStatus(200);
+        $rate->refresh();
+        $this->assertEquals('ACTIVE', $rate->status);
+        $this->assertEquals('APPROVED', $rate->approval_status);
+        $this->assertTrue((bool) $rate->flag);
+
+        // Internal user rejects rate
+        $rejectResponse = $this->actingAs($admin, 'sanctum')
+            ->postJson("/api/distributor-channel/v1/ekspedisi/rates/{$rate->id}/reject", [
+                'notes' => 'Revision requested on rate price',
+            ]);
+
+        $rejectResponse->assertStatus(200);
+        $rate->refresh();
+        $this->assertEquals('INACTIVE', $rate->status);
+        $this->assertEquals('REJECTED', $rate->approval_status);
+        $this->assertFalse((bool) $rate->flag);
     }
 
     public function test_unapproved_vendor_cannot_access_rates()

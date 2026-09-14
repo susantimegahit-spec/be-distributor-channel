@@ -81,7 +81,7 @@ class ExpeditionRate extends Model
      */
     public function scopeApproved($query)
     {
-        return $query->where('flag', true)->where('approval_status', 'APPROVED');
+        return $query->where('flag', true)->where('approval_status', 'APPROVED')->where('status', 'ACTIVE');
     }
 
     /**

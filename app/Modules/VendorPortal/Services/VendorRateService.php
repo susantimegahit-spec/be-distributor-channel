@@ -176,7 +176,7 @@ class VendorRateService
             'max_shipment_qty' => floatval($data['max_shipment_qty'] ?? 0),
             'valid_from'       => $validFrom,
             'valid_until'      => $validUntil,
-            'status'           => 'ACTIVE',
+            'status'           => 'INACTIVE',
             'flag'             => false,
             'approval_status'  => 'PENDING',
             'remarks'          => $data['remarks'] ?? null,
@@ -296,13 +296,18 @@ class VendorRateService
             $validUntil = $item->valid_until ? date('Y-m-d', strtotime((string)$item->valid_until)) : null;
             $periodLabel = ($validFrom && $validUntil) ? "{$validFrom} s/d {$validUntil}" : ($validFrom ?? $validUntil ?? '-');
 
+            $approvalStatus = strtoupper((string) ($item->approval_status ?? 'PENDING'));
+            $status = ($approvalStatus === 'APPROVED' && strtoupper((string) ($item->status ?? '')) === 'ACTIVE')
+                ? 'ACTIVE'
+                : 'INACTIVE';
+
             return [
                 'batch_id'        => $item->batch_id,
                 'valid_from'      => $validFrom,
                 'valid_until'     => $validUntil,
                 'period_label'    => $periodLabel,
-                'approval_status' => $item->approval_status ?? 'PENDING',
-                'status'          => $item->status ?? 'ACTIVE',
+                'approval_status' => $approvalStatus,
+                'status'          => $status,
                 'total_routes'    => (int) $item->total_routes,
                 'remarks'         => $item->remarks,
                 'submitted_at'    => $item->created_at ? date('Y-m-d H:i:s', strtotime((string)$item->created_at)) : null,
@@ -343,13 +348,18 @@ class VendorRateService
         $validFromStr = $validFrom ? date('Y-m-d', strtotime((string)$validFrom)) : null;
         $validUntilStr = $validUntil ? date('Y-m-d', strtotime((string)$validUntil)) : null;
 
+        $headerApprovalStatus = strtoupper((string) ($first->approval_status ?? 'PENDING'));
+        $headerStatus = ($headerApprovalStatus === 'APPROVED' && strtoupper((string) ($first->status ?? '')) === 'ACTIVE')
+            ? 'ACTIVE'
+            : 'INACTIVE';
+
         $header = [
             'batch_id'        => $batchId,
             'valid_from'      => $validFromStr,
             'valid_until'     => $validUntilStr,
             'period_label'    => ($validFromStr && $validUntilStr) ? "{$validFromStr} s/d {$validUntilStr}" : ($validFromStr ?? $validUntilStr ?? '-'),
-            'approval_status' => $first->approval_status ?? 'PENDING',
-            'status'          => $first->status ?? 'ACTIVE',
+            'approval_status' => $headerApprovalStatus,
+            'status'          => $headerStatus,
             'total_routes'    => $rates->count(),
             'submitted_at'    => $first->created_at ? $first->created_at->format('Y-m-d H:i:s') : null,
             'remarks'         => $first->remarks,
@@ -361,6 +371,11 @@ class VendorRateService
         ];
 
         $details = $rates->map(function ($rate, $index) {
+            $itemApprovalStatus = strtoupper((string) ($rate->approval_status ?? 'PENDING'));
+            $itemStatus = ($itemApprovalStatus === 'APPROVED' && strtoupper((string) ($rate->status ?? '')) === 'ACTIVE')
+                ? 'ACTIVE'
+                : 'INACTIVE';
+
             return [
                 'no'               => $index + 1,
                 'id'               => $rate->id,
@@ -379,7 +394,8 @@ class VendorRateService
                 'eta_days'         => $rate->eta_days,
                 'valid_from'       => $rate->valid_from ? date('Y-m-d', strtotime((string)$rate->valid_from)) : null,
                 'valid_until'      => $rate->valid_until ? date('Y-m-d', strtotime((string)$rate->valid_until)) : null,
-                'approval_status'  => $rate->approval_status ?? 'PENDING',
+                'approval_status'  => $itemApprovalStatus,
+                'status'           => $itemStatus,
                 'flag'             => (bool) $rate->flag,
                 'remarks'          => $rate->remarks,
             ];

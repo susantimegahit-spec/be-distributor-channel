@@ -153,13 +153,17 @@ class ExpeditionRateController extends Controller
 
         $data = $validator->validated();
         $data['created_by'] = auth()->id();
-        $data['status'] = $data['status'] ?? 'ACTIVE';
         $data['flag'] = $request->boolean('flag', false);
         $data['approval_status'] = $data['approval_status'] ?? ($data['flag'] ? 'APPROVED' : 'PENDING');
 
-        if ($data['flag']) {
+        if ($data['approval_status'] === 'APPROVED') {
+            $data['status'] = 'ACTIVE';
+            $data['flag'] = true;
             $data['approved_by'] = auth()->id();
             $data['approved_at'] = now();
+        } else {
+            $data['status'] = 'INACTIVE';
+            $data['flag'] = false;
         }
 
         $rate = ExpeditionRate::create($data);
@@ -292,6 +296,7 @@ class ExpeditionRateController extends Controller
             $flagVal = filter_var($request->get('flag'), FILTER_VALIDATE_BOOLEAN);
             $payload['flag'] = $flagVal;
             $payload['approval_status'] = $flagVal ? 'APPROVED' : 'PENDING';
+            $payload['status'] = $flagVal ? 'ACTIVE' : 'INACTIVE';
             if ($flagVal) {
                 $payload['approved_by'] = auth()->id();
                 $payload['approved_at'] = now();
@@ -299,15 +304,20 @@ class ExpeditionRateController extends Controller
         }
 
         if ($request->filled('approval_status')) {
-            $payload['approval_status'] = strtoupper($request->get('approval_status'));
-            if ($payload['approval_status'] === 'APPROVED') {
+            $approvalStatus = strtoupper($request->get('approval_status'));
+            $payload['approval_status'] = $approvalStatus;
+            if ($approvalStatus === 'APPROVED') {
                 $payload['flag'] = true;
+                $payload['status'] = 'ACTIVE';
                 $payload['approved_by'] = auth()->id();
                 $payload['approved_at'] = now();
-            } elseif ($payload['approval_status'] === 'REJECTED') {
+            } else {
                 $payload['flag'] = false;
-                $payload['approved_by'] = auth()->id();
-                $payload['approved_at'] = now();
+                $payload['status'] = 'INACTIVE';
+                if ($approvalStatus === 'REJECTED') {
+                    $payload['approved_by'] = auth()->id();
+                    $payload['approved_at'] = now();
+                }
             }
         }
 
@@ -332,6 +342,7 @@ class ExpeditionRateController extends Controller
         $rate->update([
             'flag' => true,
             'approval_status' => 'APPROVED',
+            'status' => 'ACTIVE',
             'approved_by' => auth()->id(),
             'approved_at' => now(),
             'approval_notes' => $request->input('notes') ?? 'Approved by supervisor',
@@ -355,6 +366,7 @@ class ExpeditionRateController extends Controller
         $rate->update([
             'flag' => false,
             'approval_status' => 'REJECTED',
+            'status' => 'INACTIVE',
             'approved_by' => auth()->id(),
             'approved_at' => now(),
             'approval_notes' => $request->input('notes') ?? $request->input('reason') ?? 'Rejected by supervisor',
@@ -385,6 +397,7 @@ class ExpeditionRateController extends Controller
         ExpeditionRate::whereIn('id', $rateIds)->update([
             'flag' => true,
             'approval_status' => 'APPROVED',
+            'status' => 'ACTIVE',
             'approved_by' => auth()->id(),
             'approved_at' => now(),
             'approval_notes' => $notes,

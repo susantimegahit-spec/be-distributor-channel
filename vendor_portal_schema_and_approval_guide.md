@@ -661,7 +661,7 @@ sequenceDiagram
     alt Pengajuan Manual Single Rate
         V->>FE: Isi form tarif (Gudang Asal, Tujuan, Moda, Tonase, Harga)
         FE->>BE: POST /api/distributor-channel/vendor-portal/rates
-        BE->>DB: INSERT expedition_rates (approval_status: PENDING, flag: false)
+        BE->>DB: INSERT expedition_rates (status: INACTIVE, approval_status: PENDING, flag: false)
         BE-->>FE: HTTP 201 Created
     else Pengajuan Massal via File Spreadsheet
         V->>FE: Download CSV Template
@@ -669,14 +669,19 @@ sequenceDiagram
         BE-->>FE: File vendor_rate_submission_template.csv
         V->>FE: Isi data tarif pada file & Upload
         FE->>BE: POST /api/distributor-channel/vendor-portal/rates/upload (multipart)
-        BE->>DB: Bulk insert/update (expedition_id terkunci ke vendor aktif, status PENDING)
+        BE->>DB: Bulk insert/update (expedition_id terkunci ke vendor, status: INACTIVE, approval_status: PENDING)
         BE-->>FE: HTTP 200 OK (processed_count, created_count, updated_count)
     end
 
     Note over Log,DB: Tim Logistik Memeriksa Pengajuan di Master Tarif Ekspedisi
     Log->>BE: Review pengajuan tarif PENDING
-    Log->>DB: Set approval_status = APPROVED, flag = true
-    Note over V,FE: Tarif yang disetujui kini aktif dan dapat dipilih untuk SPJ & Transfer Antargudang
+    alt Disetujui (Approved)
+        Log->>DB: Set status = ACTIVE, approval_status = APPROVED, flag = true
+        Note over V,FE: Tarif yang disetujui kini aktif dan dapat dipilih untuk SPJ & Transfer Antargudang
+    else Ditolak (Rejected)
+        Log->>DB: Set status = INACTIVE, approval_status = REJECTED, flag = false
+        Note over V,FE: Tarif ditolak dan berstatus non-aktif (INACTIVE)
+    end
 ```
 
 ---
@@ -711,7 +716,7 @@ Seluruh endpoint di bawah ini mewajibkan header autentikasi `Authorization: Bear
         "valid_until": "2027-08-15",
         "period_label": "2026-08-15 s/d 2027-08-15",
         "approval_status": "PENDING",
-        "status": "ACTIVE",
+        "status": "INACTIVE",
         "total_routes": 25,
         "remarks": "Pengajuan tarif periode 2026-2027",
         "submitted_at": "2026-09-10 11:20:00"
@@ -741,7 +746,7 @@ Seluruh endpoint di bawah ini mewajibkan header autentikasi `Authorization: Bear
         "valid_until": "2027-08-15",
         "period_label": "2026-08-15 s/d 2027-08-15",
         "approval_status": "PENDING",
-        "status": "ACTIVE",
+        "status": "INACTIVE",
         "total_routes": 25,
         "submitted_at": "2026-09-10 11:20:00",
         "remarks": "Pengajuan tarif periode 2026-2027",
@@ -770,6 +775,7 @@ Seluruh endpoint di bawah ini mewajibkan header autentikasi `Authorization: Bear
           "valid_from": "2026-08-15",
           "valid_until": "2027-08-15",
           "approval_status": "PENDING",
+          "status": "INACTIVE",
           "flag": false,
           "remarks": null
         }
@@ -816,7 +822,7 @@ Seluruh endpoint di bawah ini mewajibkan header autentikasi `Authorization: Bear
   | `valid_until` | date | Tidak | Tanggal selesai periode (YYYY-MM-DD) dari modal pop-up FE |
   | `periode` | string | Tidak | Input tanggal periode tunggal (misal `2026-08-15`, otomatis mengisi `valid_from` dan `valid_until`) |
 - **Keamanan & Validasi Khusus Vendor:**
-  - Seluruh baris tarif yang diunggah dikunci ke `vendor.expedition_id` akun vendor aktif dan status otomatis `approval_status = 'PENDING'`, `flag = false`.
+  - Seluruh baris tarif yang diunggah dikunci ke `vendor.expedition_id` akun vendor aktif dan status otomatis `status = 'INACTIVE'`, `approval_status = 'PENDING'`, `flag = false`.
 - **Response `200 OK`:**
   ```json
   {

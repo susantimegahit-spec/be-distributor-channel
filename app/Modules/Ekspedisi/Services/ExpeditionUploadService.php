@@ -408,7 +408,7 @@ class ExpeditionUploadService
                     'valid_until'      => !empty($overridePeriod['valid_until'])
                                             ? $this->parseDate($overridePeriod['valid_until'])
                                             : $this->parseDate($this->getValueByMap($row, $headerMap, 'valid_until')),
-                    'status'           => strtoupper((string) ($this->getValueByMap($row, $headerMap, 'status') ?? 'ACTIVE')),
+                    'status'           => 'INACTIVE',
                     'flag'             => false,
                     'approval_status'  => 'PENDING',
                     'remarks'          => $this->getValueByMap($row, $headerMap, 'remarks'),
