@@ -23,6 +23,7 @@ class LogisticOrderController extends Controller
     public function index(Request $request): JsonResponse
     {
         $filters = [
+            'tab'             => $request->query('tab') ?: $request->query('category'),
             'status'          => $request->query('status'),
             'logistic_status' => $request->query('logistic_status'),
             'search'          => $request->query('search'),
@@ -43,6 +44,30 @@ class LogisticOrderController extends Controller
                 'per_page'     => $orders->perPage(),
                 'total'        => $orders->total(),
             ],
+        ]);
+    }
+
+    /**
+     * Get dashboard summary statistics (KPI counters) and paginated orders grouped/filtered by tabs.
+     */
+    public function dashboard(Request $request): JsonResponse
+    {
+        $filters = [
+            'tab'             => $request->query('tab') ?: $request->query('category'),
+            'status'          => $request->query('status'),
+            'logistic_status' => $request->query('logistic_status'),
+            'search'          => $request->query('search'),
+            'date_from'       => $request->query('date_from'),
+            'date_to'         => $request->query('date_to'),
+        ];
+
+        $perPage = (int) $request->query('per_page', 15);
+        $dashboardData = $this->logisticOrderService->getDashboard($filters, $perPage);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Dashboard delivery orders retrieved successfully.',
+            'data'    => $dashboardData,
         ]);
     }
 

@@ -104,10 +104,10 @@ class LogisticOrderDeliveryTest extends TestCase
         $response->assertStatus(200)
             ->assertJson([
                 'success' => true,
-                'message' => 'Orders retrieved successfully.',
+                'message' => 'Delivery orders retrieved successfully.',
             ]);
 
-        $items = $response->json('data.data');
+        $items = $response->json('data');
         $orderNumbers = collect($items)->pluck('order_no')->all();
 
         $this->assertContains('SO-WF-001', $orderNumbers);
@@ -115,9 +115,9 @@ class LogisticOrderDeliveryTest extends TestCase
         $this->assertNotContains('SO-DRAFT-001', $orderNumbers);
 
         $orderApprovedItem = collect($items)->firstWhere('order_no', 'SO-OA-001');
-        $this->assertEquals(3, $orderApprovedItem['benchmark_lead_time_days']);
-        $this->assertTrue($orderApprovedItem['can_logistic_action']);
-        $this->assertFalse($orderApprovedItem['can_sales_approve']);
+        $this->assertEquals(3, $orderApprovedItem['leadtime_info']['benchmark_lead_time_days']);
+        $this->assertTrue($orderApprovedItem['can_logistic_approve']);
+        $this->assertFalse($orderApprovedItem['can_sales_approve_reschedule']);
     }
 
     public function test_logistic_can_approve_order_when_order_approved(): void
@@ -130,7 +130,7 @@ class LogisticOrderDeliveryTest extends TestCase
         $response->assertStatus(200)
             ->assertJson([
                 'success' => true,
-                'message' => 'Order delivery schedule approved successfully.',
+                'message' => 'Logistics delivery schedule confirmed and approved successfully.',
                 'data' => [
                     'logistic_status' => 'APPROVED',
                 ],
@@ -141,9 +141,8 @@ class LogisticOrderDeliveryTest extends TestCase
 
         $log = SalesOrderLogisticLog::where('sales_order_id', $this->soOrderApproved->id)->first();
         $this->assertNotNull($log);
-        $this->assertEquals('APPROVE_SCHEDULE', $log->action);
-        $this->assertEquals('PENDING', $log->previous_status);
-        $this->assertEquals('APPROVED', $log->new_status);
+        $this->assertEquals('LOGISTIC_APPROVED', $log->action);
+        $this->assertEquals('APPROVED', $log->to_status);
         $this->assertEquals($this->user->id, $log->user_id);
     }
 
@@ -174,7 +173,7 @@ class LogisticOrderDeliveryTest extends TestCase
         $response->assertStatus(200)
             ->assertJson([
                 'success' => true,
-                'message' => 'Delivery reschedule requested successfully.',
+                'message' => 'Delivery schedule reschedule request submitted successfully. Awaiting sales admin review.',
                 'data' => [
                     'logistic_status' => 'RESCHEDULE_REQUESTED',
                     'proposed_delivery_date' => '2026-09-21',
@@ -192,8 +191,8 @@ class LogisticOrderDeliveryTest extends TestCase
 
         $log = SalesOrderLogisticLog::where('sales_order_id', $this->soOrderApproved->id)->first();
         $this->assertNotNull($log);
-        $this->assertEquals('REQUEST_RESCHEDULE', $log->action);
-        $this->assertEquals('RESCHEDULE_REQUESTED', $log->new_status);
+        $this->assertEquals('LOGISTIC_RESCHEDULE', $log->action);
+        $this->assertEquals('RESCHEDULE_REQUESTED', $log->to_status);
     }
 
     public function test_admin_sales_can_approve_reschedule_and_updates_dates(): void
@@ -215,7 +214,7 @@ class LogisticOrderDeliveryTest extends TestCase
         $response->assertStatus(200)
             ->assertJson([
                 'success' => true,
-                'message' => 'Proposed delivery reschedule approved by sales successfully.',
+                'message' => 'Rescheduled delivery schedule approved successfully. Delivery due date and ETA have been updated.',
                 'data' => [
                     'logistic_status' => 'RESCHEDULE_APPROVED',
                     'req_due_date' => '2026-09-22',
@@ -232,7 +231,7 @@ class LogisticOrderDeliveryTest extends TestCase
 
         $logs = SalesOrderLogisticLog::where('sales_order_id', $this->soOrderApproved->id)->get();
         $this->assertCount(2, $logs);
-        $this->assertEquals('APPROVE_RESCHEDULE', $logs->last()->action);
+        $this->assertEquals('ADMIN_SALES_APPROVED_RESCHEDULE', $logs->last()->action);
     }
 
     public function test_get_order_monitoring_logs(): void
@@ -248,12 +247,49 @@ class LogisticOrderDeliveryTest extends TestCase
         $response->assertStatus(200)
             ->assertJson([
                 'success' => true,
-                'message' => 'Logistic order logs retrieved successfully.',
+                'message' => 'Delivery monitoring logs retrieved successfully.',
             ]);
 
         $logs = $response->json('data.logs');
         $this->assertCount(1, $logs);
-        $this->assertEquals('APPROVE_SCHEDULE', $logs[0]['action']);
-        $this->assertEquals('Tim Logistik', $logs[0]['user']['name']);
+        $this->assertEquals('LOGISTIC_APPROVED', $logs[0]['action']);
+        $this->assertEquals('Tim Logistik', $logs[0]['user_name']);
+    }
+
+    public function test_get_dashboard_delivery_orders_returns_summary_and_tab_filtering(): void
+    {
+        // Approve soOrderApproved
+        $this->actingAs($this->user)
+            ->postJson("/api/distributor-channel/v1/logistic/orders/{$this->soOrderApproved->id}/approve", [
+                'notes' => 'Armada ready.',
+            ]);
+
+        // Call Dashboard API with tab=approved
+        $response = $this->actingAs($this->user)
+            ->getJson('/api/distributor-channel/v1/logistic/orders/dashboard?tab=approved');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Dashboard delivery orders retrieved successfully.',
+            ]);
+
+        $summary = $response->json('data.summary');
+        $this->assertNotNull($summary);
+        $this->assertArrayHasKey('total_orders', $summary);
+        $this->assertArrayHasKey('pending_count', $summary);
+        $this->assertArrayHasKey('logistic_approved_count', $summary);
+        $this->assertArrayHasKey('reschedule_requested_count', $summary);
+        $this->assertArrayHasKey('admin_approved_count', $summary);
+        $this->assertArrayHasKey('total_approved_count', $summary);
+        $this->assertArrayHasKey('total_reschedule_count', $summary);
+
+        $this->assertGreaterThanOrEqual(1, $summary['logistic_approved_count']);
+        $this->assertGreaterThanOrEqual(1, $summary['total_approved_count']);
+
+        $orders = $response->json('data.orders');
+        $orderNumbers = collect($orders)->pluck('order_no')->all();
+        $this->assertContains('SO-OA-001', $orderNumbers);
+        $this->assertNotContains('SO-WF-001', $orderNumbers); // SO-WF-001 is PENDING, should not appear in tab=approved
     }
 }

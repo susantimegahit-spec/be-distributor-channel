@@ -16,77 +16,80 @@
     :root {
       --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       --font-mono: 'JetBrains Mono', monospace;
-      --bg-dark: #090d16;
-      --surface-dark: #0f172a;
-      --border-dark: rgba(255, 255, 255, 0.08);
-      --text-dark: #f8fafc;
-      --text-muted: #94a3b8;
-      --primary: #0284c7;
-      --primary-hover: #0369a1;
-      --primary-glow: rgba(2, 132, 199, 0.25);
-      --accent-purple: #8b5cf6;
     }
 
     * {
       box-sizing: border-box;
     }
 
-    html, body {
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: 70px;
+    }
+
+    body {
       margin: 0;
       padding: 0;
-      width: 100%;
-      height: 100%;
       font-family: var(--font-sans);
-      background-color: var(--bg-dark);
-      color: var(--text-dark);
-      overflow-x: hidden;
+      background-color: #0b0f19;
+      color: #f8fafc;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    /* Light Mode Adaptive Styling */
+    body.light-mode {
+      background-color: #ffffff;
+      color: #0f172a;
     }
 
     /* ============================================================
-       Modern Glassmorphic Top Navigation Header
+       Modern Glassmorphic Sticky Header
     ============================================================ */
     .smesta-topbar {
       position: sticky;
       top: 0;
-      z-index: 9999;
-      height: 64px;
+      z-index: 1000;
+      height: 62px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 0 24px;
-      background: rgba(11, 15, 25, 0.85);
+      background: rgba(11, 15, 25, 0.92);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--border-dark);
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      transition: all 0.2s ease;
+    }
+
+    body.light-mode .smesta-topbar {
+      background: rgba(255, 255, 255, 0.92);
+      border-bottom: 1px solid #e2e8f0;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
     }
 
     .brand-section {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 12px;
     }
 
     .brand-logo-img {
-      height: 42px;
+      height: 40px;
       width: auto;
       object-fit: contain;
-      filter: drop-shadow(0 2px 8px rgba(2, 132, 199, 0.3));
-    }
-
-    .brand-text-col {
-      display: flex;
-      flex-direction: column;
     }
 
     .brand-title {
       font-size: 15px;
       font-weight: 800;
-      letter-spacing: -0.01em;
       color: #ffffff;
       display: flex;
       align-items: center;
       gap: 8px;
+    }
+
+    body.light-mode .brand-title {
+      color: #0f172a;
     }
 
     .brand-badge {
@@ -98,16 +101,19 @@
       border-radius: 9999px;
       background: linear-gradient(135deg, #0284c7, #8b5cf6);
       color: #ffffff;
-      box-shadow: 0 0 10px rgba(139, 92, 246, 0.3);
     }
 
     .brand-subtitle {
       font-size: 11px;
-      color: var(--text-muted);
+      color: #94a3b8;
       font-weight: 500;
       display: flex;
       align-items: center;
       gap: 6px;
+    }
+
+    body.light-mode .brand-subtitle {
+      color: #64748b;
     }
 
     .pulse-dot {
@@ -116,13 +122,7 @@
       height: 7px;
       border-radius: 50%;
       background-color: #10b981;
-      box-shadow: 0 0 8px #10b981;
-      animation: pulse-glow 2s infinite;
-    }
-
-    @keyframes pulse-glow {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.6; transform: scale(1.2); }
+      box-shadow: 0 0 6px #10b981;
     }
 
     /* ============================================================
@@ -131,24 +131,35 @@
     .search-btn-trigger {
       display: flex;
       align-items: center;
-      gap: 12px;
-      background: rgba(255, 255, 255, 0.05);
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.06);
       border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 10px;
-      padding: 8px 16px;
-      color: var(--text-muted);
+      border-radius: 8px;
+      padding: 7px 14px;
+      color: #94a3b8;
       font-size: 13px;
       font-weight: 500;
       cursor: pointer;
-      min-width: 260px;
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      min-width: 250px;
+      transition: all 0.15s ease;
     }
 
     .search-btn-trigger:hover {
-      background: rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.1);
       border-color: rgba(2, 132, 199, 0.5);
       color: #ffffff;
-      box-shadow: 0 0 16px rgba(2, 132, 199, 0.2);
+    }
+
+    body.light-mode .search-btn-trigger {
+      background: #f1f5f9;
+      border-color: #e2e8f0;
+      color: #64748b;
+    }
+
+    body.light-mode .search-btn-trigger:hover {
+      background: #e2e8f0;
+      border-color: #0284c7;
+      color: #0f172a;
     }
 
     .search-btn-trigger svg {
@@ -159,18 +170,23 @@
 
     .search-kbd {
       margin-left: auto;
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.08);
       border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 5px;
+      border-radius: 4px;
       padding: 2px 6px;
       font-size: 11px;
       font-family: var(--font-mono);
       color: #cbd5e1;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    }
+
+    body.light-mode .search-kbd {
+      background: #e2e8f0;
+      border-color: #cbd5e1;
+      color: #334155;
     }
 
     /* ============================================================
-       Actions & Nav Buttons
+       Topbar Action Buttons
     ============================================================ */
     .topbar-actions {
       display: flex;
@@ -178,88 +194,86 @@
       gap: 10px;
     }
 
-    .action-link-btn {
+    .action-btn {
       display: inline-flex;
       align-items: center;
       gap: 7px;
-      padding: 7px 14px;
+      padding: 6px 13px;
       font-size: 12px;
       font-weight: 600;
       border-radius: 8px;
       text-decoration: none;
-      transition: all 0.2s ease;
       cursor: pointer;
+      transition: all 0.15s ease;
       border: 1px solid transparent;
-    }
-
-    .btn-classic {
-      background: rgba(255, 255, 255, 0.05);
-      color: #94a3b8;
+      background: rgba(255, 255, 255, 0.06);
+      color: #cbd5e1;
       border-color: rgba(255, 255, 255, 0.1);
     }
 
-    .btn-classic:hover {
-      background: rgba(255, 255, 255, 0.1);
+    .action-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
       color: #ffffff;
-      border-color: rgba(255, 255, 255, 0.2);
     }
 
-    .btn-raw {
-      background: rgba(2, 132, 199, 0.15);
-      color: #38bdf8;
-      border-color: rgba(2, 132, 199, 0.3);
+    body.light-mode .action-btn {
+      background: #f1f5f9;
+      color: #334155;
+      border-color: #e2e8f0;
     }
 
-    .btn-raw:hover {
-      background: rgba(2, 132, 199, 0.25);
-      color: #7dd3fc;
-      border-color: #0284c7;
+    body.light-mode .action-btn:hover {
+      background: #e2e8f0;
+      color: #0f172a;
     }
 
-    .btn-logout-modern {
+    .action-btn.btn-theme-toggle {
+      background: rgba(139, 92, 246, 0.15);
+      color: #c4b5fd;
+      border-color: rgba(139, 92, 246, 0.3);
+    }
+
+    .action-btn.btn-theme-toggle:hover {
+      background: rgba(139, 92, 246, 0.25);
+      color: #ffffff;
+    }
+
+    body.light-mode .action-btn.btn-theme-toggle {
+      background: #f3e8ff;
+      color: #7e22ce;
+      border-color: #d8b4fe;
+    }
+
+    .action-btn.btn-logout {
       background: rgba(239, 68, 68, 0.12);
       color: #f87171;
       border-color: rgba(239, 68, 68, 0.25);
     }
 
-    .btn-logout-modern:hover {
+    .action-btn.btn-logout:hover {
       background: rgba(239, 68, 68, 0.22);
       color: #fca5a5;
-      border-color: #ef4444;
     }
 
-    /* Container for Scalar Reference */
-    #scalar-reference-wrapper {
-      width: 100%;
-      min-height: calc(100vh - 64px);
-    }
-
-    /* Custom overrides for Scalar Elements to match theme */
+    /* Scalar Font Overrides */
     .scalar-api-reference {
-      --scalar-font: var(--font-sans) !important;
-      --scalar-font-code: var(--font-mono) !important;
-      --scalar-background-1: #090d16 !important;
-      --scalar-background-2: #0f172a !important;
-      --scalar-background-3: #1e293b !important;
-      --scalar-border-color: rgba(255, 255, 255, 0.08) !important;
-      --scalar-color-1: #f8fafc !important;
-      --scalar-color-2: #cbd5e1 !important;
-      --scalar-color-3: #94a3b8 !important;
-      --scalar-color-accent: #0284c7 !important;
+      --scalar-font: var(--font-sans);
+      --scalar-font-code: var(--font-mono);
+      --scalar-color-accent: #0284c7;
     }
   </style>
 </head>
 
-<body>
+<body class="dark-mode">
 
   <!-- Top Glassmorphism Navigation Bar -->
   <header class="smesta-topbar">
     <div class="brand-section">
       <img src="/docs/logo-smesta-transparent.png" alt="SMESTA Logo" class="brand-logo-img" />
-      <div class="brand-text-col">
+      <div>
         <div class="brand-title">
           PT SUSANTI MEGAH
-          <span class="brand-badge">Next-Gen Docs</span>
+          <span class="brand-badge">API Docs</span>
         </div>
         <div class="brand-subtitle">
           <span class="pulse-dot"></span>
@@ -268,8 +282,8 @@
       </div>
     </div>
 
-    <!-- Live Search Trigger Button (Ctrl + K) -->
-    <button class="search-btn-trigger" onclick="openScalarSearch()" title="Cari Endpoint, Tag, Model, atau Deskripsi (Ctrl + K)">
+    <!-- Quick Search Trigger Button -->
+    <button class="search-btn-trigger" onclick="triggerScalarSearch()" title="Cari Endpoint, Tag, Model (Ctrl + K)">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
       </svg>
@@ -279,77 +293,128 @@
 
     <!-- Header Actions -->
     <div class="topbar-actions">
+      <!-- Dark / Light Mode Toggle Button -->
+      <button class="action-btn btn-theme-toggle" onclick="toggleScalarTheme()" id="theme-toggle-btn" title="Ubah Tema Gelap / Terang">
+        <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <span id="theme-label">Light Mode</span>
+      </button>
+
       <!-- Switch to Classic RapiDoc View -->
-      <a href="/docs" class="action-link-btn btn-classic" title="Beralih ke tampilan dokumentasi klasik (RapiDoc)">
+      <a href="/docs" class="action-btn" title="Beralih ke tampilan dokumentasi klasik (RapiDoc)">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M14 9l3 3-3 3"/></svg>
-        <span>Classic View (/docs)</span>
+        <span>Classic (/docs)</span>
       </a>
 
       <!-- Download Raw OpenAPI YAML -->
-      <a href="/docs/openapi.yaml" target="_blank" class="action-link-btn btn-raw" title="Download berkas OpenAPI YAML resmi">
+      <a href="/docs/openapi.yaml" target="_blank" class="action-btn" title="Download berkas OpenAPI YAML">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         <span>openapi.yaml</span>
       </a>
 
       <!-- Logout Button -->
-      <a href="/docs/logout" class="action-link-btn btn-logout-modern" title="Keluar dari sesi dokumentasi">
+      <a href="/docs/logout" class="action-btn btn-logout" title="Keluar dari sesi dokumentasi">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
         <span>Logout</span>
       </a>
     </div>
   </header>
 
-  <!-- Scalar Modern API Reference Container -->
-  <div id="scalar-reference-wrapper">
-    <script
-      id="api-reference"
-      data-url="/docs/openapi.yaml"
-      data-configuration='{
-        "theme": "purple",
-        "layout": "modern",
-        "darkMode": true,
-        "showSidebar": true,
-        "searchHotKey": "k",
-        "metaData": {
-          "title": "SMESTA API Docs",
-          "description": "Dokumentasi Lengkap API Backend Distributor Channel PT Susanti Megah"
-        },
-        "hiddenClients": []
-      }'
-    ></script>
-  </div>
+  <!-- Scalar Configuration Script with Default Theme & Auto-Expanded Tags -->
+  <script
+    id="api-reference"
+    data-url="/docs/openapi.yaml"
+    data-configuration='{"theme":"default","darkMode":true,"showSidebar":true,"defaultOpenAllTags":true,"searchHotKey":"k"}'
+  ></script>
 
   <!-- Scalar Standalone CDN Script -->
   <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
 
   <script>
-    // Trigger Scalar's built-in command palette search modal
-    function openScalarSearch() {
-      // 1. Coba klik langsung tombol search bawaan Scalar di sidebar jika tersedia di DOM
-      const scalarSearchButton = document.querySelector('.scalar-api-reference button[aria-label*="Search"], .scalar-api-reference .search-button, [data-testid="search-button"]');
-      if (scalarSearchButton) {
-        scalarSearchButton.click();
+    // Sinkronisasi status tema (Dark / Light) antara Scalar dan Topbar
+    function updateThemeUI(isDark) {
+      const label = document.getElementById('theme-label');
+      const icon = document.getElementById('theme-icon');
+      if (!label || !icon) return;
+
+      if (isDark) {
+        label.textContent = 'Light Mode';
+        icon.innerHTML = '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>';
+      } else {
+        label.textContent = 'Dark Mode';
+        icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
+      }
+    }
+
+    function toggleScalarTheme() {
+      // 1. Cari dan klik tombol toggle tema bawaan Scalar
+      const scalarToggleBtn = document.querySelector('.darklight-reference button, button.text-c-2, [aria-label*="theme" i], [aria-label*="mode" i]');
+      if (scalarToggleBtn) {
+        scalarToggleBtn.click();
+        setTimeout(checkBodyTheme, 150);
         return;
       }
 
-      // 2. Fallback: Dispatch keyboard event Ctrl+K
-      const event = new KeyboardEvent('keydown', {
-        key: 'k',
-        code: 'KeyK',
-        ctrlKey: true,
-        metaKey: true,
-        bubbles: true,
-        cancelable: true
-      });
-      document.dispatchEvent(event);
+      // 2. Fallback jika tombol belum ter-render
+      if (document.body.classList.contains('dark-mode')) {
+        document.body.classList.remove('dark-mode');
+        document.body.classList.add('light-mode');
+        updateThemeUI(false);
+      } else {
+        document.body.classList.remove('light-mode');
+        document.body.classList.add('dark-mode');
+        updateThemeUI(true);
+      }
     }
 
-    // Tangkap shortcut keyboard Ctrl+K atau Cmd+K dari mana saja di halaman
+    function checkBodyTheme() {
+      const isDark = document.body.classList.contains('dark-mode');
+      updateThemeUI(isDark);
+    }
+
+    // Trigger Scalar Search Modal
+    function triggerScalarSearch() {
+      // 1. Coba klik search button Scalar jika ada
+      const scalarSearchBtn = document.querySelector('.t-doc__sidebar-search, button[aria-label*="Search" i], [data-testid="search-button"]');
+      if (scalarSearchBtn) {
+        scalarSearchBtn.click();
+        return;
+      }
+
+      // 2. Dispatch keyboard event Ctrl+K
+      const eventOpts = { key: 'k', code: 'KeyK', keyCode: 75, which: 75, ctrlKey: true, metaKey: true, bubbles: true, cancelable: true };
+      window.dispatchEvent(new KeyboardEvent('keydown', eventOpts));
+      document.dispatchEvent(new KeyboardEvent('keydown', eventOpts));
+    }
+
+    // Tangkap shortcut keyboard Ctrl+K atau Cmd+K
     document.addEventListener('keydown', function(e) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-        openScalarSearch();
+        triggerScalarSearch();
       }
     });
+
+    // Pantau perubahan class pada document.body saat tema diubah
+    const observer = new MutationObserver(function(mutations) {
+      mutations.forEach(function(mutation) {
+        if (mutation.attributeName === 'class') {
+          checkBodyTheme();
+        }
+      });
+    });
+    observer.observe(document.body, { attributes: true });
+
+    // Inisialisasi awal
+    window.addEventListener('DOMContentLoaded', checkBodyTheme);
   </script>
 
 </body>

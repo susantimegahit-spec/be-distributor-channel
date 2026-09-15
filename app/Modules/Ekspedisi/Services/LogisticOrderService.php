@@ -69,9 +69,39 @@ class LogisticOrderService
             $query->whereIn('status', ['WAITING_FINANCE', 'ORDER_APPROVED']);
         }
 
-        if (!empty($filters['logistic_status'])) {
-            $logisticStatus = strtoupper(trim((string) $filters['logistic_status']));
-            $query->where('logistic_status', $logisticStatus);
+        // Tab / Category filter for dashboard tabs
+        $tab = !empty($filters['tab'])
+            ? strtolower(trim((string) $filters['tab']))
+            : (!empty($filters['category']) ? strtolower(trim((string) $filters['category'])) : null);
+
+        if ($tab) {
+            if ($tab === 'approved') {
+                $query->whereIn('logistic_status', ['APPROVED', 'RESCHEDULE_APPROVED']);
+            } elseif ($tab === 'reschedule') {
+                $query->whereIn('logistic_status', ['RESCHEDULE_REQUESTED', 'RESCHEDULE_APPROVED']);
+            } elseif ($tab === 'logistic_approved') {
+                $query->where('logistic_status', 'APPROVED');
+            } elseif ($tab === 'admin_approved' || $tab === 'reschedule_approved') {
+                $query->where('logistic_status', 'RESCHEDULE_APPROVED');
+            } elseif ($tab === 'reschedule_requested') {
+                $query->where('logistic_status', 'RESCHEDULE_REQUESTED');
+            } elseif ($tab === 'pending') {
+                $query->where(function ($q) {
+                    $q->where('logistic_status', 'PENDING')
+                      ->orWhereNull('logistic_status');
+                });
+            }
+        } elseif (!empty($filters['logistic_status'])) {
+            $statusVal = $filters['logistic_status'];
+            if (is_string($statusVal) && str_contains($statusVal, ',')) {
+                $statuses = array_map(fn($s) => strtoupper(trim($s)), explode(',', $statusVal));
+                $query->whereIn('logistic_status', $statuses);
+            } elseif (is_array($statusVal)) {
+                $statuses = array_map(fn($s) => strtoupper(trim($s)), $statusVal);
+                $query->whereIn('logistic_status', $statuses);
+            } else {
+                $query->where('logistic_status', strtoupper(trim((string) $statusVal)));
+            }
         }
 
         if (!empty($filters['search'])) {
@@ -108,6 +138,37 @@ class LogisticOrderService
             $orderArray['logistic_status'] = $logisticStatus;
             $orderArray['logistic_notes'] = $order->logistic_notes;
 
+            // Approval type classification & label for FE
+            $approvalType = match ($logisticStatus) {
+                'APPROVED' => 'LOGISTIC_APPROVED',
+                'RESCHEDULE_APPROVED' => 'ADMIN_SALES_APPROVED',
+                'RESCHEDULE_REQUESTED' => 'RESCHEDULE_REQUESTED',
+                default => 'PENDING',
+            };
+
+            $approvalLabel = match ($logisticStatus) {
+                'APPROVED' => 'Logistic Approved',
+                'RESCHEDULE_APPROVED' => 'Reschedule Approved (Admin Sales)',
+                'RESCHEDULE_REQUESTED' => 'Reschedule Requested',
+                default => 'Pending Logistic Review',
+            };
+
+            $orderArray['approval_type'] = $approvalType;
+            $orderArray['approval_status_label'] = $approvalLabel;
+
+            // Format latest logistic log if available
+            $latestLog = $order->latestLogisticLog;
+            $orderArray['latest_log'] = $latestLog ? [
+                'id'         => $latestLog->id,
+                'action'     => $latestLog->action,
+                'from_status'=> $latestLog->from_status,
+                'to_status'  => $latestLog->to_status,
+                'notes'      => $latestLog->notes,
+                'user_name'  => $latestLog->user_name,
+                'role_name'  => $latestLog->role_name,
+                'created_at' => $latestLog->created_at ? $latestLog->created_at->format('Y-m-d H:i:s') : null,
+            ] : null;
+
             $orderArray['leadtime_info'] = [
                 'benchmark_lead_time_days' => $benchmarkLeadTime,
                 'source'                   => 'ekspedisi.master_leadtimes',
@@ -122,6 +183,77 @@ class LogisticOrderService
         });
 
         return $paginator;
+    }
+
+    /**
+     * Get summary KPI counters for logistic delivery dashboard.
+     */
+    public function getDashboardSummary(array $filters = []): array
+    {
+        $query = SalesOrder::query();
+
+        if (!empty($filters['status'])) {
+            $statusInput = strtoupper(trim((string) $filters['status']));
+            $query->where('status', $statusInput);
+        } else {
+            $query->whereIn('status', ['WAITING_FINANCE', 'ORDER_APPROVED']);
+        }
+
+        if (!empty($filters['search'])) {
+            $search = '%' . trim((string) $filters['search']) . '%';
+            $likeOp = config('database.default') === 'sqlite' ? 'LIKE' : 'ILIKE';
+            $query->where(function ($q) use ($search, $likeOp) {
+                $q->where('order_no', $likeOp, $search)
+                  ->orWhere('customer_name', $likeOp, $search)
+                  ->orWhere('card_code', $likeOp, $search)
+                  ->orWhere('po_number', $likeOp, $search);
+            });
+        }
+
+        if (!empty($filters['date_from'])) {
+            $query->where('doc_date', '>=', $filters['date_from']);
+        }
+
+        if (!empty($filters['date_to'])) {
+            $query->where('doc_date', '<=', $filters['date_to']);
+        }
+
+        return [
+            'total_orders'               => (clone $query)->count(),
+            'pending_count'              => (clone $query)->where(function ($q) {
+                $q->where('logistic_status', 'PENDING')->orWhereNull('logistic_status');
+            })->count(),
+            'logistic_approved_count'    => (clone $query)->where('logistic_status', 'APPROVED')->count(),
+            'reschedule_requested_count' => (clone $query)->where('logistic_status', 'RESCHEDULE_REQUESTED')->count(),
+            'admin_approved_count'       => (clone $query)->where('logistic_status', 'RESCHEDULE_APPROVED')->count(),
+            'total_approved_count'       => (clone $query)->whereIn('logistic_status', ['APPROVED', 'RESCHEDULE_APPROVED'])->count(),
+            'total_reschedule_count'     => (clone $query)->whereIn('logistic_status', ['RESCHEDULE_REQUESTED', 'RESCHEDULE_APPROVED'])->count(),
+        ];
+    }
+
+    /**
+     * Get complete dashboard payload: summary counters, current tab, and paginated orders.
+     */
+    public function getDashboard(array $filters = [], int $perPage = 15): array
+    {
+        $summary = $this->getDashboardSummary($filters);
+        $paginator = $this->listOrders($filters, $perPage);
+
+        $currentTab = !empty($filters['tab'])
+            ? strtolower(trim((string) $filters['tab']))
+            : (!empty($filters['category']) ? strtolower(trim((string) $filters['category'])) : 'all');
+
+        return [
+            'summary'     => $summary,
+            'current_tab' => $currentTab,
+            'orders'      => $paginator->items(),
+            'meta'        => [
+                'current_page' => $paginator->currentPage(),
+                'last_page'    => $paginator->lastPage(),
+                'per_page'     => $paginator->perPage(),
+                'total'        => $paginator->total(),
+            ],
+        ];
     }
 
     /**

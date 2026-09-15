@@ -46,6 +46,7 @@ Route::prefix('v1/ekspedisi')->middleware('auth:sanctum')->group(function () {
 
 // Logistic & Sales Order Delivery Monitoring Routes
 Route::prefix('v1/logistic/orders')->middleware('auth:sanctum')->group(function () {
+    Route::get('/dashboard', [\App\Modules\Ekspedisi\Controllers\LogisticOrderController::class, 'dashboard']);
     Route::get('/', [\App\Modules\Ekspedisi\Controllers\LogisticOrderController::class, 'index']);
     Route::get('/{id}/logs', [\App\Modules\Ekspedisi\Controllers\LogisticOrderController::class, 'logs']);
     Route::post('/{id}/reschedule', [\App\Modules\Ekspedisi\Controllers\LogisticOrderController::class, 'reschedule']);
