@@ -42,4 +42,21 @@ class DocsNewPageTest extends TestCase
         $content = file_get_contents($filePath);
         $this->assertStringContainsString('/docsnew', $content);
     }
+
+    public function test_openapi_yaml_serves_valid_yaml(): void
+    {
+        $response = $this->withSession([
+            'docs_authenticated' => true,
+            'docs_last_activity' => time(),
+        ])->get('/docs/openapi.yaml');
+
+        $response->assertStatus(200);
+        $filePath = $response->getFile()->getPathname();
+        $this->assertFileExists($filePath);
+        $parsed = \Symfony\Component\Yaml\Yaml::parseFile($filePath);
+        $this->assertIsArray($parsed);
+        $this->assertEquals('3.0.3', $parsed['openapi']);
+        $this->assertArrayHasKey('/v1/logistic/orders/dashboard', $parsed['paths']);
+        $this->assertArrayHasKey('/v1/logistic/orders', $parsed['paths']);
+    }
 }
