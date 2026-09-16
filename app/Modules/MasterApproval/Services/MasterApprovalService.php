@@ -303,10 +303,40 @@ class MasterApprovalService
                 'C' => 'Canceled',
             ];
 
-            $result = array_map(function ($item) use ($statusMap) {
-                if (is_array($item) && isset($item['Status'])) {
-                    $rawStatus = strtoupper(trim((string) $item['Status']));
-                    $item['Status'] = $statusMap[$rawStatus] ?? ($rawStatus === 'W' ? 'Pending' : $item['Status']);
+            // Fetch approval stages to map CurrStep -> Stage Name & Remarks
+            $stagesMap = [];
+            try {
+                $stages = $this->getStagesFromSap([], null, false);
+                foreach ($stages as $stage) {
+                    if (is_array($stage)) {
+                        $wstCode = trim((string) ($stage['WstCode'] ?? ''));
+                        if ($wstCode !== '') {
+                            $stagesMap[$wstCode] = $stage;
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Failed to fetch stages for GetApproval mapping: ' . $e->getMessage());
+            }
+
+            $result = array_map(function ($item) use ($statusMap, $stagesMap) {
+                if (is_array($item)) {
+                    if (isset($item['Status'])) {
+                        $rawStatus = strtoupper(trim((string) $item['Status']));
+                        $item['raw_status'] = $rawStatus;
+                        $item['Status'] = $statusMap[$rawStatus] ?? ($rawStatus === 'W' ? 'Pending' : $item['Status']);
+                    }
+
+                    // Map CurrStep to Stage Name and Remarks from getstages
+                    $currStep = trim((string) ($item['CurrStep'] ?? ''));
+                    $matchedStage = $stagesMap[$currStep] ?? null;
+
+                    $item['Name'] = $matchedStage['Name'] ?? '';
+                    if ($matchedStage && !empty($matchedStage['Remarks'])) {
+                        $item['Remarks'] = $matchedStage['Remarks'];
+                    } elseif (!isset($item['Remarks'])) {
+                        $item['Remarks'] = '';
+                    }
                 }
                 return $item;
             }, $filteredResult);
@@ -458,6 +488,20 @@ class MasterApprovalService
             $sapPayload['To'] = str_replace(['-', '/'], '', trim((string) $to));
         }
 
+        // Status filter (Optional: W, Y, N, C or human-readable status)
+        $status = $payload['Status'] ?? $payload['status'] ?? null;
+        if ($status !== null && $status !== '') {
+            $cleanStatus = strtoupper(trim((string) $status));
+            $reverseMap = [
+                'PENDING'   => 'W',
+                'APPROVED'  => 'Y',
+                'REJECTED'  => 'N',
+                'CANCELED'  => 'C',
+                'CANCELLED' => 'C',
+            ];
+            $sapPayload['Status'] = $reverseMap[$cleanStatus] ?? $cleanStatus;
+        }
+
         $cacheKey = 'sap_owner_approvals_' . md5(json_encode($sapPayload));
         $cacheTtl = (int) config('services.sap.cache_ttl', 1800);
 
@@ -509,11 +553,40 @@ class MasterApprovalService
                 'C' => 'Canceled',
             ];
 
-            $result = array_map(function ($item) use ($statusMap) {
-                if (is_array($item) && isset($item['Status'])) {
-                    $rawStatus = strtoupper(trim((string) $item['Status']));
-                    $item['raw_status'] = $rawStatus;
-                    $item['Status'] = $statusMap[$rawStatus] ?? ($rawStatus === 'W' ? 'Pending' : $item['Status']);
+            // Fetch approval stages to map CurrStep -> Stage Name & Remarks
+            $stagesMap = [];
+            try {
+                $stages = $this->getStagesFromSap([], null, false);
+                foreach ($stages as $stage) {
+                    if (is_array($stage)) {
+                        $wstCode = trim((string) ($stage['WstCode'] ?? ''));
+                        if ($wstCode !== '') {
+                            $stagesMap[$wstCode] = $stage;
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Failed to fetch stages for GetListByOwnerId mapping: ' . $e->getMessage());
+            }
+
+            $result = array_map(function ($item) use ($statusMap, $stagesMap) {
+                if (is_array($item)) {
+                    if (isset($item['Status'])) {
+                        $rawStatus = strtoupper(trim((string) $item['Status']));
+                        $item['raw_status'] = $rawStatus;
+                        $item['Status'] = $statusMap[$rawStatus] ?? ($rawStatus === 'W' ? 'Pending' : $item['Status']);
+                    }
+
+                    // Map CurrStep to Stage Name and Remarks from getstages
+                    $currStep = trim((string) ($item['CurrStep'] ?? ''));
+                    $matchedStage = $stagesMap[$currStep] ?? null;
+
+                    $item['Name'] = $matchedStage['Name'] ?? '';
+                    if ($matchedStage && !empty($matchedStage['Remarks'])) {
+                        $item['Remarks'] = $matchedStage['Remarks'];
+                    } elseif (!isset($item['Remarks'])) {
+                        $item['Remarks'] = '';
+                    }
                 }
                 return $item;
             }, $filteredResult);

@@ -15815,6 +15815,12 @@ paths:
           schema:
             type: string
             example: "20261231"
+        - name: Status
+          in: query
+          description: Filter status persetujuan (W, Y, N, C, Pending, Approved, dsb)
+          schema:
+            type: string
+            example: "Y"
       responses:
         '200':
           description: Owner document approval list retrieved successfully.
@@ -15840,6 +15846,15 @@ paths:
                         DocEntry:
                           type: string
                           example: "5339"
+                        DraftEntry:
+                          type: string
+                          example: "679"
+                        DraftNum:
+                          type: string
+                          example: "260140084"
+                        DocNum:
+                          type: string
+                          example: "260140087"
                         ObjType:
                           type: string
                           example: "1470000113"
@@ -15855,9 +15870,14 @@ paths:
                         raw_status:
                           type: string
                           example: "Y"
+                        Name:
+                          type: string
+                          description: Nama tahapan persetujuan dari getstages
+                          example: "Production Mng. SBY"
                         Remarks:
                           type: string
-                          example: ""
+                          description: Keterangan tahapan persetujuan dari getstages
+                          example: "Production Manager Surabaya"
     post:
       summary: Get Owner / My Document Approval List from SAP (POST Method)
       description: Mengambil daftar dokumen yang diajukan oleh pembuat dokumen (Originator/Owner) melalui POST request payload.
@@ -15887,6 +15907,9 @@ paths:
                 To:
                   type: string
                   example: "20261231"
+                Status:
+                  type: string
+                  example: "Y"
       responses:
         '200':
           description: Owner document approval list retrieved successfully.
