@@ -3238,7 +3238,7 @@ paths:
   /v1/master-approvals/approvals:
     get:
       summary: Get Approval List from SAP API
-      description: Mengambil daftar antrean persetujuan dokumen dari SAP B1 middleware (/api/getapproval). Status 'W' otomatis dikonversi menjadi 'Pending'. Jika data kosong atau SAP mengembalikan placeholder dummy (WddCode 0), backend mengembalikan pesan 'Data not found.' dengan data array kosong [].
+      description: Mengambil daftar antrean persetujuan dokumen dari SAP B1 middleware (/api/getapproval). Status 'W' otomatis dikonversi menjadi 'Pending', 'Y' menjadi 'Approved', 'G' menjadi 'Generated' (dokumen SAP telah terbit). Jika data kosong atau SAP mengembalikan placeholder dummy (WddCode 0), backend mengembalikan pesan 'Data not found.' dengan data array kosong [].
       tags:
         - Master Approvals
       security:
@@ -3311,6 +3311,11 @@ paths:
                           example: "Pending"
                         Remarks:
                           type: string
+                          description: Catatan dokumen approval asli dari record SAP
+                          example: ""
+                        StageRemarks:
+                          type: string
+                          description: Catatan tahapan approval current step (jika ada)
                           example: ""
         '500':
           description: Gagal terhubung ke SAP B1 middleware
@@ -15864,7 +15869,7 @@ paths:
             example: "20261231"
         - name: Status
           in: query
-          description: Filter status persetujuan (W, Y, N, C, Pending, Approved, dsb)
+          description: Filter status persetujuan (W, Y, N, C, G, Pending, Approved, Generated, dsb)
           schema:
             type: string
             example: "Y"
@@ -15998,6 +16003,7 @@ paths:
                   example: "20261231"
                 Status:
                   type: string
+                  description: Filter status persetujuan (W, Y, N, C, G, Pending, Approved, Generated, dsb)
                   example: "Y"
                 page:
                   type: integer
@@ -16039,7 +16045,7 @@ paths:
         - name: Status
           in: query
           required: false
-          description: Status persetujuan dokumen SAP (contoh "Y", "W", "N", "C", atau "APPROVED", "PENDING", dll.)
+          description: Status persetujuan dokumen SAP (contoh "Y", "W", "N", "C", "G", atau "APPROVED", "PENDING", "GENERATED", dll.)
           schema:
             type: string
             example: "Y"

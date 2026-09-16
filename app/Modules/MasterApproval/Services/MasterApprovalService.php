@@ -301,6 +301,7 @@ class MasterApprovalService
                 'Y' => 'Approved',
                 'N' => 'Rejected',
                 'C' => 'Canceled',
+                'G' => 'Generated',
             ];
 
             // Fetch approval stages to map CurrStep -> Stage Name & Remarks
@@ -327,15 +328,15 @@ class MasterApprovalService
                         $item['Status'] = $statusMap[$rawStatus] ?? ($rawStatus === 'W' ? 'Pending' : $item['Status']);
                     }
 
-                    // Map CurrStep to Stage Name and Remarks from getstages
+                    // Map CurrStep to Stage Name from getstages
                     $currStep = trim((string) ($item['CurrStep'] ?? ''));
                     $matchedStage = $stagesMap[$currStep] ?? null;
 
                     $item['Name'] = $matchedStage['Name'] ?? '';
+                    // Remarks diambil dari data approval list SAP asli, bukan ditimpa oleh remarks current step
+                    $item['Remarks'] = $item['Remarks'] ?? '';
                     if ($matchedStage && !empty($matchedStage['Remarks'])) {
-                        $item['Remarks'] = $matchedStage['Remarks'];
-                    } elseif (!isset($item['Remarks'])) {
-                        $item['Remarks'] = '';
+                        $item['StageRemarks'] = $matchedStage['Remarks'];
                     }
                 }
                 return $item;
@@ -504,6 +505,7 @@ class MasterApprovalService
                 'REJECTED'  => 'N',
                 'CANCELED'  => 'C',
                 'CANCELLED' => 'C',
+                'GENERATED' => 'G',
             ];
             $sapPayload['Status'] = $reverseMap[$cleanStatus] ?? $cleanStatus;
         }
@@ -557,6 +559,7 @@ class MasterApprovalService
                 'Y' => 'Approved',
                 'N' => 'Rejected',
                 'C' => 'Canceled',
+                'G' => 'Generated',
             ];
 
             // Fetch approval stages to map CurrStep -> Stage Name & Remarks
@@ -668,6 +671,7 @@ class MasterApprovalService
                 'REJECTED'  => 'N',
                 'CANCELED'  => 'C',
                 'CANCELLED' => 'C',
+                'GENERATED' => 'G',
             ];
             $sapPayload['Status'] = $reverseMap[$cleanStatus] ?? $cleanStatus;
         }
