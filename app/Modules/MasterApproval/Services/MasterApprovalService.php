@@ -465,15 +465,15 @@ class MasterApprovalService
             $sapPayload['UserId'] = (string) $payload['user_id'];
         }
 
-        // ObjectCode (Required SAP Object Type)
-        if (isset($payload['ObjectCode']) && $payload['ObjectCode'] !== '') {
+        // ObjectCode (SAP Object Type, dynamic without hardcoded default)
+        if (isset($payload['ObjectCode'])) {
             $sapPayload['ObjectCode'] = (string) $payload['ObjectCode'];
-        } elseif (isset($payload['object_code']) && $payload['object_code'] !== '') {
+        } elseif (isset($payload['object_code'])) {
             $sapPayload['ObjectCode'] = (string) $payload['object_code'];
-        } elseif (isset($payload['obj_type']) && $payload['obj_type'] !== '') {
+        } elseif (isset($payload['obj_type'])) {
             $sapPayload['ObjectCode'] = (string) $payload['obj_type'];
         } else {
-            $sapPayload['ObjectCode'] = '1470000113';
+            $sapPayload['ObjectCode'] = '';
         }
 
         // From (Date filter YYYYMMDD)
@@ -641,15 +641,15 @@ class MasterApprovalService
             $sapPayload['CustomQuery'] = (int) $payload['id'];
         }
 
-        // ObjectCode (Required SAP Object Type)
-        if (isset($payload['ObjectCode']) && $payload['ObjectCode'] !== '') {
+        // ObjectCode (SAP Object Type, dynamic without hardcoded default)
+        if (isset($payload['ObjectCode'])) {
             $sapPayload['ObjectCode'] = (string) $payload['ObjectCode'];
-        } elseif (isset($payload['object_code']) && $payload['object_code'] !== '') {
+        } elseif (isset($payload['object_code'])) {
             $sapPayload['ObjectCode'] = (string) $payload['object_code'];
-        } elseif (isset($payload['obj_type']) && $payload['obj_type'] !== '') {
+        } elseif (isset($payload['obj_type'])) {
             $sapPayload['ObjectCode'] = (string) $payload['obj_type'];
         } else {
-            $sapPayload['ObjectCode'] = '1470000113';
+            $sapPayload['ObjectCode'] = '';
         }
 
         if (empty($sapPayload['CustomQuery'])) {

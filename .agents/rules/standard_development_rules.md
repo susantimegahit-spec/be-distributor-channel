@@ -33,3 +33,8 @@ description: Standard Development & Documentation Rules for PT Susanti Megah Bac
 
 8. **API Response & Error Messages in English:**
    - Setiap respon JSON API (termasuk nilai field `'message'`, notifikasi validasi, status keterangan, dan respon error) WAJIB menggunakan **Bahasa Inggris** yang baku, profesional, dan konsisten (contoh: `'Vendor registration submitted successfully.'`, `'Email already registered.'`, `'Unauthorized access.'`, `'Invalid credentials.'`).
+
+9. **No Hardcoded Parameter Defaults (Dynamic Input Values):**
+   - DILARANG meng-hardcode nilai default parameter (seperti `ObjectCode`, `WhsCode`, `CustomQuery`, dll.) yang membatasi hasil pencarian/filter data jika klien mengirimkan nilai kosong / string kosong (`""`) atau tidak menyediakannya, kecuali secara eksplisit diminta oleh spesifikasi bisnis.
+   - Teruskan nilai parameter apa adanya sesuai input dari klien (`""` jika dikirim kosong) agar filter pencarian di SAP/database bersifat fleksibel dan dinamis.
+

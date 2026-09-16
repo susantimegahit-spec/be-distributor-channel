@@ -15798,10 +15798,9 @@ paths:
             example: "3"
         - name: ObjectCode
           in: query
-          description: Object code dokumen SAP (contoh 1470000113)
+          description: Object code dokumen SAP (opsional, contoh 1470000113)
           schema:
             type: string
-            default: "1470000113"
             example: "1470000113"
         - name: From
           in: query
@@ -15933,11 +15932,10 @@ paths:
             example: 180
         - name: ObjectCode
           in: query
-          required: true
-          description: Object code tipe dokumen SAP
+          required: false
+          description: Object code tipe dokumen SAP (opsional)
           schema:
             type: string
-            default: "1470000113"
             example: "1470000113"
       responses:
         '200':
