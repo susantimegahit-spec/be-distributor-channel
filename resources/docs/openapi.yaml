@@ -15834,10 +15834,9 @@ paths:
       parameters:
         - name: CustomQuery
           in: query
-          description: ID Originator query SAP (default 62)
+          description: ID Originator query SAP (opsional, otomatis menggunakan originator user login jika tidak diisi)
           schema:
             type: integer
-            default: 62
             example: 62
         - name: UserId
           in: query

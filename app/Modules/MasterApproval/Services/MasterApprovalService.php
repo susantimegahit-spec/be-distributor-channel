@@ -448,14 +448,20 @@ class MasterApprovalService
         $sapPayload = [];
 
         // CustomQuery (Originator ID)
-        if (isset($payload['CustomQuery'])) {
-            $sapPayload['CustomQuery'] = (int) $payload['CustomQuery'];
-        } elseif (isset($payload['custom_query'])) {
-            $sapPayload['CustomQuery'] = (int) $payload['custom_query'];
-        } elseif (isset($payload['originator_id'])) {
-            $sapPayload['CustomQuery'] = (int) $payload['originator_id'];
-        } else {
-            $sapPayload['CustomQuery'] = 62; // Default originator query ID
+        $customQuery = $payload['CustomQuery'] ?? $payload['custom_query'] ?? $payload['originator_id'] ?? null;
+        if ($customQuery !== null && $customQuery !== '') {
+            $sapPayload['CustomQuery'] = (int) $customQuery;
+        } elseif ($userId) {
+            // Check if authenticated user has originator assigned in users table
+            $user = \App\Models\User::find($userId);
+            if ($user && !empty($user->originator)) {
+                $sapPayload['CustomQuery'] = (int) $user->originator;
+            }
+        }
+
+        // If CustomQuery (Originator ID) is empty or 0, return empty array (Data not found)
+        if (empty($sapPayload['CustomQuery'])) {
+            return [];
         }
 
         // UserId (Optional)
