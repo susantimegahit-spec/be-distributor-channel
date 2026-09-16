@@ -12,7 +12,10 @@ class SapEkspedisiService
      */
     protected function getSapBaseUrl(): string
     {
-        $url = config('services.sap.url') ?: env('SAP_API_URL', 'http://103.18.133.187:3100');
+        $url = config('services.sap.url') ?: env('SAP_API_URL');
+        if (empty($url)) {
+            throw new \Exception('SAP URL configuration (services.sap.url / SAP_API_URL) is not configured in .env.');
+        }
         return rtrim($url, '/');
     }
 

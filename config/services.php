@@ -41,7 +41,7 @@ return [
     ],
 
     'sap' => [
-        'url' => env('SAP_API_URL', 'http://103.18.133.187:3100'),
+        'url' => env('SAP_API_URL'),
         'addon_id' => env('SAP_ADDON_ID', '02'),
         'user_id' => env('SAP_USER_ID', 'USR101'),
     ],

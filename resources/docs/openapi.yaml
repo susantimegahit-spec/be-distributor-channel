@@ -14,6 +14,204 @@ servers:
   - url: http://localhost:8000/api/distributor-channel
     description: Local Server
 paths:
+  /v1/master-approvals/originators:
+    get:
+      summary: Get Originators List from SAP (/api/GetOriginator)
+      description: Mengambil daftar user originator approval dari SAP Business One.
+      tags:
+        - Master Approval
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: refresh
+          in: query
+          description: Force refresh cache data SAP
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Berhasil mengambil daftar user originator
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Originators list retrieved successfully from SAP."
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        USERID:
+                          type: string
+                          example: "1"
+                        USER_CODE:
+                          type: string
+                          example: "manager"
+                        U_NAME:
+                          type: string
+                          example: "Direksi"
+    post:
+      summary: Get Originators List from SAP (/api/GetOriginator)
+      description: Mengambil daftar user originator approval dari SAP Business One (POST method).
+      tags:
+        - Master Approval
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Berhasil mengambil daftar user originator
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Originators list retrieved successfully from SAP."
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        USERID:
+                          type: string
+                          example: "1"
+                        USER_CODE:
+                          type: string
+                          example: "manager"
+                        U_NAME:
+                          type: string
+                          example: "Direksi"
+  /v1/master-approvals/by-owner:
+    post:
+      summary: Get Owner Approval List from SAP (/api/GetListByOwnerId)
+      description: Mengambil daftar dokumen persetujuan milik originator/owner tertentu dari SAP Business One.
+      tags:
+        - Master Approval
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                CustomQuery:
+                  type: integer
+                  description: Originator ID di SAP (default 62)
+                  example: 62
+                UserId:
+                  type: string
+                  description: SAP User ID (opsional)
+                  example: "USR101"
+                ObjectCode:
+                  type: string
+                  description: Object Type SAP
+                  example: "1470000113"
+                From:
+                  type: string
+                  description: Filter tanggal awal YYYYMMDD atau YYYY-MM-DD
+                  example: "20260101"
+                To:
+                  type: string
+                  description: Filter tanggal akhir YYYYMMDD atau YYYY-MM-DD
+                  example: "20261231"
+      responses:
+        '200':
+          description: Berhasil mengambil daftar dokumen approval owner
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Owner document approval list retrieved successfully."
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        WddCode:
+                          type: string
+                          example: "7702"
+                        DocEntry:
+                          type: string
+                          example: "1054"
+                        ObjType:
+                          type: string
+                          example: "1470000113"
+                        DocDate:
+                          type: string
+                          example: "20260901"
+                        Status:
+                          type: string
+                          example: "Pending"
+                        raw_status:
+                          type: string
+                          example: "W"
+  /v1/master-approvals/detail-by-object:
+    post:
+      summary: Get Approval Document Detail from SAP (/api/GetDetailByObjectCode)
+      description: Mengambil detail header dan line items dokumen approval dari SAP Business One berdasarkan DocEntry.
+      tags:
+        - Master Approval
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - CustomQuery
+              properties:
+                CustomQuery:
+                  type: integer
+                  description: DocEntry ID dokumen di SAP
+                  example: 1054
+                ObjectCode:
+                  type: string
+                  description: Object Type SAP
+                  example: "1470000113"
+      responses:
+        '200':
+          description: Berhasil mengambil detail dokumen approval
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Document approval detail retrieved successfully."
+                  data:
+                    type: object
+                    properties:
+                      header:
+                        type: object
+                      items:
+                        type: array
+                        items:
+                          type: object
   /v1/production/change-products:
     get:
       summary: Daftar Transaksi Change Product
@@ -15694,8 +15892,264 @@ paths:
                     type: object
                     nullable: true
                     example: null
-        '404':
-          description: Master lead time not found.
+  /v1/master-approvals/by-owner:
+    get:
+      summary: Get Owner / My Document Approval List from SAP
+      description: |
+        Mengambil daftar dokumen yang diajukan oleh pembuat dokumen (Originator/Owner) beserta status persetujuan dari SAP Business One (`/api/GetListByOwnerId`).
+      tags:
+        - SAP - Master Approval
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: CustomQuery
+          in: query
+          description: ID Originator query SAP (default 62)
+          schema:
+            type: integer
+            default: 62
+            example: 62
+        - name: UserId
+          in: query
+          description: User ID SAP (opsional)
+          schema:
+            type: string
+            example: "3"
+        - name: ObjectCode
+          in: query
+          description: Object code dokumen SAP (contoh 1470000113)
+          schema:
+            type: string
+            default: "1470000113"
+            example: "1470000113"
+        - name: From
+          in: query
+          description: Tanggal mulai (YYYYMMDD atau YYYY-MM-DD, opsional)
+          schema:
+            type: string
+            example: "20251201"
+        - name: To
+          in: query
+          description: Tanggal akhir (YYYYMMDD atau YYYY-MM-DD, opsional)
+          schema:
+            type: string
+            example: "20261231"
+      responses:
+        '200':
+          description: Owner document approval list retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Owner document approval list retrieved successfully.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        WddCode:
+                          type: string
+                          example: "7689"
+                        DocEntry:
+                          type: string
+                          example: "5339"
+                        ObjType:
+                          type: string
+                          example: "1470000113"
+                        DocDate:
+                          type: string
+                          example: "20260810"
+                        CurrStep:
+                          type: string
+                          example: "4"
+                        Status:
+                          type: string
+                          example: "Approved"
+                        raw_status:
+                          type: string
+                          example: "Y"
+                        Remarks:
+                          type: string
+                          example: ""
+    post:
+      summary: Get Owner / My Document Approval List from SAP (POST Method)
+      description: Mengambil daftar dokumen yang diajukan oleh pembuat dokumen (Originator/Owner) melalui POST request payload.
+      tags:
+        - SAP - Master Approval
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                CustomQuery:
+                  type: integer
+                  example: 62
+                UserId:
+                  type: string
+                  example: "3"
+                ObjectCode:
+                  type: string
+                  example: "1470000113"
+                From:
+                  type: string
+                  example: "20251201"
+                To:
+                  type: string
+                  example: "20261231"
+      responses:
+        '200':
+          description: Owner document approval list retrieved successfully.
+
+  /v1/master-approvals/detail-by-object:
+    get:
+      summary: Get Document Approval Detail by Object Code from SAP
+      description: |
+        Mengambil detail dokumen transaksi persetujuan dari SAP Business One (`/api/GetDetailByObjectCode`) berdasarkan DocEntry dan ObjectCode.
+      tags:
+        - SAP - Master Approval
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: CustomQuery
+          in: query
+          required: true
+          description: DocEntry dokumen transaksi
+          schema:
+            type: integer
+            example: 180
+        - name: ObjectCode
+          in: query
+          required: true
+          description: Object code tipe dokumen SAP
+          schema:
+            type: string
+            default: "1470000113"
+            example: "1470000113"
+      responses:
+        '200':
+          description: Document approval detail retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Document approval detail retrieved successfully.
+                  data:
+                    type: object
+                    properties:
+                      header:
+                        type: object
+                        nullable: true
+                        properties:
+                          Series:
+                            type: string
+                            example: "6486"
+                          SeriesName:
+                            type: string
+                            example: "GSK26-01"
+                          DocEntry:
+                            type: string
+                            example: "180"
+                          DocNum:
+                            type: string
+                            example: "260140032"
+                          DocDate:
+                            type: string
+                            example: "20260112"
+                          TaxDate:
+                            type: string
+                            example: "20260112"
+                          U_Shift:
+                            type: string
+                            example: ""
+                          U_Unit:
+                            type: string
+                            example: ""
+                          JrnlMemo:
+                            type: string
+                            example: ""
+                          Comments:
+                            type: string
+                            example: "UNTUK FITTING PIPING OUTDOOR UNIT 2 GRESIK"
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            DocEntry:
+                              type: string
+                              example: "180"
+                            LineNum:
+                              type: string
+                              example: "0"
+                            ItemCode:
+                              type: string
+                              example: "JS000013"
+                            ItemName:
+                              type: string
+                              example: "BOLT NUT M20X90MM SS304"
+                            Quantity:
+                              type: string
+                              example: "120.000000"
+                            WhsCode:
+                              type: string
+                              example: "SPR04"
+                            WhsName:
+                              type: string
+                              example: "GUDANG SPAREPART - GRESIK"
+                            Uom:
+                              type: string
+                              example: "PCS"
+                            OcrCode:
+                              type: string
+                              example: "GSK"
+                            OcrCode2:
+                              type: string
+                              example: "GRM"
+                            OcrCode3:
+                              type: string
+                              example: "PRO"
+    post:
+      summary: Get Document Approval Detail by Object Code from SAP (POST Method)
+      description: Mengambil detail dokumen transaksi persetujuan dari SAP Business One melalui POST request payload.
+      tags:
+        - SAP - Master Approval
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - CustomQuery
+                - ObjectCode
+              properties:
+                CustomQuery:
+                  type: integer
+                  example: 180
+                ObjectCode:
+                  type: string
+                  example: "1470000113"
+      responses:
+        '200':
+          description: Document approval detail retrieved successfully.
 
   /v1/logistic/orders/dashboard:
     get:

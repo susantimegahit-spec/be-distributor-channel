@@ -34,7 +34,7 @@ class MasterApprovalController extends Controller
     {
         $masterApprovals = MasterApproval::orderBy('id', 'asc')->get();
 
-        return $this->successResponse($masterApprovals, 'Daftar master approval berhasil diambil.');
+        return $this->successResponse($masterApprovals, 'Master approval list retrieved successfully.');
     }
 
     /**
@@ -51,11 +51,33 @@ class MasterApprovalController extends Controller
 
         try {
             $stages = $this->masterApprovalService->getStagesFromSap($payload, $userId, $forceRefresh);
-            $message = empty($stages) ? 'Data approval stage SAP tidak ditemukan.' : 'Data approval stages berhasil diambil dari SAP.';
+            $message = empty($stages) ? 'Data not found.' : 'Approval stages retrieved successfully from SAP.';
 
             return $this->successResponse($stages, $message);
         } catch (\Exception $e) {
-            return $this->errorResponse('Gagal mengambil approval stages dari SAP: ' . $e->getMessage(), [], 500);
+            return $this->errorResponse('Failed to retrieve approval stages from SAP: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
+     * Get originators list from SAP API (/api/GetOriginator).
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function getOriginators(Request $request): JsonResponse
+    {
+        $userId = $request->user()?->id;
+        $payload = $request->except(['refresh', 'force_refresh']);
+        $forceRefresh = $request->has('refresh') ? $request->boolean('refresh') : true;
+
+        try {
+            $originators = $this->masterApprovalService->getOriginatorsFromSap($payload, $userId, $forceRefresh);
+            $message = empty($originators) ? 'Data not found.' : 'Originators list retrieved successfully from SAP.';
+
+            return $this->successResponse($originators, $message);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to retrieve originators from SAP: ' . $e->getMessage(), [], 500);
         }
     }
 
@@ -73,11 +95,11 @@ class MasterApprovalController extends Controller
 
         try {
             $approvals = $this->masterApprovalService->getApprovalsFromSap($payload, $userId, $forceRefresh);
-            $message = empty($approvals) ? 'Data not found.' : 'Data approval berhasil diambil dari SAP.';
+            $message = empty($approvals) ? 'Data not found.' : 'Approval list retrieved successfully from SAP.';
 
             return $this->successResponse($approvals, $message);
         } catch (\Exception $e) {
-            return $this->errorResponse('Gagal mengambil daftar approval dari SAP: ' . $e->getMessage(), [], 500);
+            return $this->errorResponse('Failed to retrieve approval list from SAP: ' . $e->getMessage(), [], 500);
         }
     }
 
@@ -119,12 +141,12 @@ class MasterApprovalController extends Controller
             'Status'              => ['required', 'string', 'in:Y,N'],
             'Remarks'             => ['nullable', 'string', 'required_if:Status,N'],
         ], [
-            'approvalRequestCode.required' => 'approvalRequestCode (WddCode) wajib diisi.',
-            'Username.required'            => 'Username wajib diisi.',
-            'Password.required'            => 'Password wajib diisi.',
-            'Status.required'              => 'Status approval wajib diisi (Y atau N).',
-            'Status.in'                    => 'Status hanya menerima nilai Y (Approve) atau N (Reject).',
-            'Remarks.required_if'          => 'Remarks wajib diisi jika status N (Reject).',
+            'approvalRequestCode.required' => 'The approvalRequestCode (WddCode) field is required.',
+            'Username.required'            => 'The Username field is required.',
+            'Password.required'            => 'The Password field is required.',
+            'Status.required'              => 'The approval Status field is required (Y or N).',
+            'Status.in'                    => 'The Status field must be either Y (Approve) or N (Reject).',
+            'Remarks.required_if'          => 'The Remarks field is required when status is N (Reject).',
         ]);
 
         if ($validator->fails()) {
@@ -133,11 +155,62 @@ class MasterApprovalController extends Controller
 
         try {
             $result = $this->masterApprovalService->processApprovalSap($input, $userId);
-            $actionLabel = ($input['Status'] === 'Y') ? 'disetujui (Approve)' : 'ditolak (Reject)';
+            $actionLabel = ($input['Status'] === 'Y') ? 'approved' : 'rejected';
 
-            return $this->successResponse($result, "Dokumen approval berhasil {$actionLabel} di SAP.");
+            return $this->successResponse($result, "Approval document successfully {$actionLabel} in SAP.");
         } catch (\Exception $e) {
-            return $this->errorResponse('Gagal memproses approval di SAP: ' . $e->getMessage(), [], 500);
+            return $this->errorResponse('Failed to process approval in SAP: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
+     * Get owner / my document approval list from SAP API (/api/GetListByOwnerId).
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function getOwnerDocuments(Request $request): JsonResponse
+    {
+        $userId = $request->user()?->id;
+        $payload = $request->all();
+        $forceRefresh = $request->has('refresh') ? $request->boolean('refresh') : true;
+
+        try {
+            $data = $this->masterApprovalService->getOwnerDocumentsFromSap($payload, $userId, $forceRefresh);
+            $message = empty($data) ? 'Data not found.' : 'Owner document approval list retrieved successfully.';
+
+            return $this->successResponse($data, $message);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to retrieve owner document approval list from SAP: ' . $e->getMessage(), [], 500);
+        }
+    }
+
+    /**
+     * Get document approval detail by object code from SAP API (/api/GetDetailByObjectCode).
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function getDocumentDetail(Request $request): JsonResponse
+    {
+        $userId = $request->user()?->id;
+        $payload = $request->all();
+        $forceRefresh = $request->has('refresh') ? $request->boolean('refresh') : true;
+
+        // Validation for CustomQuery / doc_entry
+        $customQuery = $payload['CustomQuery'] ?? $payload['custom_query'] ?? $payload['doc_entry'] ?? $payload['DocEntry'] ?? $payload['id'] ?? null;
+        if (empty($customQuery)) {
+            return $this->errorResponse('CustomQuery or doc_entry parameter is required.', [], 422);
+        }
+
+        try {
+            $data = $this->masterApprovalService->getDocumentDetailFromSap($payload, $userId, $forceRefresh);
+            $isEmpty = empty($data['header']) && empty($data['items']);
+            $message = $isEmpty ? 'Data not found.' : 'Document approval detail retrieved successfully.';
+
+            return $this->successResponse($data, $message);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to retrieve document approval detail from SAP: ' . $e->getMessage(), [], 500);
         }
     }
 }

@@ -1774,7 +1774,10 @@ class SalesOrderService
             ];
         }
 
-        $sapUrl = config('services.sap.url', 'http://103.18.133.187:3100');
+        $sapUrl = config('services.sap.url') ?: env('SAP_API_URL');
+        if (empty($sapUrl)) {
+            throw new \Exception('SAP URL configuration (services.sap.url / SAP_API_URL) is not configured in .env.');
+        }
 
         // Chunk card codes to prevent oversized query payloads
         $chunks = array_chunk($cardCodes, 50);
