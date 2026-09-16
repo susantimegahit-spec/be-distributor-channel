@@ -324,6 +324,13 @@ class MasterApprovalService
                 if (is_array($item)) {
                     if (isset($item['Status'])) {
                         $rawStatus = strtoupper(trim((string) $item['Status']));
+                        $docEntry = trim((string) ($item['DocEntry'] ?? ''));
+
+                        // Jika DocEntry 0 dan status Y dari SAP, ubah ke Generated (raw_status: G)
+                        if (($docEntry === '0' || $docEntry === '') && $rawStatus === 'Y') {
+                            $rawStatus = 'G';
+                        }
+
                         $item['raw_status'] = $rawStatus;
                         $item['Status'] = $statusMap[$rawStatus] ?? ($rawStatus === 'W' ? 'Pending' : $item['Status']);
                     }
@@ -582,6 +589,13 @@ class MasterApprovalService
                 if (is_array($item)) {
                     if (isset($item['Status'])) {
                         $rawStatus = strtoupper(trim((string) $item['Status']));
+                        $docEntry = trim((string) ($item['DocEntry'] ?? ''));
+
+                        // Jika DocEntry 0 dan status Y dari SAP, ubah ke Generated (raw_status: G)
+                        if (($docEntry === '0' || $docEntry === '') && $rawStatus === 'Y') {
+                            $rawStatus = 'G';
+                        }
+
                         $item['raw_status'] = $rawStatus;
                         $item['Status'] = $statusMap[$rawStatus] ?? ($rawStatus === 'W' ? 'Pending' : $item['Status']);
                     }
