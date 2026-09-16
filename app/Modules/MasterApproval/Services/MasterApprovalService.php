@@ -47,13 +47,13 @@ class MasterApprovalService
      * @return array
      * @throws \Exception
      */
-    public function getStagesFromSap(array $payload = [], ?int $userId = null, bool $forceRefresh = true): array
+    public function getStagesFromSap(array $payload = [], ?int $userId = null, bool $forceRefresh = false): array
     {
         $cacheKey = empty($payload)
             ? 'sap_approval_stages_all'
             : 'sap_approval_stages_' . md5(json_encode($payload));
 
-        $cacheTtl = (int) config('services.sap.cache_ttl', 1800); // 30 minutes default
+        $cacheTtl = (int) config('services.sap.cache_ttl', 60); // 1 minute default
 
         if ($forceRefresh) {
             Cache::forget($cacheKey);
@@ -112,13 +112,13 @@ class MasterApprovalService
      * @return array
      * @throws \Exception
      */
-    public function getOriginatorsFromSap(array $payload = [], ?int $userId = null, bool $forceRefresh = true): array
+    public function getOriginatorsFromSap(array $payload = [], ?int $userId = null, bool $forceRefresh = false): array
     {
         $cacheKey = empty($payload)
             ? 'sap_originators_all'
             : 'sap_originators_' . md5(json_encode($payload));
 
-        $cacheTtl = (int) config('services.sap.cache_ttl', 1800); // 30 minutes default
+        $cacheTtl = (int) config('services.sap.cache_ttl', 60); // 1 minute default
 
         if ($forceRefresh) {
             Cache::forget($cacheKey);
@@ -234,7 +234,7 @@ class MasterApprovalService
      * @return array
      * @throws \Exception
      */
-    public function getApprovalsFromSap(array $payload = [], ?int $userId = null, bool $forceRefresh = true): array
+    public function getApprovalsFromSap(array $payload = [], ?int $userId = null, bool $forceRefresh = false): array
     {
         // Default CustomQuery to 2 if not explicitly provided
         if (!isset($payload['CustomQuery'])) {
@@ -247,7 +247,7 @@ class MasterApprovalService
         }
 
         $cacheKey = 'sap_approvals_' . md5(json_encode($payload));
-        $cacheTtl = (int) config('services.sap.cache_ttl', 1800); // 30 minutes default
+        $cacheTtl = (int) config('services.sap.cache_ttl', 60); // 1 minute default
 
         if ($forceRefresh) {
             Cache::forget($cacheKey);
@@ -442,7 +442,7 @@ class MasterApprovalService
      * @return array
      * @throws \Exception
      */
-    public function getOwnerDocumentsFromSap(array $payload = [], ?int $userId = null, bool $forceRefresh = true): array
+    public function getOwnerDocumentsFromSap(array $payload = [], ?int $userId = null, bool $forceRefresh = false): array
     {
         // Normalize payload parameters
         $sapPayload = [];
@@ -503,7 +503,7 @@ class MasterApprovalService
         }
 
         $cacheKey = 'sap_owner_approvals_' . md5(json_encode($sapPayload));
-        $cacheTtl = (int) config('services.sap.cache_ttl', 1800);
+        $cacheTtl = (int) config('services.sap.cache_ttl', 60); // 1 minute default
 
         if ($forceRefresh) {
             Cache::forget($cacheKey);
@@ -623,7 +623,7 @@ class MasterApprovalService
      * @return array
      * @throws \Exception
      */
-    public function getDocumentDetailFromSap(array $payload = [], ?int $userId = null, bool $forceRefresh = true): array
+    public function getDocumentDetailFromSap(array $payload = [], ?int $userId = null, bool $forceRefresh = false): array
     {
         // Normalize payload parameters
         $sapPayload = [];
@@ -657,7 +657,7 @@ class MasterApprovalService
         }
 
         $cacheKey = 'sap_doc_detail_' . md5(json_encode($sapPayload));
-        $cacheTtl = (int) config('services.sap.cache_ttl', 1800);
+        $cacheTtl = (int) config('services.sap.cache_ttl', 60); // 1 minute default
 
         if ($forceRefresh) {
             Cache::forget($cacheKey);

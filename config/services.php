@@ -44,6 +44,7 @@ return [
         'url' => env('SAP_API_URL'),
         'addon_id' => env('SAP_ADDON_ID', '02'),
         'user_id' => env('SAP_USER_ID', 'USR101'),
+        'cache_ttl' => (int) env('SAP_CACHE_TTL', 60), // 1 minute default
     ],
 
     'firebase' => [

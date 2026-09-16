@@ -3126,6 +3126,27 @@ paths:
         - Master Approvals
       security:
         - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Nomor halaman pagination (opsional)
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: per_page
+          in: query
+          description: Jumlah item per halaman (opsional)
+          schema:
+            type: integer
+            default: 15
+            example: 10
+        - name: refresh
+          in: query
+          description: Force refresh cache data SAP (opsional)
+          schema:
+            type: boolean
+            default: false
       responses:
         '200':
           description: Data approval stages berhasil diambil dari SAP
@@ -3231,12 +3252,26 @@ paths:
           example: 2
         - name: refresh
           in: query
-          description: Parameter refresh cache SAP. Default adalah true (selalu mengambil data live real-time terbaru dari SAP). Kirim false jika ingin menggunakan cache.
+          description: Parameter refresh cache SAP (default false, kirim true untuk mengambil live dari SAP).
           required: false
           schema:
             type: boolean
-            default: true
-          example: true
+            default: false
+            example: false
+        - name: page
+          in: query
+          description: Nomor halaman pagination (opsional)
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: per_page
+          in: query
+          description: Jumlah item per halaman (opsional)
+          schema:
+            type: integer
+            default: 15
+            example: 10
       responses:
         '200':
           description: Data approval berhasil diambil dari SAP
@@ -15709,7 +15744,21 @@ paths:
           description: Force refresh cache data SAP
           schema:
             type: boolean
-            default: true
+            default: false
+        - name: page
+          in: query
+          description: Nomor halaman pagination (opsional)
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: per_page
+          in: query
+          description: Jumlah item per halaman (opsional)
+          schema:
+            type: integer
+            default: 15
+            example: 10
       responses:
         '200':
           description: Originators list retrieved successfully from SAP.
@@ -15820,6 +15869,27 @@ paths:
           schema:
             type: string
             example: "Y"
+        - name: page
+          in: query
+          description: Nomor halaman data (opsional, pagination)
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: per_page
+          in: query
+          description: Jumlah data per halaman (opsional, pagination)
+          schema:
+            type: integer
+            default: 15
+            example: 10
+        - name: refresh
+          in: query
+          description: Set true untuk force refresh mengambil data terbaru dari SAP
+          schema:
+            type: boolean
+            default: false
+            example: false
       responses:
         '200':
           description: Owner document approval list retrieved successfully.
@@ -15877,6 +15947,27 @@ paths:
                           type: string
                           description: Keterangan tahapan persetujuan dari getstages
                           example: "Production Manager Surabaya"
+                  pagination:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                        example: 1
+                      last_page:
+                        type: integer
+                        example: 5
+                      per_page:
+                        type: integer
+                        example: 10
+                      total:
+                        type: integer
+                        example: 48
+                      from:
+                        type: integer
+                        example: 1
+                      to:
+                        type: integer
+                        example: 10
     post:
       summary: Get Owner / My Document Approval List from SAP (POST Method)
       description: Mengambil daftar dokumen yang diajukan oleh pembuat dokumen (Originator/Owner) melalui POST request payload.
@@ -15909,6 +16000,15 @@ paths:
                 Status:
                   type: string
                   example: "Y"
+                page:
+                  type: integer
+                  example: 1
+                per_page:
+                  type: integer
+                  example: 10
+                refresh:
+                  type: boolean
+                  example: false
       responses:
         '200':
           description: Owner document approval list retrieved successfully.
@@ -15937,6 +16037,26 @@ paths:
           schema:
             type: string
             example: "1470000113"
+        - name: page
+          in: query
+          description: Nomor halaman pagination untuk baris item transaksi (opsional)
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: per_page
+          in: query
+          description: Jumlah baris item transaksi per halaman (opsional)
+          schema:
+            type: integer
+            default: 15
+            example: 10
+        - name: refresh
+          in: query
+          description: Force refresh cache SAP
+          schema:
+            type: boolean
+            default: false
       responses:
         '200':
           description: Document approval detail retrieved successfully.

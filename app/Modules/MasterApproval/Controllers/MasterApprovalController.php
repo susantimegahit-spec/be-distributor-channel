@@ -38,6 +38,50 @@ class MasterApprovalController extends Controller
     }
 
     /**
+     * Paginate an array in-memory and return formatted pagination response data.
+     *
+     * @param array $data
+     * @param Request $request
+     * @param string $successMessage
+     * @return JsonResponse|null Returns JsonResponse if paginated, or null if pagination not requested
+     */
+    protected function paginateArray(array $data, Request $request, string $successMessage): ?JsonResponse
+    {
+        $isPaginated = $request->has('page')
+            || $request->has('per_page')
+            || $request->has('limit')
+            || ($request->has('paginate') && $request->boolean('paginate'));
+
+        if (!$isPaginated || ($request->has('paginate') && !$request->boolean('paginate'))) {
+            return null;
+        }
+
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = max(1, (int) ($request->input('per_page') ?? $request->input('limit') ?? 15));
+        $total = count($data);
+        $lastPage = max(1, (int) ceil($total / $perPage));
+        $offset = ($page - 1) * $perPage;
+        $items = array_values(array_slice($data, $offset, $perPage));
+
+        $isEmpty = empty($items) && $total === 0;
+        $message = $isEmpty ? 'Data not found.' : $successMessage;
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'data' => $items,
+            'pagination' => [
+                'current_page' => $page,
+                'last_page'    => $lastPage,
+                'per_page'     => $perPage,
+                'total'        => $total,
+                'from'         => $total > 0 && !empty($items) ? ($offset + 1) : null,
+                'to'           => $total > 0 && !empty($items) ? ($offset + count($items)) : null,
+            ],
+        ]);
+    }
+
+    /**
      * Get approval stages from SAP API (/api/getstages).
      *
      * @param Request $request
@@ -47,10 +91,16 @@ class MasterApprovalController extends Controller
     {
         $userId = $request->user()?->id;
         $payload = $request->except(['refresh', 'force_refresh']);
-        $forceRefresh = $request->has('refresh') ? $request->boolean('refresh') : true;
+        $forceRefresh = $request->boolean('refresh', false) || $request->boolean('force_refresh', false);
 
         try {
             $stages = $this->masterApprovalService->getStagesFromSap($payload, $userId, $forceRefresh);
+
+            $paginated = $this->paginateArray($stages, $request, 'Approval stages retrieved successfully from SAP.');
+            if ($paginated !== null) {
+                return $paginated;
+            }
+
             $message = empty($stages) ? 'Data not found.' : 'Approval stages retrieved successfully from SAP.';
 
             return $this->successResponse($stages, $message);
@@ -69,10 +119,16 @@ class MasterApprovalController extends Controller
     {
         $userId = $request->user()?->id;
         $payload = $request->except(['refresh', 'force_refresh']);
-        $forceRefresh = $request->has('refresh') ? $request->boolean('refresh') : true;
+        $forceRefresh = $request->boolean('refresh', false) || $request->boolean('force_refresh', false);
 
         try {
             $originators = $this->masterApprovalService->getOriginatorsFromSap($payload, $userId, $forceRefresh);
+
+            $paginated = $this->paginateArray($originators, $request, 'Originators list retrieved successfully from SAP.');
+            if ($paginated !== null) {
+                return $paginated;
+            }
+
             $message = empty($originators) ? 'Data not found.' : 'Originators list retrieved successfully from SAP.';
 
             return $this->successResponse($originators, $message);
@@ -91,10 +147,16 @@ class MasterApprovalController extends Controller
     {
         $userId = $request->user()?->id;
         $payload = $request->except(['refresh', 'force_refresh']);
-        $forceRefresh = $request->has('refresh') ? $request->boolean('refresh') : true;
+        $forceRefresh = $request->boolean('refresh', false) || $request->boolean('force_refresh', false);
 
         try {
             $approvals = $this->masterApprovalService->getApprovalsFromSap($payload, $userId, $forceRefresh);
+
+            $paginated = $this->paginateArray($approvals, $request, 'Approval list retrieved successfully from SAP.');
+            if ($paginated !== null) {
+                return $paginated;
+            }
+
             $message = empty($approvals) ? 'Data not found.' : 'Approval list retrieved successfully from SAP.';
 
             return $this->successResponse($approvals, $message);
@@ -131,21 +193,22 @@ class MasterApprovalController extends Controller
             $input['Status'] = strtoupper(trim((string) $input['Status']));
         }
         if (!isset($input['Remarks'])) {
-            $input['Remarks'] = $input['remarks'] ?? '';
+            $input['Remarks'] = $input['remarks'] ?? $input['Comments'] ?? $input['comments'] ?? '';
         }
 
+        // Validation
         $validator = \Illuminate\Support\Facades\Validator::make($input, [
-            'approvalRequestCode' => ['required', 'string'],
+            'approvalRequestCode' => ['required'],
             'Username'            => ['required', 'string'],
             'Password'            => ['required', 'string'],
             'Status'              => ['required', 'string', 'in:Y,N'],
             'Remarks'             => ['nullable', 'string', 'required_if:Status,N'],
         ], [
-            'approvalRequestCode.required' => 'The approvalRequestCode (WddCode) field is required.',
+            'approvalRequestCode.required' => 'The approvalRequestCode (WddCode) is required.',
             'Username.required'            => 'The Username field is required.',
             'Password.required'            => 'The Password field is required.',
-            'Status.required'              => 'The approval Status field is required (Y or N).',
-            'Status.in'                    => 'The Status field must be either Y (Approve) or N (Reject).',
+            'Status.required'              => 'The Status field is required (Y for approve, N for reject).',
+            'Status.in'                    => 'The Status field must be Y (Approve) or N (Reject).',
             'Remarks.required_if'          => 'The Remarks field is required when status is N (Reject).',
         ]);
 
@@ -173,10 +236,18 @@ class MasterApprovalController extends Controller
     {
         $userId = $request->user()?->id;
         $payload = $request->all();
-        $forceRefresh = $request->has('refresh') ? $request->boolean('refresh') : true;
+
+        // Smart cache: only force refresh if explicitly requested via refresh=true or force_refresh=true
+        $forceRefresh = $request->boolean('refresh', false) || $request->boolean('force_refresh', false);
 
         try {
             $data = $this->masterApprovalService->getOwnerDocumentsFromSap($payload, $userId, $forceRefresh);
+
+            $paginated = $this->paginateArray($data, $request, 'Owner document approval list retrieved successfully.');
+            if ($paginated !== null) {
+                return $paginated;
+            }
+
             $message = empty($data) ? 'Data not found.' : 'Owner document approval list retrieved successfully.';
 
             return $this->successResponse($data, $message);
@@ -195,7 +266,7 @@ class MasterApprovalController extends Controller
     {
         $userId = $request->user()?->id;
         $payload = $request->all();
-        $forceRefresh = $request->has('refresh') ? $request->boolean('refresh') : true;
+        $forceRefresh = $request->boolean('refresh', false) || $request->boolean('force_refresh', false);
 
         // Validation for CustomQuery / doc_entry
         $customQuery = $payload['CustomQuery'] ?? $payload['custom_query'] ?? $payload['doc_entry'] ?? $payload['DocEntry'] ?? $payload['id'] ?? null;
@@ -205,6 +276,42 @@ class MasterApprovalController extends Controller
 
         try {
             $data = $this->masterApprovalService->getDocumentDetailFromSap($payload, $userId, $forceRefresh);
+
+            $isPaginated = $request->has('page')
+                || $request->has('per_page')
+                || $request->has('limit')
+                || ($request->has('paginate') && $request->boolean('paginate'));
+
+            if ($isPaginated && !($request->has('paginate') && !$request->boolean('paginate'))) {
+                $page = max(1, (int) $request->input('page', 1));
+                $perPage = max(1, (int) ($request->input('per_page') ?? $request->input('limit') ?? 15));
+                $allItems = $data['items'] ?? [];
+                $total = count($allItems);
+                $lastPage = max(1, (int) ceil($total / $perPage));
+                $offset = ($page - 1) * $perPage;
+                $pagedItems = array_values(array_slice($allItems, $offset, $perPage));
+
+                $data['items'] = $pagedItems;
+                $data['Table2'] = $pagedItems;
+
+                $isEmpty = empty($data['header']) && empty($allItems);
+                $message = $isEmpty ? 'Data not found.' : 'Document approval detail retrieved successfully.';
+
+                return response()->json([
+                    'success' => true,
+                    'message' => $message,
+                    'data' => $data,
+                    'pagination' => [
+                        'current_page' => $page,
+                        'last_page'    => $lastPage,
+                        'per_page'     => $perPage,
+                        'total'        => $total,
+                        'from'         => $total > 0 && !empty($pagedItems) ? ($offset + 1) : null,
+                        'to'           => $total > 0 && !empty($pagedItems) ? ($offset + count($pagedItems)) : null,
+                    ],
+                ]);
+            }
+
             $isEmpty = empty($data['header']) && empty($data['items']);
             $message = $isEmpty ? 'Data not found.' : 'Document approval detail retrieved successfully.';
 
