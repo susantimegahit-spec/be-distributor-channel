@@ -179,6 +179,53 @@ class MasterApprovalService
     }
 
     /**
+     * Find originator detail from SAP originators list by originator key or username.
+     *
+     * @param string|null $originatorKey
+     * @param string|null $fallbackUsername
+     * @return array|null
+     */
+    public function findOriginatorDetail(?string $originatorKey, ?string $fallbackUsername = null): ?array
+    {
+        try {
+            // Force refresh is false to leverage 30-minute cache
+            $originators = $this->getOriginatorsFromSap([], null, false);
+
+            if (!empty($originatorKey)) {
+                $originatorKeyStr = trim((string) $originatorKey);
+                foreach ($originators as $item) {
+                    if (!is_array($item)) {
+                        continue;
+                    }
+                    $userId = trim((string) ($item['USERID'] ?? ''));
+                    $userCode = trim((string) ($item['USER_CODE'] ?? ''));
+
+                    if ($userId === $originatorKeyStr || strcasecmp($userCode, $originatorKeyStr) === 0) {
+                        return $item;
+                    }
+                }
+            }
+
+            if (!empty($fallbackUsername)) {
+                $fallbackUsernameStr = trim((string) $fallbackUsername);
+                foreach ($originators as $item) {
+                    if (!is_array($item)) {
+                        continue;
+                    }
+                    $userCode = trim((string) ($item['USER_CODE'] ?? ''));
+                    if (strcasecmp($userCode, $fallbackUsernameStr) === 0) {
+                        return $item;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Failed to find originator detail from SAP: ' . $e->getMessage());
+        }
+
+        return null;
+    }
+
+    /**
      * Get approval list from SAP API (/api/getapproval) with Cache strategy and Status mapping.
      *
      * @param array $payload

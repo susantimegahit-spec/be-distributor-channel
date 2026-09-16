@@ -43,6 +43,7 @@ class AuthController extends Controller
         $user = $result['user'];
         $user->load(['role.roleMenu', 'distributor', 'expedition', 'organizationAssignments']);
         $permsMap = $user->getPermissionsMap();
+        $originatorDetail = $user->originator_detail;
 
         return $this->successResponse([
             'user' => [
@@ -67,6 +68,7 @@ class AuthController extends Controller
                 'ocr_code3' => $user->ocr_code3,
                 'is_active' => $user->is_active,
                 'originator' => $user->originator,
+                'originator_detail' => $originatorDetail,
                 'stage' => $user->stage,
                 'accessible_systems' => $user->accessible_systems,
                 'has_custom_override' => $permsMap['has_custom_override'],
@@ -75,6 +77,7 @@ class AuthController extends Controller
                 'organization_assignment' => $user->organization_assignment,
                 'organization_assignments' => $user->organizationAssignments,
             ],
+            'originator_detail' => $originatorDetail,
             'organization_assignment' => $user->organization_assignment,
             'menu' => $user->role?->roleMenu?->menu ?? [],
             'actions' => $user->custom_permissions_list,
@@ -82,7 +85,7 @@ class AuthController extends Controller
             'permissions_map' => $permsMap['permissions'],
             'access_token' => $result['token'],
             'token_type' => 'Bearer',
-        ], 'Login berhasil.');
+        ], 'Login successful.');
     }
 
     /**
@@ -96,7 +99,7 @@ class AuthController extends Controller
         $fcmToken = $request->input('fcm_token');
         $this->authService->logout($request->user(), $fcmToken);
 
-        return $this->successResponse(null, 'Logout berhasil.');
+        return $this->successResponse(null, 'Logout successful.');
     }
 
     /**
@@ -112,7 +115,7 @@ class AuthController extends Controller
         return $this->successResponse([
             'access_token' => $newToken,
             'token_type' => 'Bearer',
-        ], 'Token berhasil diperbarui.');
+        ], 'Token refreshed successfully.');
     }
 
     /**
@@ -128,6 +131,6 @@ class AuthController extends Controller
             $request->input('new_password')
         );
 
-        return $this->successResponse(null, 'Password berhasil diubah.');
+        return $this->successResponse(null, 'Password changed successfully.');
     }
 }

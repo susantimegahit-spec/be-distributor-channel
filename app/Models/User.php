@@ -57,6 +57,7 @@ class User extends Authenticatable
         'accessible_systems',
         'actions',
         'organization_assignment',
+        'originator_detail',
     ];
 
     /**
@@ -227,6 +228,21 @@ class User extends Authenticatable
             ->where('is_active', true)
             ->pluck('telegram_chat_id')
             ->toArray();
+    }
+
+    /**
+     * Accessor for originator detail from SAP.
+     *
+     * @return array|null
+     */
+    public function getOriginatorDetailAttribute(): ?array
+    {
+        try {
+            return app(\App\Modules\MasterApproval\Services\MasterApprovalService::class)
+                ->findOriginatorDetail($this->originator, $this->username);
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     /**
