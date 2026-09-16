@@ -658,6 +658,20 @@ class MasterApprovalService
             $sapPayload['ObjectCode'] = '';
         }
 
+        // Status filter (Optional: W, Y, N, C or human-readable status)
+        $status = $payload['Status'] ?? $payload['status'] ?? null;
+        if ($status !== null && $status !== '') {
+            $cleanStatus = strtoupper(trim((string) $status));
+            $reverseMap = [
+                'PENDING'   => 'W',
+                'APPROVED'  => 'Y',
+                'REJECTED'  => 'N',
+                'CANCELED'  => 'C',
+                'CANCELLED' => 'C',
+            ];
+            $sapPayload['Status'] = $reverseMap[$cleanStatus] ?? $cleanStatus;
+        }
+
         if (empty($sapPayload['CustomQuery'])) {
             throw new \Exception('CustomQuery (DocEntry) parameter is required.');
         }

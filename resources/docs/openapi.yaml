@@ -16036,6 +16036,13 @@ paths:
           schema:
             type: string
             example: "1470000113"
+        - name: Status
+          in: query
+          required: false
+          description: Status persetujuan dokumen SAP (contoh "Y", "W", "N", "C", atau "APPROVED", "PENDING", dll.)
+          schema:
+            type: string
+            example: "Y"
         - name: page
           in: query
           description: Nomor halaman pagination untuk baris item transaksi (opsional)
@@ -16160,7 +16167,6 @@ paths:
               type: object
               required:
                 - CustomQuery
-                - ObjectCode
               properties:
                 CustomQuery:
                   type: integer
@@ -16168,6 +16174,19 @@ paths:
                 ObjectCode:
                   type: string
                   example: "1470000113"
+                Status:
+                  type: string
+                  description: Status persetujuan dokumen SAP (contoh "Y", "W", "N", "C", atau "APPROVED")
+                  example: "Y"
+                page:
+                  type: integer
+                  example: 1
+                per_page:
+                  type: integer
+                  example: 15
+                refresh:
+                  type: boolean
+                  example: false
       responses:
         '200':
           description: Document approval detail retrieved successfully.
