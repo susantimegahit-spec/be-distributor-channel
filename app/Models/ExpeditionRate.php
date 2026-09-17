@@ -19,7 +19,7 @@ class ExpeditionRate extends Model
 
     public function getConnectionName()
     {
-        return config('database.default') === 'sqlite' ? 'sqlite' : 'pgsql_ekspedisi';
+        return 'pgsql_ekspedisi';
     }
 
     public function getTable()

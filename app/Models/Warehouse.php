@@ -10,6 +10,11 @@ class Warehouse extends Model
 {
     use HasFactory;
 
+    public function getConnectionName()
+    {
+        return config('database.default') === 'sqlite' ? 'sqlite' : 'pgsql';
+    }
+
     protected $fillable = [
         'whs_code',
         'whs_name',

@@ -17,6 +17,11 @@ class CustomerShipto extends Model
      */
     protected $table = 'customer_shiptos';
 
+    public function getConnectionName()
+    {
+        return config('database.default') === 'sqlite' ? 'sqlite' : 'pgsql';
+    }
+
     /**
      * The attributes that are mass assignable.
      *

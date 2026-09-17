@@ -8845,8 +8845,15 @@ paths:
 
   /v1/ekspedisi/rates/rank:
     get:
-      summary: Get ranked expedition rates list
-      description: Mendapatkan daftar perankingan tarif ekspedisi teraktif terurut dari harga termurah berdasarkan asal, tujuan, dan berat barang.
+      summary: Get ranked expedition rates list (Supports destination_id or card_code)
+      description: |
+        Mendapatkan daftar rekomendasi perankingan tarif ekspedisi teraktif terurut dari harga termurah berdasarkan asal, tujuan, dan berat barang:
+        - Parameter tujuan (`destination`, `destination_id`, `card_code`) dapat diisi dengan:
+          1. **Card Code:** Kode distributor / customer (contoh: `C210000285` atau `c210000285`). Sistem otomatis mencari seluruh shipto customer tersebut.
+          2. **ShipTo ID:** ID numerik spesifik dari tabel `customer_shiptos` (contoh: `12`). Sistem juga otomatis mencocokkan tarif customer yang sama.
+          3. **ShipTo Code / Address ID SAP:** Contoh `SHIPTO-SOLO-01` atau alias nama gudang.
+        - Parameter asal (`origin`, `origin_id`, `whs_code`, `warehouse_id`) dapat berupa kode gudang (contoh: `FG04`) atau ID numerik gudang.
+        - Mendukung method `GET` dan `POST`.
       tags:
         - Master Tarif Ekspedisi
       security:
@@ -8854,37 +8861,49 @@ paths:
       parameters:
         - name: origin
           in: query
-          required: true
+          required: false
           schema:
             type: string
-          description: Kode gudang asal (whs_code, contoh FG04)
+          description: Kode gudang asal (whs_code, contoh FG04) atau ID gudang. Alias `origin_id`, `warehouse_id`, `whs_code`.
         - name: destination
           in: query
-          required: true
+          required: false
           schema:
             type: string
-          description: Kode customer tujuan (card_code, contoh C210000285) atau ID
+          description: Kode customer tujuan (card_code, contoh C210000285) atau ID Shipto tujuan.
+        - name: destination_id
+          in: query
+          required: false
+          schema:
+            type: string
+          description: ID Shipto tujuan atau Card Code customer. Alias untuk `destination`.
+        - name: card_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Card Code customer distributor. Alias untuk `destination`.
         - name: weight
           in: query
           required: false
           schema:
             type: number
-          description: Berat barang dalam KG atau satuan tarif (contoh 500)
+          description: Berat barang dalam KG atau tonase (contoh 500). Alias `tonnage`, `qty`.
         - name: service_type
           in: query
           required: false
           schema:
             type: string
-          description: Jenis layanan/tarif (misalnya TONASE, RIT, dll)
+          description: Jenis layanan/tarif (misalnya REGULER, TONASE, RIT, dll)
         - name: transport_mode
           in: query
           required: false
           schema:
             type: string
-          description: Moda pengiriman/transportasi. Mendukung multiple value dipisahkan koma (contoh DARAT,LAUT) atau single (contoh DARAT)
+          description: Moda pengiriman/transportasi (DARAT, LAUT, UDARA). Mendukung multiple value dipisahkan koma.
       responses:
         '200':
-          description: Perankingan tarif ekspedisi berhasil diambil
+          description: Expedition rates ranking retrieved successfully
           content:
             application/json:
               schema:
@@ -8895,7 +8914,7 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: Perankingan tarif ekspedisi berhasil diambil.
+                    example: Expedition rates ranking retrieved successfully.
                   data:
                     type: array
                     items:
@@ -8906,6 +8925,65 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+    post:
+      summary: Get ranked expedition rates list via POST (Supports destination_id or card_code)
+      description: Sama dengan GET `/v1/ekspedisi/rates/rank`, namun menerima parameter dalam request body JSON.
+      tags:
+        - Master Tarif Ekspedisi
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - origin
+              properties:
+                origin:
+                  type: string
+                  example: "FG04"
+                destination:
+                  type: string
+                  example: "C210000285"
+                destination_id:
+                  type: string
+                  example: "C210000285"
+                card_code:
+                  type: string
+                  example: "C210000285"
+                weight:
+                  type: number
+                  example: 1000
+                service_type:
+                  type: string
+                  example: "REGULER"
+                transport_mode:
+                  type: string
+                  example: "DARAT"
+      responses:
+        '200':
+          description: Expedition rates ranking retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Expedition rates ranking retrieved successfully.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ExpeditionRate'
+        '422':
+          description: Validasi gagal
         '401':
           description: Tidak terautentikasi
 

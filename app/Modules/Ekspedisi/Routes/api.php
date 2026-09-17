@@ -31,7 +31,7 @@ Route::prefix('v1/ekspedisi')->middleware('auth:sanctum')->group(function () {
     Route::apiResource('expeditions', ExpeditionController::class);
 
     // Master Tarif Ekspedisi (Expedition Rates) Approval & Ranking
-    Route::get('rates/rank', [ExpeditionRateController::class, 'rank']);
+    Route::match(['get', 'post'], 'rates/rank', [ExpeditionRateController::class, 'rank']);
     Route::post('rates/bulk-approve', [ExpeditionRateController::class, 'bulkApprove']);
     Route::post('rates/{id}/approve', [ExpeditionRateController::class, 'approve']);
     Route::post('rates/{id}/reject', [ExpeditionRateController::class, 'reject']);

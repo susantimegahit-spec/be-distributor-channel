@@ -425,57 +425,186 @@ class ExpeditionRateController extends Controller
 
     /**
      * Get ranked list of expedition rates based on origin, destination, and weight.
+     * Supports destination as customer card_code, destination_id, shipto address code, or alias.
      */
     public function rank(Request $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'origin' => 'required|string',
-            'destination' => 'required|string',
-            'weight' => 'nullable|numeric|min:0',
-            'service_type' => 'nullable|string',
-            'transport_mode' => 'nullable',
-            'include_unapproved' => 'nullable|boolean',
-        ]);
+        // 1. Parameter Normalization (per standard development rules)
+        $originInput = $request->get('origin')
+            ?? $request->get('origin_id')
+            ?? $request->get('warehouse_id')
+            ?? $request->get('warehouse_code')
+            ?? $request->get('whs_code')
+            ?? $request->get('WhsCode')
+            ?? $request->get('kode_gudang');
 
-        if ($validator->fails()) {
-            return $this->errorResponse($validator->errors()->first(), [], 422);
+        $destinationInput = $request->get('destination')
+            ?? $request->get('destination_id')
+            ?? $request->get('card_code')
+            ?? $request->get('cardcode')
+            ?? $request->get('CardCode')
+            ?? $request->get('customer_code')
+            ?? $request->get('code_customer');
+
+        if (empty($originInput)) {
+            return $this->errorResponse('The origin warehouse field is required.', [], 422);
         }
 
-        $origin = $request->get('origin');
-        $destination = $request->get('destination');
-        $weight = $request->filled('weight') ? floatval($request->get('weight')) : null;
+        if (empty($destinationInput)) {
+            return $this->errorResponse('The destination or customer card code field is required.', [], 422);
+        }
+
+        $originStr = trim((string) $originInput);
+        $destStr = trim((string) $destinationInput);
+
+        $weightRaw = $request->get('weight')
+            ?? $request->get('tonnage')
+            ?? $request->get('qty')
+            ?? $request->get('quantity')
+            ?? $request->get('berat');
+        $weight = ($weightRaw !== null && $weightRaw !== '') ? floatval($weightRaw) : null;
+
         $serviceType = $request->get('service_type');
         $transportMode = $request->get('transport_mode');
 
-        // Resolve origin to warehouse ID
-        $warehouse = DB::table('warehouses')
-            ->where('whs_code', $origin)
-            ->first();
-
-        if (!$warehouse) {
-            return $this->successResponse([], 'Gudang asal tidak ditemukan.');
+        // 2. Resolve Origin to Warehouse
+        $warehouse = null;
+        if (is_numeric($originStr)) {
+            $warehouse = DB::table('warehouses')->where('id', (int) $originStr)->first();
         }
 
-        // Resolve destination to customer shipto IDs
-        $shiptoIds = DB::table('customer_shiptos')
-            ->where('card_code', $destination)
-            ->pluck('id')
-            ->toArray();
+        if (!$warehouse) {
+            $warehouse = DB::table('warehouses')
+                ->whereRaw('LOWER(TRIM(whs_code)) = ?', [strtolower($originStr)])
+                ->orWhereRaw('LOWER(TRIM(whs_name)) = ?', [strtolower($originStr)])
+                ->first();
+        }
 
-        if (is_numeric($destination)) {
-            $exists = DB::table('customer_shiptos')
-                ->where('id', (int) $destination)
-                ->exists();
-            if ($exists) {
-                $shiptoIds[] = (int) $destination;
+        if (!$warehouse) {
+            return $this->successResponse([], 'Origin warehouse not found.');
+        }
+
+        // 3. Resolve Destination to Customer Shipto IDs and Card Codes
+        $shiptoIds = [];
+        $matchedCardCodes = [];
+
+        // Check if destination string has a " - " separator (e.g. "C210000285 - PT Maju Jaya")
+        $extractedParts = [];
+        $extractedParts[] = $destStr;
+        if (str_contains($destStr, ' - ')) {
+            $parts = explode(' - ', $destStr, 2);
+            $extractedParts[] = trim($parts[0]);
+            $extractedParts[] = trim($parts[1]);
+        }
+
+        // A. If numeric, check direct match on customer_shiptos.id
+        if (is_numeric($destStr)) {
+            $destNumericId = (int) $destStr;
+            $shiptoById = DB::table('customer_shiptos')->where('id', $destNumericId)->first();
+            if ($shiptoById) {
+                $shiptoIds[] = $destNumericId;
+                if (!empty($shiptoById->card_code)) {
+                    $matchedCardCodes[] = strtolower(trim((string) $shiptoById->card_code));
+                }
+            } else {
+                // If not found in customer_shiptos, it might directly be destination_id in expedition_rates
+                $shiptoIds[] = $destNumericId;
             }
         }
 
-        if (empty($shiptoIds)) {
-            return $this->successResponse([], 'Tujuan/Customer tidak ditemukan.');
+        // B. Search in customer_shiptos by card_code, address (SAP ShipTo code), alias, and name
+        foreach ($extractedParts as $part) {
+            $cleanPart = strtolower(trim($part));
+            if ($cleanPart === '') {
+                continue;
+            }
+
+            // By card_code
+            $byCardCode = DB::table('customer_shiptos')
+                ->whereRaw('LOWER(TRIM(card_code)) = ?', [$cleanPart])
+                ->get();
+
+            foreach ($byCardCode as $st) {
+                $shiptoIds[] = (int) $st->id;
+                $matchedCardCodes[] = strtolower(trim((string) $st->card_code));
+            }
+
+            // By address (SAP ShipTo Code)
+            $byAddress = DB::table('customer_shiptos')
+                ->whereRaw('LOWER(TRIM(address)) = ?', [$cleanPart])
+                ->get();
+
+            foreach ($byAddress as $st) {
+                $shiptoIds[] = (int) $st->id;
+                if (!empty($st->card_code)) {
+                    $matchedCardCodes[] = strtolower(trim((string) $st->card_code));
+                }
+            }
+
+            // By alias or name
+            $byName = DB::table('customer_shiptos')
+                ->where(function ($q) use ($cleanPart) {
+                    $q->whereRaw('LOWER(TRIM(alias)) = ?', [$cleanPart])
+                      ->orWhereRaw('LOWER(TRIM(name)) = ?', [$cleanPart]);
+                })
+                ->get();
+
+            foreach ($byName as $st) {
+                $shiptoIds[] = (int) $st->id;
+                if (!empty($st->card_code)) {
+                    $matchedCardCodes[] = strtolower(trim((string) $st->card_code));
+                }
+            }
         }
 
-        // Query active rates matching route and weight limits, sorted by price ASC
+        // C. Search in distributors table (by code_customer or name)
+        foreach ($extractedParts as $part) {
+            $cleanPart = strtolower(trim($part));
+            if ($cleanPart === '') {
+                continue;
+            }
+
+            $distributors = DB::table('distributors')
+                ->whereRaw('LOWER(TRIM(code_customer)) = ?', [$cleanPart])
+                ->orWhereRaw('LOWER(TRIM(name)) = ?', [$cleanPart])
+                ->get();
+
+            foreach ($distributors as $dist) {
+                $codeCust = strtolower(trim((string) $dist->code_customer));
+                $matchedCardCodes[] = $codeCust;
+
+                $distShiptoIds = DB::table('customer_shiptos')
+                    ->whereRaw('LOWER(TRIM(card_code)) = ?', [$codeCust])
+                    ->pluck('id')
+                    ->toArray();
+
+                foreach ($distShiptoIds as $sId) {
+                    $shiptoIds[] = (int) $sId;
+                }
+            }
+        }
+
+        // D. Also include all shiptos for any matched card_codes
+        $matchedCardCodes = array_values(array_unique(array_filter($matchedCardCodes)));
+        if (!empty($matchedCardCodes)) {
+            $allShiptos = DB::table('customer_shiptos')
+                ->whereIn(DB::raw('LOWER(TRIM(card_code))'), $matchedCardCodes)
+                ->pluck('id')
+                ->toArray();
+
+            foreach ($allShiptos as $sId) {
+                $shiptoIds[] = (int) $sId;
+            }
+        }
+
+        $shiptoIds = array_values(array_unique($shiptoIds));
+
+        // If no matching destination or card codes found
+        if (empty($shiptoIds)) {
+            return $this->successResponse([], 'Destination customer or shipto not found.');
+        }
+
+        // 4. Query active rates matching route and weight limits, sorted by price ASC
         $query = ExpeditionRate::with(['expedition', 'warehouse', 'destination', 'approver'])
             ->where('warehouse_id', $warehouse->id)
             ->whereIn('destination_id', $shiptoIds)
@@ -533,7 +662,7 @@ class ExpeditionRateController extends Controller
 
         $rates = $query->orderBy('price', 'asc')->get();
 
-        return $this->successResponse($rates, 'Perankingan tarif ekspedisi berhasil diambil.');
+        return $this->successResponse($rates, 'Expedition rates ranking retrieved successfully.');
     }
 
     /**
