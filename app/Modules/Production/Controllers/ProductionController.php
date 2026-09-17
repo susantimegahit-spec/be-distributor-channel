@@ -843,19 +843,17 @@ class ProductionController extends Controller
 
         try {
             $result = $this->productionService->addIssueProdSap($input, $userId);
-            $localIssue = $result['issue'] ?? null;
             $sapResponse = $result['sap_response'] ?? null;
+            $localIssue = $result['issue'] ?? null;
 
-            if ($localIssue && $localIssue->sap_status === 'FAILED') {
-                return $this->errorResponse('Gagal memposting Goods Issue ke SAP: ' . ($localIssue->sap_error ?? 'SAP error'), [
-                    'local_issue' => $localIssue,
-                    'sap_error'   => $localIssue->sap_error,
-                ], 400);
-            }
-
-            return $this->successResponse($sapResponse ?? $localIssue, $sapResponse['Message'] ?? 'Goods Issue for Production berhasil diproses ke SAP.');
+            return $this->successResponse(
+                $sapResponse ?? $localIssue,
+                $sapResponse['Message'] ?? 'Goods Issue for Production processed successfully to SAP.'
+            );
         } catch (\Exception $e) {
-            return $this->errorResponse('Gagal memproses Goods Issue for Production ke SAP: ' . $e->getMessage(), [], 500);
+            return $this->errorResponse('Failed to process Goods Issue for Production to SAP: ' . $e->getMessage(), [
+                'sap_error' => $e->getMessage(),
+            ], 400);
         }
     }
 
@@ -869,19 +867,17 @@ class ProductionController extends Controller
 
         try {
             $result = $this->productionService->addReceiptProdSap($input, $userId);
-            $localReceipt = $result['receipt'] ?? null;
             $sapResponse = $result['sap_response'] ?? null;
+            $localReceipt = $result['receipt'] ?? null;
 
-            if ($localReceipt && $localReceipt->sap_status === 'FAILED') {
-                return $this->errorResponse('Gagal memposting Receipt ke SAP: ' . ($localReceipt->sap_error ?? 'SAP error'), [
-                    'local_receipt' => $localReceipt,
-                    'sap_error'     => $localReceipt->sap_error,
-                ], 400);
-            }
-
-            return $this->successResponse($sapResponse ?? $localReceipt, $sapResponse['Message'] ?? 'Receipt for Production berhasil diproses ke SAP.');
+            return $this->successResponse(
+                $sapResponse ?? $localReceipt,
+                $sapResponse['Message'] ?? 'Receipt for Production processed successfully to SAP.'
+            );
         } catch (\Exception $e) {
-            return $this->errorResponse('Gagal memproses Receipt for Production ke SAP: ' . $e->getMessage(), [], 500);
+            return $this->errorResponse('Failed to process Receipt for Production to SAP: ' . $e->getMessage(), [
+                'sap_error' => $e->getMessage(),
+            ], 400);
         }
     }
 

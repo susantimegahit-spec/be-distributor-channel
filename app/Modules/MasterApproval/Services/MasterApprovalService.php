@@ -246,6 +246,24 @@ class MasterApprovalService
             }
         }
 
+        // Normalize Status for SAP & save original filter
+        $filterStatus = $payload['Status'] ?? $payload['status'] ?? null;
+        if (isset($payload['status'])) {
+            unset($payload['status']);
+        }
+        if ($filterStatus !== null && $filterStatus !== '') {
+            $upperStatus = strtoupper(trim((string) $filterStatus));
+            if (in_array($upperStatus, ['G', 'GENERATED', 'Y', 'APPROVED'])) {
+                $payload['Status'] = 'Y';
+            } elseif (in_array($upperStatus, ['W', 'PENDING'])) {
+                $payload['Status'] = 'W';
+            } elseif (in_array($upperStatus, ['N', 'REJECTED'])) {
+                $payload['Status'] = 'N';
+            } elseif (in_array($upperStatus, ['C', 'CANCELED', 'CANCELLED'])) {
+                $payload['Status'] = 'C';
+            }
+        }
+
         $cacheKey = 'sap_approvals_' . md5(json_encode($payload));
         $cacheTtl = (int) config('services.sap.cache_ttl', 60); // 1 minute default
 
@@ -253,7 +271,7 @@ class MasterApprovalService
             Cache::forget($cacheKey);
         }
 
-        return Cache::remember($cacheKey, $cacheTtl, function () use ($payload, $userId) {
+        return Cache::remember($cacheKey, $cacheTtl, function () use ($payload, $filterStatus, $userId) {
             $sapUrl = $this->getSapBaseUrl();
 
             try {
@@ -326,13 +344,26 @@ class MasterApprovalService
                         $rawStatus = strtoupper(trim((string) $item['Status']));
                         $docEntry = trim((string) ($item['DocEntry'] ?? ''));
 
-                        // Jika DocEntry 0 dan status Y dari SAP, ubah ke Generated (raw_status: G)
-                        if (($docEntry === '0' || $docEntry === '') && $rawStatus === 'Y') {
-                            $rawStatus = 'G';
+                        // Status Y dari SAP:
+                        // Urutan approval: Pending -> Approve -> Generated
+                        // 1. Generated: Status == 'Y' DAN DocEntry > 0 (dokumen target SAP telah terbentuk)
+                        // 2. Approved: Status == 'Y' DAN (DocEntry == '0' atau null atau '') (disetujui, menunggu generate dokumen)
+                        if ($rawStatus === 'Y') {
+                            if ($docEntry !== '' && $docEntry !== '0' && is_numeric($docEntry) && (int) $docEntry > 0) {
+                                $rawStatus = 'G'; // Generated
+                            } else {
+                                $rawStatus = 'Y'; // Approved
+                            }
                         }
 
                         $item['raw_status'] = $rawStatus;
                         $item['Status'] = $statusMap[$rawStatus] ?? ($rawStatus === 'W' ? 'Pending' : $item['Status']);
+                        if (isset($item['StatusCode'])) {
+                            $item['StatusCode'] = $rawStatus;
+                        }
+                        if (isset($item['StatusDescription'])) {
+                            $item['StatusDescription'] = $item['Status'];
+                        }
                     }
 
                     // Map CurrStep to Stage Name from getstages
@@ -348,6 +379,23 @@ class MasterApprovalService
                 }
                 return $item;
             }, $filteredResult);
+
+            // Filter by status if requested by user in payload
+            if ($filterStatus !== null && $filterStatus !== '') {
+                $cleanFilter = strtoupper(trim((string) $filterStatus));
+                $target = match ($cleanFilter) {
+                    'W', 'PENDING'   => 'Pending',
+                    'Y', 'APPROVED'  => 'Approved',
+                    'G', 'GENERATED' => 'Generated',
+                    'N', 'REJECTED'  => 'Rejected',
+                    'C', 'CANCELED', 'CANCELLED' => 'Canceled',
+                    default => $cleanFilter,
+                };
+                $result = array_values(array_filter($result, function ($item) use ($target) {
+                    return strcasecmp($item['Status'] ?? '', $target) === 0
+                        || strcasecmp($item['raw_status'] ?? '', $target) === 0;
+                }));
+            }
 
             // Log audit if user is authenticated
             if ($userId && $this->auditLogService) {
@@ -502,33 +550,38 @@ class MasterApprovalService
             $sapPayload['To'] = str_replace(['-', '/'], '', trim((string) $to));
         }
 
-        // Status filter (Optional: W, Y, N, C or human-readable status)
-        $status = $payload['Status'] ?? $payload['status'] ?? null;
-        if ($status !== null && $status !== '') {
-            $cleanStatus = strtoupper(trim((string) $status));
-            $reverseMap = [
-                'PENDING'   => 'W',
-                'APPROVED'  => 'Y',
-                'REJECTED'  => 'N',
-                'CANCELED'  => 'C',
-                'CANCELLED' => 'C',
-                'GENERATED' => 'G',
-            ];
-            $sapPayload['Status'] = $reverseMap[$cleanStatus] ?? $cleanStatus;
-        }
+        // Status filter will be applied in PHP post-filter to avoid SAP ODBC column mismatch
+        $filterStatus = $payload['Status'] ?? $payload['status'] ?? null;
 
-        $cacheKey = 'sap_owner_approvals_' . md5(json_encode($sapPayload));
+        $cacheKey = 'sap_owner_approvals_' . md5(json_encode($sapPayload) . '_' . ($filterStatus ?? ''));
         $cacheTtl = (int) config('services.sap.cache_ttl', 60); // 1 minute default
 
         if ($forceRefresh) {
             Cache::forget($cacheKey);
         }
 
-        return Cache::remember($cacheKey, $cacheTtl, function () use ($sapPayload, $userId) {
+        return Cache::remember($cacheKey, $cacheTtl, function () use ($sapPayload, $filterStatus, $userId) {
             $sapUrl = $this->getSapBaseUrl();
 
             try {
                 $response = Http::timeout(30)->post("{$sapUrl}/api/GetListByOwnerId", $sapPayload);
+
+                // If SAP CustomQuery 62 query template has column mismatch bug with UserId, retry without UserId
+                if ($response->successful() && isset($sapPayload['UserId'])) {
+                    $testBody = $response->json();
+                    if (isset($testBody['ErrorCode']) && $testBody['ErrorCode'] !== 0) {
+                        $errorMsg = $testBody['Message'] ?? '';
+                        if (str_contains($errorMsg, 'number of columns mismatch') || str_contains($errorMsg, '426')) {
+                            $fallbackPayload = $sapPayload;
+                            unset($fallbackPayload['UserId']);
+                            $retryResponse = Http::timeout(30)->post("{$sapUrl}/api/GetListByOwnerId", $fallbackPayload);
+                            if ($retryResponse->successful() && ($retryResponse->json()['ErrorCode'] ?? 1) === 0) {
+                                $response = $retryResponse;
+                            }
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
             } catch (\Exception $e) {
                 Log::error('SAP GetListByOwnerId connection error: ' . $e->getMessage());
                 throw new \Exception('Failed to connect to SAP API for owner approvals: ' . $e->getMessage());
@@ -591,13 +644,26 @@ class MasterApprovalService
                         $rawStatus = strtoupper(trim((string) $item['Status']));
                         $docEntry = trim((string) ($item['DocEntry'] ?? ''));
 
-                        // Jika DocEntry 0 dan status Y dari SAP, ubah ke Generated (raw_status: G)
-                        if (($docEntry === '0' || $docEntry === '') && $rawStatus === 'Y') {
-                            $rawStatus = 'G';
+                        // Status Y dari SAP:
+                        // Urutan approval: Pending -> Approve -> Generated
+                        // 1. Generated: Status == 'Y' DAN DocEntry > 0 (dokumen target SAP telah terbentuk)
+                        // 2. Approved: Status == 'Y' DAN (DocEntry == '0' atau null atau '') (disetujui, menunggu generate dokumen)
+                        if ($rawStatus === 'Y') {
+                            if ($docEntry !== '' && $docEntry !== '0' && is_numeric($docEntry) && (int) $docEntry > 0) {
+                                $rawStatus = 'G'; // Generated
+                            } else {
+                                $rawStatus = 'Y'; // Approved
+                            }
                         }
 
                         $item['raw_status'] = $rawStatus;
                         $item['Status'] = $statusMap[$rawStatus] ?? ($rawStatus === 'W' ? 'Pending' : $item['Status']);
+                        if (isset($item['StatusCode'])) {
+                            $item['StatusCode'] = $rawStatus;
+                        }
+                        if (isset($item['StatusDescription'])) {
+                            $item['StatusDescription'] = $item['Status'];
+                        }
                     }
 
                     // Map CurrStep to Stage Name and Remarks from getstages
@@ -613,6 +679,24 @@ class MasterApprovalService
                 }
                 return $item;
             }, $filteredResult);
+
+            // Filter by status if requested by user in payload
+            $filterStatus = $payload['Status'] ?? $payload['status'] ?? null;
+            if ($filterStatus !== null && $filterStatus !== '') {
+                $cleanFilter = strtoupper(trim((string) $filterStatus));
+                $target = match ($cleanFilter) {
+                    'W', 'PENDING'   => 'Pending',
+                    'Y', 'APPROVED'  => 'Approved',
+                    'G', 'GENERATED' => 'Generated',
+                    'N', 'REJECTED'  => 'Rejected',
+                    'C', 'CANCELED', 'CANCELLED' => 'Canceled',
+                    default => $cleanFilter,
+                };
+                $result = array_values(array_filter($result, function ($item) use ($target) {
+                    return strcasecmp($item['Status'] ?? '', $target) === 0
+                        || strcasecmp($item['raw_status'] ?? '', $target) === 0;
+                }));
+            }
 
             // Log audit if user is authenticated
             if ($userId && $this->auditLogService) {
@@ -675,20 +759,7 @@ class MasterApprovalService
             $sapPayload['ObjectCode'] = '';
         }
 
-        // Status filter (Optional: W, Y, N, C or human-readable status)
-        $status = $payload['Status'] ?? $payload['status'] ?? null;
-        if ($status !== null && $status !== '') {
-            $cleanStatus = strtoupper(trim((string) $status));
-            $reverseMap = [
-                'PENDING'   => 'W',
-                'APPROVED'  => 'Y',
-                'REJECTED'  => 'N',
-                'CANCELED'  => 'C',
-                'CANCELLED' => 'C',
-                'GENERATED' => 'G',
-            ];
-            $sapPayload['Status'] = $reverseMap[$cleanStatus] ?? $cleanStatus;
-        }
+
 
         if (empty($sapPayload['CustomQuery'])) {
             throw new \Exception('CustomQuery (DocEntry) parameter is required.');

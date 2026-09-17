@@ -3238,7 +3238,7 @@ paths:
   /v1/master-approvals/approvals:
     get:
       summary: Get Approval List from SAP API
-      description: Mengambil daftar antrean persetujuan dokumen dari SAP B1 middleware (/api/getapproval). Status 'W' otomatis dikonversi menjadi 'Pending', 'Y' menjadi 'Approved', 'G' menjadi 'Generated' (dokumen SAP telah terbit). Jika data kosong atau SAP mengembalikan placeholder dummy (WddCode 0), backend mengembalikan pesan 'Data not found.' dengan data array kosong [].
+      description: Mengambil daftar antrean persetujuan dokumen dari SAP B1 middleware (/api/getapproval). Urutan siklus alur approval adalah Pending -> Approved -> Generated. Status 'W' otomatis dikonversi menjadi 'Pending', 'Y' dengan DocEntry 0/null/kosong menjadi 'Approved', dan 'Y' dengan DocEntry > 0 menjadi 'Generated' (raw_status 'G'). Jika data kosong atau SAP mengembalikan placeholder dummy (WddCode 0), backend mengembalikan pesan 'Data not found.' dengan data array kosong [].
       tags:
         - Master Approvals
       security:
@@ -13174,10 +13174,12 @@ paths:
                       Message:
                         type: string
                         example: "Success - [AddIssueForProduction]. DocNum: 40512"
+        '400':
+          description: Failed to process Goods Issue for Production to SAP (SAP Error).
         '422':
           description: Validasi request gagal.
         '500':
-          description: Gagal memproses Goods Issue ke SAP.
+          description: Internal server error.
 
   /v1/warehouses/stock-by-item:
     post:
@@ -13346,10 +13348,12 @@ paths:
                       Message:
                         type: string
                         example: "Success - Receipt for Production. DocNum: 40513"
+        '400':
+          description: Failed to process Receipt for Production to SAP (SAP Error).
         '422':
           description: Validasi request gagal.
         '500':
-          description: Gagal memproses Receipt ke SAP.
+          description: Internal server error.
 
   /v1/production/orders/sap/cancel:
     post:
@@ -15832,6 +15836,10 @@ paths:
       summary: Get Owner / My Document Approval List from SAP
       description: |
         Mengambil daftar dokumen yang diajukan oleh pembuat dokumen (Originator/Owner) beserta status persetujuan dari SAP Business One (`/api/GetListByOwnerId`).
+        Urutan alur approval: `Pending -> Approved -> Generated`.
+        - `Pending`: Status SAP `W`.
+        - `Approved`: Status SAP `Y` DAN (`DocEntry == 0` atau null atau kosong) (disetujui, belum generate dokumen final definitif di SAP).
+        - `Generated`: Status SAP `Y` DAN `DocEntry > 0` (dokumen transaksi final definitif telah berhasil digenerate di SAP).
       tags:
         - SAP - Master Approval
       security:
@@ -15939,10 +15947,16 @@ paths:
                           example: "4"
                         Status:
                           type: string
-                          example: "Approved"
+                          example: "Generated"
                         raw_status:
                           type: string
-                          example: "Y"
+                          example: "G"
+                        StatusCode:
+                          type: string
+                          example: "G"
+                        StatusDescription:
+                          type: string
+                          example: "Generated"
                         Name:
                           type: string
                           description: Nama tahapan persetujuan dari getstages

@@ -2450,11 +2450,103 @@ class ProductionService
     {
         $payload = $this->prepareProdTransactionPayload($data, $userId, 'Issue for Production');
 
-        // 1. Simpan ke database lokal (production_issues & production_issue_items)
-        $issueNo = 'ISS-' . date('Ymd') . '-' . strtoupper(substr(md5(uniqid()), 0, 6));
+        // 1. Tembakkan langsung ke SAP B1 API terlebih dahulu (/api/AddIssueForProduction)
+        $sapUrl = config('services.sap.url');
+        $sapPayload = [
+            'DocDate'    => $payload['DocDate'],
+            'DocDueDate' => $payload['DocDueDate'],
+            'Comments'   => $payload['Comments'],
+            'Shift'      => $payload['Shift'],
+            'Unit'       => $payload['Unit'],
+            'AddonId'    => $payload['AddonId'],
+            'UserId'     => $payload['UserId'],
+            'Lines'      => array_map(function ($l) {
+                return [
+                    'BaseType'  => (int) ($l['BaseType'] ?? 202),
+                    'BaseEntry' => is_numeric($l['BaseEntry']) ? (int)$l['BaseEntry'] : $l['BaseEntry'],
+                    'BaseLine'  => is_numeric($l['BaseLine']) ? (int)$l['BaseLine'] : 0,
+                    'ItemCode'  => (string) ($l['ItemCode'] ?? ''),
+                    'Quantity'  => floatval($l['Quantity']),
+                    'WhsCode'   => (string) ($l['WhsCode'] ?? ''),
+                    'OcrCode'   => (string) ($l['OcrCode'] ?? ''),
+                    'OcrCode2'  => (string) ($l['OcrCode2'] ?? ''),
+                    'OcrCode3'  => (string) ($l['OcrCode3'] ?? ''),
+                ];
+            }, $payload['Lines']),
+        ];
+
+        try {
+            $response = Http::retry(3, 1000)->timeout(45)->post("{$sapUrl}/api/AddIssueForProduction", $sapPayload);
+        } catch (\Exception $e) {
+            Log::error('SAP AddIssueForProduction connection error: ' . $e->getMessage());
+            throw new \Exception('Failed to connect to SAP API for Goods Issue: ' . $e->getMessage());
+        }
+
+        if (!$response->successful()) {
+            $errorMsg = 'SAP returned status code ' . $response->status() . ': ' . $response->body();
+            Log::error('SAP AddIssueForProduction failed: ' . $errorMsg);
+            throw new \Exception($errorMsg);
+        }
+
+        $body = $response->json();
+
+        if (isset($body['ErrorCode']) && (int)$body['ErrorCode'] !== 0) {
+            $errorMsg = $body['Message'] ?? 'Unknown error from SAP';
+            Log::error('SAP AddIssueForProduction returned ErrorCode: ' . $errorMsg);
+            throw new \Exception('SAP error: ' . $errorMsg);
+        }
+
+        // 2. Ekstrak nomor dokumen resmi langsung dari respon SAP (tanpa nomor generate lokal)
+        $sapDocNum   = $body['DocNum'] ?? $body['doc_num'] ?? null;
+        $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? null;
+
+        $resultData = $body['Result'] ?? $body['result'] ?? null;
+        if (is_array($resultData)) {
+            $firstResult = isset($resultData[0]) ? $resultData[0] : $resultData;
+            if (is_array($firstResult)) {
+                $sapDocNum   = $sapDocNum ?? ($firstResult['DocNum'] ?? $firstResult['doc_num'] ?? null);
+                $sapDocEntry = $sapDocEntry ?? ($firstResult['DocEntry'] ?? $firstResult['doc_entry'] ?? null);
+            }
+        } elseif (is_numeric($resultData) || is_string($resultData)) {
+            $sapDocNum   = $sapDocNum ?? (string)$resultData;
+            $sapDocEntry = $sapDocEntry ?? (string)$resultData;
+        }
+
+        // Ekstrak DocNum & DocEntry dari string Message jika belum didapat
+        if (empty($sapDocNum) && !empty($body['Message'])) {
+            if (preg_match('/DocNum[:\s]+([0-9]+)/i', $body['Message'], $matches)) {
+                $sapDocNum = $matches[1];
+            }
+        }
+        if (empty($sapDocEntry) && !empty($body['Message'])) {
+            if (preg_match('/DocEntry[:\s]+([0-9]+)/i', $body['Message'], $matches)) {
+                $sapDocEntry = $matches[1];
+            }
+        }
+
+        $sapDocEntry = $sapDocEntry ?: $sapDocNum;
+        $sapDocNum   = $sapDocNum ?: $sapDocEntry;
+
+        if (empty($sapDocNum)) {
+            throw new \Exception('SAP succeeded but did not return a valid DocNum or DocEntry: ' . ($body['Message'] ?? ''));
+        }
+
+        $issueNo = (string) $sapDocNum;
+
+        // Pastikan DocNum dan DocEntry terisi di sapResponse
+        $body['DocNum']   = (string) $sapDocNum;
+        $body['DocEntry'] = (string) $sapDocEntry;
+        if (empty($body['Result'])) {
+            $body['Result'] = [
+                'DocNum'   => (string) $sapDocNum,
+                'DocEntry' => (string) $sapDocEntry,
+            ];
+        }
+        $sapResponse = $body;
+
+        // 3. Simpan ke database lokal menggunakan nomor resmi dari SAP
         $firstBaseEntry = $payload['Lines'][0]['BaseEntry'] ?? null;
 
-        // Cache lookup PDOs by BaseEntry (mendukung multiple PDO dalam 1 issue)
         $pdoCache = [];
         $getPdoByBaseEntry = function ($baseEntry) use (&$pdoCache) {
             if (!$baseEntry) return null;
@@ -2472,6 +2564,8 @@ class ProductionService
 
         $localIssue = \App\Models\ProductionIssue::create([
             'issue_no'            => $issueNo,
+            'doc_num'             => (string) $sapDocNum,
+            'doc_entry'           => (string) $sapDocEntry,
             'production_order_id' => $firstPdo?->id,
             'doc_date'            => $payload['DocDate'],
             'doc_due_date'        => $payload['DocDueDate'],
@@ -2480,7 +2574,9 @@ class ProductionService
             'bom_id'              => $payload['Bomid'],
             'comments'            => $payload['Comments'],
             'status'              => 'POSTED',
-            'sap_status'          => 'PENDING',
+            'sap_status'          => 'SYNCED',
+            'sap_error'           => null,
+            'integrated_at'       => now(),
             'created_by'          => $userId,
             'updated_by'          => $userId,
         ]);
@@ -2495,7 +2591,6 @@ class ProductionService
                 $affectedPdos[$currentLinePdo->id] = $currentLinePdo;
             }
 
-            // Find matching PDO raw material component item
             $pdoItem = null;
             $itemCode = (string) ($line['ItemCode'] ?? '');
 
@@ -2509,7 +2604,6 @@ class ProductionService
                 }
             }
 
-            // If still empty and PDO is in SAP, resolve from getPdoById
             if (empty($itemCode) && !empty($line['BaseEntry'])) {
                 try {
                     $pdoDetail = $this->getPdoById($line['BaseEntry']);
@@ -2542,24 +2636,50 @@ class ProductionService
                 'ocr_code3'                => $line['OcrCode3'] ?? null,
             ]);
 
-            // 2. Update issued_qty di baris bahan baku PDO
+            // Update issued_qty di baris bahan baku PDO
             if ($pdoItem) {
                 $pdoItem->increment('issued_qty', $qty);
             }
         }
 
-        // Catat referensi nomor issue di tabel PDO Header untuk semua PDO yang terlibat
+        // Catat referensi nomor issue resmi SAP di tabel PDO Header
         foreach ($affectedPdos as $affectedPdo) {
             $existingIssues = array_filter(array_map('trim', explode(',', (string)$affectedPdo->issue_for_production)));
             if (!in_array($issueNo, $existingIssues)) {
                 $existingIssues[] = $issueNo;
-                $affectedPdo->update(['issue_for_production' => implode(', ', $existingIssues)]);
+                $affectedPdo->update(['issue_for_production' => implode(', ', array_unique($existingIssues))]);
             }
         }
 
-        // 3. Tembakkan ke SAP B1 API
+        if ($userId) {
+            $this->auditLogService->log(
+                $userId,
+                'ADD_ISSUE_PROD',
+                "Goods Issue for Production {$issueNo} synced to SAP."
+            );
+        }
+
+        return [
+            'issue'        => $localIssue->fresh(['items', 'productionOrder']),
+            'payload'      => $payload,
+            'sap_response' => $sapResponse,
+        ];
+    }
+
+    /**
+     * Add Receipt for Production (Syncs directly to SAP /api/addreceiptprod, then records locally using SAP DocNum).
+     *
+     * @param array $data
+     * @param int|null $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function addReceiptProdSap(array $data, ?int $userId = null): array
+    {
+        $payload = $this->prepareProdTransactionPayload($data, $userId, 'Receipt for Production');
+
+        // 1. Tembakkan langsung ke SAP B1 API terlebih dahulu (/api/addreceiptprod)
         $sapUrl = config('services.sap.url');
-        $sapResponse = null;
         $sapPayload = [
             'DocDate'    => $payload['DocDate'],
             'DocDueDate' => $payload['DocDueDate'],
@@ -2576,7 +2696,7 @@ class ProductionService
                     'ItemCode'  => (string) ($l['ItemCode'] ?? ''),
                     'Quantity'  => floatval($l['Quantity']),
                     'WhsCode'   => (string) ($l['WhsCode'] ?? ''),
-                    // 'UoMEntry'  => is_numeric($l['UoMEntry'] ?? 1) ? (int)($l['UoMEntry'] ?? 1) : 1,
+                    'UoMEntry'  => is_numeric($l['UoMEntry'] ?? 1) ? (int)($l['UoMEntry'] ?? 1) : 1,
                     'OcrCode'   => (string) ($l['OcrCode'] ?? ''),
                     'OcrCode2'  => (string) ($l['OcrCode2'] ?? ''),
                     'OcrCode3'  => (string) ($l['OcrCode3'] ?? ''),
@@ -2585,120 +2705,74 @@ class ProductionService
         ];
 
         try {
-            $response = Http::retry(3, 1000)->timeout(45)->post("{$sapUrl}/api/AddIssueForProduction", $sapPayload);
-            if ($response->successful()) {
-                $body = $response->json();
-                if (!isset($body['ErrorCode']) || (int)$body['ErrorCode'] === 0) {
-                    $sapDocNum   = $body['DocNum'] ?? $body['doc_num'] ?? null;
-                    $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? null;
+            $response = Http::retry(3, 1000)->timeout(45)->post("{$sapUrl}/api/addreceiptprod", $sapPayload);
+        } catch (\Exception $e) {
+            Log::error('SAP addreceiptprod connection error: ' . $e->getMessage());
+            throw new \Exception('Failed to connect to SAP API for Production Receipt: ' . $e->getMessage());
+        }
 
-                    // Ekstrak dari $body['Result'] jika tersedia
-                    $resultData = $body['Result'] ?? $body['result'] ?? null;
-                    if (is_array($resultData)) {
-                        $firstResult = isset($resultData[0]) ? $resultData[0] : $resultData;
-                        if (is_array($firstResult)) {
-                            $sapDocNum   = $sapDocNum ?? ($firstResult['DocNum'] ?? $firstResult['doc_num'] ?? null);
-                            $sapDocEntry = $sapDocEntry ?? ($firstResult['DocEntry'] ?? $firstResult['doc_entry'] ?? null);
-                        }
-                    } elseif (is_numeric($resultData) || is_string($resultData)) {
-                        $sapDocNum   = $sapDocNum ?? (string)$resultData;
-                        $sapDocEntry = $sapDocEntry ?? (string)$resultData;
-                    }
+        if (!$response->successful()) {
+            $errorMsg = 'SAP returned status code ' . $response->status() . ': ' . $response->body();
+            Log::error('SAP addreceiptprod failed: ' . $errorMsg);
+            throw new \Exception($errorMsg);
+        }
 
-                    // Ekstrak DocNum & DocEntry dari string Message jika tidak disediakan langsung sebagai field terpisah
-                    // Contoh format message: "Success - [AddIssueForProduction]. DocNum: 260910001"
-                    if (empty($sapDocNum) && !empty($body['Message'])) {
-                        if (preg_match('/DocNum[:\s]+([0-9]+)/i', $body['Message'], $matches)) {
-                            $sapDocNum = $matches[1];
-                        }
-                    }
-                    if (empty($sapDocEntry) && !empty($body['Message'])) {
-                        if (preg_match('/DocEntry[:\s]+([0-9]+)/i', $body['Message'], $matches)) {
-                            $sapDocEntry = $matches[1];
-                        }
-                    }
+        $body = $response->json();
 
-                    $sapDocEntry = $sapDocEntry ?: $sapDocNum;
-                    $sapDocNum   = $sapDocNum ?: $sapDocEntry;
+        if (isset($body['ErrorCode']) && (int)$body['ErrorCode'] !== 0) {
+            $errorMsg = $body['Message'] ?? 'Unknown error from SAP';
+            Log::error('SAP addreceiptprod returned ErrorCode: ' . $errorMsg);
+            throw new \Exception('SAP error: ' . $errorMsg);
+        }
 
-                    $localIssue->update([
-                        'doc_entry'     => (string) $sapDocEntry,
-                        'doc_num'       => (string) ($sapDocNum ?: $localIssue->doc_num),
-                        'issue_no'      => (string) ($sapDocNum ?: $localIssue->issue_no),
-                        'sap_status'    => 'SYNCED',
-                        'sap_error'     => null,
-                        'integrated_at' => now(),
-                    ]);
+        // 2. Ekstrak nomor dokumen resmi langsung dari respon SAP (tanpa nomor generate lokal)
+        $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? null;
+        $sapDocNum   = $body['DocNum'] ?? $body['doc_num'] ?? null;
 
-                    // Pastikan DocNum dan DocEntry terisi di sapResponse
-                    $body['DocNum']   = (string) $sapDocNum;
-                    $body['DocEntry'] = (string) $sapDocEntry;
-                    if (empty($body['Result'])) {
-                        $body['Result'] = [
-                            'DocNum'   => (string) $sapDocNum,
-                            'DocEntry' => (string) $sapDocEntry,
-                        ];
-                    }
-                    $sapResponse = $body;
-
-                    // Update referensi nomor issue di tabel PDO Header (replace nomor generate dari BE ke nomor resmi SAP)
-                    if (!empty($affectedPdos) && $sapDocNum) {
-                        foreach ($affectedPdos as $affectedPdo) {
-                            $existingIssues = array_filter(array_map('trim', explode(',', (string)$affectedPdo->issue_for_production)));
-                            $existingIssues = array_map(function ($val) use ($issueNo, $sapDocNum) {
-                                return $val === $issueNo ? (string)$sapDocNum : $val;
-                            }, $existingIssues);
-                            $affectedPdo->update(['issue_for_production' => implode(', ', array_unique($existingIssues))]);
-                        }
-                    }
-                } else {
-                    $localIssue->update([
-                        'sap_status' => 'FAILED',
-                        'sap_error'  => $body['Message'] ?? 'Unknown SAP error',
-                    ]);
-                }
-            } else {
-                $localIssue->update([
-                    'sap_status' => 'FAILED',
-                    'sap_error'  => 'HTTP ' . $response->status() . ': ' . $response->body(),
-                ]);
+        $resultData = $body['Result'] ?? $body['result'] ?? null;
+        if (is_array($resultData)) {
+            $firstResult = isset($resultData[0]) ? $resultData[0] : $resultData;
+            if (is_array($firstResult)) {
+                $sapDocNum   = $sapDocNum ?? ($firstResult['DocNum'] ?? $firstResult['doc_num'] ?? null);
+                $sapDocEntry = $sapDocEntry ?? ($firstResult['DocEntry'] ?? $firstResult['doc_entry'] ?? null);
             }
-        } catch (\Exception $ex) {
-            $localIssue->update([
-                'sap_status' => 'FAILED',
-                'sap_error'  => $ex->getMessage(),
-            ]);
+        } elseif (is_numeric($resultData) || is_string($resultData)) {
+            $sapDocNum   = $sapDocNum ?? (string)$resultData;
+            $sapDocEntry = $sapDocEntry ?? (string)$resultData;
         }
 
-        if ($userId) {
-            $this->auditLogService->log(
-                $userId,
-                'ADD_ISSUE_PROD',
-                "Goods Issue for Production {$issueNo} recorded locally" . ($sapResponse ? " and synced to SAP." : ".")
-            );
+        if (empty($sapDocNum) && !empty($body['Message'])) {
+            if (preg_match('/DocNum:\s*([0-9]+)/i', $body['Message'], $matches)) {
+                $sapDocNum = $matches[1];
+            }
+        }
+        if (empty($sapDocEntry) && !empty($body['Message'])) {
+            if (preg_match('/DocEntry:\s*([0-9]+)/i', $body['Message'], $matches)) {
+                $sapDocEntry = $matches[1];
+            }
         }
 
-        return [
-            'issue'        => $localIssue->fresh(['items', 'productionOrder']),
-            'payload'      => $payload,
-            'sap_response' => $sapResponse,
-        ];
-    }
+        $sapDocEntry = $sapDocEntry ?: $sapDocNum;
+        $sapDocNum   = $sapDocNum ?: $sapDocEntry;
 
-    /**
-     * Add Receipt for Production (Stores locally and syncs to SAP /api/addreceiptprod).
-     *
-     * @param array $data
-     * @param int|null $userId
-     * @return array
-     * @throws \Exception
-     */
-    public function addReceiptProdSap(array $data, ?int $userId = null): array
-    {
-        $payload = $this->prepareProdTransactionPayload($data, $userId, 'Receipt for Production');
+        if (empty($sapDocNum)) {
+            throw new \Exception('SAP succeeded but did not return a valid DocNum or DocEntry: ' . ($body['Message'] ?? ''));
+        }
 
-        // 1. Simpan ke database lokal (production_receipts & production_receipt_items)
-        $receiptNo = 'RCP-' . date('Ymd') . '-' . strtoupper(substr(md5(uniqid()), 0, 6));
+        $receiptNo = (string) $sapDocNum;
+
+        // Pastikan DocNum dan DocEntry terisi di sapResponse
+        $body['DocNum']   = (string) $sapDocNum;
+        $body['DocEntry'] = (string) $sapDocEntry;
+        if (empty($body['Result'])) {
+            $body['Result'] = [
+                'DocNum'   => (string) $sapDocNum,
+                'DocEntry' => (string) $sapDocEntry,
+            ];
+        }
+        $sapResponse = $body;
+
+        // 3. Simpan ke database lokal menggunakan nomor resmi dari SAP
         $firstBaseEntry = $payload['Lines'][0]['BaseEntry'] ?? null;
 
         $pdo = null;
@@ -2711,6 +2785,8 @@ class ProductionService
 
         $localReceipt = \App\Models\ProductionReceipt::create([
             'receipt_no'          => $receiptNo,
+            'doc_num'             => (string) $sapDocNum,
+            'doc_entry'           => (string) $sapDocEntry,
             'production_order_id' => $pdo?->id,
             'doc_date'            => $payload['DocDate'],
             'doc_due_date'        => $payload['DocDueDate'],
@@ -2719,7 +2795,9 @@ class ProductionService
             'bom_id'              => $payload['Bomid'],
             'comments'            => $payload['Comments'],
             'status'              => 'POSTED',
-            'sap_status'          => 'PENDING',
+            'sap_status'          => 'SYNCED',
+            'sap_error'           => null,
+            'integrated_at'       => now(),
             'created_by'          => $userId,
             'updated_by'          => $userId,
         ]);
@@ -2729,7 +2807,6 @@ class ProductionService
             $qty = floatval($line['Quantity']);
             $totalReceivedQty += $qty;
 
-            // Resolve Item Code: For Receipt from Production, it is the Product (Finished Good) of the PDO
             $itemCode = (string) ($line['ItemCode'] ?? '');
             if (empty($itemCode)) {
                 $itemCode = (string) ($pdo?->item_code ?? '');
@@ -2760,7 +2837,7 @@ class ProductionService
             ]);
         }
 
-        // 2. Update cmplt_qty dan receipt_qty di PDO Header
+        // 4. Update cmplt_qty dan receipt_qty di PDO Header
         if ($pdo) {
             $newCmpltQty = floatval($pdo->cmplt_qty) + $totalReceivedQty;
             $existingReceipts = array_filter(array_map('trim', explode(',', (string)$pdo->receipt_from_production)));
@@ -2771,10 +2848,9 @@ class ProductionService
             $updateData = [
                 'cmplt_qty'               => $newCmpltQty,
                 'receipt_qty'             => $newCmpltQty,
-                'receipt_from_production' => implode(', ', $existingReceipts),
+                'receipt_from_production' => implode(', ', array_unique($existingReceipts)),
             ];
 
-            // Jika seluruh kuantitas rencana sudah tercapai
             if ($newCmpltQty >= floatval($pdo->planned_qty) && floatval($pdo->planned_qty) > 0) {
                 $updateData['status'] = 'CLOSED';
             }
@@ -2782,106 +2858,11 @@ class ProductionService
             $pdo->update($updateData);
         }
 
-        // 3. Tembakkan ke SAP B1 API
-        $sapUrl = config('services.sap.url');
-        $sapResponse = null;
-        $sapPayload = [
-            'DocDate'    => $payload['DocDate'],
-            'DocDueDate' => $payload['DocDueDate'],
-            'Comments'   => $payload['Comments'],
-            'Shift'      => $payload['Shift'],
-            'Unit'       => $payload['Unit'],
-            'AddonId'    => $payload['AddonId'],
-            'UserId'     => $payload['UserId'],
-            'Lines'      => array_map(function ($l) {
-                return [
-                    'BaseType'  => (int) ($l['BaseType'] ?? 202),
-                    'BaseEntry' => is_numeric($l['BaseEntry']) ? (int)$l['BaseEntry'] : $l['BaseEntry'],
-                    'BaseLine'  => is_numeric($l['BaseLine']) ? (int)$l['BaseLine'] : 0,
-                    'ItemCode'  => (string) ($l['ItemCode'] ?? ''),
-                    'Quantity'  => floatval($l['Quantity']),
-                    'WhsCode'   => (string) ($l['WhsCode'] ?? ''),
-                    'UoMEntry'  => is_numeric($l['UoMEntry'] ?? 1) ? (int)($l['UoMEntry'] ?? 1) : 1,
-                    'OcrCode'   => (string) ($l['OcrCode'] ?? ''),
-                    'OcrCode2'  => (string) ($l['OcrCode2'] ?? ''),
-                    'OcrCode3'  => (string) ($l['OcrCode3'] ?? ''),
-                ];
-            }, $payload['Lines']),
-        ];
-
-        try {
-            $response = Http::retry(3, 1000)->timeout(45)->post("{$sapUrl}/api/addreceiptprod", $sapPayload);
-            if ($response->successful()) {
-                $body = $response->json();
-                if (!isset($body['ErrorCode']) || $body['ErrorCode'] === 0) {
-                    $sapDocEntry = $body['DocEntry'] ?? $body['doc_entry'] ?? null;
-                    $sapDocNum   = $body['DocNum'] ?? $body['doc_num'] ?? null;
-
-                    // Ekstrak dari $body['Result'] jika tersedia
-                    $resultData = $body['Result'] ?? $body['result'] ?? null;
-                    if (is_array($resultData)) {
-                        $firstResult = isset($resultData[0]) ? $resultData[0] : $resultData;
-                        if (is_array($firstResult)) {
-                            $sapDocNum   = $sapDocNum ?? ($firstResult['DocNum'] ?? $firstResult['doc_num'] ?? null);
-                            $sapDocEntry = $sapDocEntry ?? ($firstResult['DocEntry'] ?? $firstResult['doc_entry'] ?? null);
-                        }
-                    } elseif (is_numeric($resultData) || is_string($resultData)) {
-                        $sapDocNum   = $sapDocNum ?? (string)$resultData;
-                        $sapDocEntry = $sapDocEntry ?? (string)$resultData;
-                    }
-
-                    // Ekstrak DocNum & DocEntry dari string Message jika belum didapat
-                    if (empty($sapDocNum) && !empty($body['Message'])) {
-                        if (preg_match('/DocNum:\s*([0-9]+)/i', $body['Message'], $matches)) {
-                            $sapDocNum = $matches[1];
-                        }
-                    }
-                    if (empty($sapDocEntry) && !empty($body['Message'])) {
-                        if (preg_match('/DocEntry:\s*([0-9]+)/i', $body['Message'], $matches)) {
-                            $sapDocEntry = $matches[1];
-                        }
-                    }
-
-                    $sapDocEntry = $sapDocEntry ?: $sapDocNum;
-                    $sapDocNum   = $sapDocNum ?: $sapDocEntry;
-
-                    $localReceipt->update([
-                        'doc_entry'     => $sapDocEntry,
-                        'doc_num'       => $sapDocNum,
-                        'receipt_no'    => $sapDocNum ?? $localReceipt->receipt_no,
-                        'sap_status'    => 'SYNCED',
-                        'sap_error'     => null,
-                        'integrated_at' => now(),
-                    ]);
-                    $sapResponse = $body;
-
-                    // Update referensi nomor receipt di tabel PDO Header
-                    if ($pdo && $sapDocNum) {
-                        $existingReceipts = array_filter(array_map('trim', explode(',', (string)$pdo->receipt_from_production)));
-                        $existingReceipts = array_map(function ($val) use ($receiptNo, $sapDocNum) {
-                            return $val === $receiptNo ? $sapDocNum : $val;
-                        }, $existingReceipts);
-                        $pdo->update(['receipt_from_production' => implode(', ', array_unique($existingReceipts))]);
-                    }
-                } else {
-                    $localReceipt->update([
-                        'sap_status' => 'FAILED',
-                        'sap_error'  => $body['Message'] ?? 'Unknown SAP error',
-                    ]);
-                }
-            }
-        } catch (\Exception $ex) {
-            $localReceipt->update([
-                'sap_status' => 'FAILED',
-                'sap_error'  => $ex->getMessage(),
-            ]);
-        }
-
         if ($userId) {
             $this->auditLogService->log(
                 $userId,
                 'ADD_RECEIPT_PROD',
-                "Receipt from Production {$receiptNo} recorded locally" . ($sapResponse ? " and synced to SAP." : ".")
+                "Receipt from Production {$receiptNo} synced to SAP."
             );
         }
 
