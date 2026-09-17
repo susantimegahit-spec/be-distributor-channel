@@ -27,6 +27,8 @@ class SalesOrderLogisticLog extends Model
         'user_id',
         'user_name',
         'role_name',
+        'sap_it_doc_entry',
+        'sap_it_doc_num',
     ];
 
     protected $casts = [

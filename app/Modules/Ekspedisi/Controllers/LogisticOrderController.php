@@ -115,9 +115,12 @@ class LogisticOrderController extends Controller
     public function approve(Request $request, int $id): JsonResponse
     {
         $request->validate([
-            'due_date' => 'nullable|date',
-            'eta_date' => 'nullable|date',
-            'notes'    => 'nullable|string|max:1000',
+            'due_date'    => 'nullable|date',
+            'eta_date'    => 'nullable|date',
+            'notes'       => 'nullable|string|max:1000',
+            'to_whs_code' => 'nullable|string|max:50',
+            'nopol'       => 'nullable|string|max:50',
+            'nama_supir'  => 'nullable|string|max:150',
         ]);
 
         try {
@@ -141,10 +144,11 @@ class LogisticOrderController extends Controller
                 'errors'  => $e->validator->errors(),
             ], 422);
         } catch (\Exception $e) {
+            $statusCode = ($e->getCode() >= 400 && $e->getCode() < 600) ? (int)$e->getCode() : 400;
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
-            ], 500);
+            ], $statusCode);
         }
     }
 

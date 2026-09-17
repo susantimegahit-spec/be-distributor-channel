@@ -8,6 +8,9 @@ use App\Models\SalesOrderLogisticLog;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class LogisticOrderService
@@ -332,10 +335,11 @@ class LogisticOrderService
      * Approve delivery schedule:
      * - If logistic_status is RESCHEDULE_REQUESTED, Admin Sales approves the rescheduled date.
      * - If logistic_status is PENDING, Logistic confirms readiness of the current schedule.
+     * In both statuses, automatically triggers Inventory Transfer (addIT) to SAP if not yet created.
      */
     public function approveOrder(int $orderId, int $userId, array $data = []): SalesOrder
     {
-        $order = SalesOrder::find($orderId);
+        $order = SalesOrder::with(['details.item'])->find($orderId);
         if (!$order) {
             throw ValidationException::withMessages([
                 'order' => ['Sales order not found.'],
@@ -357,76 +361,254 @@ class LogisticOrderService
         $prevEtaDate = $order->eta_date ? $order->eta_date->format('Y-m-d') : null;
         $currentLogisticStatus = strtoupper((string) ($order->logistic_status ?: 'PENDING'));
 
-        if ($currentLogisticStatus === 'RESCHEDULE_REQUESTED') {
-            // Admin Sales Approval of Logistic Reschedule
-            $newDueDate = $order->proposed_delivery_date
-                ? $order->proposed_delivery_date->format('Y-m-d')
-                : ($data['due_date'] ?? $prevDueDate);
+        $targetToWhsCode = trim((string) ($data['to_whs_code'] ?? $data['ToWhsCode'] ?? 'VPGMN01'));
+        if (empty($targetToWhsCode)) {
+            $targetToWhsCode = 'VPGMN01';
+        }
+        $nopol = trim((string) ($data['nopol'] ?? $data['Nopol'] ?? ''));
+        $namaSupir = trim((string) ($data['nama_supir'] ?? $data['NamaSupir'] ?? $data['driver_name'] ?? ''));
 
-            $newEtaDate = $order->proposed_eta_date
-                ? $order->proposed_eta_date->format('Y-m-d')
-                : ($data['eta_date'] ?? $prevEtaDate);
+        // 1. Check if Inventory Transfer (IT) has already been created for this Sales Order
+        $sapItDocNum = $order->sap_it_doc_num;
+        $sapItDocEntry = $order->sap_it_doc_entry;
+        $sapItStatus = $order->sap_it_status;
 
-            $order->update([
-                'req_due_date'       => $newDueDate,
-                'doc_due_date'       => $newDueDate,
-                'eta_date'           => $newEtaDate,
-                'logistic_status'    => 'RESCHEDULE_APPROVED',
-                'logistic_action_at' => now(),
-                'logistic_action_by' => $userId,
-            ]);
+        if (empty($sapItDocNum)) {
+            // Trigger IT to SAP first; if it fails, throw Exception (fail-fast atomic)
+            $itResult = $this->executeInventoryTransferToSap($order, $userId, $targetToWhsCode, $nopol, $namaSupir, $data);
+            $sapItDocNum = $itResult['doc_num'] ?: 'PROCESSED';
+            $sapItDocEntry = $itResult['doc_entry'] ?: $sapItDocNum;
+            $sapItStatus = 'SUCCESS';
+        }
 
-            SalesOrderLogisticLog::create([
-                'sales_order_id'    => $order->id,
-                'action'            => 'ADMIN_SALES_APPROVED_RESCHEDULE',
-                'from_status'       => 'RESCHEDULE_REQUESTED',
-                'to_status'         => 'RESCHEDULE_APPROVED',
-                'previous_due_date' => $prevDueDate,
-                'previous_eta_date' => $prevEtaDate,
-                'approved_due_date' => $newDueDate,
-                'approved_eta_date' => $newEtaDate,
-                'notes'             => $notes ?: 'Admin sales approved logistic delivery reschedule request.',
-                'user_id'           => $userId,
-                'user_name'         => $userName,
-                'role_name'         => $roleName ?: 'Admin Sales',
-            ]);
-        } else {
-            // Logistic Readiness Approval
-            $etaDate = $data['eta_date'] ?? null;
-            if ($etaDate) {
-                $etaDate = Carbon::parse($etaDate)->toDateString();
+        // 2. Perform DB updates in transaction
+        DB::beginTransaction();
+        try {
+            if ($currentLogisticStatus === 'RESCHEDULE_REQUESTED') {
+                // Admin Sales Approval of Logistic Reschedule
+                $newDueDate = $order->proposed_delivery_date
+                    ? $order->proposed_delivery_date->format('Y-m-d')
+                    : ($data['due_date'] ?? $prevDueDate);
+
+                $newEtaDate = $order->proposed_eta_date
+                    ? $order->proposed_eta_date->format('Y-m-d')
+                    : ($data['eta_date'] ?? $prevEtaDate);
+
+                $order->update([
+                    'req_due_date'       => $newDueDate,
+                    'doc_due_date'       => $newDueDate,
+                    'eta_date'           => $newEtaDate,
+                    'logistic_status'    => 'RESCHEDULE_APPROVED',
+                    'logistic_action_at' => now(),
+                    'logistic_action_by' => $userId,
+                    'to_whs_code'        => $targetToWhsCode,
+                    'nopol'              => $nopol ?: $order->nopol,
+                    'nama_supir'         => $namaSupir ?: $order->nama_supir,
+                    'sap_it_doc_entry'   => $sapItDocEntry,
+                    'sap_it_doc_num'     => $sapItDocNum,
+                    'sap_it_status'      => $sapItStatus,
+                ]);
+
+                SalesOrderLogisticLog::create([
+                    'sales_order_id'    => $order->id,
+                    'action'            => 'ADMIN_SALES_APPROVED_RESCHEDULE',
+                    'from_status'       => 'RESCHEDULE_REQUESTED',
+                    'to_status'         => 'RESCHEDULE_APPROVED',
+                    'previous_due_date' => $prevDueDate,
+                    'previous_eta_date' => $prevEtaDate,
+                    'approved_due_date' => $newDueDate,
+                    'approved_eta_date' => $newEtaDate,
+                    'notes'             => $notes ?: 'Admin sales approved logistic delivery reschedule request.',
+                    'user_id'           => $userId,
+                    'user_name'         => $userName,
+                    'role_name'         => $roleName ?: 'Admin Sales',
+                    'sap_it_doc_entry'  => $sapItDocEntry,
+                    'sap_it_doc_num'    => $sapItDocNum,
+                ]);
             } else {
-                $etaDate = $prevEtaDate;
+                // Logistic Readiness Approval
+                $etaDate = $data['eta_date'] ?? null;
+                if ($etaDate) {
+                    $etaDate = Carbon::parse($etaDate)->toDateString();
+                } else {
+                    $etaDate = $prevEtaDate;
+                }
+
+                $currentDueDate = $order->doc_due_date ? $order->doc_due_date->format('Y-m-d') : null;
+                $reqDueDate = $order->req_due_date ? $order->req_due_date->format('Y-m-d') : $currentDueDate;
+
+                $order->update([
+                    'req_due_date'       => $reqDueDate,
+                    'eta_date'           => $etaDate,
+                    'logistic_status'    => 'APPROVED',
+                    'logistic_action_at' => now(),
+                    'logistic_action_by' => $userId,
+                    'to_whs_code'        => $targetToWhsCode,
+                    'nopol'              => $nopol ?: $order->nopol,
+                    'nama_supir'         => $namaSupir ?: $order->nama_supir,
+                    'sap_it_doc_entry'   => $sapItDocEntry,
+                    'sap_it_doc_num'     => $sapItDocNum,
+                    'sap_it_status'      => $sapItStatus,
+                ]);
+
+                SalesOrderLogisticLog::create([
+                    'sales_order_id'    => $order->id,
+                    'action'            => 'LOGISTIC_APPROVED',
+                    'from_status'       => $currentLogisticStatus,
+                    'to_status'         => 'APPROVED',
+                    'previous_due_date' => $prevDueDate,
+                    'previous_eta_date' => $prevEtaDate,
+                    'approved_due_date' => $currentDueDate,
+                    'approved_eta_date' => $etaDate,
+                    'notes'             => $notes ?: 'Logistics team confirmed delivery schedule and shipment readiness.',
+                    'user_id'           => $userId,
+                    'user_name'         => $userName,
+                    'role_name'         => $roleName ?: 'Logistic',
+                    'sap_it_doc_entry'  => $sapItDocEntry,
+                    'sap_it_doc_num'    => $sapItDocNum,
+                ]);
             }
 
-            $currentDueDate = $order->doc_due_date ? $order->doc_due_date->format('Y-m-d') : null;
-            $reqDueDate = $order->req_due_date ? $order->req_due_date->format('Y-m-d') : $currentDueDate;
-
-            $order->update([
-                'req_due_date'       => $reqDueDate,
-                'eta_date'           => $etaDate,
-                'logistic_status'    => 'APPROVED',
-                'logistic_action_at' => now(),
-                'logistic_action_by' => $userId,
-            ]);
-
-            SalesOrderLogisticLog::create([
-                'sales_order_id'    => $order->id,
-                'action'            => 'LOGISTIC_APPROVED',
-                'from_status'       => $currentLogisticStatus,
-                'to_status'         => 'APPROVED',
-                'previous_due_date' => $prevDueDate,
-                'previous_eta_date' => $prevEtaDate,
-                'approved_due_date' => $currentDueDate,
-                'approved_eta_date' => $etaDate,
-                'notes'             => $notes ?: 'Logistics team confirmed delivery schedule and shipment readiness.',
-                'user_id'           => $userId,
-                'user_name'         => $userName,
-                'role_name'         => $roleName ?: 'Logistic',
-            ]);
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error("Failed to save approval for Sales Order #{$order->id}: " . $e->getMessage());
+            throw $e;
         }
 
         return $order->fresh(['details.item', 'distributor', 'latestLogisticLog']);
+    }
+
+    /**
+     * Execute Inventory Transfer (IT) to SAP B1 API (/api/addIT).
+     *
+     * @param SalesOrder $order
+     * @param int $userId
+     * @param string $toWhsCode
+     * @param string $nopol
+     * @param string $namaSupir
+     * @param array $data
+     * @return array
+     * @throws \Exception
+     */
+    public function executeInventoryTransferToSap(
+        SalesOrder $order,
+        int $userId,
+        string $toWhsCode = 'VPGMN01',
+        string $nopol = '',
+        string $namaSupir = '',
+        array $data = []
+    ): array {
+        if (!$order->relationLoaded('details') || $order->details->isEmpty()) {
+            $order->load('details');
+        }
+
+        if ($order->details->isEmpty()) {
+            throw new \Exception("Cannot perform Inventory Transfer: Sales Order #{$order->order_no} has no line items.", 400);
+        }
+
+        $headerFiller = (string) ($order->details->first()?->whs_code ?: 'FG01');
+
+        $lines = [];
+        foreach ($order->details as $detail) {
+            $itemCode = trim((string) $detail->item_code);
+            $qty = floatval($detail->quantity);
+            if (empty($itemCode) || $qty <= 0) {
+                continue;
+            }
+
+            $itemFiller = trim((string) ($detail->whs_code ?: $headerFiller));
+            $lines[] = [
+                'ItemCode'     => $itemCode,
+                'Quantity'     => $qty,
+                'UomEntry'     => is_numeric($detail->uom_entry) ? (int)$detail->uom_entry : 0,
+                'Filler'       => $itemFiller,
+                'ToWhsCode'    => $toWhsCode,
+                'UseBaseUn'    => 'Y',
+                'OcrCode'      => (string) ($detail->ocr_code ?? ''),
+                'OcrCode2'     => (string) ($detail->ocr_code2 ?? ''),
+                'OcrCode3'     => (string) ($detail->ocr_code3 ?? ''),
+                'BinActivfrom' => 'N',
+                'BinActivto'   => 'N',
+            ];
+        }
+
+        if (empty($lines)) {
+            throw new \Exception("Cannot perform Inventory Transfer: Sales Order #{$order->order_no} has no valid items with quantity > 0.", 400);
+        }
+
+        $docDueDate = $order->req_due_date
+            ? $order->req_due_date->format('Y-m-d')
+            : ($order->doc_due_date ? $order->doc_due_date->format('Y-m-d') : now()->toDateString());
+
+        $itPayload = [
+            'DocDate'    => now()->toDateString(),
+            'DocDueDate' => $docDueDate,
+            'Filler'     => $headerFiller,
+            'ToWhsCode'  => $toWhsCode,
+            'Comments'   => "Inventory Transfer for SO #{$order->order_no}" . ($order->sap_doc_num ? " (SAP #{$order->sap_doc_num})" : ''),
+            'BeratBruto' => (string) ($data['berat_bruto'] ?? $data['BeratBruto'] ?? ''),
+            'BeratTara'  => (string) ($data['berat_tara'] ?? $data['BeratTara'] ?? ''),
+            'Nopol'      => $nopol,
+            'NamaSupir'  => $namaSupir,
+            'AddonId'    => 2,
+            'UserId'     => (int) $userId,
+            'Lines'      => $lines,
+        ];
+
+        $sapUrl = rtrim(config('services.sap.url') ?: env('SAP_API_URL', 'http://103.18.133.187:3100'), '/');
+
+        try {
+            $response = Http::timeout(30)->post("{$sapUrl}/api/addIT", $itPayload);
+        } catch (\Throwable $e) {
+            Log::error("Failed to connect to SAP /api/addIT for SO #{$order->id}: " . $e->getMessage());
+            throw new \Exception("Failed to connect to SAP API for Inventory Transfer: " . $e->getMessage(), 400);
+        }
+
+        if (!$response->successful()) {
+            $status = $response->status();
+            $body = $response->body();
+            Log::error("SAP /api/addIT returned HTTP {$status} for SO #{$order->id}: {$body}");
+            throw new \Exception("Failed to process Inventory Transfer to SAP (HTTP {$status}): " . substr($body, 0, 250), 400);
+        }
+
+        $result = $response->json();
+        if (isset($result['ErrorCode']) && (int) $result['ErrorCode'] !== 0) {
+            $errMsg = $result['Message'] ?? 'Unknown SAP error during Inventory Transfer.';
+            Log::error("SAP /api/addIT returned ErrorCode {$result['ErrorCode']} for SO #{$order->id}: {$errMsg}");
+            throw new \Exception("SAP Inventory Transfer Error [{$result['ErrorCode']}]: {$errMsg}", 400);
+        }
+
+        $docEntry = null;
+        $docNum = null;
+
+        if (isset($result['Result'])) {
+            if (is_array($result['Result'])) {
+                $docEntry = $result['Result']['DocEntry'] ?? $result['Result'][0]['DocEntry'] ?? null;
+                $docNum = $result['Result']['DocNum'] ?? $result['Result'][0]['DocNum'] ?? null;
+            } elseif (is_numeric($result['Result'])) {
+                $docEntry = (string) $result['Result'];
+            }
+        }
+
+        if (!$docNum && !empty($result['Message']) && preg_match('/DocNum:\s*(\d+)/i', $result['Message'], $m)) {
+            $docNum = $m[1];
+        }
+        if (!$docEntry && !empty($result['Message']) && preg_match('/DocEntry:\s*(\d+)/i', $result['Message'], $m)) {
+            $docEntry = $m[1];
+        }
+        if (!$docNum && $docEntry) {
+            $docNum = $docEntry;
+        }
+        if (!$docEntry && $docNum) {
+            $docEntry = $docNum;
+        }
+
+        return [
+            'doc_entry' => $docEntry ? (string) $docEntry : null,
+            'doc_num'   => $docNum ? (string) $docNum : null,
+            'raw'       => $result,
+        ];
     }
 
     /**

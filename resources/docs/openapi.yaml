@@ -16494,11 +16494,13 @@ paths:
 
   /v1/logistic/orders/{id}/approve:
     post:
-      summary: Approve Order Schedule (Logistics Fleet Confirmation or Sales Reschedule Approval)
+      summary: Approve Order Schedule (Logistics Fleet Confirmation or Sales Reschedule Approval) & Trigger SAP Inventory Transfer (addIT)
       description: |
-        Menangani dua jenis persetujuan jadwal:
+        Menangani persetujuan jadwal pengiriman serta pemicu Inventory Transfer (IT) ke SAP:
         1. **Persetujuan Kesiapan Logistik:** Jika `logistic_status = PENDING` dan SO `ORDER_APPROVED`, tim logistik mengonfirmasi kesiapan armada/jadwal -> status berubah ke `APPROVED`.
         2. **Persetujuan Reschedule Admin Sales:** Jika `logistic_status = RESCHEDULE_REQUESTED`, Admin Sales menyetujui tanggal baru usulan logistik -> status berubah ke `RESCHEDULE_APPROVED`, dan sistem otomatis memperbarui `req_due_date`, `doc_due_date`, serta `eta_date` pada Sales Order.
+        3. **Integrasi Inventory Transfer (SAP addIT):** Pada kedua status di atas, jika Sales Order belum memiliki dokumen IT (`sap_it_doc_num` kosong), sistem otomatis menembakkan transaksi Inventory Transfer ke SAP B1 (`/api/addIT`) memindahkan stok ke gudang transit ekspedisi (`to_whs_code`, default: `VPGMN01`).
+        4. **Transaksi Atomik:** Jika proses IT ke SAP gagal (misal koneksi error, parameter tidak valid, atau stok kurang), maka persetujuan **WAJIB GAGAL** (HTTP 400), dan status SO tidak berubah.
       tags:
         - Logistic - Order Monitoring
       security:
@@ -16517,13 +16519,35 @@ paths:
             schema:
               type: object
               properties:
+                due_date:
+                  type: string
+                  format: date
+                  description: Tanggal pengiriman baru (opsional)
+                  example: "2026-09-22"
+                eta_date:
+                  type: string
+                  format: date
+                  description: Estimasi tanggal tiba baru (opsional)
+                  example: "2026-09-25"
                 notes:
                   type: string
                   description: Catatan persetujuan
                   example: "Armada siap, jadwal pengiriman disetujui."
+                to_whs_code:
+                  type: string
+                  description: Kode gudang tujuan transfer SAP (default "VPGMN01")
+                  example: "VPGMN01"
+                nopol:
+                  type: string
+                  description: Nomor Polisi armada kendaraan (opsional)
+                  example: "L 9999 XX"
+                nama_supir:
+                  type: string
+                  description: Nama driver / pengemudi (opsional)
+                  example: "Pak Driver"
       responses:
         '200':
-          description: Order schedule approved successfully.
+          description: Order schedule approved successfully and Inventory Transfer processed to SAP.
           content:
             application/json:
               schema:
@@ -16534,9 +16558,22 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: Order delivery schedule approved successfully.
+                    example: Logistics delivery schedule confirmed and approved successfully.
                   data:
                     $ref: '#/components/schemas/LogisticOrderListItem'
+        '400':
+          description: Failed to process Inventory Transfer to SAP (SAP Error or Connection Error).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "SAP Inventory Transfer Error [-1]: Insufficient stock in warehouse WHS-SBY"
         '404':
           description: Sales Order not found.
         '422':

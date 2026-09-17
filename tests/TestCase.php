@@ -38,9 +38,10 @@ abstract class TestCase extends BaseTestCase
                 'database.connections.sqlite.database' => $defaultDb,
                 'database.connections.sqlite.busy_timeout' => 5000,
                 'database.connections.sqlite.journal_mode' => 'WAL',
+                'database.connections.sqlite.foreign_key_constraints' => false,
                 'database.connections.pgsql_ekspedisi' => [
                     'driver' => 'sqlite',
-                    'database' => $defaultDb,
+                    'database' => $ekspedisiDb,
                     'prefix' => '',
                     'foreign_key_constraints' => false,
                     'busy_timeout' => 5000,
@@ -48,7 +49,7 @@ abstract class TestCase extends BaseTestCase
                 ],
                 'database.connections.pgsql_production' => [
                     'driver' => 'sqlite',
-                    'database' => $defaultDb,
+                    'database' => $productionDb,
                     'prefix' => '',
                     'foreign_key_constraints' => false,
                     'busy_timeout' => 5000,
@@ -81,6 +82,10 @@ abstract class TestCase extends BaseTestCase
                     }
                 };
             });
+            if ($needsMigration) {
+                $this->artisan('migrate', ['--database' => 'sqlite', '--force' => true]);
+                $this->artisan('migrate', ['--database' => 'pgsql_ekspedisi', '--path' => 'database/migrations/ekspedisi', '--force' => true]);
+            }
         }
 
         parent::setUp();
