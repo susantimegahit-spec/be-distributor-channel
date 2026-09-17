@@ -13306,7 +13306,13 @@ paths:
                         example: 10025
                       BaseLine:
                         type: integer
-                        example: 0
+                        nullable: true
+                        description: Nomor baris referensi PDO (jika null atau dikosongkan, backend otomatis mengirimkan -1 untuk header produk jadi)
+                        example: -1
+                      ItemCode:
+                        type: string
+                        description: Kode barang / item code produk jadi (opsional, otomatis diambil dari PDO jika kosong)
+                        example: "FG-SALT-01"
                       Quantity:
                         type: number
                         example: 50

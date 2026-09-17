@@ -2379,7 +2379,14 @@ class ProductionService
             }
 
             $baseEntry = $line['base_entry'] ?? $line['BaseEntry'] ?? null;
-            $baseLine = $line['base_line'] ?? $line['BaseLine'] ?? 0;
+            $rawBaseLine = $line['base_line'] ?? $line['BaseLine'] ?? null;
+            if ($rawBaseLine === null || $rawBaseLine === '') {
+                $baseLine = -1;
+            } elseif (is_numeric($rawBaseLine)) {
+                $baseLine = (int) $rawBaseLine;
+            } else {
+                $baseLine = $rawBaseLine;
+            }
             $quantity = $line['quantity'] ?? $line['Quantity'] ?? null;
 
             if ($baseEntry === null || $baseEntry === '') {
@@ -2397,7 +2404,7 @@ class ProductionService
             $lines[] = [
                 'BaseType'  => is_numeric($line['base_type'] ?? $line['BaseType'] ?? null) ? (int) ($line['base_type'] ?? $line['BaseType']) : 202,
                 'BaseEntry' => is_numeric($baseEntry) ? (int) $baseEntry : (string) $baseEntry,
-                'BaseLine'  => is_numeric($baseLine) ? (int) $baseLine : (string) $baseLine,
+                'BaseLine'  => $baseLine,
                 'ItemCode'  => $itemCode,
                 'Quantity'  => floatval($quantity),
                 'WhsCode'   => (string) ($line['whs_code'] ?? $line['warehouse'] ?? $line['WhsCode'] ?? ''),
@@ -2464,7 +2471,7 @@ class ProductionService
                 return [
                     'BaseType'  => (int) ($l['BaseType'] ?? 202),
                     'BaseEntry' => is_numeric($l['BaseEntry']) ? (int)$l['BaseEntry'] : $l['BaseEntry'],
-                    'BaseLine'  => is_numeric($l['BaseLine']) ? (int)$l['BaseLine'] : 0,
+                    'BaseLine'  => ($l['BaseLine'] === null || $l['BaseLine'] === '') ? -1 : (is_numeric($l['BaseLine']) ? (int)$l['BaseLine'] : $l['BaseLine']),
                     'ItemCode'  => (string) ($l['ItemCode'] ?? ''),
                     'Quantity'  => floatval($l['Quantity']),
                     'WhsCode'   => (string) ($l['WhsCode'] ?? ''),
@@ -2678,6 +2685,56 @@ class ProductionService
     {
         $payload = $this->prepareProdTransactionPayload($data, $userId, 'Receipt for Production');
 
+        // Resolve PDOs and ItemCodes if missing in Lines
+        $pdoCache = [];
+        $getPdo = function ($baseEntry) use (&$pdoCache) {
+            if (!$baseEntry) return null;
+            $key = (string) $baseEntry;
+            if (!isset($pdoCache[$key])) {
+                $pdoCache[$key] = \App\Models\ProductionOrder::where('id', is_numeric($baseEntry) ? (int)$baseEntry : 0)
+                    ->orWhere('doc_entry', is_numeric($baseEntry) ? (int)$baseEntry : 0)
+                    ->orWhere('prod_order_no', (string)$baseEntry)
+                    ->first();
+            }
+            return $pdoCache[$key];
+        };
+
+        $resolvedLines = [];
+        foreach ($payload['Lines'] as $l) {
+            $itemCode = trim((string) ($l['ItemCode'] ?? $l['item_code'] ?? ''));
+            $baseEntry = $l['BaseEntry'] ?? null;
+            $rawBaseLine = $l['BaseLine'] ?? $l['base_line'] ?? null;
+            $baseLine = ($rawBaseLine === null || $rawBaseLine === '') ? -1 : (is_numeric($rawBaseLine) ? (int)$rawBaseLine : $rawBaseLine);
+
+            if (empty($itemCode) && !empty($baseEntry)) {
+                $linePdo = $getPdo($baseEntry);
+                if ($linePdo && !empty($linePdo->item_code)) {
+                    $itemCode = (string) $linePdo->item_code;
+                } else {
+                    try {
+                        $pdoDetail = $this->getPdoById($baseEntry);
+                        $itemCode = (string) ($pdoDetail['header']['ItemCode'] ?? $pdoDetail['header']['item_code'] ?? '');
+                    } catch (\Throwable $e) {
+                        Log::warning("Could not auto-resolve ItemCode for Receipt BaseEntry {$baseEntry}: " . $e->getMessage());
+                    }
+                }
+            }
+
+            $resolvedLines[] = [
+                'BaseType'  => (int) ($l['BaseType'] ?? 202),
+                'BaseEntry' => is_numeric($baseEntry) ? (int)$baseEntry : $baseEntry,
+                'BaseLine'  => $baseLine,
+                'ItemCode'  => $itemCode,
+                'Quantity'  => floatval($l['Quantity']),
+                'WhsCode'   => (string) ($l['WhsCode'] ?? ''),
+                'UoMEntry'  => is_numeric($l['UoMEntry'] ?? 1) ? (int)($l['UoMEntry'] ?? 1) : 1,
+                'OcrCode'   => (string) ($l['OcrCode'] ?? ''),
+                'OcrCode2'  => (string) ($l['OcrCode2'] ?? ''),
+                'OcrCode3'  => (string) ($l['OcrCode3'] ?? ''),
+            ];
+        }
+        $payload['Lines'] = $resolvedLines;
+
         // 1. Tembakkan langsung ke SAP B1 API terlebih dahulu (/api/addreceiptprod)
         $sapUrl = config('services.sap.url');
         $sapPayload = [
@@ -2688,20 +2745,7 @@ class ProductionService
             'Unit'       => $payload['Unit'],
             'AddonId'    => $payload['AddonId'],
             'UserId'     => $payload['UserId'],
-            'Lines'      => array_map(function ($l) {
-                return [
-                    'BaseType'  => (int) ($l['BaseType'] ?? 202),
-                    'BaseEntry' => is_numeric($l['BaseEntry']) ? (int)$l['BaseEntry'] : $l['BaseEntry'],
-                    'BaseLine'  => is_numeric($l['BaseLine']) ? (int)$l['BaseLine'] : 0,
-                    'ItemCode'  => (string) ($l['ItemCode'] ?? ''),
-                    'Quantity'  => floatval($l['Quantity']),
-                    'WhsCode'   => (string) ($l['WhsCode'] ?? ''),
-                    'UoMEntry'  => is_numeric($l['UoMEntry'] ?? 1) ? (int)($l['UoMEntry'] ?? 1) : 1,
-                    'OcrCode'   => (string) ($l['OcrCode'] ?? ''),
-                    'OcrCode2'  => (string) ($l['OcrCode2'] ?? ''),
-                    'OcrCode3'  => (string) ($l['OcrCode3'] ?? ''),
-                ];
-            }, $payload['Lines']),
+            'Lines'      => $resolvedLines,
         ];
 
         try {
@@ -2826,7 +2870,7 @@ class ProductionService
                 'line_num'              => $idx,
                 'base_type'             => $line['BaseType'] ?? 202,
                 'base_entry'            => (string)$line['BaseEntry'],
-                'base_line'             => isset($line['BaseLine']) ? (string)$line['BaseLine'] : '0',
+                'base_line'             => (string)($line['BaseLine'] ?? -1),
                 'item_code'             => $itemCode ?: ($pdo?->item_code ?? null),
                 'quantity'              => $qty,
                 'warehouse'             => $line['WhsCode'] ?? null,
