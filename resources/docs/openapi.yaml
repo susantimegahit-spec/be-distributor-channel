@@ -16494,13 +16494,11 @@ paths:
 
   /v1/logistic/orders/{id}/approve:
     post:
-      summary: Approve Order Schedule (Logistics Fleet Confirmation or Sales Reschedule Approval) & Trigger SAP Inventory Transfer (addIT)
+      summary: Approve Delivery Schedule (Logistic Confirmation or Sales Reschedule Approval)
       description: |
-        Menangani persetujuan jadwal pengiriman serta pemicu Inventory Transfer (IT) ke SAP:
+        Menangani persetujuan jadwal pengiriman Sales Order:
         1. **Persetujuan Kesiapan Logistik:** Jika `logistic_status = PENDING` dan SO `ORDER_APPROVED`, tim logistik mengonfirmasi kesiapan armada/jadwal -> status berubah ke `APPROVED`.
         2. **Persetujuan Reschedule Admin Sales:** Jika `logistic_status = RESCHEDULE_REQUESTED`, Admin Sales menyetujui tanggal baru usulan logistik -> status berubah ke `RESCHEDULE_APPROVED`, dan sistem otomatis memperbarui `req_due_date`, `doc_due_date`, serta `eta_date` pada Sales Order.
-        3. **Integrasi Inventory Transfer (SAP addIT):** Pada kedua status di atas, jika Sales Order belum memiliki dokumen IT (`sap_it_doc_num` kosong), sistem otomatis menembakkan transaksi Inventory Transfer ke SAP B1 (`/api/addIT`) memindahkan stok ke gudang transit ekspedisi (`to_whs_code`, default: `VPGMN01`).
-        4. **Transaksi Atomik:** Jika proses IT ke SAP gagal (misal koneksi error, parameter tidak valid, atau stok kurang), maka persetujuan **WAJIB GAGAL** (HTTP 400), dan status SO tidak berubah.
       tags:
         - Logistic - Order Monitoring
       security:
@@ -16533,21 +16531,9 @@ paths:
                   type: string
                   description: Catatan persetujuan
                   example: "Armada siap, jadwal pengiriman disetujui."
-                to_whs_code:
-                  type: string
-                  description: Kode gudang tujuan transfer SAP (default "VPGMN01")
-                  example: "VPGMN01"
-                nopol:
-                  type: string
-                  description: Nomor Polisi armada kendaraan (opsional)
-                  example: "L 9999 XX"
-                nama_supir:
-                  type: string
-                  description: Nama driver / pengemudi (opsional)
-                  example: "Pak Driver"
       responses:
         '200':
-          description: Order schedule approved successfully and Inventory Transfer processed to SAP.
+          description: Order delivery schedule approved successfully.
           content:
             application/json:
               schema:
@@ -16561,8 +16547,82 @@ paths:
                     example: Logistics delivery schedule confirmed and approved successfully.
                   data:
                     $ref: '#/components/schemas/LogisticOrderListItem'
+        '404':
+          description: Sales Order not found.
+        '422':
+          description: Unprocessable entity / validation error.
+
+  /v1/logistic/orders/{id}/inventory-transfer:
+    post:
+      summary: Process Inventory Transfer (IT) to SAP for Approved Order
+      description: |
+        Melakukan eksekusi pemindahan stok barang (Inventory Transfer / addIT) ke SAP B1 untuk Sales Order yang sudah disetujui jadwalnya (`logistic_status = APPROVED` atau `RESCHEDULE_APPROVED`):
+        - Mengirimkan data dokumen ke SAP B1 endpoint `/api/addIT` (AddonId: 2).
+        - Memperbarui nomor dokumen SAP IT (`sap_it_doc_num`, `sap_it_doc_entry`), status IT (`sap_it_status = SUCCESS`), gudang tujuan (`to_whs_code`), serta data armada (`nopol`, `nama_supir`).
+        - Mencatat riwayat aktivitas pemantauan logistik dengan action `LOGISTIC_INVENTORY_TRANSFER`.
+        - Bersifat atomik: jika SAP addIT gagal atau mengembalikan ErrorCode, API mengembalikan HTTP 400 beserta pesan error dari SAP dan perubahan data IT tidak disimpan.
+      tags:
+        - Logistic - Order Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Sales Order
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                to_whs_code:
+                  type: string
+                  description: Kode gudang tujuan transfer SAP (default "VPGMN01")
+                  example: "VPGMN01"
+                nopol:
+                  type: string
+                  description: Nomor Polisi armada kendaraan (opsional)
+                  example: "L 9999 XX"
+                nama_supir:
+                  type: string
+                  description: Nama driver / pengemudi (opsional)
+                  example: "Pak Driver"
+                berat_bruto:
+                  type: number
+                  format: float
+                  description: Berat kotor muatan kendaraan dalam kg (opsional)
+                  example: 15000.00
+                berat_tara:
+                  type: number
+                  format: float
+                  description: Berat kosong kendaraan dalam kg (opsional)
+                  example: 5000.00
+                notes:
+                  type: string
+                  description: Catatan pengiriman / transfer IT (opsional)
+                  example: "Armada siap jalan, transfer stok logistik diproses ke SAP."
+      responses:
+        '200':
+          description: Inventory Transfer (IT) processed successfully to SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Inventory Transfer (IT) processed successfully to SAP.
+                  data:
+                    $ref: '#/components/schemas/LogisticOrderListItem'
         '400':
-          description: Failed to process Inventory Transfer to SAP (SAP Error or Connection Error).
+          description: Failed to process Inventory Transfer to SAP or already processed or schedule not yet approved.
           content:
             application/json:
               schema:
@@ -16573,7 +16633,7 @@ paths:
                     example: false
                   message:
                     type: string
-                    example: "SAP Inventory Transfer Error [-1]: Insufficient stock in warehouse WHS-SBY"
+                    example: "SAP Inventory Transfer Error [-1]: Insufficient stock in warehouse FG01"
         '404':
           description: Sales Order not found.
         '422':

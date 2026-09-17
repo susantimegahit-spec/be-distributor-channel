@@ -115,12 +115,9 @@ class LogisticOrderController extends Controller
     public function approve(Request $request, int $id): JsonResponse
     {
         $request->validate([
-            'due_date'    => 'nullable|date',
-            'eta_date'    => 'nullable|date',
-            'notes'       => 'nullable|string|max:1000',
-            'to_whs_code' => 'nullable|string|max:50',
-            'nopol'       => 'nullable|string|max:50',
-            'nama_supir'  => 'nullable|string|max:150',
+            'due_date' => 'nullable|date',
+            'eta_date' => 'nullable|date',
+            'notes'    => 'nullable|string|max:1000',
         ]);
 
         try {
@@ -135,6 +132,44 @@ class LogisticOrderController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => $message,
+                'data'    => $order,
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->validator->errors()->first(),
+                'errors'  => $e->validator->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            $statusCode = ($e->getCode() >= 400 && $e->getCode() < 600) ? (int)$e->getCode() : 400;
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $statusCode);
+        }
+    }
+
+    /**
+     * Create / execute Inventory Transfer (IT) to SAP for an approved sales order.
+     */
+    public function inventoryTransfer(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'to_whs_code' => 'nullable|string|max:50',
+            'nopol'       => 'nullable|string|max:50',
+            'nama_supir'  => 'nullable|string|max:150',
+            'berat_bruto' => 'nullable|numeric|min:0',
+            'berat_tara'  => 'nullable|numeric|min:0',
+            'notes'       => 'nullable|string|max:1000',
+        ]);
+
+        try {
+            $user = $request->user();
+            $order = $this->logisticOrderService->createInventoryTransfer($id, $user->id, $request->all());
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Inventory Transfer (IT) processed successfully to SAP.',
                 'data'    => $order,
             ]);
         } catch (ValidationException $e) {

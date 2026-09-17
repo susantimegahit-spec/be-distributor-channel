@@ -181,6 +181,11 @@ class LogisticOrderService
             $orderArray['can_logistic_approve'] = ($order->status === 'ORDER_APPROVED' && in_array($logisticStatus, ['PENDING', 'RESCHEDULE_REJECTED']));
             $orderArray['can_logistic_reschedule'] = ($order->status === 'ORDER_APPROVED');
             $orderArray['can_sales_approve_reschedule'] = ($logisticStatus === 'RESCHEDULE_REQUESTED');
+            $orderArray['can_inventory_transfer'] = (
+                $order->status === 'ORDER_APPROVED'
+                && in_array($logisticStatus, ['APPROVED', 'RESCHEDULE_APPROVED'])
+                && empty($order->sap_it_doc_num)
+            );
 
             return $orderArray;
         });
@@ -335,7 +340,6 @@ class LogisticOrderService
      * Approve delivery schedule:
      * - If logistic_status is RESCHEDULE_REQUESTED, Admin Sales approves the rescheduled date.
      * - If logistic_status is PENDING, Logistic confirms readiness of the current schedule.
-     * In both statuses, automatically triggers Inventory Transfer (addIT) to SAP if not yet created.
      */
     public function approveOrder(int $orderId, int $userId, array $data = []): SalesOrder
     {
@@ -361,27 +365,6 @@ class LogisticOrderService
         $prevEtaDate = $order->eta_date ? $order->eta_date->format('Y-m-d') : null;
         $currentLogisticStatus = strtoupper((string) ($order->logistic_status ?: 'PENDING'));
 
-        $targetToWhsCode = trim((string) ($data['to_whs_code'] ?? $data['ToWhsCode'] ?? 'VPGMN01'));
-        if (empty($targetToWhsCode)) {
-            $targetToWhsCode = 'VPGMN01';
-        }
-        $nopol = trim((string) ($data['nopol'] ?? $data['Nopol'] ?? ''));
-        $namaSupir = trim((string) ($data['nama_supir'] ?? $data['NamaSupir'] ?? $data['driver_name'] ?? ''));
-
-        // 1. Check if Inventory Transfer (IT) has already been created for this Sales Order
-        $sapItDocNum = $order->sap_it_doc_num;
-        $sapItDocEntry = $order->sap_it_doc_entry;
-        $sapItStatus = $order->sap_it_status;
-
-        if (empty($sapItDocNum)) {
-            // Trigger IT to SAP first; if it fails, throw Exception (fail-fast atomic)
-            $itResult = $this->executeInventoryTransferToSap($order, $userId, $targetToWhsCode, $nopol, $namaSupir, $data);
-            $sapItDocNum = $itResult['doc_num'] ?: 'PROCESSED';
-            $sapItDocEntry = $itResult['doc_entry'] ?: $sapItDocNum;
-            $sapItStatus = 'SUCCESS';
-        }
-
-        // 2. Perform DB updates in transaction
         DB::beginTransaction();
         try {
             if ($currentLogisticStatus === 'RESCHEDULE_REQUESTED') {
@@ -401,12 +384,6 @@ class LogisticOrderService
                     'logistic_status'    => 'RESCHEDULE_APPROVED',
                     'logistic_action_at' => now(),
                     'logistic_action_by' => $userId,
-                    'to_whs_code'        => $targetToWhsCode,
-                    'nopol'              => $nopol ?: $order->nopol,
-                    'nama_supir'         => $namaSupir ?: $order->nama_supir,
-                    'sap_it_doc_entry'   => $sapItDocEntry,
-                    'sap_it_doc_num'     => $sapItDocNum,
-                    'sap_it_status'      => $sapItStatus,
                 ]);
 
                 SalesOrderLogisticLog::create([
@@ -422,8 +399,6 @@ class LogisticOrderService
                     'user_id'           => $userId,
                     'user_name'         => $userName,
                     'role_name'         => $roleName ?: 'Admin Sales',
-                    'sap_it_doc_entry'  => $sapItDocEntry,
-                    'sap_it_doc_num'    => $sapItDocNum,
                 ]);
             } else {
                 // Logistic Readiness Approval
@@ -443,12 +418,6 @@ class LogisticOrderService
                     'logistic_status'    => 'APPROVED',
                     'logistic_action_at' => now(),
                     'logistic_action_by' => $userId,
-                    'to_whs_code'        => $targetToWhsCode,
-                    'nopol'              => $nopol ?: $order->nopol,
-                    'nama_supir'         => $namaSupir ?: $order->nama_supir,
-                    'sap_it_doc_entry'   => $sapItDocEntry,
-                    'sap_it_doc_num'     => $sapItDocNum,
-                    'sap_it_status'      => $sapItStatus,
                 ]);
 
                 SalesOrderLogisticLog::create([
@@ -464,8 +433,6 @@ class LogisticOrderService
                     'user_id'           => $userId,
                     'user_name'         => $userName,
                     'role_name'         => $roleName ?: 'Logistic',
-                    'sap_it_doc_entry'  => $sapItDocEntry,
-                    'sap_it_doc_num'    => $sapItDocNum,
                 ]);
             }
 
@@ -473,6 +440,91 @@ class LogisticOrderService
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error("Failed to save approval for Sales Order #{$order->id}: " . $e->getMessage());
+            throw $e;
+        }
+
+        return $order->fresh(['details.item', 'distributor', 'latestLogisticLog']);
+    }
+
+    /**
+     * Create / Execute Inventory Transfer (IT) to SAP for an approved Sales Order.
+     * Must be in 'APPROVED' or 'RESCHEDULE_APPROVED' logistic_status.
+     *
+     * @param int $orderId
+     * @param int $userId
+     * @param array $data
+     * @return SalesOrder
+     * @throws \Exception
+     */
+    public function createInventoryTransfer(int $orderId, int $userId, array $data = []): SalesOrder
+    {
+        $order = SalesOrder::with(['details.item'])->find($orderId);
+        if (!$order) {
+            throw ValidationException::withMessages([
+                'order' => ['Sales order not found.'],
+            ]);
+        }
+
+        if ($order->status !== 'ORDER_APPROVED') {
+            throw new \Exception("Cannot perform Inventory Transfer for sales order with status '{$order->status}'. Order must be in 'ORDER_APPROVED' status.", 400);
+        }
+
+        $currentLogisticStatus = strtoupper((string) ($order->logistic_status ?: 'PENDING'));
+        if (!in_array($currentLogisticStatus, ['APPROVED', 'RESCHEDULE_APPROVED'])) {
+            throw new \Exception("Cannot perform Inventory Transfer. Sales order delivery schedule must be approved first (current logistic status: '{$currentLogisticStatus}').", 400);
+        }
+
+        if (!empty($order->sap_it_doc_num)) {
+            throw new \Exception("Inventory Transfer has already been processed for Sales Order #{$order->order_no} (SAP IT DocNum: {$order->sap_it_doc_num}).", 400);
+        }
+
+        $user = User::find($userId);
+        $userName = $user ? $user->name : 'User #' . $userId;
+        $roleName = $user && $user->role ? $user->role->name : 'Logistic';
+
+        $targetToWhsCode = trim((string) ($data['to_whs_code'] ?? $data['ToWhsCode'] ?? 'VPGMN01'));
+        if (empty($targetToWhsCode)) {
+            $targetToWhsCode = 'VPGMN01';
+        }
+        $nopol = trim((string) ($data['nopol'] ?? $data['Nopol'] ?? ''));
+        $namaSupir = trim((string) ($data['nama_supir'] ?? $data['NamaSupir'] ?? $data['driver_name'] ?? ''));
+        $notes = trim((string) ($data['notes'] ?? ''));
+
+        // 1. Call SAP /api/addIT first (atomic fail-fast)
+        $itResult = $this->executeInventoryTransferToSap($order, $userId, $targetToWhsCode, $nopol, $namaSupir, $data);
+        $sapItDocNum = $itResult['doc_num'] ?: 'PROCESSED';
+        $sapItDocEntry = $itResult['doc_entry'] ?: $sapItDocNum;
+        $sapItStatus = 'SUCCESS';
+
+        // 2. Persist to DB
+        DB::beginTransaction();
+        try {
+            $order->update([
+                'to_whs_code'      => $targetToWhsCode,
+                'nopol'            => $nopol ?: $order->nopol,
+                'nama_supir'       => $namaSupir ?: $order->nama_supir,
+                'sap_it_doc_entry' => $sapItDocEntry,
+                'sap_it_doc_num'   => $sapItDocNum,
+                'sap_it_status'    => $sapItStatus,
+            ]);
+
+            SalesOrderLogisticLog::create([
+                'sales_order_id'    => $order->id,
+                'action'            => 'LOGISTIC_INVENTORY_TRANSFER',
+                'from_status'       => $currentLogisticStatus,
+                'to_status'         => $currentLogisticStatus,
+                'notes'             => $notes ?: "Inventory Transfer (IT) processed to SAP successfully (DocNum: {$sapItDocNum}).",
+                'user_id'           => $userId,
+                'user_name'         => $userName,
+                'role_name'         => $roleName,
+                'sap_it_doc_entry'  => $sapItDocEntry,
+                'sap_it_doc_num'    => $sapItDocNum,
+            ]);
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error("Failed to save Inventory Transfer data for Sales Order #{$order->id}: " . $e->getMessage());
             throw $e;
         }
 
@@ -646,6 +698,12 @@ class LogisticOrderService
                 'proposed_eta_date'      => $order->proposed_eta_date ? $order->proposed_eta_date->format('Y-m-d') : null,
                 'logistic_notes'         => $order->logistic_notes,
                 'benchmark_lead_time'    => $benchmarkLeadTime,
+                'to_whs_code'            => $order->to_whs_code,
+                'nopol'                  => $order->nopol,
+                'nama_supir'             => $order->nama_supir,
+                'sap_it_doc_entry'       => $order->sap_it_doc_entry,
+                'sap_it_doc_num'         => $order->sap_it_doc_num,
+                'sap_it_status'          => $order->sap_it_status,
             ],
             'logs' => $logs->map(function (SalesOrderLogisticLog $log) {
                 return [
@@ -659,6 +717,8 @@ class LogisticOrderService
                     'proposed_eta_date' => $log->proposed_eta_date ? $log->proposed_eta_date->format('Y-m-d') : null,
                     'approved_due_date' => $log->approved_due_date ? $log->approved_due_date->format('Y-m-d') : null,
                     'approved_eta_date' => $log->approved_eta_date ? $log->approved_eta_date->format('Y-m-d') : null,
+                    'sap_it_doc_entry'  => $log->sap_it_doc_entry,
+                    'sap_it_doc_num'    => $log->sap_it_doc_num,
                     'notes'             => $log->notes,
                     'user_id'           => $log->user_id,
                     'user_name'         => $log->user_name,

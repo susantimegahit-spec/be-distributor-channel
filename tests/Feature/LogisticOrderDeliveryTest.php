@@ -129,19 +129,8 @@ class LogisticOrderDeliveryTest extends TestCase
         $this->assertFalse($orderApprovedItem['can_sales_approve_reschedule']);
     }
 
-    public function test_logistic_can_approve_order_when_order_approved(): void
+    public function test_logistic_can_approve_order_when_order_approved_and_status_pending(): void
     {
-        \Illuminate\Support\Facades\Http::fake([
-            '*/api/addIT' => \Illuminate\Support\Facades\Http::response([
-                'ErrorCode' => 0,
-                'Message'   => 'Success - [addIT]. DocNum: 260130001',
-                'Result'    => [
-                    'DocEntry' => '20',
-                    'DocNum'   => '260130001',
-                ],
-            ], 200),
-        ]);
-
         $response = $this->actingAs($this->user)
             ->postJson("/api/distributor-channel/v1/logistic/orders/{$this->soOrderApproved->id}/approve", [
                 'notes' => 'Armada truk dan jadwal pengiriman sudah siap.',
@@ -158,9 +147,7 @@ class LogisticOrderDeliveryTest extends TestCase
 
         $freshSo = $this->soOrderApproved->fresh();
         $this->assertEquals('APPROVED', $freshSo->logistic_status);
-        $this->assertEquals('260130001', $freshSo->sap_it_doc_num);
-        $this->assertEquals('20', $freshSo->sap_it_doc_entry);
-        $this->assertEquals('VPGMN01', $freshSo->to_whs_code);
+        $this->assertNull($freshSo->sap_it_doc_num);
 
         $log = SalesOrderLogisticLog::where('sales_order_id', $this->soOrderApproved->id)->first();
         $this->assertNotNull($log);
@@ -214,17 +201,6 @@ class LogisticOrderDeliveryTest extends TestCase
 
     public function test_admin_sales_can_approve_reschedule_and_updates_dates(): void
     {
-        \Illuminate\Support\Facades\Http::fake([
-            '*/api/addIT' => \Illuminate\Support\Facades\Http::response([
-                'ErrorCode' => 0,
-                'Message'   => 'Success - [addIT]. DocNum: 260130001',
-                'Result'    => [
-                    'DocEntry' => '20',
-                    'DocNum'   => '260130001',
-                ],
-            ], 200),
-        ]);
-
         // First reschedule
         $this->actingAs($this->user)
             ->postJson("/api/distributor-channel/v1/logistic/orders/{$this->soOrderApproved->id}/reschedule", [
@@ -249,7 +225,6 @@ class LogisticOrderDeliveryTest extends TestCase
         $this->assertEquals('2026-09-22', $freshSo->req_due_date->format('Y-m-d'));
         $this->assertEquals('2026-09-22', $freshSo->doc_due_date->format('Y-m-d'));
         $this->assertEquals('2026-09-25', $freshSo->eta_date->format('Y-m-d'));
-        $this->assertEquals('260130001', $freshSo->sap_it_doc_num);
 
         $logs = SalesOrderLogisticLog::where('sales_order_id', $this->soOrderApproved->id)->get();
         $this->assertCount(2, $logs);
@@ -258,17 +233,6 @@ class LogisticOrderDeliveryTest extends TestCase
 
     public function test_get_order_monitoring_logs(): void
     {
-        \Illuminate\Support\Facades\Http::fake([
-            '*/api/addIT' => \Illuminate\Support\Facades\Http::response([
-                'ErrorCode' => 0,
-                'Message'   => 'Success - [addIT]. DocNum: 260130001',
-                'Result'    => [
-                    'DocEntry' => '20',
-                    'DocNum'   => '260130001',
-                ],
-            ], 200),
-        ]);
-
         $this->actingAs($this->user)
             ->postJson("/api/distributor-channel/v1/logistic/orders/{$this->soOrderApproved->id}/approve", [
                 'notes' => 'Jadwal armada confirm.',
@@ -291,17 +255,6 @@ class LogisticOrderDeliveryTest extends TestCase
 
     public function test_get_dashboard_delivery_orders_returns_summary_and_tab_filtering(): void
     {
-        \Illuminate\Support\Facades\Http::fake([
-            '*/api/addIT' => \Illuminate\Support\Facades\Http::response([
-                'ErrorCode' => 0,
-                'Message'   => 'Success - [addIT]. DocNum: 260130001',
-                'Result'    => [
-                    'DocEntry' => '20',
-                    'DocNum'   => '260130001',
-                ],
-            ], 200),
-        ]);
-
         // Approve soOrderApproved
         $this->actingAs($this->user)
             ->postJson("/api/distributor-channel/v1/logistic/orders/{$this->soOrderApproved->id}/approve", [
@@ -337,8 +290,27 @@ class LogisticOrderDeliveryTest extends TestCase
         $this->assertNotContains('SO-WF-001', $orderNumbers); // SO-WF-001 is PENDING, should not appear in tab=approved
     }
 
-    public function test_approve_fails_atomically_if_sap_it_returns_error(): void
+    public function test_inventory_transfer_cannot_be_executed_before_approval(): void
     {
+        $response = $this->actingAs($this->user)
+            ->postJson("/api/distributor-channel/v1/logistic/orders/{$this->soOrderApproved->id}/inventory-transfer", [
+                'nopol' => 'L 1234 AB',
+            ]);
+
+        $response->assertStatus(400)
+            ->assertJson([
+                'success' => false,
+            ]);
+
+        $this->assertStringContainsString('approved first', $response->json('message'));
+    }
+
+    public function test_inventory_transfer_fails_atomically_if_sap_returns_error(): void
+    {
+        // First approve
+        $this->actingAs($this->user)
+            ->postJson("/api/distributor-channel/v1/logistic/orders/{$this->soOrderApproved->id}/approve", []);
+
         // Fake SAP addIT returning an error
         \Illuminate\Support\Facades\Http::fake([
             '*/api/addIT' => \Illuminate\Support\Facades\Http::response([
@@ -349,7 +321,7 @@ class LogisticOrderDeliveryTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->user)
-            ->postJson("/api/distributor-channel/v1/logistic/orders/{$this->soOrderApproved->id}/approve", [
+            ->postJson("/api/distributor-channel/v1/logistic/orders/{$this->soOrderApproved->id}/inventory-transfer", [
                 'notes' => 'Armada siap berangkat.',
             ]);
 
@@ -360,21 +332,24 @@ class LogisticOrderDeliveryTest extends TestCase
 
         $this->assertStringContainsString('Insufficient stock', $response->json('message'));
 
-        // Assert atomic behavior: order status must NOT change to APPROVED
+        // Assert atomic behavior: IT fields are NOT saved
         $freshSo = $this->soOrderApproved->fresh();
-        $this->assertEquals('PENDING', $freshSo->logistic_status);
+        $this->assertEquals('APPROVED', $freshSo->logistic_status);
         $this->assertNull($freshSo->sap_it_doc_num);
         $this->assertNull($freshSo->sap_it_doc_entry);
     }
 
-    public function test_approve_with_custom_nopol_and_nama_supir_passes_to_sap(): void
+    public function test_inventory_transfer_succeeds_and_updates_so_and_logs(): void
     {
+        // First approve
+        $this->actingAs($this->user)
+            ->postJson("/api/distributor-channel/v1/logistic/orders/{$this->soOrderApproved->id}/approve", []);
+
         \Illuminate\Support\Facades\Http::fake([
             '*/api/addIT' => function ($request) {
                 $body = json_decode($request->body(), true);
                 $this->assertEquals('L 9999 XX', $body['Nopol']);
                 $this->assertEquals('Pak Driver', $body['NamaSupir']);
-                $this->assertEquals('VPGMN01', $body['ToWhsCode']);
 
                 return \Illuminate\Support\Facades\Http::response([
                     'ErrorCode' => 0,
@@ -388,19 +363,37 @@ class LogisticOrderDeliveryTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->user)
-            ->postJson("/api/distributor-channel/v1/logistic/orders/{$this->soOrderApproved->id}/approve", [
-                'nopol'      => 'L 9999 XX',
-                'nama_supir' => 'Pak Driver',
+            ->postJson("/api/distributor-channel/v1/logistic/orders/{$this->soOrderApproved->id}/inventory-transfer", [
+                'to_whs_code' => 'VPGMN01',
+                'nopol'       => 'L 9999 XX',
+                'nama_supir'  => 'Pak Driver',
             ]);
 
         $response->assertStatus(200)
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.logistic_status', 'APPROVED');
+            ->assertJsonPath('message', 'Inventory Transfer (IT) processed successfully to SAP.');
 
         $freshSo = $this->soOrderApproved->fresh();
         $this->assertEquals('778899', $freshSo->sap_it_doc_num);
         $this->assertEquals('55', $freshSo->sap_it_doc_entry);
+        $this->assertEquals('SUCCESS', $freshSo->sap_it_status);
+        $this->assertEquals('VPGMN01', $freshSo->to_whs_code);
         $this->assertEquals('L 9999 XX', $freshSo->nopol);
         $this->assertEquals('Pak Driver', $freshSo->nama_supir);
+
+        $log = SalesOrderLogisticLog::where('sales_order_id', $this->soOrderApproved->id)
+            ->where('action', 'LOGISTIC_INVENTORY_TRANSFER')
+            ->first();
+        $this->assertNotNull($log);
+        $this->assertEquals('778899', $log->sap_it_doc_num);
+        $this->assertEquals('55', $log->sap_it_doc_entry);
+
+        // Test duplicate prevention
+        $dupResponse = $this->actingAs($this->user)
+            ->postJson("/api/distributor-channel/v1/logistic/orders/{$this->soOrderApproved->id}/inventory-transfer", [
+                'nopol' => 'L 9999 XX',
+            ]);
+        $dupResponse->assertStatus(400);
+        $this->assertStringContainsString('already been processed', $dupResponse->json('message'));
     }
 }

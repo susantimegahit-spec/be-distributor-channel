@@ -51,5 +51,6 @@ Route::prefix('v1/logistic/orders')->middleware('auth:sanctum')->group(function 
     Route::get('/{id}/logs', [\App\Modules\Ekspedisi\Controllers\LogisticOrderController::class, 'logs']);
     Route::post('/{id}/reschedule', [\App\Modules\Ekspedisi\Controllers\LogisticOrderController::class, 'reschedule']);
     Route::post('/{id}/approve', [\App\Modules\Ekspedisi\Controllers\LogisticOrderController::class, 'approve']);
+    Route::post('/{id}/inventory-transfer', [\App\Modules\Ekspedisi\Controllers\LogisticOrderController::class, 'inventoryTransfer']);
 });
 
