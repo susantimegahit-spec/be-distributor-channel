@@ -761,6 +761,21 @@ class MasterApprovalService
 
 
 
+        // Status (e.g. 'W' for draft/pending approval, 'Y' for approved/generated, etc.)
+        $status = $payload['Status'] ?? $payload['status'] ?? null;
+        if ($status !== null && $status !== '') {
+            $cleanStatus = strtoupper(trim((string) $status));
+            $reverseMap = [
+                'PENDING'   => 'W',
+                'APPROVED'  => 'Y',
+                'GENERATED' => 'Y',
+                'REJECTED'  => 'N',
+                'CANCELED'  => 'C',
+                'CANCELLED' => 'C',
+            ];
+            $sapPayload['Status'] = $reverseMap[$cleanStatus] ?? $cleanStatus;
+        }
+
         if (empty($sapPayload['CustomQuery'])) {
             throw new \Exception('CustomQuery (DocEntry) parameter is required.');
         }
@@ -797,6 +812,39 @@ class MasterApprovalService
             $result = $body['Result'] ?? [];
             $table1 = $result['Table1'] ?? [];
             $table2 = $result['Table2'] ?? [];
+
+            // Helper to check if Table1 contains valid non-dummy header record
+            $hasValidHeader = function (array $t1): bool {
+                foreach ($t1 as $h) {
+                    if (is_array($h)) {
+                        $docEntry = trim((string) ($h['DocEntry'] ?? ''));
+                        if ($docEntry !== '' && $docEntry !== '0') {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            };
+
+            // If Status was not provided and result has dummy 0, auto-fallback to Status = 'W' (draft document)
+            if (!isset($sapPayload['Status']) && !$hasValidHeader($table1)) {
+                try {
+                    $fallbackPayload = $sapPayload;
+                    $fallbackPayload['Status'] = 'W';
+                    $fallbackRes = Http::timeout(30)->post("{$sapUrl}/api/GetDetailByObjectCode", $fallbackPayload);
+                    if ($fallbackRes->successful()) {
+                        $fallbackBody = $fallbackRes->json();
+                        $fallbackTable1 = $fallbackBody['Result']['Table1'] ?? [];
+                        if ($hasValidHeader($fallbackTable1)) {
+                            $result = $fallbackBody['Result'] ?? [];
+                            $table1 = $result['Table1'] ?? [];
+                            $table2 = $result['Table2'] ?? [];
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('Fallback with Status W for GetDetailByObjectCode failed: ' . $e->getMessage());
+                }
+            }
 
             // Filter dummy / empty header records (Rule 5)
             $filteredTable1 = array_values(array_filter($table1, function ($h) {

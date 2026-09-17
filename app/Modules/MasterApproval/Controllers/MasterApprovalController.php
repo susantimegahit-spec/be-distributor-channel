@@ -64,11 +64,16 @@ class MasterApprovalController extends Controller
         $items = array_values(array_slice($data, $offset, $perPage));
 
         $isEmpty = empty($items) && $total === 0;
-        $message = $isEmpty ? 'Data not found.' : $successMessage;
+        if ($isEmpty) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data not found.',
+            ], 200);
+        }
 
         return response()->json([
             'success' => true,
-            'message' => $message,
+            'message' => $successMessage,
             'data' => $items,
             'pagination' => [
                 'current_page' => $page,
@@ -101,9 +106,14 @@ class MasterApprovalController extends Controller
                 return $paginated;
             }
 
-            $message = empty($stages) ? 'Data not found.' : 'Approval stages retrieved successfully from SAP.';
+            if (empty($stages)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data not found.',
+                ], 200);
+            }
 
-            return $this->successResponse($stages, $message);
+            return $this->successResponse($stages, 'Approval stages retrieved successfully from SAP.');
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to retrieve approval stages from SAP: ' . $e->getMessage(), [], 500);
         }
@@ -129,9 +139,14 @@ class MasterApprovalController extends Controller
                 return $paginated;
             }
 
-            $message = empty($originators) ? 'Data not found.' : 'Originators list retrieved successfully from SAP.';
+            if (empty($originators)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data not found.',
+                ], 200);
+            }
 
-            return $this->successResponse($originators, $message);
+            return $this->successResponse($originators, 'Originators list retrieved successfully from SAP.');
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to retrieve originators from SAP: ' . $e->getMessage(), [], 500);
         }
@@ -157,9 +172,14 @@ class MasterApprovalController extends Controller
                 return $paginated;
             }
 
-            $message = empty($approvals) ? 'Data not found.' : 'Approval list retrieved successfully from SAP.';
+            if (empty($approvals)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data not found.',
+                ], 200);
+            }
 
-            return $this->successResponse($approvals, $message);
+            return $this->successResponse($approvals, 'Approval list retrieved successfully from SAP.');
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to retrieve approval list from SAP: ' . $e->getMessage(), [], 500);
         }
@@ -248,9 +268,14 @@ class MasterApprovalController extends Controller
                 return $paginated;
             }
 
-            $message = empty($data) ? 'Data not found.' : 'Owner document approval list retrieved successfully.';
+            if (empty($data)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data not found.',
+                ], 200);
+            }
 
-            return $this->successResponse($data, $message);
+            return $this->successResponse($data, 'Owner document approval list retrieved successfully.');
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to retrieve owner document approval list from SAP: ' . $e->getMessage(), [], 500);
         }
@@ -295,11 +320,16 @@ class MasterApprovalController extends Controller
                 $data['Table2'] = $pagedItems;
 
                 $isEmpty = empty($data['header']) && empty($allItems);
-                $message = $isEmpty ? 'Data not found.' : 'Document approval detail retrieved successfully.';
+                if ($isEmpty) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Data not found.',
+                    ], 200);
+                }
 
                 return response()->json([
                     'success' => true,
-                    'message' => $message,
+                    'message' => 'Document approval detail retrieved successfully.',
                     'data' => $data,
                     'pagination' => [
                         'current_page' => $page,
@@ -313,9 +343,14 @@ class MasterApprovalController extends Controller
             }
 
             $isEmpty = empty($data['header']) && empty($data['items']);
-            $message = $isEmpty ? 'Data not found.' : 'Document approval detail retrieved successfully.';
+            if ($isEmpty) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data not found.',
+                ], 200);
+            }
 
-            return $this->successResponse($data, $message);
+            return $this->successResponse($data, 'Document approval detail retrieved successfully.');
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to retrieve document approval detail from SAP: ' . $e->getMessage(), [], 500);
         }

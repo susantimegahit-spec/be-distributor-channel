@@ -16037,6 +16037,8 @@ paths:
       summary: Get Document Approval Detail by Object Code from SAP
       description: |
         Mengambil detail dokumen transaksi persetujuan dari SAP Business One (`/api/GetDetailByObjectCode`) berdasarkan DocEntry dan ObjectCode.
+        Parameter `Status` mendukung pencarian draft (`"W"`) maupun approved/final (`"Y"`), dengan fitur auto-fallback ke draft (`"W"`) jika status tidak dikirim.
+        Jika data kosong atau tidak ditemukan di SAP, backend mengembalikan `{"success": false, "message": "Data not found."}` tanpa field `data`.
       tags:
         - SAP - Master Approval
       security:
