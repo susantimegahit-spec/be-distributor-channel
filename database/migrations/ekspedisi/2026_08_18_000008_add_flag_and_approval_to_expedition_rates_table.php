@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -22,7 +23,18 @@ return new class extends Migration
     public function up(): void
     {
         if (Schema::connection($this->connection)->hasTable('expedition_rates')) {
-            Schema::connection($this->connection)->table('expedition_rates', function (Blueprint $table) {
+            $conn = $this->connection;
+            $driver = DB::connection($conn)->getDriverName();
+            $fkExists = false;
+            if ($driver === 'pgsql') {
+                $checkFk = DB::connection($conn)->select("
+                    SELECT 1 FROM information_schema.table_constraints 
+                    WHERE constraint_name = 'expedition_rates_approved_by_foreign'
+                ");
+                $fkExists = !empty($checkFk);
+            }
+
+            Schema::connection($this->connection)->table('expedition_rates', function (Blueprint $table) use ($fkExists) {
                 if (!Schema::connection($this->connection)->hasColumn('expedition_rates', 'flag')) {
                     $table->boolean('flag')->default(false)->after('status')->comment('Flag Persetujuan Atasan (false: Pending/Draft, true: Approved/Aktif)');
                 }
@@ -39,7 +51,9 @@ return new class extends Migration
                     $table->text('approval_notes')->nullable()->after('approved_at')->comment('Catatan approval atasan');
                 }
 
-                $table->foreign('approved_by')->references('id')->on('public.users')->onDelete('set null');
+                if (!$fkExists) {
+                    $table->foreign('approved_by')->references('id')->on('public.users')->onDelete('set null');
+                }
             });
         }
     }
@@ -50,7 +64,21 @@ return new class extends Migration
     public function down(): void
     {
         if (Schema::connection($this->connection)->hasTable('expedition_rates')) {
-            Schema::connection($this->connection)->table('expedition_rates', function (Blueprint $table) {
+            $conn = $this->connection;
+            $driver = DB::connection($conn)->getDriverName();
+            $fkExists = false;
+            if ($driver === 'pgsql') {
+                $checkFk = DB::connection($conn)->select("
+                    SELECT 1 FROM information_schema.table_constraints 
+                    WHERE constraint_name = 'expedition_rates_approved_by_foreign'
+                ");
+                $fkExists = !empty($checkFk);
+            }
+
+            Schema::connection($this->connection)->table('expedition_rates', function (Blueprint $table) use ($fkExists) {
+                if ($fkExists) {
+                    $table->dropForeign(['approved_by']);
+                }
                 $cols = ['flag', 'approval_status', 'approved_by', 'approved_at', 'approval_notes'];
                 foreach ($cols as $col) {
                     if (Schema::connection($this->connection)->hasColumn('expedition_rates', $col)) {
