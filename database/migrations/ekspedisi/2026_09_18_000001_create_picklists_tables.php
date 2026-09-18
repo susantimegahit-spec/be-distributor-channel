@@ -7,12 +7,20 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
+     * The database connection that should be used by the migration.
+     */
+    protected $connection = 'pgsql_ekspedisi';
+
+    /**
      * Run the migrations.
      */
     public function up(): void
     {
-        if (!Schema::hasTable('picklists')) {
-            Schema::create('picklists', function (Blueprint $table) {
+        $conn = $this->connection;
+        $isSqlite = Schema::connection($conn)->getConnection()->getDriverName() === 'sqlite';
+
+        if (!Schema::connection($conn)->hasTable('picklists')) {
+            Schema::connection($conn)->create('picklists', function (Blueprint $table) use ($isSqlite) {
                 $table->id();
                 $table->string('picklist_no', 50)->unique()->comment('Unique picklist number, e.g., PKL-202609-0001');
                 $table->string('shipping_type', 20)->index()->comment('internal, external, pickup');
@@ -40,14 +48,23 @@ return new class extends Migration
                 $table->unsignedBigInteger('created_by')->nullable()->index();
                 $table->unsignedBigInteger('updated_by')->nullable();
                 $table->timestamps();
+
+                $userTable = $isSqlite ? 'users' : 'public.users';
+                $expeditionTable = $isSqlite ? 'expeditions' : 'ekspedisi.expeditions';
+                $rateTable = $isSqlite ? 'expedition_rates' : 'ekspedisi.expedition_rates';
+
+                $table->foreign('created_by')->references('id')->on($userTable)->onDelete('set null');
+                $table->foreign('updated_by')->references('id')->on($userTable)->onDelete('set null');
+                $table->foreign('expedition_id')->references('id')->on($expeditionTable)->onDelete('set null');
+                $table->foreign('expedition_rate_id')->references('id')->on($rateTable)->onDelete('set null');
             });
         }
 
-        if (!Schema::hasTable('picklist_items')) {
-            Schema::create('picklist_items', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('picklist_items')) {
+            Schema::connection($conn)->create('picklist_items', function (Blueprint $table) use ($isSqlite) {
                 $table->id();
-                $table->foreignId('picklist_id')->constrained('picklists')->onDelete('cascade');
-                $table->foreignId('sales_order_id')->constrained('sales_orders')->onDelete('cascade');
+                $table->unsignedBigInteger('picklist_id')->index();
+                $table->unsignedBigInteger('sales_order_id')->index()->comment('Reference to sales_orders.id');
                 $table->unsignedBigInteger('sales_order_detail_id')->nullable()->index()->comment('Reference to sales_order_details.id');
                 $table->string('item_code', 50)->index()->comment('Item SKU code');
                 $table->string('item_name', 255)->comment('Item description');
@@ -59,6 +76,14 @@ return new class extends Migration
                 $table->decimal('total_weight', 18, 4)->default(0)->comment('pick_qty * unit_weight in kg');
                 $table->timestamps();
 
+                $picklistTable = $isSqlite ? 'picklists' : 'ekspedisi.picklists';
+                $soTable = $isSqlite ? 'sales_orders' : 'public.sales_orders';
+                $soDetailTable = $isSqlite ? 'sales_order_details' : 'public.sales_order_details';
+
+                $table->foreign('picklist_id')->references('id')->on($picklistTable)->onDelete('cascade');
+                $table->foreign('sales_order_id')->references('id')->on($soTable)->onDelete('cascade');
+                $table->foreign('sales_order_detail_id')->references('id')->on($soDetailTable)->onDelete('set null');
+
                 $table->index(['picklist_id', 'sales_order_id']);
             });
         }
@@ -69,7 +94,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('picklist_items');
-        Schema::dropIfExists('picklists');
+        $conn = $this->connection;
+        Schema::connection($conn)->dropIfExists('picklist_items');
+        Schema::connection($conn)->dropIfExists('picklists');
     }
 };

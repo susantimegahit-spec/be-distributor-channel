@@ -19,7 +19,32 @@ class Picklist extends Model
     public const STATUS_COMPLETED = 'COMPLETED';
     public const STATUS_CANCELLED = 'CANCELLED';
 
-    protected $table = 'picklists';
+    /**
+     * The database connection that should be used by the model.
+     *
+     * @var string
+     */
+    protected $connection = 'pgsql_ekspedisi';
+
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'ekspedisi.picklists';
+
+    /**
+     * Get the table associated with the model (stripping schema in sqlite).
+     */
+    public function getTable(): string
+    {
+        $table = parent::getTable();
+        if ($this->getConnection()->getDriverName() === 'sqlite') {
+            $parts = explode('.', $table);
+            return end($parts);
+        }
+        return $table;
+    }
 
     protected $fillable = [
         'picklist_no',
@@ -68,7 +93,9 @@ class Picklist extends Model
      */
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'created_by');
+        $instance = new User();
+        $instance->setConnection(config('database.default'));
+        return $this->newBelongsTo($instance->newQuery(), $this, 'created_by', 'id', 'creator');
     }
 
     /**
@@ -76,7 +103,17 @@ class Picklist extends Model
      */
     public function updater(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'updated_by');
+        $instance = new User();
+        $instance->setConnection(config('database.default'));
+        return $this->newBelongsTo($instance->newQuery(), $this, 'updated_by', 'id', 'updater');
+    }
+
+    /**
+     * Get the expedition vendor if external shipping.
+     */
+    public function expedition(): BelongsTo
+    {
+        return $this->belongsTo(Expedition::class, 'expedition_id');
     }
 
     /**

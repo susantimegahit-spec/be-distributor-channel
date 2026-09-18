@@ -10,7 +10,32 @@ class PicklistItem extends Model
 {
     use HasFactory;
 
-    protected $table = 'picklist_items';
+    /**
+     * The database connection that should be used by the model.
+     *
+     * @var string
+     */
+    protected $connection = 'pgsql_ekspedisi';
+
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'ekspedisi.picklist_items';
+
+    /**
+     * Get the table associated with the model (stripping schema in sqlite).
+     */
+    public function getTable(): string
+    {
+        $table = parent::getTable();
+        if ($this->getConnection()->getDriverName() === 'sqlite') {
+            $parts = explode('.', $table);
+            return end($parts);
+        }
+        return $table;
+    }
 
     protected $fillable = [
         'picklist_id',
@@ -45,11 +70,13 @@ class PicklistItem extends Model
     }
 
     /**
-     * Get the related sales order.
+     * Get the related sales order (from public schema / default connection).
      */
     public function salesOrder(): BelongsTo
     {
-        return $this->belongsTo(SalesOrder::class, 'sales_order_id');
+        $instance = new SalesOrder();
+        $instance->setConnection(config('database.default'));
+        return $this->newBelongsTo($instance->newQuery(), $this, 'sales_order_id', 'id', 'salesOrder');
     }
 
     /**
@@ -57,7 +84,9 @@ class PicklistItem extends Model
      */
     public function salesOrderDetail(): BelongsTo
     {
-        return $this->belongsTo(SalesOrderDetail::class, 'sales_order_detail_id');
+        $instance = new SalesOrderDetail();
+        $instance->setConnection(config('database.default'));
+        return $this->newBelongsTo($instance->newQuery(), $this, 'sales_order_detail_id', 'id', 'salesOrderDetail');
     }
 
     /**
@@ -65,7 +94,9 @@ class PicklistItem extends Model
      */
     public function item(): BelongsTo
     {
-        return $this->belongsTo(Item::class, 'item_code', 'item_code');
+        $instance = new Item();
+        $instance->setConnection(config('database.default'));
+        return $this->newBelongsTo($instance->newQuery(), $this, 'item_code', 'item_code', 'item');
     }
 
     /**
@@ -73,6 +104,8 @@ class PicklistItem extends Model
      */
     public function warehouse(): BelongsTo
     {
-        return $this->belongsTo(Warehouse::class, 'whs_code', 'whs_code');
+        $instance = new Warehouse();
+        $instance->setConnection(config('database.default'));
+        return $this->newBelongsTo($instance->newQuery(), $this, 'whs_code', 'whs_code', 'warehouse');
     }
 }

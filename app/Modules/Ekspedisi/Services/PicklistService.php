@@ -132,11 +132,15 @@ class PicklistService
         $orders = $query->orderBy('id', 'desc')->get();
 
         // Calculate picked quantities per detail line from non-cancelled picklists
-        $pickedQuantities = DB::table('picklist_items')
-            ->join('picklists', 'picklist_items.picklist_id', '=', 'picklists.id')
-            ->whereIn('picklists.status', [Picklist::STATUS_OPEN, Picklist::STATUS_COMPLETED])
-            ->groupBy('picklist_items.sales_order_detail_id')
-            ->select('picklist_items.sales_order_detail_id', DB::raw('SUM(picklist_items.pick_qty) as total_picked'))
+        $picklistTable = (new Picklist)->getTable();
+        $picklistItemTable = (new PicklistItem)->getTable();
+        $ekspedisiConn = (new Picklist)->getConnectionName();
+
+        $pickedQuantities = DB::connection($ekspedisiConn)->table($picklistItemTable)
+            ->join($picklistTable, "{$picklistItemTable}.picklist_id", '=', "{$picklistTable}.id")
+            ->whereIn("{$picklistTable}.status", [Picklist::STATUS_OPEN, Picklist::STATUS_COMPLETED])
+            ->groupBy("{$picklistItemTable}.sales_order_detail_id")
+            ->select("{$picklistItemTable}.sales_order_detail_id", DB::raw("SUM({$picklistItemTable}.pick_qty) as total_picked"))
             ->pluck('total_picked', 'sales_order_detail_id')
             ->all();
 
@@ -272,12 +276,16 @@ class PicklistService
         $detailIds = array_filter(array_map(fn($r) => !empty($r['sales_order_detail_id']) ? (int) $r['sales_order_detail_id'] : null, $itemsPayload));
         $alreadyPickedMap = [];
         if (!empty($detailIds)) {
-            $alreadyPickedMap = DB::table('picklist_items')
-                ->join('picklists', 'picklist_items.picklist_id', '=', 'picklists.id')
-                ->whereIn('picklists.status', [Picklist::STATUS_OPEN, Picklist::STATUS_COMPLETED])
-                ->whereIn('picklist_items.sales_order_detail_id', $detailIds)
-                ->groupBy('picklist_items.sales_order_detail_id')
-                ->select('picklist_items.sales_order_detail_id', DB::raw('SUM(picklist_items.pick_qty) as total_picked'))
+            $picklistTable = (new Picklist)->getTable();
+            $picklistItemTable = (new PicklistItem)->getTable();
+            $ekspedisiConn = (new Picklist)->getConnectionName();
+
+            $alreadyPickedMap = DB::connection($ekspedisiConn)->table($picklistItemTable)
+                ->join($picklistTable, "{$picklistItemTable}.picklist_id", '=', "{$picklistTable}.id")
+                ->whereIn("{$picklistTable}.status", [Picklist::STATUS_OPEN, Picklist::STATUS_COMPLETED])
+                ->whereIn("{$picklistItemTable}.sales_order_detail_id", $detailIds)
+                ->groupBy("{$picklistItemTable}.sales_order_detail_id")
+                ->select("{$picklistItemTable}.sales_order_detail_id", DB::raw("SUM({$picklistItemTable}.pick_qty) as total_picked"))
                 ->pluck('total_picked', 'sales_order_detail_id')
                 ->all();
         }
@@ -340,8 +348,9 @@ class PicklistService
             throw new \Exception("Total item weight ({$formattedTotal} kg) exceeds the vehicle weight limit ({$formattedLimit} kg). Reduce the pick quantities.", 400);
         }
 
-        // Database transaction to persist picklist and its items
-        return DB::transaction(function () use (
+        // Database transaction on ekspedisi connection to persist picklist and its items
+        $conn = (new Picklist)->getConnection();
+        return $conn->transaction(function () use (
             $shippingType,
             $postingDate,
             $dueDate,
