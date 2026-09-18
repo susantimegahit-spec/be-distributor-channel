@@ -273,6 +273,14 @@ class SalesOrder extends Model
     }
 
     /**
+     * Get the picklist items for the sales order.
+     */
+    public function picklistItems(): HasMany
+    {
+        return $this->hasMany(PicklistItem::class, 'sales_order_id');
+    }
+
+    /**
      * Get the total doc total after discount.
      */
     public function getDocTotalAfterDiscountAttribute(): float

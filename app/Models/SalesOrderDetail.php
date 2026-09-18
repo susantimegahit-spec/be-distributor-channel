@@ -146,4 +146,12 @@ class SalesOrderDetail extends Model
     {
         return $this->ocr3?->ocr_name;
     }
+
+    /**
+     * Get picklist items associated with this sales order line.
+     */
+    public function picklistItems(): HasMany
+    {
+        return $this->hasMany(PicklistItem::class, 'sales_order_detail_id');
+    }
 }

@@ -54,3 +54,12 @@ Route::prefix('v1/logistic/orders')->middleware('auth:sanctum')->group(function 
     Route::post('/{id}/inventory-transfer', [\App\Modules\Ekspedisi\Controllers\LogisticOrderController::class, 'inventoryTransfer']);
 });
 
+// Logistic Picklist Routes
+Route::prefix('v1/logistic/picklists')->middleware('auth:sanctum')->group(function () {
+    Route::get('/available-orders', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'availableOrders']);
+    Route::get('/', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'index']);
+    Route::post('/', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'store']);
+    Route::get('/{id}', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'show']);
+    Route::patch('/{id}/status', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'updateStatus']);
+});
+

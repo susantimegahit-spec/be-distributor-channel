@@ -16758,6 +16758,209 @@ paths:
         '404':
           description: Sales Order not found.
 
+  /v1/logistic/picklists/available-orders:
+    get:
+      summary: Get Available Sales Orders for Picklist
+      description: Mengambil daftar Sales Order yang berstatus ORDER_APPROVED dengan kesiapan logistik APPROVED atau RESCHEDULE_APPROVED beserta sisa kuantitas item yang belum di-pick.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          description: Pencarian berdasarkan nomor SO, nama customer, atau card code
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Available orders for picklist retrieved successfully.
+
+  /v1/logistic/picklists:
+    get:
+      summary: List Dokumen Picklist
+      description: Mengambil daftar dokumen picklist logistik dengan filter tipe pengiriman, status, dan rentang tanggal.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: shipping_type
+          in: query
+          description: Filter jenis pengiriman (internal, external, pickup)
+          schema:
+            type: string
+            enum: [internal, external, pickup]
+        - name: status
+          in: query
+          description: Filter status picklist (OPEN, COMPLETED, CANCELLED)
+          schema:
+            type: string
+            enum: [OPEN, COMPLETED, CANCELLED]
+        - name: search
+          in: query
+          description: Pencarian nomor picklist, plat nomor, supir, checker, atau nomor SO
+          schema:
+            type: string
+        - name: date_from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Picklists retrieved successfully.
+    post:
+      summary: Buat Dokumen Picklist Baru
+      description: |
+        Membuat dokumen picklist baru untuk armada logistik.
+        - Internal: wajib mengisi license_plate, mendukung multiple Sales Orders.
+        - External & Pickup: tidak menggunakan armada sendiri, strictly dibatasi hanya 1 Sales Order.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - shipping_type
+                - posting_date
+                - due_date
+                - items
+              properties:
+                shipping_type:
+                  type: string
+                  enum: [internal, external, pickup]
+                posting_date:
+                  type: string
+                  format: date
+                due_date:
+                  type: string
+                  format: date
+                delivery_order_no:
+                  type: string
+                total_weight_limit:
+                  type: number
+                comments:
+                  type: string
+                license_plate:
+                  type: string
+                driver_name:
+                  type: string
+                checker_name:
+                  type: string
+                expedition_id:
+                  type: integer
+                expedition_name:
+                  type: string
+                expedition_rate_id:
+                  type: integer
+                service_type:
+                  type: string
+                estimated_cost:
+                  type: number
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - sales_order_id
+                      - item_code
+                      - pick_qty
+                    properties:
+                      sales_order_id:
+                        type: integer
+                      sales_order_detail_id:
+                        type: integer
+                      item_code:
+                        type: string
+                      item_name:
+                        type: string
+                      whs_code:
+                        type: string
+                      unit_msr:
+                        type: string
+                      ordered_qty:
+                        type: number
+                      pick_qty:
+                        type: number
+                      unit_weight:
+                        type: number
+      responses:
+        '201':
+          description: Picklist created successfully.
+        '400':
+          description: Business validation error (e.g. multiple SO on external/pickup, pick qty exceeds remaining).
+        '422':
+          description: Input validation error.
+
+  /v1/logistic/picklists/{id}:
+    get:
+      summary: Detail Dokumen Picklist
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Picklist detail retrieved successfully.
+        '404':
+          description: Picklist not found.
+
+  /v1/logistic/picklists/{id}/status:
+    patch:
+      summary: Update Status Dokumen Picklist
+      description: Mengubah status picklist dari OPEN menjadi COMPLETED atau CANCELLED.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [COMPLETED, CANCELLED]
+      responses:
+        '200':
+          description: Picklist status updated successfully.
+        '400':
+          description: Invalid transition or picklist is not OPEN.
+        '404':
+          description: Picklist not found.
+
 components:
   securitySchemes:
     BearerAuth:
