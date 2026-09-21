@@ -33,8 +33,8 @@ return new class extends Migration
         }
 
         // 1. hris_departments
-        if (!Schema::connection($this->connection)->hasTable('hris_departments')) {
-            Schema::connection($this->connection)->create('hris_departments', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('hris_departments')) {
+            Schema::connection($conn)->create('hris_departments', function (Blueprint $table) {
                 $table->id();
                 $table->string('dept_code', 50)->unique();
                 $table->string('dept_name', 150);
@@ -49,8 +49,8 @@ return new class extends Migration
         }
 
         // 2. hris_divisions
-        if (!Schema::connection($this->connection)->hasTable('hris_divisions')) {
-            Schema::connection($this->connection)->create('hris_divisions', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('hris_divisions')) {
+            Schema::connection($conn)->create('hris_divisions', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('department_id')->constrained('hris_departments')->onDelete('cascade');
                 $table->string('division_code', 50);
@@ -64,8 +64,8 @@ return new class extends Migration
         }
 
         // 3. hris_positions
-        if (!Schema::connection($this->connection)->hasTable('hris_positions')) {
-            Schema::connection($this->connection)->create('hris_positions', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('hris_positions')) {
+            Schema::connection($conn)->create('hris_positions', function (Blueprint $table) {
                 $table->id();
                 $table->string('position_code', 50)->unique();
                 $table->string('position_name', 150);
@@ -77,8 +77,8 @@ return new class extends Migration
         }
 
         // 4. hris_employees
-        if (!Schema::connection($this->connection)->hasTable('hris_employees')) {
-            Schema::connection($this->connection)->create('hris_employees', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('hris_employees')) {
+            Schema::connection($conn)->create('hris_employees', function (Blueprint $table) {
                 $table->id();
                 $table->string('nik', 50)->unique()->index();
                 $table->unsignedBigInteger('user_id')->nullable()->unique();
@@ -110,9 +110,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::connection($this->connection)->dropIfExists('hris_employees');
-        Schema::connection($this->connection)->dropIfExists('hris_positions');
-        Schema::connection($this->connection)->dropIfExists('hris_divisions');
-        Schema::connection($this->connection)->dropIfExists('hris_departments');
+        $conn = $this->getConnection();
+        Schema::connection($conn)->dropIfExists('hris_employees');
+        Schema::connection($conn)->dropIfExists('hris_positions');
+        Schema::connection($conn)->dropIfExists('hris_divisions');
+        Schema::connection($conn)->dropIfExists('hris_departments');
     }
 };

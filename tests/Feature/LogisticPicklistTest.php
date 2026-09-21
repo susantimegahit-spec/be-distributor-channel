@@ -10,6 +10,7 @@ use App\Models\SalesOrder;
 use App\Models\SalesOrderDetail;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class LogisticPicklistTest extends TestCase
@@ -28,6 +29,17 @@ class LogisticPicklistTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        Http::fake([
+            '*/api/addIT' => Http::response([
+                'ErrorCode' => 0,
+                'Message'   => 'Success DocNum: 7788 DocEntry: 5566',
+                'Result'    => [
+                    'DocEntry' => 5566,
+                    'DocNum'   => 7788,
+                ],
+            ], 200),
+        ]);
 
         $this->distributor = Distributor::create([
             'code_customer' => 'CUST-PL-001',
@@ -408,4 +420,172 @@ class LogisticPicklistTest extends TestCase
         $failRes->assertStatus(400)
             ->assertJsonPath('success', false);
     }
+
+    public function test_can_create_picklist_with_sap_it_integration_and_bin_allocations(): void
+    {
+        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::fake([
+            '*/api/addIT' => function ($request) {
+                $body = $request->data();
+                $this->assertEquals('VPGMN01', $body['ToWhsCode']);
+                $this->assertEquals('L 9999 ZZ', $body['Nopol']);
+                $this->assertEquals('Driver A', $body['NamaSupir']);
+
+                $lines = $body['Lines'];
+                $this->assertCount(1, $lines);
+                $this->assertEquals('VPGMN01', $lines[0]['ToWhsCode']);
+                $this->assertEquals('Y', $lines[0]['BinActivfrom']);
+                $this->assertEquals('N', $lines[0]['BinActivto']);
+                $this->assertCount(1, $lines[0]['Lines_BinFROM']);
+                $this->assertEquals(142, $lines[0]['Lines_BinFROM'][0]['AbsEntry']);
+                $this->assertEquals(15.0, $lines[0]['Lines_BinFROM'][0]['Quantity']);
+
+                return Http::response([
+                    'ErrorCode' => 0,
+                    'Message'   => 'Success DocNum: 8001 DocEntry: 9001',
+                    'Result'    => [
+                        'DocEntry' => 9001,
+                        'DocNum'   => 8001,
+                    ],
+                ], 200);
+            },
+        ]);
+
+        $payload = [
+            'shipping_type' => 'internal',
+            'license_plate' => 'L 9999 ZZ',
+            'driver_name'   => 'Driver A',
+            'checker_name'  => 'Checker B',
+            'posting_date'  => '2026-09-21',
+            'due_date'      => '2026-09-22',
+            'comments'      => 'Transfer test with BIN',
+            'items' => [
+                [
+                    'sales_order_id'        => $this->order1->id,
+                    'sales_order_detail_id' => $this->detail1->id,
+                    'item_code'             => $this->item1->item_code,
+                    'pick_qty'              => 15,
+                    'whs_code'              => 'WHS-SBY',
+                    'bin_allocations'       => [
+                        [
+                            'AbsEntry' => 142,
+                            'Quantity' => 15,
+                            'code'     => 'BIN-SBY-01',
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/distributor-channel/v1/logistic/picklists', $payload);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.it_doc_num', '8001')
+            ->assertJsonPath('data.it_doc_entry', '9001')
+            ->assertJsonPath('data.it_status', 'SUCCESS')
+            ->assertJsonPath('data.to_whs_code', 'VPGMN01');
+
+        $picklistId = $response->json('data.id');
+        $picklist = Picklist::with('items')->find($picklistId);
+        $this->assertNotNull($picklist);
+        $this->assertEquals('8001', $picklist->it_doc_num);
+        $this->assertEquals('9001', $picklist->it_doc_entry);
+        $this->assertEquals('VPGMN01', $picklist->to_whs_code);
+
+        $item = $picklist->items->first();
+        $this->assertNotNull($item->bin_allocations);
+        $this->assertEquals(142, $item->bin_allocations[0]['AbsEntry']);
+
+        // Check sales order updated
+        $so = SalesOrder::find($this->order1->id);
+        $this->assertEquals('8001', $so->sap_it_doc_num);
+        $this->assertEquals('9001', $so->sap_it_doc_entry);
+        $this->assertEquals('VPGMN01', $so->to_whs_code);
+    }
+
+    public function test_can_create_picklist_without_bins_and_to_whs_hardcoded_vpgmn01(): void
+    {
+        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::fake([
+            '*/api/addIT' => function ($request) {
+                $body = $request->data();
+                $this->assertEquals('VPGMN01', $body['ToWhsCode']);
+                $lines = $body['Lines'];
+                $this->assertEquals('N', $lines[0]['BinActivfrom']);
+                $this->assertEquals('N', $lines[0]['BinActivto']);
+                $this->assertArrayNotHasKey('Lines_BinFROM', $lines[0]);
+
+                return Http::response([
+                    'ErrorCode' => 0,
+                    'Message'   => 'Success DocNum: 8002 DocEntry: 9002',
+                    'Result'    => [
+                        'DocEntry' => 9002,
+                        'DocNum'   => 8002,
+                    ],
+                ], 200);
+            },
+        ]);
+
+        $payload = [
+            'shipping_type' => 'pickup',
+            'posting_date'  => '2026-09-21',
+            'due_date'      => '2026-09-21',
+            'items' => [
+                [
+                    'sales_order_id'        => $this->order2->id,
+                    'sales_order_detail_id' => $this->detail2->id,
+                    'item_code'             => $this->item2->item_code,
+                    'pick_qty'              => 5,
+                    'whs_code'              => 'WHS-NOBIN',
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/distributor-channel/v1/logistic/picklists', $payload);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.it_doc_num', '8002')
+            ->assertJsonPath('data.to_whs_code', 'VPGMN01');
+    }
+
+    public function test_create_picklist_fails_and_does_not_persist_when_sap_it_fails(): void
+    {
+        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::fake([
+            '*/api/addIT' => Http::response([
+                'ErrorCode' => -5002,
+                'Message'   => 'Stock insufficient in warehouse WHS-SBY',
+            ], 200),
+        ]);
+
+        $payload = [
+            'shipping_type' => 'pickup',
+            'posting_date'  => '2026-09-21',
+            'due_date'      => '2026-09-21',
+            'items' => [
+                [
+                    'sales_order_id'        => $this->order1->id,
+                    'sales_order_detail_id' => $this->detail1->id,
+                    'item_code'             => $this->item1->item_code,
+                    'pick_qty'              => 10,
+                ],
+            ],
+        ];
+
+        $countBefore = Picklist::count();
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/distributor-channel/v1/logistic/picklists', $payload);
+
+        $response->assertStatus(400)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'SAP Inventory Transfer Error [-5002]: Stock insufficient in warehouse WHS-SBY');
+
+        $this->assertEquals($countBefore, Picklist::count());
+    }
 }
+

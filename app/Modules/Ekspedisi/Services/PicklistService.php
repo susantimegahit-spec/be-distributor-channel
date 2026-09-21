@@ -7,13 +7,21 @@ use App\Models\Picklist;
 use App\Models\PicklistItem;
 use App\Models\SalesOrder;
 use App\Models\SalesOrderDetail;
+use App\Models\SalesOrderLogisticLog;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class PicklistService
 {
+    /**
+     * Hardcoded destination warehouse code for Picklist Inventory Transfer.
+     */
+    public const DEFAULT_IT_TO_WHS_CODE = 'VPGMN01';
+
     /**
      * Get paginated list of picklists with filters.
      *
@@ -327,6 +335,27 @@ class PicklistService
             $lineTotalWeight = round($pickQty * $unitWeight, 4);
             $totalAggregatedWeight += $lineTotalWeight;
 
+            $rawBinAllocations = $itemInput['bin_allocations'] ?? $itemInput['binAllocations'] ?? null;
+            $normalizedBinAllocations = null;
+            if (is_array($rawBinAllocations) && !empty($rawBinAllocations)) {
+                $normalizedBinAllocations = [];
+                foreach ($rawBinAllocations as $bin) {
+                    $absEntry = $bin['AbsEntry'] ?? $bin['abs_entry'] ?? $bin['value'] ?? $bin['id'] ?? null;
+                    $binQty   = floatval($bin['Quantity'] ?? $bin['quantity'] ?? $bin['qty'] ?? 0);
+                    if ($absEntry !== null && is_numeric($absEntry) && $binQty > 0) {
+                        $normalizedBinAllocations[] = [
+                            'AbsEntry' => (int) $absEntry,
+                            'Quantity' => $binQty,
+                            'code'     => $bin['code'] ?? $bin['bin_code'] ?? null,
+                            'name'     => $bin['name'] ?? $bin['description'] ?? null,
+                        ];
+                    }
+                }
+                if (empty($normalizedBinAllocations)) {
+                    $normalizedBinAllocations = null;
+                }
+            }
+
             $processedItems[] = [
                 'sales_order_id'        => $soId,
                 'sales_order_detail_id' => $detailId,
@@ -338,6 +367,7 @@ class PicklistService
                 'pick_qty'              => $pickQty,
                 'unit_weight'           => $unitWeight,
                 'total_weight'          => $lineTotalWeight,
+                'bin_allocations'       => $normalizedBinAllocations,
             ];
         }
 
@@ -348,9 +378,13 @@ class PicklistService
             throw new \Exception("Total item weight ({$formattedTotal} kg) exceeds the vehicle weight limit ({$formattedLimit} kg). Reduce the pick quantities.", 400);
         }
 
-        // Database transaction on ekspedisi connection to persist picklist and its items
-        $conn = (new Picklist)->getConnection();
-        return $conn->transaction(function () use (
+        // 1. Call SAP Inventory Transfer (/api/addIT) first (fail-fast rule)
+        // Hardcoded destination warehouse to VPGMN01. If IT fails, picklist creation aborts immediately.
+        $itResult = $this->executeInventoryTransferToSapForPicklist($payload, $processedItems, $details, $userId);
+
+        // 2. Database transaction on ekspedisi connection to persist picklist and its items
+        $ekspedisiConn = (new Picklist)->getConnection();
+        return $ekspedisiConn->transaction(function () use (
             $shippingType,
             $postingDate,
             $dueDate,
@@ -361,6 +395,9 @@ class PicklistService
             $weightLimit,
             $totalAggregatedWeight,
             $processedItems,
+            $salesOrderIds,
+            $orders,
+            $itResult,
             $userId
         ) {
             $picklistNo = $this->generatePicklistNumber();
@@ -383,6 +420,10 @@ class PicklistService
                 'expedition_rate_id' => !empty($payload['expedition_rate_id']) ? (int) $payload['expedition_rate_id'] : null,
                 'service_type'       => !empty($payload['service_type']) ? trim((string) $payload['service_type']) : null,
                 'estimated_cost'     => isset($payload['estimated_cost']) ? (float) $payload['estimated_cost'] : null,
+                'it_doc_entry'       => (string) $itResult['doc_entry'],
+                'it_doc_num'         => (string) $itResult['doc_num'],
+                'it_status'          => 'SUCCESS',
+                'to_whs_code'        => self::DEFAULT_IT_TO_WHS_CODE,
                 'created_by'         => $userId,
                 'updated_by'         => $userId,
             ]);
@@ -392,11 +433,200 @@ class PicklistService
                 PicklistItem::create($item);
             }
 
+            // Also update Sales Orders and create logistic logs on main connection
+            $user = $userId ? User::with('role')->find($userId) : null;
+            $userName = $user?->name ?? 'System / Logistic';
+            $roleName = $user?->role?->name ?? 'LOGISTIC';
+
+            foreach ($salesOrderIds as $soId) {
+                $so = $orders->get($soId);
+                if ($so) {
+                    $so->update([
+                        'to_whs_code'      => self::DEFAULT_IT_TO_WHS_CODE,
+                        'nopol'            => $licensePlate ?: $so->nopol,
+                        'nama_supir'       => $driverName ?: $so->nama_supir,
+                        'sap_it_doc_entry' => (string) $itResult['doc_entry'],
+                        'sap_it_doc_num'   => (string) $itResult['doc_num'],
+                        'sap_it_status'    => 'SUCCESS',
+                    ]);
+
+                    SalesOrderLogisticLog::create([
+                        'sales_order_id'   => $so->id,
+                        'action'           => 'LOGISTIC_INVENTORY_TRANSFER',
+                        'from_status'      => $so->logistic_status,
+                        'to_status'        => $so->logistic_status,
+                        'notes'            => "Inventory Transfer (IT) processed to SAP via Picklist {$picklistNo} (DocNum: {$itResult['doc_num']}, Destination: " . self::DEFAULT_IT_TO_WHS_CODE . ").",
+                        'user_id'          => $userId,
+                        'user_name'        => $userName,
+                        'role_name'        => $roleName,
+                        'sap_it_doc_entry' => (string) $itResult['doc_entry'],
+                        'sap_it_doc_num'   => (string) $itResult['doc_num'],
+                    ]);
+                }
+            }
+
             return $picklist->load([
                 'items.salesOrder:id,order_no,customer_name,card_code',
                 'creator:id,name,username',
             ]);
         });
+    }
+
+    /**
+     * Execute Inventory Transfer (IT) to SAP B1 API (/api/addIT) for picklist.
+     * Hardcoded destination warehouse to VPGMN01.
+     * If source warehouse has BIN allocations, lines will include BinActivfrom = 'Y' and Lines_BinFROM.
+     * If source warehouse has no BIN, BinActivfrom = 'N'. Destination BinActivto is always 'N'.
+     *
+     * @param array $payload
+     * @param array $processedItems
+     * @param \Illuminate\Support\Collection $details
+     * @param int|null $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function executeInventoryTransferToSapForPicklist(
+        array $payload,
+        array $processedItems,
+        $details,
+        ?int $userId = null
+    ): array {
+        $lines = [];
+        $headerFiller = null;
+
+        foreach ($processedItems as $item) {
+            $itemCode = trim((string) $item['item_code']);
+            $qty = floatval($item['pick_qty']);
+            if (empty($itemCode) || $qty <= 0) {
+                continue;
+            }
+
+            $lineWhsCode = trim((string) ($item['whs_code'] ?: 'FG01'));
+            if (!$headerFiller) {
+                $headerFiller = $lineWhsCode;
+            }
+
+            $detailId = $item['sales_order_detail_id'] ?? null;
+            $detail = $detailId && $details ? $details->get($detailId) : null;
+
+            $uomEntry = is_numeric($detail?->uom_entry) ? (int) $detail->uom_entry : 0;
+            $ocrCode  = (string) ($detail?->ocr_code ?? '');
+            $ocrCode2 = (string) ($detail?->ocr_code2 ?? '');
+            $ocrCode3 = (string) ($detail?->ocr_code3 ?? '');
+
+            // BIN allocation
+            $rawBinAllocations = $item['bin_allocations'] ?? [];
+            $linesBinFrom = [];
+
+            if (is_array($rawBinAllocations) && !empty($rawBinAllocations)) {
+                foreach ($rawBinAllocations as $bin) {
+                    $absEntry = $bin['AbsEntry'] ?? $bin['abs_entry'] ?? $bin['value'] ?? $bin['id'] ?? null;
+                    $binQty   = floatval($bin['Quantity'] ?? $bin['quantity'] ?? $bin['qty'] ?? 0);
+
+                    if ($absEntry !== null && is_numeric($absEntry) && $binQty > 0) {
+                        $linesBinFrom[] = [
+                            'AbsEntry' => (int) $absEntry,
+                            'Quantity' => $binQty,
+                        ];
+                    }
+                }
+            }
+
+            $lineData = [
+                'ItemCode'     => $itemCode,
+                'Quantity'     => $qty,
+                'UomEntry'     => $uomEntry,
+                'Filler'       => $lineWhsCode,
+                'ToWhsCode'    => self::DEFAULT_IT_TO_WHS_CODE,
+                'UseBaseUn'    => 'Y',
+                'OcrCode'      => $ocrCode,
+                'OcrCode2'     => $ocrCode2,
+                'OcrCode3'     => $ocrCode3,
+                'BinActivfrom' => !empty($linesBinFrom) ? 'Y' : 'N',
+                'BinActivto'   => 'N',
+            ];
+
+            if (!empty($linesBinFrom)) {
+                $lineData['Lines_BinFROM'] = $linesBinFrom;
+            }
+
+            $lines[] = $lineData;
+        }
+
+        if (empty($lines)) {
+            throw new \Exception("Cannot perform Inventory Transfer: Picklist has no valid items with quantity > 0.", 400);
+        }
+
+        $postingDate  = $payload['posting_date'] ?? now()->format('Y-m-d');
+        $dueDate      = $payload['due_date'] ?? $postingDate;
+        $licensePlate = trim((string) ($payload['license_plate'] ?? ''));
+        $driverName   = trim((string) ($payload['driver_name'] ?? ''));
+
+        $itPayload = [
+            'DocDate'    => $postingDate,
+            'DocDueDate' => $dueDate,
+            'Filler'     => $headerFiller ?: 'FG01',
+            'ToWhsCode'  => self::DEFAULT_IT_TO_WHS_CODE,
+            'Comments'   => "Picklist IT to " . self::DEFAULT_IT_TO_WHS_CODE . ($licensePlate ? " - Nopol: {$licensePlate}" : '') . (!empty($payload['comments']) ? " - {$payload['comments']}" : ''),
+            'BeratBruto' => (string) ($payload['berat_bruto'] ?? $payload['total_weight'] ?? ''),
+            'BeratTara'  => (string) ($payload['berat_tara'] ?? ''),
+            'Nopol'      => $licensePlate,
+            'NamaSupir'  => $driverName,
+            'AddonId'    => 2,
+            'UserId'     => (int) ($userId ?: 1),
+            'Lines'      => $lines,
+        ];
+
+        $sapUrl = rtrim(config('services.sap.url') ?: env('SAP_API_URL', 'http://103.18.133.187:3100'), '/');
+
+        try {
+            $response = Http::timeout(30)->post("{$sapUrl}/api/addIT", $itPayload);
+        } catch (\Throwable $e) {
+            Log::error("Failed to connect to SAP /api/addIT for Picklist: " . $e->getMessage(), ['payload' => $itPayload]);
+            throw new \Exception("Failed to connect to SAP API for Inventory Transfer: " . $e->getMessage(), 400);
+        }
+
+        if (!$response->successful()) {
+            $status = $response->status();
+            $body = $response->body();
+            Log::error("SAP /api/addIT returned HTTP {$status} for Picklist: {$body}");
+            throw new \Exception("Failed to process Inventory Transfer to SAP (HTTP {$status}): " . substr($body, 0, 250), 400);
+        }
+
+        $result = $response->json();
+        if (isset($result['ErrorCode']) && (int) $result['ErrorCode'] !== 0) {
+            $errMsg = $result['Message'] ?? 'Unknown SAP error during Inventory Transfer.';
+            Log::error("SAP /api/addIT returned ErrorCode {$result['ErrorCode']} for Picklist: {$errMsg}");
+            throw new \Exception("SAP Inventory Transfer Error [{$result['ErrorCode']}]: {$errMsg}", 400);
+        }
+
+        $docEntry = null;
+        $docNum = null;
+
+        if (isset($result['Result'])) {
+            if (is_array($result['Result'])) {
+                $docEntry = $result['Result']['DocEntry'] ?? $result['Result'][0]['DocEntry'] ?? null;
+                $docNum = $result['Result']['DocNum'] ?? $result['Result'][0]['DocNum'] ?? null;
+            } elseif (is_numeric($result['Result'])) {
+                $docEntry = (string) $result['Result'];
+            }
+        }
+
+        if (!$docNum && !empty($result['Message']) && preg_match('/DocNum:\s*(\d+)/i', $result['Message'], $m)) {
+            $docNum = $m[1];
+        }
+        if (!$docEntry && !empty($result['Message']) && preg_match('/DocEntry:\s*(\d+)/i', $result['Message'], $m)) {
+            $docEntry = $m[1];
+        }
+
+        $docNum = $docNum ? (string) $docNum : ($docEntry ? (string) $docEntry : 'PROCESSED');
+        $docEntry = $docEntry ? (string) $docEntry : $docNum;
+
+        return [
+            'doc_entry' => $docEntry,
+            'doc_num'   => $docNum,
+            'response'  => $result,
+        ];
     }
 
     /**

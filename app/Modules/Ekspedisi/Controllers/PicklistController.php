@@ -103,6 +103,11 @@ class PicklistController extends Controller
             'items.*.ordered_qty'           => 'nullable|numeric|min:0',
             'items.*.pick_qty'              => 'required|numeric|min:0.0001',
             'items.*.unit_weight'           => 'nullable|numeric|min:0',
+            'items.*.bin_allocations'       => 'nullable|array',
+            'items.*.binAllocations'        => 'nullable|array',
+            'items.*.direct_bin_quantity'   => 'nullable|numeric|min:0',
+            'items.*.directBinQuantity'     => 'nullable|numeric|min:0',
+            'to_whs_code'                   => 'nullable|string|max:50',
         ]);
 
         try {

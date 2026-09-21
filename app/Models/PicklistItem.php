@@ -49,6 +49,7 @@ class PicklistItem extends Model
         'pick_qty',
         'unit_weight',
         'total_weight',
+        'bin_allocations',
     ];
 
     protected $casts = [
@@ -59,6 +60,7 @@ class PicklistItem extends Model
         'pick_qty'              => 'decimal:4',
         'unit_weight'           => 'decimal:4',
         'total_weight'          => 'decimal:4',
+        'bin_allocations'       => 'array',
     ];
 
     /**

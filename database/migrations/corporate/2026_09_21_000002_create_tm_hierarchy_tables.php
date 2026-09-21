@@ -21,9 +21,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        $conn = $this->getConnection();
+
         // 1. tm_workspaces
-        if (!Schema::connection($this->connection)->hasTable('tm_workspaces')) {
-            Schema::connection($this->connection)->create('tm_workspaces', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('tm_workspaces')) {
+            Schema::connection($conn)->create('tm_workspaces', function (Blueprint $table) {
                 $table->id();
                 $table->string('workspace_code', 50)->unique();
                 $table->string('name', 150)->default('PT Susanti Megah Perkasa');
@@ -36,8 +38,8 @@ return new class extends Migration
         }
 
         // 2. tm_spaces
-        if (!Schema::connection($this->connection)->hasTable('tm_spaces')) {
-            Schema::connection($this->connection)->create('tm_spaces', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('tm_spaces')) {
+            Schema::connection($conn)->create('tm_spaces', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('workspace_id')->constrained('tm_workspaces')->onDelete('cascade');
                 $table->foreignId('department_id')->nullable()->constrained('hris_departments')->onDelete('set null');
@@ -55,8 +57,8 @@ return new class extends Migration
         }
 
         // 3. tm_space_members
-        if (!Schema::connection($this->connection)->hasTable('tm_space_members')) {
-            Schema::connection($this->connection)->create('tm_space_members', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('tm_space_members')) {
+            Schema::connection($conn)->create('tm_space_members', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('space_id')->constrained('tm_spaces')->onDelete('cascade');
                 $table->foreignId('employee_id')->constrained('hris_employees')->onDelete('cascade');
@@ -68,8 +70,8 @@ return new class extends Migration
         }
 
         // 4. tm_folders
-        if (!Schema::connection($this->connection)->hasTable('tm_folders')) {
-            Schema::connection($this->connection)->create('tm_folders', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('tm_folders')) {
+            Schema::connection($conn)->create('tm_folders', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('space_id')->constrained('tm_spaces')->onDelete('cascade');
                 $table->string('folder_name', 150);
@@ -86,8 +88,8 @@ return new class extends Migration
         }
 
         // 5. tm_lists
-        if (!Schema::connection($this->connection)->hasTable('tm_lists')) {
-            Schema::connection($this->connection)->create('tm_lists', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('tm_lists')) {
+            Schema::connection($conn)->create('tm_lists', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('space_id')->constrained('tm_spaces')->onDelete('cascade');
                 $table->foreignId('folder_id')->nullable()->constrained('tm_folders')->onDelete('set null');
@@ -111,10 +113,11 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::connection($this->connection)->dropIfExists('tm_lists');
-        Schema::connection($this->connection)->dropIfExists('tm_folders');
-        Schema::connection($this->connection)->dropIfExists('tm_space_members');
-        Schema::connection($this->connection)->dropIfExists('tm_spaces');
-        Schema::connection($this->connection)->dropIfExists('tm_workspaces');
+        $conn = $this->getConnection();
+        Schema::connection($conn)->dropIfExists('tm_lists');
+        Schema::connection($conn)->dropIfExists('tm_folders');
+        Schema::connection($conn)->dropIfExists('tm_space_members');
+        Schema::connection($conn)->dropIfExists('tm_spaces');
+        Schema::connection($conn)->dropIfExists('tm_workspaces');
     }
 };

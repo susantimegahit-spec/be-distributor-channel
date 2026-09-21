@@ -64,6 +64,10 @@ class Picklist extends Model
         'expedition_rate_id',
         'service_type',
         'estimated_cost',
+        'it_doc_entry',
+        'it_doc_num',
+        'it_status',
+        'to_whs_code',
         'created_by',
         'updated_by',
     ];

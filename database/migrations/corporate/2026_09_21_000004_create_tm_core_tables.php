@@ -21,9 +21,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        $conn = $this->getConnection();
+
         // 1. tm_tasks
-        if (!Schema::connection($this->connection)->hasTable('tm_tasks')) {
-            Schema::connection($this->connection)->create('tm_tasks', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('tm_tasks')) {
+            Schema::connection($conn)->create('tm_tasks', function (Blueprint $table) {
                 $table->id();
                 $table->string('task_code', 100)->unique();
                 $table->string('legacy_clickup_id', 100)->nullable()->unique();
@@ -66,8 +68,8 @@ return new class extends Migration
         }
 
         // 2. tm_task_assignees
-        if (!Schema::connection($this->connection)->hasTable('tm_task_assignees')) {
-            Schema::connection($this->connection)->create('tm_task_assignees', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('tm_task_assignees')) {
+            Schema::connection($conn)->create('tm_task_assignees', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('task_id')->constrained('tm_tasks')->onDelete('cascade');
                 $table->foreignId('employee_id')->constrained('hris_employees')->onDelete('cascade');
@@ -80,8 +82,8 @@ return new class extends Migration
         }
 
         // 3. tm_task_watchers
-        if (!Schema::connection($this->connection)->hasTable('tm_task_watchers')) {
-            Schema::connection($this->connection)->create('tm_task_watchers', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('tm_task_watchers')) {
+            Schema::connection($conn)->create('tm_task_watchers', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('task_id')->constrained('tm_tasks')->onDelete('cascade');
                 $table->foreignId('employee_id')->constrained('hris_employees')->onDelete('cascade');
@@ -92,8 +94,8 @@ return new class extends Migration
         }
 
         // 4. tm_task_tags
-        if (!Schema::connection($this->connection)->hasTable('tm_task_tags')) {
-            Schema::connection($this->connection)->create('tm_task_tags', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('tm_task_tags')) {
+            Schema::connection($conn)->create('tm_task_tags', function (Blueprint $table) {
                 $table->foreignId('task_id')->constrained('tm_tasks')->onDelete('cascade');
                 $table->foreignId('tag_id')->constrained('tm_master_tags')->onDelete('cascade');
                 $table->primary(['task_id', 'tag_id']);
@@ -101,8 +103,8 @@ return new class extends Migration
         }
 
         // 5. tm_task_custom_field_values
-        if (!Schema::connection($this->connection)->hasTable('tm_task_custom_field_values')) {
-            Schema::connection($this->connection)->create('tm_task_custom_field_values', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('tm_task_custom_field_values')) {
+            Schema::connection($conn)->create('tm_task_custom_field_values', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('task_id')->constrained('tm_tasks')->onDelete('cascade');
                 $table->foreignId('custom_field_id')->constrained('tm_master_custom_fields')->onDelete('cascade');
@@ -117,8 +119,8 @@ return new class extends Migration
         }
 
         // 6. tm_task_checklists
-        if (!Schema::connection($this->connection)->hasTable('tm_task_checklists')) {
-            Schema::connection($this->connection)->create('tm_task_checklists', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('tm_task_checklists')) {
+            Schema::connection($conn)->create('tm_task_checklists', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('task_id')->constrained('tm_tasks')->onDelete('cascade');
                 $table->string('checklist_title', 150)->default('Checklist Pekerjaan');
@@ -127,8 +129,8 @@ return new class extends Migration
         }
 
         // 7. tm_task_checklist_items
-        if (!Schema::connection($this->connection)->hasTable('tm_task_checklist_items')) {
-            Schema::connection($this->connection)->create('tm_task_checklist_items', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('tm_task_checklist_items')) {
+            Schema::connection($conn)->create('tm_task_checklist_items', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('checklist_id')->constrained('tm_task_checklists')->onDelete('cascade');
                 $table->string('item_text', 255);
@@ -143,8 +145,8 @@ return new class extends Migration
         }
 
         // 8. tm_task_attachments
-        if (!Schema::connection($this->connection)->hasTable('tm_task_attachments')) {
-            Schema::connection($this->connection)->create('tm_task_attachments', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('tm_task_attachments')) {
+            Schema::connection($conn)->create('tm_task_attachments', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('task_id')->constrained('tm_tasks')->onDelete('cascade');
                 $table->string('file_name', 255);
@@ -157,8 +159,8 @@ return new class extends Migration
         }
 
         // 9. tm_task_comments
-        if (!Schema::connection($this->connection)->hasTable('tm_task_comments')) {
-            Schema::connection($this->connection)->create('tm_task_comments', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('tm_task_comments')) {
+            Schema::connection($conn)->create('tm_task_comments', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('task_id')->constrained('tm_tasks')->onDelete('cascade');
                 $table->foreignId('parent_comment_id')->nullable()->constrained('tm_task_comments')->onDelete('cascade');
@@ -172,8 +174,8 @@ return new class extends Migration
         }
 
         // 10. tm_task_time_trackings
-        if (!Schema::connection($this->connection)->hasTable('tm_task_time_trackings')) {
-            Schema::connection($this->connection)->create('tm_task_time_trackings', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('tm_task_time_trackings')) {
+            Schema::connection($conn)->create('tm_task_time_trackings', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('task_id')->constrained('tm_tasks')->onDelete('cascade');
                 $table->foreignId('employee_id')->constrained('hris_employees')->onDelete('cascade');
@@ -188,8 +190,8 @@ return new class extends Migration
         }
 
         // 11. tm_task_dependencies
-        if (!Schema::connection($this->connection)->hasTable('tm_task_dependencies')) {
-            Schema::connection($this->connection)->create('tm_task_dependencies', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('tm_task_dependencies')) {
+            Schema::connection($conn)->create('tm_task_dependencies', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('task_id')->constrained('tm_tasks')->onDelete('cascade');
                 $table->foreignId('depends_on_task_id')->constrained('tm_tasks')->onDelete('cascade');
@@ -201,8 +203,8 @@ return new class extends Migration
         }
 
         // 12. tm_task_activity_logs
-        if (!Schema::connection($this->connection)->hasTable('tm_task_activity_logs')) {
-            Schema::connection($this->connection)->create('tm_task_activity_logs', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('tm_task_activity_logs')) {
+            Schema::connection($conn)->create('tm_task_activity_logs', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('task_id')->constrained('tm_tasks')->onDelete('cascade');
                 $table->foreignId('performed_by_employee_id')->constrained('hris_employees')->onDelete('restrict');
@@ -223,17 +225,18 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::connection($this->connection)->dropIfExists('tm_task_activity_logs');
-        Schema::connection($this->connection)->dropIfExists('tm_task_dependencies');
-        Schema::connection($this->connection)->dropIfExists('tm_task_time_trackings');
-        Schema::connection($this->connection)->dropIfExists('tm_task_comments');
-        Schema::connection($this->connection)->dropIfExists('tm_task_attachments');
-        Schema::connection($this->connection)->dropIfExists('tm_task_checklist_items');
-        Schema::connection($this->connection)->dropIfExists('tm_task_checklists');
-        Schema::connection($this->connection)->dropIfExists('tm_task_custom_field_values');
-        Schema::connection($this->connection)->dropIfExists('tm_task_tags');
-        Schema::connection($this->connection)->dropIfExists('tm_task_watchers');
-        Schema::connection($this->connection)->dropIfExists('tm_task_assignees');
-        Schema::connection($this->connection)->dropIfExists('tm_tasks');
+        $conn = $this->getConnection();
+        Schema::connection($conn)->dropIfExists('tm_task_activity_logs');
+        Schema::connection($conn)->dropIfExists('tm_task_dependencies');
+        Schema::connection($conn)->dropIfExists('tm_task_time_trackings');
+        Schema::connection($conn)->dropIfExists('tm_task_comments');
+        Schema::connection($conn)->dropIfExists('tm_task_attachments');
+        Schema::connection($conn)->dropIfExists('tm_task_checklist_items');
+        Schema::connection($conn)->dropIfExists('tm_task_checklists');
+        Schema::connection($conn)->dropIfExists('tm_task_custom_field_values');
+        Schema::connection($conn)->dropIfExists('tm_task_tags');
+        Schema::connection($conn)->dropIfExists('tm_task_watchers');
+        Schema::connection($conn)->dropIfExists('tm_task_assignees');
+        Schema::connection($conn)->dropIfExists('tm_tasks');
     }
 };

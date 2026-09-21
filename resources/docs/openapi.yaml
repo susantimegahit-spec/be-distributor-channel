@@ -17542,6 +17542,10 @@ paths:
                   type: string
                 estimated_cost:
                   type: number
+                to_whs_code:
+                  type: string
+                  default: 'VPGMN01'
+                  description: Gudang tujuan transfer (hardcoded ke VPGMN01 di backend)
                 items:
                   type: array
                   items:
@@ -17569,11 +17573,35 @@ paths:
                         type: number
                       unit_weight:
                         type: number
+                      direct_bin_quantity:
+                        type: number
+                        description: Input qty jika gudang tidak memiliki bin
+                      bin_allocations:
+                        type: array
+                        description: Daftar alokasi BIN jika gudang asal menggunakan bin management
+                        items:
+                          type: object
+                          properties:
+                            value:
+                              type: integer
+                              description: AbsEntry BIN SAP
+                            AbsEntry:
+                              type: integer
+                            code:
+                              type: string
+                              description: Bin Code
+                            name:
+                              type: string
+                              description: Bin Description
+                            quantity:
+                              type: number
+                            Quantity:
+                              type: number
       responses:
         '201':
-          description: Picklist created successfully.
+          description: Picklist created successfully (Inventory Transfer to SAP VPGMN01 succeeded, it_doc_num & it_doc_entry saved).
         '400':
-          description: Business validation error (e.g. multiple SO on external/pickup, pick qty exceeds remaining).
+          description: Business validation error or SAP Inventory Transfer failure.
         '422':
           description: Input validation error.
 

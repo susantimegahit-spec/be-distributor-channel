@@ -21,9 +21,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        $conn = $this->getConnection();
+
         // 1. tm_master_statuses
-        if (!Schema::connection($this->connection)->hasTable('tm_master_statuses')) {
-            Schema::connection($this->connection)->create('tm_master_statuses', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('tm_master_statuses')) {
+            Schema::connection($conn)->create('tm_master_statuses', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('space_id')->nullable()->constrained('tm_spaces')->onDelete('cascade');
                 $table->string('status_name', 100);
@@ -39,8 +41,8 @@ return new class extends Migration
         }
 
         // 2. tm_master_priorities
-        if (!Schema::connection($this->connection)->hasTable('tm_master_priorities')) {
-            Schema::connection($this->connection)->create('tm_master_priorities', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('tm_master_priorities')) {
+            Schema::connection($conn)->create('tm_master_priorities', function (Blueprint $table) {
                 $table->id();
                 $table->string('priority_code', 50)->unique();
                 $table->string('priority_name', 50);
@@ -52,8 +54,8 @@ return new class extends Migration
         }
 
         // 3. tm_master_task_types
-        if (!Schema::connection($this->connection)->hasTable('tm_master_task_types')) {
-            Schema::connection($this->connection)->create('tm_master_task_types', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('tm_master_task_types')) {
+            Schema::connection($conn)->create('tm_master_task_types', function (Blueprint $table) {
                 $table->id();
                 $table->string('type_code', 50)->unique();
                 $table->string('type_name', 100);
@@ -65,8 +67,8 @@ return new class extends Migration
         }
 
         // 4. tm_master_tags
-        if (!Schema::connection($this->connection)->hasTable('tm_master_tags')) {
-            Schema::connection($this->connection)->create('tm_master_tags', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('tm_master_tags')) {
+            Schema::connection($conn)->create('tm_master_tags', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('space_id')->nullable()->constrained('tm_spaces')->onDelete('cascade');
                 $table->string('tag_name', 100);
@@ -78,8 +80,8 @@ return new class extends Migration
         }
 
         // 5. tm_master_custom_fields
-        if (!Schema::connection($this->connection)->hasTable('tm_master_custom_fields')) {
-            Schema::connection($this->connection)->create('tm_master_custom_fields', function (Blueprint $table) {
+        if (!Schema::connection($conn)->hasTable('tm_master_custom_fields')) {
+            Schema::connection($conn)->create('tm_master_custom_fields', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('space_id')->nullable()->constrained('tm_spaces')->onDelete('cascade');
                 $table->string('field_name', 100);
@@ -97,10 +99,11 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::connection($this->connection)->dropIfExists('tm_master_custom_fields');
-        Schema::connection($this->connection)->dropIfExists('tm_master_tags');
-        Schema::connection($this->connection)->dropIfExists('tm_master_task_types');
-        Schema::connection($this->connection)->dropIfExists('tm_master_priorities');
-        Schema::connection($this->connection)->dropIfExists('tm_master_statuses');
+        $conn = $this->getConnection();
+        Schema::connection($conn)->dropIfExists('tm_master_custom_fields');
+        Schema::connection($conn)->dropIfExists('tm_master_tags');
+        Schema::connection($conn)->dropIfExists('tm_master_task_types');
+        Schema::connection($conn)->dropIfExists('tm_master_priorities');
+        Schema::connection($conn)->dropIfExists('tm_master_statuses');
     }
 };
