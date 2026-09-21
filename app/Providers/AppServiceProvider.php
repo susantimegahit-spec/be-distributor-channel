@@ -130,6 +130,14 @@ class AppServiceProvider extends ServiceProvider
             \App\Modules\MasterUnit\Repositories\MasterUnitRepositoryInterface::class,
             \App\Modules\MasterUnit\Repositories\MasterUnitRepository::class
         );
+        $this->app->bind(
+            \App\Modules\TaskManagement\Repositories\TaskRepositoryInterface::class,
+            \App\Modules\TaskManagement\Repositories\TaskRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\TaskManagement\Repositories\HierarchyRepositoryInterface::class,
+            \App\Modules\TaskManagement\Repositories\HierarchyRepository::class
+        );
     }
 
     /**
@@ -156,6 +164,7 @@ class AppServiceProvider extends ServiceProvider
             database_path('migrations/ekspedisi'),
             database_path('migrations/production'),
             database_path('migrations/vendors'),
+            database_path('migrations/corporate'),
         ]);
 
         // Register Custom Pulse Component (Kill User Control Card)

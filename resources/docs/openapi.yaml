@@ -14,7 +14,676 @@ servers:
   - url: http://localhost:8000/api/distributor-channel
     description: Local Server
 paths:
+  /task-management/tasks:
+    get:
+      summary: Daftar Tugas (Tasks) & Filter Hirarki
+      description: Mengambil daftar tugas dengan dukungan filter space_id, folder_id, list_id, assignee_id, status_id, status_category, search, dan pagination.
+      tags:
+        - Task Management - Tasks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: space_id
+          in: query
+          description: ID Space departemen
+          schema:
+            type: integer
+        - name: folder_id
+          in: query
+          description: ID Folder project
+          schema:
+            type: integer
+        - name: list_id
+          in: query
+          description: ID List
+          schema:
+            type: integer
+        - name: assignee_id
+          in: query
+          description: ID Karyawan HRIS (hris_employees.id)
+          schema:
+            type: integer
+        - name: status_id
+          in: query
+          description: ID status tugas
+          schema:
+            type: integer
+        - name: status_category
+          in: query
+          description: Kategori status
+          schema:
+            type: string
+            enum: [TO_DO, IN_PROGRESS, REVIEW, DONE, CANCELLED]
+        - name: search
+          in: query
+          description: Pencarian teks judul, deskripsi, atau kode tugas
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Data list tugas berhasil diambil.
+    post:
+      summary: Buat Tugas Baru (Create Task / Subtask)
+      description: Membuat tugas baru atau subtask dengan auto-generator task_code (format TSK-DEPT-YYYY-NNNNN) dan penugasan karyawan.
+      tags:
+        - Task Management - Tasks
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - space_id
+                - list_id
+                - title
+              properties:
+                space_id:
+                  type: integer
+                  example: 1
+                list_id:
+                  type: integer
+                  example: 1
+                folder_id:
+                  type: integer
+                  nullable: true
+                  example: 1
+                parent_task_id:
+                  type: integer
+                  nullable: true
+                  description: Diisi ID parent task jika membuat subtask
+                  example: null
+                title:
+                  type: string
+                  example: "Implementasi Skema DB Corporate Task Management"
+                description:
+                  type: string
+                  example: "Migrasi master data HRIS dan tabel ClickUp-like ke skema corporate"
+                status_id:
+                  type: integer
+                  nullable: true
+                  example: 1
+                priority_id:
+                  type: integer
+                  nullable: true
+                  example: 2
+                task_type_id:
+                  type: integer
+                  nullable: true
+                  example: 1
+                due_date:
+                  type: string
+                  format: date-time
+                  example: "2026-09-25 17:00:00"
+                estimated_hours:
+                  type: number
+                  example: 8.5
+                assignee_ids:
+                  type: array
+                  items:
+                    type: integer
+                  example: [1, 2]
+      responses:
+        '201':
+          description: Tugas berhasil dibuat.
+
+  /task-management/tasks/{id}:
+    get:
+      summary: Detail Lengkap Tugas (Task Detail)
+      description: Mengambil detail tugas beserta checklists, assignees, subtasks, tags, attachments, comments, dan riwayat activity logs.
+      tags:
+        - Task Management - Tasks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail tugas berhasil diambil.
+        '404':
+          description: Tugas tidak ditemukan.
+    put:
+      summary: Perbarui Tugas (Update Task)
+      description: Memperbarui data tugas dan otomatis mencatat perubahan pada activity logs audit trail.
+      tags:
+        - Task Management - Tasks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                priority_id:
+                  type: integer
+                due_date:
+                  type: string
+                  format: date-time
+                progress_percentage:
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+                assignee_ids:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '200':
+          description: Tugas berhasil diperbarui.
+    delete:
+      summary: Hapus Tugas (Soft Delete Task)
+      tags:
+        - Task Management - Tasks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Tugas berhasil dihapus.
+
+  /task-management/tasks/{id}/status:
+    post:
+      summary: Transisi Status Tugas (Update Task Status)
+      description: Mengubah status tugas, otomatis mengupdate progress / waktu selesai jika status tutup, dan mencatat histori log aktivitas.
+      tags:
+        - Task Management - Tasks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status_id
+              properties:
+                status_id:
+                  type: integer
+                  example: 4
+      responses:
+        '200':
+          description: Status tugas berhasil diubah.
+
+  /task-management/tasks/metrics:
+    get:
+      summary: Metrik Ringkasan Tugas (Task Analytics & KPI)
+      description: Agregasi jumlah total tugas, To Do, In Progress, Review, Done, Overdue, dan Completion Rate %.
+      tags:
+        - Task Management - Tasks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: space_id
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Metrik berhasil diambil.
+
+  /task-management/workspaces:
+    get:
+      summary: Daftar Workspace Korporat
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar workspace berhasil diambil.
+
+  /task-management/spaces:
+    get:
+      summary: Daftar Space Departemen / Divisi
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: workspace_id
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Daftar spaces berhasil diambil.
+    post:
+      summary: Buat Space Departemen Baru
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - workspace_id
+                - space_name
+              properties:
+                workspace_id:
+                  type: integer
+                department_id:
+                  type: integer
+                  nullable: true
+                space_name:
+                  type: string
+                color_hex:
+                  type: string
+                  default: "#4F46E5"
+                icon_name:
+                  type: string
+                  default: "folder"
+                is_private:
+                  type: boolean
+                  default: false
+      responses:
+        '201':
+          description: Space berhasil dibuat.
+
+  /task-management/folders:
+    get:
+      summary: Daftar Folder Project di Space
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: space_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Daftar folder berhasil diambil.
+    post:
+      summary: Buat Folder Project Baru
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - space_id
+                - folder_name
+              properties:
+                space_id:
+                  type: integer
+                folder_name:
+                  type: string
+                description:
+                  type: string
+                color_hex:
+                  type: string
+      responses:
+        '201':
+          description: Folder berhasil dibuat.
+
+  /task-management/lists:
+    get:
+      summary: Daftar List Tugas
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: space_id
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: folder_id
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Daftar list tugas berhasil diambil.
+    post:
+      summary: Buat List Tugas Baru
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - space_id
+                - list_name
+              properties:
+                space_id:
+                  type: integer
+                folder_id:
+                  type: integer
+                  nullable: true
+                list_name:
+                  type: string
+                default_view:
+                  type: string
+                  enum: [LIST, BOARD, CALENDAR, GANTT]
+                  default: LIST
+      responses:
+        '201':
+          description: List tugas berhasil dibuat.
+
+  /task-management/checklists:
+    post:
+      summary: Buat Header Checklist pada Task
+      tags:
+        - Task Management - Checklists
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - task_id
+                - checklist_title
+              properties:
+                task_id:
+                  type: integer
+                checklist_title:
+                  type: string
+      responses:
+        '201':
+          description: Checklist berhasil dibuat.
+
+  /task-management/checklists/{id}/items:
+    post:
+      summary: Tambah Item Checklist
+      tags:
+        - Task Management - Checklists
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - item_text
+              properties:
+                item_text:
+                  type: string
+                assignee_employee_id:
+                  type: integer
+                  nullable: true
+                due_date:
+                  type: string
+                  format: date
+      responses:
+        '201':
+          description: Item checklist berhasil ditambahkan.
+
+  /task-management/checklist-items/{id}/toggle:
+    post:
+      summary: Toggle Status Selesai Item Checklist
+      tags:
+        - Task Management - Checklists
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Status item checklist berhasil diubah.
+
+  /task-management/time-tracking/start:
+    post:
+      summary: Mulai Timer Pengerjaan Tugas (Start Timer)
+      description: Memulai sesi pencatatan durasi kerja aktif untuk karyawan login. Jika ada timer aktif sebelumnya, otomatis dihentikan terlebih dahulu.
+      tags:
+        - Task Management - Time Tracking
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - task_id
+              properties:
+                task_id:
+                  type: integer
+                note:
+                  type: string
+      responses:
+        '201':
+          description: Timer berhasil dimulai.
+
+  /task-management/time-tracking/{id}/stop:
+    post:
+      summary: Hentikan Timer Pengerjaan Tugas (Stop Timer)
+      tags:
+        - Task Management - Time Tracking
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Timer berhasil dihentikan dan akumulasi actual_hours task diperbarui.
+
+  /task-management/time-tracking/manual:
+    post:
+      summary: Entri Manual Jam Kerja (Timesheet)
+      tags:
+        - Task Management - Time Tracking
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - task_id
+                - duration_minutes
+              properties:
+                task_id:
+                  type: integer
+                duration_minutes:
+                  type: integer
+                  example: 120
+                note:
+                  type: string
+                start_time:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Log waktu kerja berhasil dicatat.
+
+  /task-management/tasks/{taskId}/comments:
+    get:
+      summary: Daftar Diskusi & Komentar Tugas
+      tags:
+        - Task Management - Comments
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Daftar komentar berhasil diambil.
+    post:
+      summary: Tambah Komentar / Balasan pada Tugas
+      tags:
+        - Task Management - Comments
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - comment_text
+              properties:
+                comment_text:
+                  type: string
+                parent_comment_id:
+                  type: integer
+                  nullable: true
+                  description: Diisi ID parent comment jika merupakan balasan (reply)
+                is_internal_only:
+                  type: boolean
+                  default: false
+      responses:
+        '201':
+          description: Komentar berhasil ditambahkan.
+
+  /task-management/master/statuses:
+    get:
+      summary: Master Status Tugas
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: space_id
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Daftar status berhasil diambil.
+
+  /task-management/master/priorities:
+    get:
+      summary: Master Prioritas Tugas (Urgent, High, Normal, Low)
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar prioritas berhasil diambil.
+
+  /task-management/master/task-types:
+    get:
+      summary: Master Tipe Pekerjaan (Task, Bug, Feature, Milestone, dll.)
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar tipe tugas berhasil diambil.
+
+  /task-management/master/departments:
+    get:
+      summary: Master Departemen HRIS Terintegrasi
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar departemen HRIS berhasil diambil.
+
+  /task-management/master/employees:
+    get:
+      summary: Master Karyawan HRIS (Dropdown Assignee Picker)
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: department_id
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Daftar karyawan berhasil diambil.
+
   /v1/production/change-products:
+
     get:
       summary: Daftar Transaksi Change Product
       description: Mengambil seluruh riwayat transaksi Change Product (penggantian item lama ke item baru) beserta status sinkronisasi SAP.
