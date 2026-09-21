@@ -23,12 +23,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        $driver = DB::connection($this->connection)->getDriverName();
-        $schemaExists = $driver === 'sqlite' ? [true] : DB::select("SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'corporate'");
-        
-        if (empty($schemaExists) && $driver !== 'sqlite') {
+        $conn = $this->getConnection();
+        if (config('database.default') !== 'sqlite') {
             try {
-                DB::statement('CREATE SCHEMA IF NOT EXISTS corporate');
+                DB::connection('pgsql')->statement('CREATE SCHEMA IF NOT EXISTS corporate');
             } catch (\Throwable $e) {
                 Log::warning("Failed to auto-create schema 'corporate': " . $e->getMessage());
             }
