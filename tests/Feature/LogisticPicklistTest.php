@@ -77,6 +77,7 @@ class LogisticPicklistTest extends TestCase
 
         $this->order1 = SalesOrder::create([
             'order_no'        => 'SO-PKL-001',
+            'sap_doc_num'     => '99001234',
             'distributor_id'  => $this->distributor->id,
             'card_code'       => 'CUST-PL-001',
             'customer_name'   => 'PT Mitra Logistik Jaya',
@@ -401,7 +402,13 @@ class LogisticPicklistTest extends TestCase
             ->getJson("/api/distributor-channel/v1/logistic/picklists/{$picklistId}");
         $detailRes->assertStatus(200)
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.id', $picklistId);
+            ->assertJsonPath('data.id', $picklistId)
+            ->assertJsonPath('data.items.0.sales_order.sap_doc_num', '99001234')
+            ->assertJsonPath('data.items.0.sales_order.order_no', '99001234')
+            ->assertJsonPath('data.items.0.so_number', '99001234')
+            ->assertJsonPath('data.items.0.order_no', '99001234')
+            ->assertJsonPath('data.items.0.depo', 'SURABAYA')
+            ->assertJsonPath('data.items.0.sales_order.depo', 'SURABAYA');
 
         // Update status to COMPLETED
         $statusRes = $this->actingAs($this->user)

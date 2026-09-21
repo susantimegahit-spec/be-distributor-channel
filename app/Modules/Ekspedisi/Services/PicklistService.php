@@ -31,7 +31,8 @@ class PicklistService
     public function getPicklists(array $filters = []): array
     {
         $query = Picklist::with([
-            'items.salesOrder:id,order_no,customer_name,card_code',
+            'items.salesOrder:id,order_no,sap_doc_num,customer_name,card_code,distributor_id',
+            'items.salesOrder.distributor:id,name,code_customer,depo',
             'creator:id,name,username',
         ]);
 
@@ -64,6 +65,7 @@ class PicklistService
                     ->orWhere('comments', 'ilike', "%{$search}%")
                     ->orWhereHas('items.salesOrder', function (Builder $sq) use ($search) {
                         $sq->where('order_no', 'ilike', "%{$search}%")
+                            ->orWhere('sap_doc_num', 'ilike', "%{$search}%")
                             ->orWhere('customer_name', 'ilike', "%{$search}%");
                     });
             });
@@ -95,7 +97,7 @@ class PicklistService
     public function getPicklistDetail(int $id): Picklist
     {
         $picklist = Picklist::with([
-            'items.salesOrder:id,order_no,customer_name,card_code,address,address2,distributor_id',
+            'items.salesOrder:id,order_no,sap_doc_num,customer_name,card_code,address,address2,distributor_id',
             'items.salesOrder.distributor:id,name,code_customer,depo',
             'items.item:id,item_code,item_name,per_kg',
             'creator:id,name,username',
@@ -104,6 +106,12 @@ class PicklistService
 
         if (!$picklist) {
             throw new \Exception("Picklist with ID #{$id} not found.", 404);
+        }
+
+        foreach ($picklist->items as $item) {
+            if ($item->salesOrder && !empty($item->salesOrder->sap_doc_num)) {
+                $item->salesOrder->order_no = (string) $item->salesOrder->sap_doc_num;
+            }
         }
 
         return $picklist;
@@ -467,7 +475,8 @@ class PicklistService
             }
 
             return $picklist->load([
-                'items.salesOrder:id,order_no,customer_name,card_code',
+                'items.salesOrder:id,order_no,sap_doc_num,customer_name,card_code,distributor_id',
+                'items.salesOrder.distributor:id,name,code_customer,depo',
                 'creator:id,name,username',
             ]);
         });

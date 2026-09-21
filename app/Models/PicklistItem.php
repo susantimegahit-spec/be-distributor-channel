@@ -63,6 +63,54 @@ class PicklistItem extends Model
         'bin_allocations'       => 'array',
     ];
 
+    protected $appends = [
+        'so_number',
+        'order_number',
+        'order_no',
+        'sap_doc_num',
+        'depo',
+    ];
+
+    /**
+     * Get SO number formatted from sales order's sap_doc_num with fallback to order_no.
+     */
+    public function getSoNumberAttribute(): ?string
+    {
+        return $this->salesOrder?->sap_doc_num ?: $this->salesOrder?->order_no;
+    }
+
+    /**
+     * Get order number formatted from sales order's sap_doc_num with fallback to order_no.
+     */
+    public function getOrderNumberAttribute(): ?string
+    {
+        return $this->salesOrder?->sap_doc_num ?: $this->salesOrder?->order_no;
+    }
+
+    /**
+     * Get order number formatted from sales order's sap_doc_num with fallback to order_no.
+     */
+    public function getOrderNoAttribute(): ?string
+    {
+        return $this->salesOrder?->sap_doc_num ?: $this->salesOrder?->order_no;
+    }
+
+    /**
+     * Get SAP DocNum from sales order.
+     */
+    public function getSapDocNumAttribute(): ?string
+    {
+        return $this->salesOrder?->sap_doc_num;
+    }
+
+    /**
+     * Get Depo from sales order.
+     */
+    public function getDepoAttribute(): ?string
+    {
+        return $this->salesOrder?->depo;
+    }
+
     /**
      * Get the parent picklist.
      */

@@ -106,6 +106,8 @@ class SalesOrder extends Model
         'total_discount',
         'grand_total',
         'depo',
+        'so_number',
+        'order_number',
     ];
 
     /**
@@ -113,7 +115,35 @@ class SalesOrder extends Model
      */
     public function getDepoAttribute(): ?string
     {
-        return $this->distributor?->depo;
+        if ($this->relationLoaded('distributor') && $this->distributor?->depo) {
+            return $this->distributor->depo;
+        }
+
+        if ($this->distributor?->depo) {
+            return $this->distributor->depo;
+        }
+
+        if (!empty($this->card_code)) {
+            return Distributor::where('code_customer', $this->card_code)->value('depo');
+        }
+
+        return null;
+    }
+
+    /**
+     * Get SO number formatted from sap_doc_num with fallback to order_no.
+     */
+    public function getSoNumberAttribute(): ?string
+    {
+        return $this->sap_doc_num ?: $this->order_no;
+    }
+
+    /**
+     * Get order number formatted from sap_doc_num with fallback to order_no.
+     */
+    public function getOrderNumberAttribute(): ?string
+    {
+        return $this->sap_doc_num ?: $this->order_no;
     }
 
     /**
