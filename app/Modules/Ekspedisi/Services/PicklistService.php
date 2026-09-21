@@ -95,7 +95,8 @@ class PicklistService
     public function getPicklistDetail(int $id): Picklist
     {
         $picklist = Picklist::with([
-            'items.salesOrder:id,order_no,customer_name,card_code,address,address2,depo',
+            'items.salesOrder:id,order_no,customer_name,card_code,address,address2,distributor_id',
+            'items.salesOrder.distributor:id,name,code_customer,depo',
             'items.item:id,item_code,item_name,per_kg',
             'creator:id,name,username',
             'updater:id,name,username',
