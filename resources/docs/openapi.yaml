@@ -17678,6 +17678,9 @@ paths:
             type: integer
       requestBody:
         required: false
+        description: |
+          Payload opsional. Jika request body dikosongkan (`{}`), sistem akan mengumpulkan data secara otomatis dari dokumen Picklist, Sales Order, dan SAP IT terkait.
+          Jika field-field berikut diisi, sistem akan menggunakan nilai override tersebut untuk dikirimkan ke SAP B1 (/api/AddDO).
         content:
           application/json:
             schema:
@@ -17685,28 +17688,226 @@ paths:
               properties:
                 sales_order_id:
                   type: integer
-                  description: Opsional jika ingin membuat DO hanya untuk satu Sales Order tertentu di picklist
+                  description: Opsional jika picklist memiliki multiple Sales Orders dan hanya ingin membuat DO untuk salah satu Sales Order tertentu
                   example: 1
-                NoPol:
+                Series:
+                  type: integer
+                  description: Series nomor dokumen SAP
+                  example: 1
+                CardCode:
                   type: string
-                  description: Override nomor polisi kendaraan
-                  example: "B 1234 ABC"
-                Sopir:
+                  description: Kode Customer / Distributor
+                  example: "C20000"
+                NumAtCard:
                   type: string
-                  description: Override nama supir
-                  example: "Budi"
-                NamaChecker:
+                  description: Nomor PO / Referensi customer
+                  example: "PO-12345"
+                DocDate:
                   type: string
-                  description: Override nama checker
-                  example: "Siti"
+                  format: date-time
+                  description: Tanggal dokumen
+                  example: "2026-09-08T00:00:00"
+                DocDueDate:
+                  type: string
+                  format: date-time
+                  description: Tanggal jatuh tempo pengiriman
+                  example: "2026-09-08T00:00:00"
+                TaxDate:
+                  type: string
+                  format: date-time
+                  description: Tanggal pajak
+                  example: "2026-09-08T00:00:00"
+                SlpCode:
+                  type: integer
+                  description: Sales employee code
+                  example: -1
+                CntctCode:
+                  type: integer
+                  description: Contact person code
+                  example: 0
+                PayToCode:
+                  type: string
+                  description: Kode alamat penagihan
+                  example: ""
+                Address:
+                  type: string
+                  description: Alamat penagihan lengkap
+                  example: "Jl. Contoh Alamat Penagihan No. 123"
+                ShipToCode:
+                  type: string
+                  description: Kode alamat pengiriman
+                  example: ""
+                Address2:
+                  type: string
+                  description: Alamat pengiriman lengkap
+                  example: "Jl. Contoh Alamat Pengiriman No. 123"
                 Comments:
                   type: string
                   description: Catatan pengiriman
-                  example: "Catatan pengiriman picklist"
+                  example: "Catatan pengiriman"
+                DiscountPercent:
+                  type: number
+                  description: Persentase diskon
+                  example: 0
+                DocTotal:
+                  type: number
+                  description: Total nilai dokumen
+                  example: 0
+                IdDiskon:
+                  type: string
+                  description: ID / kode program diskon
+                  example: ""
+                NoPol:
+                  type: string
+                  description: Nomor polisi armada kendaraan
+                  example: "B 1234 ABC"
+                KodeEkspedisi:
+                  type: string
+                  description: Kode ekspedisi
+                  example: "JNE"
+                Sopir:
+                  type: string
+                  description: Nama supir / driver
+                  example: "Budi"
+                NamaEkspedisi:
+                  type: string
+                  description: Nama vendor ekspedisi
+                  example: "JNE Express"
+                NamaChecker:
+                  type: string
+                  description: Nama staf checker gudang
+                  example: "Siti"
                 Container:
                   type: string
-                  description: Nomor kontainer jika ada
+                  description: Nomor container jika ada
                   example: ""
+                AddonId:
+                  type: integer
+                  description: Otomatis di-hardcode bernilai 2 di backend
+                  example: 2
+                UserId:
+                  type: string
+                  description: ID pengguna
+                  example: "1"
+                Lines:
+                  type: array
+                  description: Custom item lines DO (opsional; jika tidak diisi akan otomatis diambil dari item picklist)
+                  items:
+                    type: object
+                    required:
+                      - ItemCode
+                      - Quantity
+                    properties:
+                      BaseEntry:
+                        type: integer
+                        description: DocEntry dari Sales Order SAP
+                        example: 1
+                      BaseLine:
+                        type: integer
+                        description: LineNum dari baris SO SAP
+                        example: 0
+                      ItemCode:
+                        type: string
+                        example: "ITEM-001"
+                      Quantity:
+                        type: number
+                        example: 1
+                      WhsCode:
+                        type: string
+                        example: "01"
+                      UomEntry:
+                        type: integer
+                        example: -1
+                      UnitMsr:
+                        type: string
+                        example: "PCS"
+                      LineTotal:
+                        type: number
+                        example: 0
+                      GrossBuyPr:
+                        type: number
+                        example: 0
+                      Currency:
+                        type: string
+                        example: "IDR"
+                      Rate:
+                        type: number
+                        example: 1
+                      TaxCode:
+                        type: string
+                        example: "PPN11"
+                      Price:
+                        type: number
+                        example: 10000
+                      VatGroup:
+                        type: string
+                        example: ""
+                      DiscPrcnt:
+                        type: number
+                        example: 0
+                      OcrCode:
+                        type: string
+                        example: ""
+                      OcrCode2:
+                        type: string
+                        example: ""
+                      OcrCode3:
+                        type: string
+                        example: ""
+                      BinAllocations:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            BinAbsEntry:
+                              type: integer
+                              example: 1
+                            Quantity:
+                              type: number
+                              example: 1
+            example:
+              Series: 1
+              CardCode: "C20000"
+              NumAtCard: "PO-12345"
+              DocDate: "2026-09-08T00:00:00"
+              DocDueDate: "2026-09-08T00:00:00"
+              TaxDate: "2026-09-08T00:00:00"
+              SlpCode: -1
+              CntctCode: 0
+              PayToCode: ""
+              Address: "Jl. Contoh Alamat Penagihan No. 123"
+              ShipToCode: ""
+              Address2: "Jl. Contoh Alamat Pengiriman No. 123"
+              Comments: "Catatan pengiriman"
+              DiscountPercent: 0
+              DocTotal: 0
+              IdDiskon: ""
+              NoPol: "B 1234 ABC"
+              KodeEkspedisi: "JNE"
+              Sopir: "Budi"
+              NamaEkspedisi: "JNE Express"
+              NamaChecker: "Siti"
+              Container: ""
+              AddonId: 2
+              UserId: "1"
+              sales_order_id: 1
+              Lines:
+                - BaseEntry: 1
+                  BaseLine: 0
+                  ItemCode: "ITEM-001"
+                  Quantity: 1
+                  WhsCode: "01"
+                  UomEntry: -1
+                  UnitMsr: "PCS"
+                  LineTotal: 0
+                  GrossBuyPr: 0
+                  Currency: "IDR"
+                  Rate: 1
+                  TaxCode: "PPN11"
+                  Price: 10000
+                  BinAllocations:
+                    - BinAbsEntry: 1
+                      Quantity: 1
       responses:
         '200':
           description: Delivery Order successfully created in SAP and saved to database.
@@ -17874,10 +18075,22 @@ paths:
                       LineTotal:
                         type: number
                         example: 0
-                      VatGroup:
+                      GrossBuyPr:
+                        type: number
+                        example: 0
+                      Currency:
                         type: string
-                        example: ""
+                        example: "IDR"
+                      Rate:
+                        type: number
+                        example: 1
                       TaxCode:
+                        type: string
+                        example: "PPN11"
+                      Price:
+                        type: number
+                        example: 10000
+                      VatGroup:
                         type: string
                         example: ""
                       DiscPrcnt:
@@ -17892,6 +18105,59 @@ paths:
                       OcrCode3:
                         type: string
                         example: ""
+                      BinAllocations:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            BinAbsEntry:
+                              type: integer
+                              example: 1
+                            Quantity:
+                              type: number
+                              example: 1
+            example:
+              Series: 1
+              CardCode: "C20000"
+              NumAtCard: "PO-12345"
+              DocDate: "2026-09-08T00:00:00"
+              DocDueDate: "2026-09-08T00:00:00"
+              TaxDate: "2026-09-08T00:00:00"
+              SlpCode: -1
+              CntctCode: 0
+              PayToCode: ""
+              Address: "Jl. Contoh Alamat Penagihan No. 123"
+              ShipToCode: ""
+              Address2: "Jl. Contoh Alamat Pengiriman No. 123"
+              Comments: "Catatan pengiriman"
+              DiscountPercent: 0
+              DocTotal: 0
+              IdDiskon: ""
+              NoPol: "B 1234 ABC"
+              KodeEkspedisi: "JNE"
+              Sopir: "Budi"
+              NamaEkspedisi: "JNE Express"
+              NamaChecker: "Siti"
+              Container: ""
+              AddonId: 2
+              UserId: "1"
+              Lines:
+                - BaseEntry: 1
+                  BaseLine: 0
+                  ItemCode: "ITEM-001"
+                  Quantity: 1
+                  WhsCode: "01"
+                  UomEntry: -1
+                  UnitMsr: "PCS"
+                  LineTotal: 0
+                  GrossBuyPr: 0
+                  Currency: "IDR"
+                  Rate: 1
+                  TaxCode: "PPN11"
+                  Price: 10000
+                  BinAllocations:
+                    - BinAbsEntry: 1
+                      Quantity: 1
       responses:
         '200':
           description: Delivery Order successfully created in SAP.

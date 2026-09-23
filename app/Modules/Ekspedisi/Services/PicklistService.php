@@ -752,22 +752,30 @@ class PicklistService
 
                     $matchedDetail = $soDetails->firstWhere('item_code', $itemCode);
 
-                    $lines[] = [
-                        'BaseEntry' => $baseEntry,
-                        'BaseLine'  => $baseLine,
-                        'ItemCode'  => $itemCode,
-                        'Quantity'  => $qty,
-                        'WhsCode'   => (string) ($cLine['WhsCode'] ?? $cLine['whs_code'] ?? ($matchedDetail?->whs_code ?: '01')),
-                        'UomEntry'  => isset($cLine['UomEntry']) ? (int) $cLine['UomEntry'] : (is_numeric($matchedDetail?->uom_entry) ? (int) $matchedDetail->uom_entry : -1),
-                        'UnitMsr'   => (string) ($cLine['UnitMsr'] ?? $cLine['unit_msr'] ?? ($matchedDetail?->unit_msr ?: 'PCS')),
-                        'LineTotal' => isset($cLine['LineTotal']) ? (float) $cLine['LineTotal'] : round($qty * ($matchedDetail?->unit_price ?? 0), 2),
-                        'VatGroup'  => (string) ($cLine['VatGroup'] ?? $cLine['vat_group'] ?? ($matchedDetail?->vat_group ?? '')),
-                        'TaxCode'   => (string) ($cLine['TaxCode'] ?? $cLine['tax_code'] ?? ''),
-                        'DiscPrcnt' => isset($cLine['DiscPrcnt']) ? (float) $cLine['DiscPrcnt'] : (float) ($matchedDetail?->disc_percent ?? 0),
-                        'OcrCode'   => (string) ($cLine['OcrCode'] ?? $cLine['ocr_code'] ?? ($matchedDetail?->ocr_code ?? '')),
-                        'OcrCode2'  => (string) ($cLine['OcrCode2'] ?? $cLine['ocr_code2'] ?? ($matchedDetail?->ocr_code2 ?? '')),
-                        'OcrCode3'  => (string) ($cLine['OcrCode3'] ?? $cLine['ocr_code3'] ?? ($matchedDetail?->ocr_code3 ?? '')),
+                    $lineObj = [
+                        'BaseEntry'  => $baseEntry,
+                        'BaseLine'   => $baseLine,
+                        'ItemCode'   => $itemCode,
+                        'Quantity'   => $qty,
+                        'WhsCode'    => (string) ($cLine['WhsCode'] ?? $cLine['whs_code'] ?? ($matchedDetail?->whs_code ?: '01')),
+                        'UomEntry'   => isset($cLine['UomEntry']) ? (int) $cLine['UomEntry'] : (is_numeric($matchedDetail?->uom_entry) ? (int) $matchedDetail->uom_entry : -1),
+                        'UnitMsr'    => (string) ($cLine['UnitMsr'] ?? $cLine['unit_msr'] ?? ($matchedDetail?->unit_msr ?: 'PCS')),
+                        'LineTotal'  => isset($cLine['LineTotal']) ? (float) $cLine['LineTotal'] : round($qty * ($matchedDetail?->unit_price ?? 0), 2),
+                        'GrossBuyPr' => isset($cLine['GrossBuyPr']) ? (float) $cLine['GrossBuyPr'] : 0,
+                        'Currency'   => (string) ($cLine['Currency'] ?? 'IDR'),
+                        'Rate'       => isset($cLine['Rate']) ? (float) $cLine['Rate'] : 1,
+                        'TaxCode'    => (string) ($cLine['TaxCode'] ?? $cLine['tax_code'] ?? ($matchedDetail?->tax_code ?: 'PPN11')),
+                        'Price'      => isset($cLine['Price']) ? (float) $cLine['Price'] : (float) ($matchedDetail?->unit_price ?? 0),
+                        'VatGroup'   => (string) ($cLine['VatGroup'] ?? $cLine['vat_group'] ?? ($matchedDetail?->vat_group ?? '')),
+                        'DiscPrcnt'  => isset($cLine['DiscPrcnt']) ? (float) $cLine['DiscPrcnt'] : (float) ($matchedDetail?->disc_percent ?? 0),
+                        'OcrCode'    => (string) ($cLine['OcrCode'] ?? $cLine['ocr_code'] ?? ($matchedDetail?->ocr_code ?? '')),
+                        'OcrCode2'   => (string) ($cLine['OcrCode2'] ?? $cLine['ocr_code2'] ?? ($matchedDetail?->ocr_code2 ?? '')),
+                        'OcrCode3'   => (string) ($cLine['OcrCode3'] ?? $cLine['ocr_code3'] ?? ($matchedDetail?->ocr_code3 ?? '')),
                     ];
+                    if (!empty($cLine['BinAllocations'])) {
+                        $lineObj['BinAllocations'] = $cLine['BinAllocations'];
+                    }
+                    $lines[] = $lineObj;
                 }
             } else {
                 foreach ($items as $item) {
@@ -799,20 +807,24 @@ class PicklistService
                     $lineTotal = round($qty * $unitPrice, 2);
 
                     $lines[] = [
-                        'BaseEntry' => $baseEntry,
-                        'BaseLine'  => (int) $baseLine,
-                        'ItemCode'  => $itemCode,
-                        'Quantity'  => $qty,
-                        'WhsCode'   => (string) ($item->whs_code ?: ($detail?->whs_code ?: '01')),
-                        'UomEntry'  => is_numeric($detail?->uom_entry) ? (int) $detail->uom_entry : -1,
-                        'UnitMsr'   => (string) ($item->unit_msr ?: ($detail?->unit_msr ?: 'PCS')),
-                        'LineTotal' => $lineTotal,
-                        'VatGroup'  => (string) ($detail?->vat_group ?? ''),
-                        'TaxCode'   => (string) ($detail?->tax_code ?? ''),
-                        'DiscPrcnt' => (float) ($detail?->disc_percent ?? 0),
-                        'OcrCode'   => (string) ($detail?->ocr_code ?? ''),
-                        'OcrCode2'  => (string) ($detail?->ocr_code2 ?? ''),
-                        'OcrCode3'  => (string) ($detail?->ocr_code3 ?? ''),
+                        'BaseEntry'  => $baseEntry,
+                        'BaseLine'   => (int) $baseLine,
+                        'ItemCode'   => $itemCode,
+                        'Quantity'   => $qty,
+                        'WhsCode'    => (string) ($item->whs_code ?: ($detail?->whs_code ?: '01')),
+                        'UomEntry'   => is_numeric($detail?->uom_entry) ? (int) $detail->uom_entry : -1,
+                        'UnitMsr'    => (string) ($item->unit_msr ?: ($detail?->unit_msr ?: 'PCS')),
+                        'LineTotal'  => $lineTotal,
+                        'GrossBuyPr' => 0,
+                        'Currency'   => 'IDR',
+                        'Rate'       => 1,
+                        'TaxCode'    => (string) ($detail?->tax_code ?: 'PPN11'),
+                        'Price'      => $unitPrice,
+                        'VatGroup'   => (string) ($detail?->vat_group ?? ''),
+                        'DiscPrcnt'  => (float) ($detail?->disc_percent ?? 0),
+                        'OcrCode'    => (string) ($detail?->ocr_code ?? ''),
+                        'OcrCode2'   => (string) ($detail?->ocr_code2 ?? ''),
+                        'OcrCode3'   => (string) ($detail?->ocr_code3 ?? ''),
                     ];
                 }
             }
