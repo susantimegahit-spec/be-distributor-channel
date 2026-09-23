@@ -25,7 +25,7 @@ class DocsNewPageTest extends TestCase
         $this->assertFileExists($filePath);
         $content = file_get_contents($filePath);
         $this->assertStringContainsString('SMESTA API Documentation (Modern)', $content);
-        $this->assertStringContainsString('scalar-reference-wrapper', $content);
+        $this->assertStringContainsString('api-reference', $content);
         $this->assertStringContainsString('/docs/openapi.yaml', $content);
     }
 
@@ -58,5 +58,7 @@ class DocsNewPageTest extends TestCase
         $this->assertEquals('3.0.3', $parsed['openapi']);
         $this->assertArrayHasKey('/v1/logistic/orders/dashboard', $parsed['paths']);
         $this->assertArrayHasKey('/v1/logistic/orders', $parsed['paths']);
+        $this->assertArrayHasKey('/v1/logistic/picklists/{id}/add-do', $parsed['paths']);
+        $this->assertArrayHasKey('/v1/logistic/picklists/add-do', $parsed['paths']);
     }
 }

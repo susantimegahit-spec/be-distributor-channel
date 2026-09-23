@@ -17658,6 +17658,269 @@ paths:
         '404':
           description: Picklist not found.
 
+  /v1/logistic/picklists/{id}/add-do:
+    post:
+      summary: Add Delivery Order (DO) ke SAP B1 berdasarkan Picklist ID
+      description: |
+        Menjalankan integrasi Add Delivery Order (DO) ke SAP Business One (/api/AddDO) untuk picklist yang ditentukan.
+        Sistem secara otomatis merangkai payload DO dari data Picklist dan Sales Order terkait, mengirim request ke SAP,
+        serta menyimpan nomor DO (DocNum dan DocEntry) ke database Picklist dan Sales Order.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Picklist
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sales_order_id:
+                  type: integer
+                  description: Opsional jika ingin membuat DO hanya untuk satu Sales Order tertentu di picklist
+                  example: 1
+                NoPol:
+                  type: string
+                  description: Override nomor polisi kendaraan
+                  example: "B 1234 ABC"
+                Sopir:
+                  type: string
+                  description: Override nama supir
+                  example: "Budi"
+                NamaChecker:
+                  type: string
+                  description: Override nama checker
+                  example: "Siti"
+                Comments:
+                  type: string
+                  description: Catatan pengiriman
+                  example: "Catatan pengiriman picklist"
+                Container:
+                  type: string
+                  description: Nomor kontainer jika ada
+                  example: ""
+      responses:
+        '200':
+          description: Delivery Order successfully created in SAP and saved to database.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Delivery Order successfully created in SAP (DocNum: 20260088)."
+                  data:
+                    type: object
+                    properties:
+                      picklist_id:
+                        type: integer
+                        example: 1
+                      picklist_no:
+                        type: string
+                        example: "PKL-20260923-0001"
+                      delivery_order_no:
+                        type: string
+                        example: "20260088"
+                      doc_entry:
+                        type: string
+                        example: "1052"
+                      doc_num:
+                        type: string
+                        example: "20260088"
+        '400':
+          description: Business error or SAP AddDO failure.
+        '404':
+          description: Picklist not found.
+
+  /v1/logistic/picklists/add-do:
+    post:
+      summary: Direct Add Delivery Order (DO) ke SAP B1 dengan Payload JSON
+      description: |
+        Mengirim payload request Delivery Order secara langsung ke SAP Business One (/api/AddDO) dengan AddonId otomatis bernilai 2.
+        Setelah berhasil, nomor DO (DocNum) disimpan ke kolom database Sales Order dan Picklist terkait.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - CardCode
+                - Lines
+              properties:
+                Series:
+                  type: integer
+                  example: 1
+                CardCode:
+                  type: string
+                  example: "C20000"
+                NumAtCard:
+                  type: string
+                  example: "PO-12345"
+                DocDate:
+                  type: string
+                  format: date-time
+                  example: "2026-09-08T00:00:00"
+                DocDueDate:
+                  type: string
+                  format: date-time
+                  example: "2026-09-08T00:00:00"
+                TaxDate:
+                  type: string
+                  format: date-time
+                  example: "2026-09-08T00:00:00"
+                SlpCode:
+                  type: integer
+                  example: -1
+                CntctCode:
+                  type: integer
+                  example: 0
+                PayToCode:
+                  type: string
+                  example: ""
+                Address:
+                  type: string
+                  description: Alamat penagihan
+                  example: "Jl. Contoh Alamat Penagihan No. 123"
+                ShipToCode:
+                  type: string
+                  example: ""
+                Address2:
+                  type: string
+                  description: Alamat pengiriman
+                  example: "Jl. Contoh Alamat Pengiriman No. 123"
+                Comments:
+                  type: string
+                  example: "Catatan pengiriman"
+                DiscountPercent:
+                  type: number
+                  example: 0
+                DocTotal:
+                  type: number
+                  example: 0
+                IdDiskon:
+                  type: string
+                  example: ""
+                NoPol:
+                  type: string
+                  example: "B 1234 ABC"
+                KodeEkspedisi:
+                  type: string
+                  example: "JNE"
+                Sopir:
+                  type: string
+                  example: "Budi"
+                NamaEkspedisi:
+                  type: string
+                  example: "JNE Express"
+                NamaChecker:
+                  type: string
+                  example: "Siti"
+                Container:
+                  type: string
+                  example: ""
+                AddonId:
+                  type: integer
+                  description: Hardcoded 2
+                  example: 2
+                UserId:
+                  type: string
+                  example: "1"
+                Lines:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - ItemCode
+                      - Quantity
+                    properties:
+                      BaseEntry:
+                        type: integer
+                        example: 1
+                      BaseLine:
+                        type: integer
+                        example: 0
+                      ItemCode:
+                        type: string
+                        example: "ITEM-001"
+                      Quantity:
+                        type: number
+                        example: 1
+                      WhsCode:
+                        type: string
+                        example: "01"
+                      UomEntry:
+                        type: integer
+                        example: -1
+                      UnitMsr:
+                        type: string
+                        example: "PCS"
+                      LineTotal:
+                        type: number
+                        example: 0
+                      VatGroup:
+                        type: string
+                        example: ""
+                      TaxCode:
+                        type: string
+                        example: ""
+                      DiscPrcnt:
+                        type: number
+                        example: 0
+                      OcrCode:
+                        type: string
+                        example: ""
+                      OcrCode2:
+                        type: string
+                        example: ""
+                      OcrCode3:
+                        type: string
+                        example: ""
+      responses:
+        '200':
+          description: Delivery Order successfully created in SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Delivery Order successfully created in SAP (DocNum: 20260088)."
+                  data:
+                    type: object
+                    properties:
+                      delivery_order_no:
+                        type: string
+                        example: "20260088"
+                      doc_entry:
+                        type: string
+                        example: "1052"
+                      doc_num:
+                        type: string
+                        example: "20260088"
+        '400':
+          description: Business error or SAP AddDO failure.
+
 components:
   securitySchemes:
     BearerAuth:
