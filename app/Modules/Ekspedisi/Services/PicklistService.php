@@ -673,6 +673,446 @@ class PicklistService
     }
 
     /**
+     * Add Delivery Order (DO) in SAP B1 (/api/AddDO) for a picklist.
+     *
+     * @param int $picklistId
+     * @param array $payload
+     * @param int|null $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function addDeliveryOrder(int $picklistId, array $payload = [], ?int $userId = null): array
+    {
+        $picklist = Picklist::with([
+            'items.salesOrder.details',
+            'items.salesOrder.distributor',
+            'expedition',
+        ])->find($picklistId);
+
+        if (!$picklist) {
+            throw new \Exception("Picklist with ID #{$picklistId} not found.", 404);
+        }
+
+        if ($picklist->status === Picklist::STATUS_CANCELLED) {
+            throw new \Exception("Cannot generate Delivery Order for a CANCELLED picklist.", 400);
+        }
+
+        if ($picklist->items->isEmpty()) {
+            throw new \Exception("Picklist #{$picklistId} has no item lines.", 400);
+        }
+
+        // Filter by sales_order_id if specified in payload
+        $filterSoId = !empty($payload['sales_order_id']) ? (int) $payload['sales_order_id'] : null;
+
+        // Group picklist items by sales_order_id
+        $groupedItems = $picklist->items->groupBy('sales_order_id');
+        if ($filterSoId) {
+            if (!$groupedItems->has($filterSoId)) {
+                throw new \Exception("Sales Order #{$filterSoId} is not part of picklist #{$picklistId}.", 400);
+            }
+            $groupedItems = $groupedItems->only([$filterSoId]);
+        }
+
+        $sapUrl = rtrim(config('services.sap.url') ?: env('SAP_API_URL', 'http://103.18.133.187:3100'), '/');
+
+        $user = $userId ? User::with('role')->find($userId) : null;
+        $userName = $user?->name ?? 'System / Logistic';
+        $roleName = $user?->role?->name ?? 'LOGISTIC';
+
+        $resultsPerOrder = [];
+        $latestDocNum = null;
+        $latestDocEntry = null;
+
+        foreach ($groupedItems as $soId => $items) {
+            $firstItem = $items->first();
+            $so = $firstItem?->salesOrder;
+            if (!$so) {
+                $so = SalesOrder::with(['details', 'distributor'])->find($soId);
+            }
+            if (!$so) {
+                continue;
+            }
+
+            $soDetails = $so->details ? $so->details->sortBy('id')->values() : collect();
+
+            // Build Lines for this SO
+            $lines = [];
+            $customLines = $payload['Lines'] ?? $payload['lines'] ?? null;
+
+            if (is_array($customLines) && !empty($customLines)) {
+                foreach ($customLines as $cLine) {
+                    $itemCode = trim((string) ($cLine['ItemCode'] ?? $cLine['item_code'] ?? ''));
+                    $qty = floatval($cLine['Quantity'] ?? $cLine['quantity'] ?? 0);
+                    if (empty($itemCode) || $qty <= 0) {
+                        continue;
+                    }
+
+                    $baseEntry = isset($cLine['BaseEntry']) ? (int) $cLine['BaseEntry'] : ($so->sap_doc_entry ?: 1);
+                    $baseLine  = isset($cLine['BaseLine']) ? (int) $cLine['BaseLine'] : 0;
+
+                    $matchedDetail = $soDetails->firstWhere('item_code', $itemCode);
+
+                    $lines[] = [
+                        'BaseEntry' => $baseEntry,
+                        'BaseLine'  => $baseLine,
+                        'ItemCode'  => $itemCode,
+                        'Quantity'  => $qty,
+                        'WhsCode'   => (string) ($cLine['WhsCode'] ?? $cLine['whs_code'] ?? ($matchedDetail?->whs_code ?: '01')),
+                        'UomEntry'  => isset($cLine['UomEntry']) ? (int) $cLine['UomEntry'] : (is_numeric($matchedDetail?->uom_entry) ? (int) $matchedDetail->uom_entry : -1),
+                        'UnitMsr'   => (string) ($cLine['UnitMsr'] ?? $cLine['unit_msr'] ?? ($matchedDetail?->unit_msr ?: 'PCS')),
+                        'LineTotal' => isset($cLine['LineTotal']) ? (float) $cLine['LineTotal'] : round($qty * ($matchedDetail?->unit_price ?? 0), 2),
+                        'VatGroup'  => (string) ($cLine['VatGroup'] ?? $cLine['vat_group'] ?? ($matchedDetail?->vat_group ?? '')),
+                        'TaxCode'   => (string) ($cLine['TaxCode'] ?? $cLine['tax_code'] ?? ''),
+                        'DiscPrcnt' => isset($cLine['DiscPrcnt']) ? (float) $cLine['DiscPrcnt'] : (float) ($matchedDetail?->disc_percent ?? 0),
+                        'OcrCode'   => (string) ($cLine['OcrCode'] ?? $cLine['ocr_code'] ?? ($matchedDetail?->ocr_code ?? '')),
+                        'OcrCode2'  => (string) ($cLine['OcrCode2'] ?? $cLine['ocr_code2'] ?? ($matchedDetail?->ocr_code2 ?? '')),
+                        'OcrCode3'  => (string) ($cLine['OcrCode3'] ?? $cLine['ocr_code3'] ?? ($matchedDetail?->ocr_code3 ?? '')),
+                    ];
+                }
+            } else {
+                foreach ($items as $item) {
+                    $itemCode = trim((string) $item->item_code);
+                    $qty = floatval($item->pick_qty);
+                    if (empty($itemCode) || $qty <= 0) {
+                        continue;
+                    }
+
+                    $detail = null;
+                    $baseLine = 0;
+                    if ($item->sales_order_detail_id) {
+                        $detail = $soDetails->firstWhere('id', $item->sales_order_detail_id);
+                        if ($detail) {
+                            $idx = $soDetails->search(fn($d) => $d->id === $detail->id);
+                            $baseLine = $idx !== false ? $idx : 0;
+                        }
+                    }
+                    if (!$detail) {
+                        $detail = $soDetails->firstWhere('item_code', $itemCode);
+                        if ($detail) {
+                            $idx = $soDetails->search(fn($d) => $d->id === $detail->id);
+                            $baseLine = $idx !== false ? $idx : 0;
+                        }
+                    }
+
+                    $baseEntry = (int) ($payload['BaseEntry'] ?? $payload['base_entry'] ?? ($so->sap_doc_entry ?: 1));
+                    $unitPrice = $detail ? (float) $detail->unit_price : 0.0;
+                    $lineTotal = round($qty * $unitPrice, 2);
+
+                    $lines[] = [
+                        'BaseEntry' => $baseEntry,
+                        'BaseLine'  => (int) $baseLine,
+                        'ItemCode'  => $itemCode,
+                        'Quantity'  => $qty,
+                        'WhsCode'   => (string) ($item->whs_code ?: ($detail?->whs_code ?: '01')),
+                        'UomEntry'  => is_numeric($detail?->uom_entry) ? (int) $detail->uom_entry : -1,
+                        'UnitMsr'   => (string) ($item->unit_msr ?: ($detail?->unit_msr ?: 'PCS')),
+                        'LineTotal' => $lineTotal,
+                        'VatGroup'  => (string) ($detail?->vat_group ?? ''),
+                        'TaxCode'   => (string) ($detail?->tax_code ?? ''),
+                        'DiscPrcnt' => (float) ($detail?->disc_percent ?? 0),
+                        'OcrCode'   => (string) ($detail?->ocr_code ?? ''),
+                        'OcrCode2'  => (string) ($detail?->ocr_code2 ?? ''),
+                        'OcrCode3'  => (string) ($detail?->ocr_code3 ?? ''),
+                    ];
+                }
+            }
+
+            if (empty($lines)) {
+                throw new \Exception("No valid lines with pick quantity > 0 for Sales Order #{$so->order_no}.", 400);
+            }
+
+            // Header mapping
+            $postingDate = $picklist->posting_date ? Carbon::parse($picklist->posting_date) : now();
+            $dueDate = $picklist->due_date ? Carbon::parse($picklist->due_date) : $postingDate;
+
+            $docDateFormatted = !empty($payload['DocDate'])
+                ? Carbon::parse($payload['DocDate'])->format('Y-m-d\TH:i:s')
+                : $postingDate->format('Y-m-d\TH:i:s');
+            $docDueDateFormatted = !empty($payload['DocDueDate'])
+                ? Carbon::parse($payload['DocDueDate'])->format('Y-m-d\TH:i:s')
+                : $dueDate->format('Y-m-d\TH:i:s');
+            $taxDateFormatted = !empty($payload['TaxDate'])
+                ? Carbon::parse($payload['TaxDate'])->format('Y-m-d\TH:i:s')
+                : $postingDate->format('Y-m-d\TH:i:s');
+
+            $slpCode = isset($payload['SlpCode'])
+                ? (int) $payload['SlpCode']
+                : (is_numeric($so->slp_code) ? (int) $so->slp_code : -1);
+
+            $cntctCode = isset($payload['CntctCode'])
+                ? (int) $payload['CntctCode']
+                : (is_numeric($so->cntct_code) ? (int) $so->cntct_code : 0);
+
+            $series = isset($payload['Series'])
+                ? (int) $payload['Series']
+                : (isset($payload['series']) ? (int) $payload['series'] : (is_numeric($so->series) ? (int) $so->series : 1));
+
+            $doPayload = [
+                'Series'          => $series,
+                'CardCode'        => (string) ($payload['CardCode'] ?? $payload['card_code'] ?? $so->card_code ?? ''),
+                'NumAtCard'       => (string) ($payload['NumAtCard'] ?? $payload['num_at_card'] ?? $so->po_number ?: ($so->order_no ?? '')),
+                'DocDate'         => $docDateFormatted,
+                'DocDueDate'      => $docDueDateFormatted,
+                'TaxDate'         => $taxDateFormatted,
+                'SlpCode'         => $slpCode,
+                'CntctCode'       => $cntctCode,
+                'PayToCode'       => (string) ($payload['PayToCode'] ?? $payload['pay_to_code'] ?? $so->pay_to_code ?? ''),
+                'Address'         => (string) ($payload['Address'] ?? $payload['address'] ?? $so->address ?? ''),
+                'ShipToCode'      => (string) ($payload['ShipToCode'] ?? $payload['ship_to_code'] ?? $so->ship_to_code ?? ''),
+                'Address2'        => (string) ($payload['Address2'] ?? $payload['address2'] ?? $so->address2 ?? ''),
+                'Comments'        => (string) ($payload['Comments'] ?? $payload['comments'] ?? $picklist->comments ?: ($so->comments ?? '')),
+                'DiscountPercent' => isset($payload['DiscountPercent']) ? (float) $payload['DiscountPercent'] : (float) ($so->disc_percent ?? 0),
+                'DocTotal'        => isset($payload['DocTotal']) ? (float) $payload['DocTotal'] : (float) ($so->doc_total ?? 0),
+                'IdDiskon'        => (string) ($payload['IdDiskon'] ?? $payload['id_diskon'] ?? $so->id_discount ?? ''),
+                'NoPol'           => (string) ($payload['NoPol'] ?? $payload['nopol'] ?? $picklist->license_plate ?: ($so->nopol ?? '')),
+                'KodeEkspedisi'   => (string) ($payload['KodeEkspedisi'] ?? $payload['kode_ekspedisi'] ?? ($picklist->expedition?->code ?? '')),
+                'Sopir'           => (string) ($payload['Sopir'] ?? $payload['sopir'] ?? $picklist->driver_name ?: ($so->nama_supir ?? '')),
+                'NamaEkspedisi'   => (string) ($payload['NamaEkspedisi'] ?? $payload['nama_ekspedisi'] ?? $picklist->expedition_name ?? ''),
+                'NamaChecker'     => (string) ($payload['NamaChecker'] ?? $payload['nama_checker'] ?? $picklist->checker_name ?? ''),
+                'Container'       => (string) ($payload['Container'] ?? $payload['container'] ?? ''),
+                'AddonId'         => 2, // Hardcoded 2 as per requirement
+                'UserId'          => (string) ($userId ?: ($payload['UserId'] ?? $payload['user_id'] ?? '1')),
+                'Lines'           => $lines,
+            ];
+
+            try {
+                $response = Http::timeout(30)->post("{$sapUrl}/api/AddDO", $doPayload);
+            } catch (\Throwable $e) {
+                Log::error("Failed to connect to SAP /api/AddDO for Picklist #{$picklistId}: " . $e->getMessage(), ['payload' => $doPayload]);
+                throw new \Exception("Failed to connect to SAP API for Delivery Order: " . $e->getMessage(), 400);
+            }
+
+            if (!$response->successful()) {
+                $status = $response->status();
+                $body = $response->body();
+                Log::error("SAP /api/AddDO returned HTTP {$status} for Picklist #{$picklistId}: {$body}");
+                throw new \Exception("Failed to process Delivery Order in SAP (HTTP {$status}): " . substr($body, 0, 250), 400);
+            }
+
+            $result = $response->json();
+            if (isset($result['ErrorCode']) && (int) $result['ErrorCode'] !== 0) {
+                $errMsg = $result['Message'] ?? 'Unknown SAP error during Delivery Order.';
+                Log::error("SAP /api/AddDO returned ErrorCode {$result['ErrorCode']} for Picklist #{$picklistId}: {$errMsg}");
+                throw new \Exception("SAP Delivery Order Error [{$result['ErrorCode']}]: {$errMsg}", 400);
+            }
+
+            // Extract DocEntry and DocNum
+            $docEntry = null;
+            $docNum = null;
+
+            if (isset($result['Result'])) {
+                if (is_array($result['Result'])) {
+                    $docEntry = $result['Result']['DocEntry'] ?? $result['Result'][0]['DocEntry'] ?? null;
+                    $docNum   = $result['Result']['DocNum'] ?? $result['Result'][0]['DocNum'] ?? null;
+                } elseif (is_numeric($result['Result'])) {
+                    $docEntry = (string) $result['Result'];
+                }
+            }
+
+            $msg = $result['Message'] ?? '';
+            if (!$docNum && !empty($msg) && preg_match('/DocNum:\s*([A-Za-z0-9_-]+)/i', $msg, $m)) {
+                $docNum = $m[1];
+            }
+            if (!$docEntry && !empty($msg) && preg_match('/DocEntry:\s*(\d+)/i', $msg, $m)) {
+                $docEntry = $m[1];
+            }
+
+            $docNum   = $docNum ? (string) $docNum : ($docEntry ? (string) $docEntry : 'PROCESSED');
+            $docEntry = $docEntry ? (string) $docEntry : $docNum;
+
+            $latestDocNum = $docNum;
+            $latestDocEntry = $docEntry;
+
+            // 1. Update Sales Order
+            $so->update([
+                'delivery_order_no' => $docNum,
+                'sap_do_doc_entry'  => (string) $docEntry,
+                'sap_do_doc_num'    => (string) $docNum,
+                'sap_do_status'     => 'SUCCESS',
+                'sap_last_doc_type' => 'DO',
+                'sap_last_doc_num'  => (string) $docNum,
+                'delivery_date'     => now(),
+            ]);
+
+            // 2. Create Sales Order Logistic Log
+            SalesOrderLogisticLog::create([
+                'sales_order_id'   => $so->id,
+                'action'           => 'LOGISTIC_DELIVERY_ORDER',
+                'from_status'      => $so->logistic_status,
+                'to_status'        => $so->logistic_status,
+                'notes'            => "Delivery Order (DO) processed to SAP via Picklist {$picklist->picklist_no} (DocNum: {$docNum}, DocEntry: {$docEntry}).",
+                'user_id'          => $userId,
+                'user_name'        => $userName,
+                'role_name'        => $roleName,
+                'sap_it_doc_entry' => (string) $docEntry,
+                'sap_it_doc_num'   => (string) $docNum,
+            ]);
+
+            // 3. Update picklist_items delivery_order_no
+            PicklistItem::where('picklist_id', $picklist->id)
+                ->where('sales_order_id', $so->id)
+                ->update(['delivery_order_no' => $docNum]);
+
+            $resultsPerOrder[] = [
+                'sales_order_id'    => $so->id,
+                'order_no'          => $so->order_no,
+                'delivery_order_no' => $docNum,
+                'doc_entry'         => $docEntry,
+                'doc_num'           => $docNum,
+                'response'          => $result,
+            ];
+        }
+
+        // 4. Update picklist delivery_order_no and DO fields
+        $picklistDocNums = array_filter(array_map(fn($r) => $r['delivery_order_no'], $resultsPerOrder));
+        $combinedDocNum = !empty($picklistDocNums) ? implode(', ', array_unique($picklistDocNums)) : $latestDocNum;
+
+        $picklist->update([
+            'delivery_order_no' => $combinedDocNum,
+            'do_doc_entry'      => (string) $latestDocEntry,
+            'do_doc_num'        => (string) $latestDocNum,
+            'do_status'         => 'SUCCESS',
+            'updated_by'        => $userId,
+        ]);
+
+        return [
+            'picklist_id'       => $picklist->id,
+            'picklist_no'       => $picklist->picklist_no,
+            'delivery_order_no' => $combinedDocNum,
+            'doc_entry'         => (string) $latestDocEntry,
+            'doc_num'           => (string) $latestDocNum,
+            'results'           => $resultsPerOrder,
+            'picklist'          => $picklist->fresh(['items.salesOrder', 'creator', 'updater']),
+        ];
+    }
+
+    /**
+     * Direct Add Delivery Order (DO) to SAP B1 with fallback/lookup to local SO and Picklist.
+     *
+     * @param array $payload
+     * @param int|null $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function directAddDeliveryOrder(array $payload, ?int $userId = null): array
+    {
+        // Enforce hardcoded AddonId 2
+        $payload['AddonId'] = 2;
+        $payload['UserId']  = (string) ($userId ?: ($payload['UserId'] ?? $payload['user_id'] ?? '1'));
+
+        $sapUrl = rtrim(config('services.sap.url') ?: env('SAP_API_URL', 'http://103.18.133.187:3100'), '/');
+
+        try {
+            $response = Http::timeout(30)->post("{$sapUrl}/api/AddDO", $payload);
+        } catch (\Throwable $e) {
+            Log::error("Failed to connect to SAP /api/AddDO: " . $e->getMessage(), ['payload' => $payload]);
+            throw new \Exception("Failed to connect to SAP API for Delivery Order: " . $e->getMessage(), 400);
+        }
+
+        if (!$response->successful()) {
+            $status = $response->status();
+            $body = $response->body();
+            Log::error("SAP /api/AddDO returned HTTP {$status}: {$body}");
+            throw new \Exception("Failed to process Delivery Order in SAP (HTTP {$status}): " . substr($body, 0, 250), 400);
+        }
+
+        $result = $response->json();
+        if (isset($result['ErrorCode']) && (int) $result['ErrorCode'] !== 0) {
+            $errMsg = $result['Message'] ?? 'Unknown SAP error during Delivery Order.';
+            Log::error("SAP /api/AddDO returned ErrorCode {$result['ErrorCode']}: {$errMsg}");
+            throw new \Exception("SAP Delivery Order Error [{$result['ErrorCode']}]: {$errMsg}", 400);
+        }
+
+        // Extract DocEntry and DocNum
+        $docEntry = null;
+        $docNum = null;
+
+        if (isset($result['Result'])) {
+            if (is_array($result['Result'])) {
+                $docEntry = $result['Result']['DocEntry'] ?? $result['Result'][0]['DocEntry'] ?? null;
+                $docNum   = $result['Result']['DocNum'] ?? $result['Result'][0]['DocNum'] ?? null;
+            } elseif (is_numeric($result['Result'])) {
+                $docEntry = (string) $result['Result'];
+            }
+        }
+
+        $msg = $result['Message'] ?? '';
+        if (!$docNum && !empty($msg) && preg_match('/DocNum:\s*([A-Za-z0-9_-]+)/i', $msg, $m)) {
+            $docNum = $m[1];
+        }
+        if (!$docEntry && !empty($msg) && preg_match('/DocEntry:\s*(\d+)/i', $msg, $m)) {
+            $docEntry = $m[1];
+        }
+
+        $docNum   = $docNum ? (string) $docNum : ($docEntry ? (string) $docEntry : 'PROCESSED');
+        $docEntry = $docEntry ? (string) $docEntry : $docNum;
+
+        // Find associated Sales Order if possible
+        $so = null;
+        if (!empty($payload['sales_order_id'])) {
+            $so = SalesOrder::find($payload['sales_order_id']);
+        }
+        if (!$so && !empty($payload['Lines'][0]['BaseEntry'])) {
+            $baseEntry = $payload['Lines'][0]['BaseEntry'];
+            $so = SalesOrder::where('sap_doc_entry', is_numeric($baseEntry) ? (int)$baseEntry : 0)->first();
+        }
+        if (!$so && !empty($payload['NumAtCard'])) {
+            $so = SalesOrder::where('po_number', $payload['NumAtCard'])
+                ->orWhere('order_no', $payload['NumAtCard'])
+                ->first();
+        }
+
+        $picklist = null;
+        if (!empty($payload['picklist_id'])) {
+            $picklist = Picklist::find($payload['picklist_id']);
+        }
+
+        if ($so) {
+            $so->update([
+                'delivery_order_no' => $docNum,
+                'sap_do_doc_entry'  => (string) $docEntry,
+                'sap_do_doc_num'    => (string) $docNum,
+                'sap_do_status'     => 'SUCCESS',
+                'sap_last_doc_type' => 'DO',
+                'sap_last_doc_num'  => (string) $docNum,
+                'delivery_date'     => now(),
+            ]);
+
+            if (!$picklist) {
+                $pItem = PicklistItem::where('sales_order_id', $so->id)->orderBy('id', 'desc')->first();
+                if ($pItem) {
+                    $picklist = Picklist::find($pItem->picklist_id);
+                }
+            }
+        }
+
+        if ($picklist) {
+            $picklist->update([
+                'delivery_order_no' => $docNum,
+                'do_doc_entry'      => (string) $docEntry,
+                'do_doc_num'        => (string) $docNum,
+                'do_status'         => 'SUCCESS',
+                'updated_by'        => $userId,
+            ]);
+
+            if ($so) {
+                PicklistItem::where('picklist_id', $picklist->id)
+                    ->where('sales_order_id', $so->id)
+                    ->update(['delivery_order_no' => $docNum]);
+            }
+        }
+
+        return [
+            'delivery_order_no' => $docNum,
+            'doc_entry'         => (string) $docEntry,
+            'doc_num'           => (string) $docNum,
+            'sales_order_id'    => $so?->id,
+            'picklist_id'       => $picklist?->id,
+            'response'          => $result,
+        ];
+    }
+
+    /**
      * Generate unique sequential picklist number (e.g. PKL-20260918-0001).
      *
      * @return string

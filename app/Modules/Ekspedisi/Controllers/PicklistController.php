@@ -188,4 +188,50 @@ class PicklistController extends Controller
             ], $statusCode);
         }
     }
+
+    /**
+     * Add Delivery Order (DO) in SAP B1 for a picklist.
+     */
+    public function addDo(Request $request, int $id): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $result = $this->picklistService->addDeliveryOrder($id, $request->all(), $user?->id);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Delivery Order successfully created in SAP (DocNum: {$result['doc_num']}).",
+                'data'    => $result,
+            ], 200);
+        } catch (\Throwable $e) {
+            $statusCode = ($e->getCode() >= 400 && $e->getCode() < 600) ? (int) $e->getCode() : 400;
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $statusCode);
+        }
+    }
+
+    /**
+     * Direct Add Delivery Order (DO) in SAP B1 with raw payload or sales_order_id.
+     */
+    public function directAddDo(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $result = $this->picklistService->directAddDeliveryOrder($request->all(), $user?->id);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Delivery Order successfully created in SAP (DocNum: {$result['doc_num']}).",
+                'data'    => $result,
+            ], 200);
+        } catch (\Throwable $e) {
+            $statusCode = ($e->getCode() >= 400 && $e->getCode() < 600) ? (int) $e->getCode() : 400;
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $statusCode);
+        }
+    }
 }

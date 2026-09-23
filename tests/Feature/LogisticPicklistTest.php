@@ -77,6 +77,7 @@ class LogisticPicklistTest extends TestCase
 
         $this->order1 = SalesOrder::create([
             'order_no'        => 'SO-PKL-001',
+            'sap_doc_entry'   => 5001,
             'sap_doc_num'     => '99001234',
             'distributor_id'  => $this->distributor->id,
             'card_code'       => 'CUST-PL-001',
@@ -101,6 +102,8 @@ class LogisticPicklistTest extends TestCase
 
         $this->order2 = SalesOrder::create([
             'order_no'        => 'SO-PKL-002',
+            'sap_doc_entry'   => 5002,
+            'sap_doc_num'     => '99001235',
             'distributor_id'  => $this->distributor->id,
             'card_code'       => 'CUST-PL-001',
             'customer_name'   => 'PT Mitra Logistik Jaya',
@@ -593,6 +596,267 @@ class LogisticPicklistTest extends TestCase
             ->assertJsonPath('message', 'SAP Inventory Transfer Error [-5002]: Stock insufficient in warehouse WHS-SBY');
 
         $this->assertEquals($countBefore, Picklist::count());
+    }
+
+    public function test_can_add_delivery_order_for_picklist_and_saves_do_num_to_picklist_and_so(): void
+    {
+        $soDo = SalesOrder::create([
+            'order_no'        => 'SO-PKL-DO-001',
+            'sap_doc_entry'   => 5001,
+            'sap_doc_num'     => '99009999',
+            'distributor_id'  => $this->distributor->id,
+            'card_code'       => 'CUST-PL-001',
+            'customer_name'   => 'PT Mitra Logistik Jaya',
+            'doc_date'        => '2026-09-18',
+            'req_due_date'    => '2026-09-20',
+            'doc_due_date'    => '2026-09-20',
+            'eta_date'        => '2026-09-22',
+            'status'          => 'ORDER_APPROVED',
+            'logistic_status' => 'APPROVED',
+        ]);
+
+        $detailDo = SalesOrderDetail::create([
+            'sales_order_id' => $soDo->id,
+            'item_code'      => $this->item1->item_code,
+            'quantity'       => 100,
+            'unit_msr'       => 'CTN',
+            'whs_code'       => 'WHS-SBY',
+            'unit_price'     => 50000,
+            'line_total'     => 5000000,
+        ]);
+
+        // 1. Create a picklist
+        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::fake([
+            '*/api/addIT' => Http::response([
+                'ErrorCode' => 0,
+                'Message'   => 'Success DocNum: 7788 DocEntry: 5566',
+                'Result'    => [
+                    'DocEntry' => 5566,
+                    'DocNum'   => 7788,
+                ],
+            ], 200),
+            '*/api/AddDO' => function ($request) use ($soDo) {
+                $body = $request->data();
+                $this->assertEquals(2, $body['AddonId']);
+                $this->assertEquals($soDo->card_code, $body['CardCode']);
+                $this->assertCount(1, $body['Lines']);
+                $this->assertEquals(5001, $body['Lines'][0]['BaseEntry']);
+                $this->assertEquals(0, $body['Lines'][0]['BaseLine']);
+                $this->assertEquals(25.0, $body['Lines'][0]['Quantity']);
+
+                return Http::response([
+                    'ErrorCode' => 0,
+                    'Message'   => 'Success - [AddDeliveryOrder]. DocEntry: 1052, DocNum: 20260088',
+                    'Result'    => [
+                        'DocEntry' => 1052,
+                        'DocNum'   => 20260088,
+                    ],
+                ], 200);
+            },
+        ]);
+
+        $createPayload = [
+            'shipping_type' => 'pickup',
+            'posting_date'  => '2026-09-22',
+            'due_date'      => '2026-09-22',
+            'items' => [
+                [
+                    'sales_order_id'        => $soDo->id,
+                    'sales_order_detail_id' => $detailDo->id,
+                    'item_code'             => $this->item1->item_code,
+                    'pick_qty'              => 25,
+                ],
+            ],
+        ];
+
+        $createRes = $this->actingAs($this->user)
+            ->postJson('/api/distributor-channel/v1/logistic/picklists', $createPayload);
+        $picklistId = $createRes->json('data.id');
+
+        // 2. Request Add DO
+        $doRes = $this->actingAs($this->user)
+            ->postJson("/api/distributor-channel/v1/logistic/picklists/{$picklistId}/add-do", [
+                'NoPol' => 'B 1234 ABC',
+                'Sopir' => 'Budi',
+            ]);
+
+        $doRes->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.delivery_order_no', '20260088')
+            ->assertJsonPath('data.doc_num', '20260088')
+            ->assertJsonPath('data.doc_entry', '1052');
+
+        // 3. Verify database persistence in Picklist
+        $picklist = Picklist::with('items')->find($picklistId);
+        $this->assertEquals('20260088', $picklist->delivery_order_no);
+        $this->assertEquals('20260088', $picklist->do_doc_num);
+        $this->assertEquals('1052', $picklist->do_doc_entry);
+        $this->assertEquals('SUCCESS', $picklist->do_status);
+        $this->assertEquals('20260088', $picklist->items->first()->delivery_order_no);
+
+        // 4. Verify database persistence in Sales Order
+        $so = SalesOrder::find($soDo->id);
+        $this->assertEquals('20260088', $so->delivery_order_no);
+        $this->assertEquals('20260088', $so->sap_do_doc_num);
+        $this->assertEquals('1052', $so->sap_do_doc_entry);
+        $this->assertEquals('SUCCESS', $so->sap_do_status);
+        $this->assertEquals('DO', $so->sap_last_doc_type);
+        $this->assertEquals('20260088', $so->sap_last_doc_num);
+    }
+
+    public function test_add_delivery_order_fails_gracefully_when_sap_add_do_errors(): void
+    {
+        $soDo = SalesOrder::create([
+            'order_no'        => 'SO-PKL-DO-002',
+            'sap_doc_entry'   => 5003,
+            'sap_doc_num'     => '99009998',
+            'distributor_id'  => $this->distributor->id,
+            'card_code'       => 'CUST-PL-001',
+            'customer_name'   => 'PT Mitra Logistik Jaya',
+            'doc_date'        => '2026-09-18',
+            'req_due_date'    => '2026-09-20',
+            'doc_due_date'    => '2026-09-20',
+            'eta_date'        => '2026-09-22',
+            'status'          => 'ORDER_APPROVED',
+            'logistic_status' => 'APPROVED',
+        ]);
+
+        $detailDo = SalesOrderDetail::create([
+            'sales_order_id' => $soDo->id,
+            'item_code'      => $this->item1->item_code,
+            'quantity'       => 100,
+            'unit_msr'       => 'CTN',
+            'whs_code'       => 'WHS-SBY',
+            'unit_price'     => 50000,
+            'line_total'     => 5000000,
+        ]);
+
+        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::fake([
+            '*/api/addIT' => Http::response([
+                'ErrorCode' => 0,
+                'Message'   => 'Success DocNum: 7788 DocEntry: 5566',
+                'Result'    => [
+                    'DocEntry' => 5566,
+                    'DocNum'   => 7788,
+                ],
+            ], 200),
+            '*/api/AddDO' => Http::response([
+                'ErrorCode' => -1001,
+                'Message'   => 'Base document line already closed in SAP',
+            ], 200),
+        ]);
+
+        $createPayload = [
+            'shipping_type' => 'pickup',
+            'posting_date'  => '2026-09-22',
+            'due_date'      => '2026-09-22',
+            'items' => [
+                [
+                    'sales_order_id'        => $soDo->id,
+                    'sales_order_detail_id' => $detailDo->id,
+                    'item_code'             => $this->item1->item_code,
+                    'pick_qty'              => 10,
+                ],
+            ],
+        ];
+
+        $createRes = $this->actingAs($this->user)
+            ->postJson('/api/distributor-channel/v1/logistic/picklists', $createPayload);
+        $picklistId = $createRes->json('data.id');
+
+        $doRes = $this->actingAs($this->user)
+            ->postJson("/api/distributor-channel/v1/logistic/picklists/{$picklistId}/add-do");
+
+        $doRes->assertStatus(400)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'SAP Delivery Order Error [-1001]: Base document line already closed in SAP');
+
+        $picklist = Picklist::find($picklistId);
+        $this->assertNull($picklist->delivery_order_no);
+
+        $so = SalesOrder::find($soDo->id);
+        $this->assertNull($so->delivery_order_no);
+    }
+
+    public function test_can_call_direct_add_do_api_matching_user_sample_payload(): void
+    {
+        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::fake([
+            '*/api/AddDO' => function ($request) {
+                $body = $request->data();
+                $this->assertEquals(2, $body['AddonId']);
+                $this->assertEquals('B 1234 ABC', $body['NoPol']);
+                $this->assertEquals('Budi', $body['Sopir']);
+                $this->assertEquals('JNE Express', $body['NamaEkspedisi']);
+                $this->assertEquals('Siti', $body['NamaChecker']);
+
+                return Http::response([
+                    'ErrorCode' => 0,
+                    'Message'   => 'Success - [AddDeliveryOrder]. DocEntry: 1052, DocNum: 20260088',
+                ], 200);
+            },
+        ]);
+
+        $samplePayload = [
+            'Series'          => 1,
+            'CardCode'        => $this->order1->card_code,
+            'NumAtCard'       => $this->order1->order_no,
+            'DocDate'         => '2026-09-08T00:00:00',
+            'DocDueDate'      => '2026-09-08T00:00:00',
+            'TaxDate'         => '2026-09-08T00:00:00',
+            'SlpCode'         => -1,
+            'CntctCode'       => 0,
+            'PayToCode'       => '',
+            'Address'         => 'Jl. Contoh Alamat Penagihan No. 123',
+            'ShipToCode'      => '',
+            'Address2'        => 'Jl. Contoh Alamat Pengiriman No. 123',
+            'Comments'        => 'Catatan pengiriman',
+            'DiscountPercent' => 0,
+            'DocTotal'        => 0,
+            'IdDiskon'        => '',
+            'NoPol'           => 'B 1234 ABC',
+            'KodeEkspedisi'   => 'JNE',
+            'Sopir'           => 'Budi',
+            'NamaEkspedisi'   => 'JNE Express',
+            'NamaChecker'     => 'Siti',
+            'Container'       => '',
+            'AddonId'         => 2,
+            'UserId'          => '1',
+            'Lines'           => [
+                [
+                    'BaseEntry' => 5001,
+                    'BaseLine'  => 0,
+                    'ItemCode'  => $this->item1->item_code,
+                    'Quantity'  => 1,
+                    'WhsCode'   => '01',
+                    'UomEntry'  => -1,
+                    'UnitMsr'   => 'PCS',
+                    'LineTotal' => 0,
+                    'VatGroup'  => '',
+                    'TaxCode'   => '',
+                    'DiscPrcnt' => 0,
+                    'OcrCode'   => '',
+                    'OcrCode2'  => '',
+                    'OcrCode3'  => '',
+                ],
+            ],
+        ];
+
+        $res = $this->actingAs($this->user)
+            ->postJson('/api/distributor-channel/v1/logistic/picklists/add-do', $samplePayload);
+
+        $res->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.delivery_order_no', '20260088')
+            ->assertJsonPath('data.doc_num', '20260088')
+            ->assertJsonPath('data.doc_entry', '1052');
+
+        $so = SalesOrder::find($this->order1->id);
+        $this->assertEquals('20260088', $so->delivery_order_no);
+        $this->assertEquals('20260088', $so->sap_do_doc_num);
+        $this->assertEquals('1052', $so->sap_do_doc_entry);
     }
 }
 

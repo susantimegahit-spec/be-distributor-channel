@@ -50,6 +50,7 @@ class PicklistItem extends Model
         'unit_weight',
         'total_weight',
         'bin_allocations',
+        'delivery_order_no',
     ];
 
     protected $casts = [
