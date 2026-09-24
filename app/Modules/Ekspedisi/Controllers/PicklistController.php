@@ -108,6 +108,10 @@ class PicklistController extends Controller
             'items.*.direct_bin_quantity'   => 'nullable|numeric|min:0',
             'items.*.directBinQuantity'     => 'nullable|numeric|min:0',
             'to_whs_code'                   => 'nullable|string|max:50',
+            'series'                        => 'nullable|integer',
+            'series_name'                   => 'nullable|string|max:100',
+            'seal_number'                   => 'nullable|string|max:100',
+            'noseal'                        => 'nullable|string|max:100',
         ]);
 
         try {

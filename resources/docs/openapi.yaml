@@ -17660,11 +17660,12 @@ paths:
 
   /v1/logistic/picklists/{id}/add-do:
     post:
-      summary: Add Delivery Order (DO) ke SAP B1 berdasarkan Picklist ID
+      summary: Add Delivery Order (DO) ke SAP B1 berdasarkan Picklist ID (Batch Atomic)
       description: |
         Menjalankan integrasi Add Delivery Order (DO) ke SAP Business One (/api/AddDO) untuk picklist yang ditentukan.
-        Sistem secara otomatis merangkai payload DO dari data Picklist dan Sales Order terkait, mengirim request ke SAP,
-        serta menyimpan nomor DO (DocNum dan DocEntry) ke database Picklist dan Sales Order.
+        Payload dikirim ke SAP dalam format JSON Array berisi kumpulan dokumen DO berbasis Sales Order secara sekaligus (batch) dengan transaksi atomik SAP (StartTransaction dan EndTransaction). Jika salah satu dokumen gagal dibuat, seluruh dokumen dalam antrean otomatis dibatalkan (Rollback).
+        Data barang (ItemCode, harga satuan, UoM/satuan, dan kode pajak) otomatis mewarisi Sales Order asal.
+        Nomor DO (DocNum dan DocEntry) otomatis disimpan ke database Picklist dan Sales Order.
       tags:
         - Logistic - Picklist
       security:
@@ -17679,8 +17680,8 @@ paths:
       requestBody:
         required: false
         description: |
-          Payload opsional. Jika request body dikosongkan (`{}`), sistem akan mengumpulkan data secara otomatis dari dokumen Picklist, Sales Order, dan SAP IT terkait.
-          Jika field-field berikut diisi, sistem akan menggunakan nilai override tersebut untuk dikirimkan ke SAP B1 (/api/AddDO).
+          Payload opsional. Jika request body dikosongkan (`{}`), sistem akan mengumpulkan data secara otomatis dari dokumen Picklist dan Sales Order terkait.
+          Field-field override opsional dapat dikirimkan seperti Series, Noseal, NoPol, Sopir, atau Lines kustom.
         content:
           application/json:
             schema:
@@ -17692,71 +17693,31 @@ paths:
                   example: 1
                 Series:
                   type: integer
-                  description: Series nomor dokumen SAP
-                  example: 1
-                CardCode:
-                  type: string
-                  description: Kode Customer / Distributor
-                  example: "C20000"
+                  description: Nomor Series DO di SAP (misal 75). Default mengambil dari picklist->series atau SO->series
+                  example: 75
                 NumAtCard:
                   type: string
-                  description: Nomor PO / Referensi customer
-                  example: "PO-12345"
+                  description: Nomor PO Customer / Order No
+                  example: "PO-CUST-001"
                 DocDate:
                   type: string
                   format: date-time
                   description: Tanggal dokumen
-                  example: "2026-09-08T00:00:00"
+                  example: "2026-09-24T00:00:00"
                 DocDueDate:
                   type: string
                   format: date-time
                   description: Tanggal jatuh tempo pengiriman
-                  example: "2026-09-08T00:00:00"
+                  example: "2026-09-24T00:00:00"
                 TaxDate:
                   type: string
                   format: date-time
                   description: Tanggal pajak
-                  example: "2026-09-08T00:00:00"
-                SlpCode:
-                  type: integer
-                  description: Sales employee code
-                  example: -1
-                CntctCode:
-                  type: integer
-                  description: Contact person code
-                  example: 0
-                PayToCode:
-                  type: string
-                  description: Kode alamat penagihan
-                  example: ""
-                Address:
-                  type: string
-                  description: Alamat penagihan lengkap
-                  example: "Jl. Contoh Alamat Penagihan No. 123"
-                ShipToCode:
-                  type: string
-                  description: Kode alamat pengiriman
-                  example: ""
-                Address2:
-                  type: string
-                  description: Alamat pengiriman lengkap
-                  example: "Jl. Contoh Alamat Pengiriman No. 123"
+                  example: "2026-09-24T00:00:00"
                 Comments:
                   type: string
                   description: Catatan pengiriman
-                  example: "Catatan pengiriman"
-                DiscountPercent:
-                  type: number
-                  description: Persentase diskon
-                  example: 0
-                DocTotal:
-                  type: number
-                  description: Total nilai dokumen
-                  example: 0
-                IdDiskon:
-                  type: string
-                  description: ID / kode program diskon
-                  example: ""
+                  example: "Pengiriman parsial SO tahap 1"
                 NoPol:
                   type: string
                   description: Nomor polisi armada kendaraan
@@ -17765,104 +17726,72 @@ paths:
                   type: string
                   description: Kode ekspedisi
                   example: "JNE"
-                Sopir:
-                  type: string
-                  description: Nama supir / driver
-                  example: "Budi"
                 NamaEkspedisi:
                   type: string
                   description: Nama vendor ekspedisi
-                  example: "JNE Express"
+                  example: "JNE Trucking"
+                Sopir:
+                  type: string
+                  description: Nama supir / driver
+                  example: "Budi Santoso"
                 NamaChecker:
                   type: string
                   description: Nama staf checker gudang
-                  example: "Siti"
-                Container:
+                  example: "Andi"
+                Noseal:
                   type: string
-                  description: Nomor container jika ada
-                  example: ""
+                  description: Nomor segel pengiriman (seal number)
+                  example: "12345"
+                CardCode:
+                  type: string
+                  description: Opsional. Sistem otomatis mewarisi CardCode dari Sales Order asal (BaseEntry)
+                  example: "C20000"
                 AddonId:
                   type: integer
                   description: Otomatis di-hardcode bernilai 2 di backend
                   example: 2
                 UserId:
                   type: string
-                  description: ID pengguna
+                  description: ID pengguna dari sesi login
                   example: "1"
                 Lines:
                   type: array
-                  description: Custom item lines DO (opsional; jika tidak diisi akan otomatis diambil dari item picklist)
+                  description: Minimal data baris pengiriman (opsional; jika dikosongkan otomatis membaca item picklist)
                   items:
                     type: object
                     required:
-                      - ItemCode
+                      - BaseEntry
+                      - BaseLine
                       - Quantity
                     properties:
                       BaseEntry:
                         type: integer
                         description: DocEntry dari Sales Order SAP
-                        example: 1
+                        example: 1052
                       BaseLine:
                         type: integer
-                        description: LineNum dari baris SO SAP
+                        description: Nomor baris/LineNum dari Sales Order (indeks dimulai dari 0)
                         example: 0
-                      ItemCode:
-                        type: string
-                        example: "ITEM-001"
                       Quantity:
                         type: number
-                        example: 1
+                        description: Jumlah barang yang dikirim (tidak boleh melebihi sisa open quantity di SO)
+                        example: 5.0
                       WhsCode:
                         type: string
+                        description: Opsional. Kode gudang jika ingin mengalihkan pengiriman
                         example: "01"
-                      UomEntry:
-                        type: integer
-                        example: -1
-                      UnitMsr:
-                        type: string
-                        example: "PCS"
-                      LineTotal:
-                        type: number
-                        example: 0
-                      GrossBuyPr:
-                        type: number
-                        example: 0
-                      Currency:
-                        type: string
-                        example: "IDR"
-                      Rate:
-                        type: number
-                        example: 1
-                      TaxCode:
-                        type: string
-                        example: "PPN11"
-                      Price:
-                        type: number
-                        example: 10000
-                      VatGroup:
-                        type: string
-                        example: ""
-                      DiscPrcnt:
-                        type: number
-                        example: 0
                       OcrCode:
                         type: string
-                        example: ""
+                        description: Kode cabang (Cost Center 1)
+                        example: "SBY"
                       OcrCode2:
                         type: string
-                        example: ""
+                        description: Kode unit (Cost Center 2)
+                        example: "GRM"
                       OcrCode3:
                         type: string
-                        example: ""
-                      BinAllocations:
-                        type: array
-                        items:
-                          type: object
-                          properties:
-                            BinAbsEntry:
-                              type: integer
-                              example: 1
-                            Quantity:
+                        description: Kode departemen (Cost Center 3)
+                        example: "MKT"
                               type: number
                               example: 1
             example:
@@ -17947,217 +17876,183 @@ paths:
 
   /v1/logistic/picklists/add-do:
     post:
-      summary: Direct Add Delivery Order (DO) ke SAP B1 dengan Payload JSON
+      summary: Direct Add Delivery Order (DO) ke SAP B1 (Batch Atomic JSON Array)
       description: |
-        Mengirim payload request Delivery Order secara langsung ke SAP Business One (/api/AddDO) dengan AddonId otomatis bernilai 2.
-        Setelah berhasil, nomor DO (DocNum) disimpan ke kolom database Sales Order dan Picklist terkait.
+        Mengirim payload request Delivery Order secara langsung ke SAP Business One (/api/AddDO).
+        Mendukung pembuatan satu atau banyak dokumen DO sekaligus (batch) berbasis Sales Order dalam satu transaksi atomik database SAP (StartTransaction dan EndTransaction).
+        Jika salah satu dokumen gagal dibuat, seluruh dokumen dalam antrean request otomatis dibatalkan (Rollback / gagal satu, gagal semua).
+        CardCode tidak wajib diisi karena sistem otomatis membaca CardCode, sales person, dan kontak dari Sales Order asal (BaseEntry).
+        ItemCode, harga satuan, UoM/satuan, dan kode pajak tidak perlu dikirim karena otomatis mewarisi Sales Order.
+        Setelah berhasil, nomor DO (DocNum dan DocEntry) disimpan ke kolom database Sales Order dan Picklist terkait.
       tags:
         - Logistic - Picklist
       security:
         - BearerAuth: []
       requestBody:
         required: true
+        description: JSON Array berisi kumpulan objek header DO dan barisnya (atau objek tunggal)
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - CardCode
-                - Lines
-              properties:
-                Series:
-                  type: integer
-                  example: 1
-                CardCode:
-                  type: string
-                  example: "C20000"
-                NumAtCard:
-                  type: string
-                  example: "PO-12345"
-                DocDate:
-                  type: string
-                  format: date-time
-                  example: "2026-09-08T00:00:00"
-                DocDueDate:
-                  type: string
-                  format: date-time
-                  example: "2026-09-08T00:00:00"
-                TaxDate:
-                  type: string
-                  format: date-time
-                  example: "2026-09-08T00:00:00"
-                SlpCode:
-                  type: integer
-                  example: -1
-                CntctCode:
-                  type: integer
-                  example: 0
-                PayToCode:
-                  type: string
-                  example: ""
-                Address:
-                  type: string
-                  description: Alamat penagihan
-                  example: "Jl. Contoh Alamat Penagihan No. 123"
-                ShipToCode:
-                  type: string
-                  example: ""
-                Address2:
-                  type: string
-                  description: Alamat pengiriman
-                  example: "Jl. Contoh Alamat Pengiriman No. 123"
-                Comments:
-                  type: string
-                  example: "Catatan pengiriman"
-                DiscountPercent:
-                  type: number
-                  example: 0
-                DocTotal:
-                  type: number
-                  example: 0
-                IdDiskon:
-                  type: string
-                  example: ""
-                NoPol:
-                  type: string
-                  example: "B 1234 ABC"
-                KodeEkspedisi:
-                  type: string
-                  example: "JNE"
-                Sopir:
-                  type: string
-                  example: "Budi"
-                NamaEkspedisi:
-                  type: string
-                  example: "JNE Express"
-                NamaChecker:
-                  type: string
-                  example: "Siti"
-                Container:
-                  type: string
-                  example: ""
-                AddonId:
-                  type: integer
-                  description: Hardcoded 2
-                  example: 2
-                UserId:
-                  type: string
-                  example: "1"
-                Lines:
-                  type: array
-                  items:
-                    type: object
-                    required:
-                      - ItemCode
-                      - Quantity
-                    properties:
-                      BaseEntry:
-                        type: integer
-                        example: 1
-                      BaseLine:
-                        type: integer
-                        example: 0
-                      ItemCode:
-                        type: string
-                        example: "ITEM-001"
-                      Quantity:
-                        type: number
-                        example: 1
-                      WhsCode:
-                        type: string
-                        example: "01"
-                      UomEntry:
-                        type: integer
-                        example: -1
-                      UnitMsr:
-                        type: string
-                        example: "PCS"
-                      LineTotal:
-                        type: number
-                        example: 0
-                      GrossBuyPr:
-                        type: number
-                        example: 0
-                      Currency:
-                        type: string
-                        example: "IDR"
-                      Rate:
-                        type: number
-                        example: 1
-                      TaxCode:
-                        type: string
-                        example: "PPN11"
-                      Price:
-                        type: number
-                        example: 10000
-                      VatGroup:
-                        type: string
-                        example: ""
-                      DiscPrcnt:
-                        type: number
-                        example: 0
-                      OcrCode:
-                        type: string
-                        example: ""
-                      OcrCode2:
-                        type: string
-                        example: ""
-                      OcrCode3:
-                        type: string
-                        example: ""
-                      BinAllocations:
-                        type: array
-                        items:
-                          type: object
-                          properties:
-                            BinAbsEntry:
-                              type: integer
-                              example: 1
-                            Quantity:
-                              type: number
-                              example: 1
+              type: array
+              items:
+                type: object
+                required:
+                  - Series
+                  - Lines
+                properties:
+                  Series:
+                    type: integer
+                    description: Nomor Series DO di SAP
+                    example: 75
+                  DocDate:
+                    type: string
+                    format: date-time
+                    description: Tanggal dokumen
+                    example: "2026-09-24T00:00:00"
+                  DocDueDate:
+                    type: string
+                    format: date-time
+                    description: Tanggal jatuh tempo pengiriman
+                    example: "2026-09-24T00:00:00"
+                  TaxDate:
+                    type: string
+                    format: date-time
+                    description: Tanggal pajak
+                    example: "2026-09-24T00:00:00"
+                  NumAtCard:
+                    type: string
+                    description: Nomor referensi / PO customer
+                    example: "PO-CUST-001"
+                  Comments:
+                    type: string
+                    description: Catatan pengiriman
+                    example: "Pengiriman parsial SO tahap 1"
+                  NoPol:
+                    type: string
+                    description: Nomor polisi armada kendaraan
+                    example: "B 1234 ABC"
+                  KodeEkspedisi:
+                    type: string
+                    description: Kode ekspedisi
+                    example: "JNE"
+                  NamaEkspedisi:
+                    type: string
+                    description: Nama vendor ekspedisi
+                    example: "JNE Trucking"
+                  Sopir:
+                    type: string
+                    description: Nama supir
+                    example: "Budi Santoso"
+                  NamaChecker:
+                    type: string
+                    description: Nama staf checker
+                    example: "Andi"
+                  AddonId:
+                    type: integer
+                    description: Otomatis di-hardcode bernilai 2
+                    example: 2
+                  UserId:
+                    type: string
+                    description: ID pengguna dari user login
+                    example: "1"
+                  Noseal:
+                    type: string
+                    description: Nomor segel pengiriman (seal number)
+                    example: "12345"
+                  CardCode:
+                    type: string
+                    description: Opsional. Otomatis membaca dari SO (BaseEntry)
+                    example: "C20000"
+                  Lines:
+                    type: array
+                    description: Minimal data baris pengiriman
+                    items:
+                      type: object
+                      required:
+                        - BaseEntry
+                        - BaseLine
+                        - Quantity
+                      properties:
+                        BaseEntry:
+                          type: integer
+                          description: DocEntry dari Sales Order
+                          example: 1052
+                        BaseLine:
+                          type: integer
+                          description: Nomor baris/LineNum dari Sales Order (indeks dimulai dari 0)
+                          example: 0
+                        Quantity:
+                          type: number
+                          description: Jumlah barang yang dikirim (tidak boleh melebihi sisa open quantity di SO)
+                          example: 5.0
+                        WhsCode:
+                          type: string
+                          description: Opsional. Gudang pengiriman jika berbeda dari SO
+                          example: "01"
+                        OcrCode:
+                          type: string
+                          description: Kode cabang (Cost Center 1)
+                          example: "SBY"
+                        OcrCode2:
+                          type: string
+                          description: Kode unit (Cost Center 2)
+                          example: "GRM"
+                        OcrCode3:
+                          type: string
+                          description: Kode departemen (Cost Center 3)
+                          example: "MKT"
             example:
-              Series: 1
-              CardCode: "C20000"
-              NumAtCard: "PO-12345"
-              DocDate: "2026-09-08T00:00:00"
-              DocDueDate: "2026-09-08T00:00:00"
-              TaxDate: "2026-09-08T00:00:00"
-              SlpCode: -1
-              CntctCode: 0
-              PayToCode: ""
-              Address: "Jl. Contoh Alamat Penagihan No. 123"
-              ShipToCode: ""
-              Address2: "Jl. Contoh Alamat Pengiriman No. 123"
-              Comments: "Catatan pengiriman"
-              DiscountPercent: 0
-              DocTotal: 0
-              IdDiskon: ""
-              NoPol: "B 1234 ABC"
-              KodeEkspedisi: "JNE"
-              Sopir: "Budi"
-              NamaEkspedisi: "JNE Express"
-              NamaChecker: "Siti"
-              Container: ""
-              AddonId: 2
-              UserId: "1"
-              Lines:
-                - BaseEntry: 1
-                  BaseLine: 0
-                  ItemCode: "ITEM-001"
-                  Quantity: 1
-                  WhsCode: "01"
-                  UomEntry: -1
-                  UnitMsr: "PCS"
-                  LineTotal: 0
-                  GrossBuyPr: 0
-                  Currency: "IDR"
-                  Rate: 1
-                  TaxCode: "PPN11"
-                  Price: 10000
-                  BinAllocations:
-                    - BinAbsEntry: 1
-                      Quantity: 1
+              - Series: 75
+                DocDate: "2026-09-24T00:00:00"
+                DocDueDate: "2026-09-24T00:00:00"
+                TaxDate: "2026-09-24T00:00:00"
+                NumAtCard: "PO-CUST-001"
+                Comments: "Pengiriman parsial SO tahap 1"
+                NoPol: "B 1234 ABC"
+                KodeEkspedisi: "JNE"
+                NamaEkspedisi: "JNE Trucking"
+                Sopir: "Budi Santoso"
+                NamaChecker: "Andi"
+                AddonId: 2
+                UserId: "1"
+                Noseal: "12345"
+                Lines:
+                  - BaseEntry: 1052
+                    BaseLine: 0
+                    Quantity: 5.0
+                    WhsCode: "01"
+                    OcrCode: "SBY"
+                    OcrCode2: "GRM"
+                    OcrCode3: "MKT"
+                  - BaseEntry: 1052
+                    BaseLine: 1
+                    Quantity: 2.0
+                    WhsCode: "01"
+                    OcrCode: "SBY"
+                    OcrCode2: "GRM"
+                    OcrCode3: "MKT"
+              - Series: 75
+                DocDate: "2026-09-24T00:00:00"
+                DocDueDate: "2026-09-25T00:00:00"
+                TaxDate: "2026-09-24T00:00:00"
+                NumAtCard: "PO-CUST-002"
+                Comments: "Pengiriman SO cabang timur"
+                NoPol: "B 5678 XYZ"
+                KodeEkspedisi: "INTERNAL"
+                NamaEkspedisi: "Armada Sendiri"
+                Sopir: "Santoso"
+                NamaChecker: "Andi"
+                AddonId: 2
+                UserId: "1"
+                Lines:
+                  - BaseEntry: 1053
+                    BaseLine: 0
+                    Quantity: 10.0
+                    WhsCode: "02"
+                    OcrCode: "SBY"
+                    OcrCode2: "GRM"
+                    OcrCode3: "MKT"
       responses:
         '200':
           description: Delivery Order successfully created in SAP.
@@ -18171,7 +18066,7 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: "Delivery Order successfully created in SAP (DocNum: 20260088)."
+                    example: "Delivery Order successfully created in SAP."
                   data:
                     type: object
                     properties:
@@ -18184,6 +18079,29 @@ paths:
                       doc_num:
                         type: string
                         example: "20260088"
+                      documents:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            doc_entry:
+                              type: string
+                              example: "1052"
+                            doc_num:
+                              type: string
+                              example: "20260088"
+                            sales_order_id:
+                              type: integer
+                              example: 1
+                            order_no:
+                              type: string
+                              example: "SO-PKL-001"
+                            picklist_id:
+                              type: integer
+                              example: 10
+                            picklist_no:
+                              type: string
+                              example: "PKL-202609-0001"
         '400':
           description: Business error or SAP AddDO failure.
 

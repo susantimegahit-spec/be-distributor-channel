@@ -71,6 +71,9 @@ class Picklist extends Model
         'do_doc_num',
         'do_status',
         'to_whs_code',
+        'series',
+        'series_name',
+        'seal_number',
         'created_by',
         'updated_by',
     ];
@@ -78,6 +81,7 @@ class Picklist extends Model
     protected $casts = [
         'posting_date'       => 'date',
         'due_date'           => 'date',
+        'series'             => 'integer',
         'total_weight_limit' => 'decimal:4',
         'total_weight'       => 'decimal:4',
         'estimated_cost'     => 'decimal:2',

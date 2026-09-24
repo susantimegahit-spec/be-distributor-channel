@@ -433,6 +433,9 @@ class PicklistService
                 'it_doc_num'         => (string) $itResult['doc_num'],
                 'it_status'          => 'SUCCESS',
                 'to_whs_code'        => self::DEFAULT_IT_TO_WHS_CODE,
+                'series'             => !empty($payload['series']) ? (int) $payload['series'] : (!empty($payload['Series']) ? (int) $payload['Series'] : null),
+                'series_name'        => !empty($payload['series_name']) ? trim((string) $payload['series_name']) : (!empty($payload['SeriesName']) ? trim((string) $payload['SeriesName']) : null),
+                'seal_number'        => !empty($payload['seal_number']) ? trim((string) $payload['seal_number']) : (!empty($payload['noseal']) ? trim((string) $payload['noseal']) : (!empty($payload['Noseal']) ? trim((string) $payload['Noseal']) : null)),
                 'created_by'         => $userId,
                 'updated_by'         => $userId,
             ]);
@@ -719,9 +722,8 @@ class PicklistService
         $userName = $user?->name ?? 'System / Logistic';
         $roleName = $user?->role?->name ?? 'LOGISTIC';
 
-        $resultsPerOrder = [];
-        $latestDocNum = null;
-        $latestDocEntry = null;
+        $batchPayload = [];
+        $orderContexts = [];
 
         foreach ($groupedItems as $soId => $items) {
             $firstItem = $items->first();
@@ -741,40 +743,48 @@ class PicklistService
 
             if (is_array($customLines) && !empty($customLines)) {
                 foreach ($customLines as $cLine) {
-                    $itemCode = trim((string) ($cLine['ItemCode'] ?? $cLine['item_code'] ?? ''));
                     $qty = floatval($cLine['Quantity'] ?? $cLine['quantity'] ?? 0);
-                    if (empty($itemCode) || $qty <= 0) {
+                    if ($qty <= 0) {
                         continue;
                     }
 
                     $baseEntry = isset($cLine['BaseEntry']) ? (int) $cLine['BaseEntry'] : ($so->sap_doc_entry ?: 1);
                     $baseLine  = isset($cLine['BaseLine']) ? (int) $cLine['BaseLine'] : 0;
+                    $itemCode  = trim((string) ($cLine['ItemCode'] ?? $cLine['item_code'] ?? ''));
 
-                    $matchedDetail = $soDetails->firstWhere('item_code', $itemCode);
+                    $matchedDetail = null;
+                    if (!empty($itemCode)) {
+                        $matchedDetail = $soDetails->firstWhere('item_code', $itemCode);
+                    }
+                    if (!$matchedDetail && isset($soDetails[$baseLine])) {
+                        $matchedDetail = $soDetails[$baseLine];
+                    }
 
                     $lineObj = [
-                        'BaseEntry'  => $baseEntry,
-                        'BaseLine'   => $baseLine,
-                        'ItemCode'   => $itemCode,
-                        'Quantity'   => $qty,
-                        'WhsCode'    => (string) ($cLine['WhsCode'] ?? $cLine['whs_code'] ?? ($matchedDetail?->whs_code ?: '01')),
-                        'UomEntry'   => isset($cLine['UomEntry']) ? (int) $cLine['UomEntry'] : (is_numeric($matchedDetail?->uom_entry) ? (int) $matchedDetail->uom_entry : -1),
-                        'UnitMsr'    => (string) ($cLine['UnitMsr'] ?? $cLine['unit_msr'] ?? ($matchedDetail?->unit_msr ?: 'PCS')),
-                        'LineTotal'  => isset($cLine['LineTotal']) ? (float) $cLine['LineTotal'] : round($qty * ($matchedDetail?->unit_price ?? 0), 2),
-                        'GrossBuyPr' => isset($cLine['GrossBuyPr']) ? (float) $cLine['GrossBuyPr'] : 0,
-                        'Currency'   => (string) ($cLine['Currency'] ?? 'IDR'),
-                        'Rate'       => isset($cLine['Rate']) ? (float) $cLine['Rate'] : 1,
-                        'TaxCode'    => (string) ($cLine['TaxCode'] ?? $cLine['tax_code'] ?? ($matchedDetail?->tax_code ?: 'PPN11')),
-                        'Price'      => isset($cLine['Price']) ? (float) $cLine['Price'] : (float) ($matchedDetail?->unit_price ?? 0),
-                        'VatGroup'   => (string) ($cLine['VatGroup'] ?? $cLine['vat_group'] ?? ($matchedDetail?->vat_group ?? '')),
-                        'DiscPrcnt'  => isset($cLine['DiscPrcnt']) ? (float) $cLine['DiscPrcnt'] : (float) ($matchedDetail?->disc_percent ?? 0),
-                        'OcrCode'    => (string) ($cLine['OcrCode'] ?? $cLine['ocr_code'] ?? ($matchedDetail?->ocr_code ?? '')),
-                        'OcrCode2'   => (string) ($cLine['OcrCode2'] ?? $cLine['ocr_code2'] ?? ($matchedDetail?->ocr_code2 ?? '')),
-                        'OcrCode3'   => (string) ($cLine['OcrCode3'] ?? $cLine['ocr_code3'] ?? ($matchedDetail?->ocr_code3 ?? '')),
+                        'BaseEntry' => $baseEntry,
+                        'BaseLine'  => $baseLine,
+                        'Quantity'  => $qty,
                     ];
-                    if (!empty($cLine['BinAllocations'])) {
-                        $lineObj['BinAllocations'] = $cLine['BinAllocations'];
+
+                    $whsCode = $cLine['WhsCode'] ?? $cLine['whs_code'] ?? ($matchedDetail?->whs_code ?: null);
+                    if (!empty($whsCode)) {
+                        $lineObj['WhsCode'] = (string) $whsCode;
                     }
+
+                    $ocrCode  = $cLine['OcrCode'] ?? $cLine['ocr_code'] ?? ($matchedDetail?->ocr_code ?: null);
+                    $ocrCode2 = $cLine['OcrCode2'] ?? $cLine['ocr_code2'] ?? ($matchedDetail?->ocr_code2 ?: null);
+                    $ocrCode3 = $cLine['OcrCode3'] ?? $cLine['ocr_code3'] ?? ($matchedDetail?->ocr_code3 ?: null);
+
+                    if (!empty($ocrCode)) {
+                        $lineObj['OcrCode'] = (string) $ocrCode;
+                    }
+                    if (!empty($ocrCode2)) {
+                        $lineObj['OcrCode2'] = (string) $ocrCode2;
+                    }
+                    if (!empty($ocrCode3)) {
+                        $lineObj['OcrCode3'] = (string) $ocrCode3;
+                    }
+
                     $lines[] = $lineObj;
                 }
             } else {
@@ -803,29 +813,33 @@ class PicklistService
                     }
 
                     $baseEntry = (int) ($payload['BaseEntry'] ?? $payload['base_entry'] ?? ($so->sap_doc_entry ?: 1));
-                    $unitPrice = $detail ? (float) $detail->unit_price : 0.0;
-                    $lineTotal = round($qty * $unitPrice, 2);
 
-                    $lines[] = [
-                        'BaseEntry'  => $baseEntry,
-                        'BaseLine'   => (int) $baseLine,
-                        'ItemCode'   => $itemCode,
-                        'Quantity'   => $qty,
-                        'WhsCode'    => (string) ($item->whs_code ?: ($detail?->whs_code ?: '01')),
-                        'UomEntry'   => is_numeric($detail?->uom_entry) ? (int) $detail->uom_entry : -1,
-                        'UnitMsr'    => (string) ($item->unit_msr ?: ($detail?->unit_msr ?: 'PCS')),
-                        'LineTotal'  => $lineTotal,
-                        'GrossBuyPr' => 0,
-                        'Currency'   => 'IDR',
-                        'Rate'       => 1,
-                        'TaxCode'    => (string) ($detail?->tax_code ?: 'PPN11'),
-                        'Price'      => $unitPrice,
-                        'VatGroup'   => (string) ($detail?->vat_group ?? ''),
-                        'DiscPrcnt'  => (float) ($detail?->disc_percent ?? 0),
-                        'OcrCode'    => (string) ($detail?->ocr_code ?? ''),
-                        'OcrCode2'   => (string) ($detail?->ocr_code2 ?? ''),
-                        'OcrCode3'   => (string) ($detail?->ocr_code3 ?? ''),
+                    $lineObj = [
+                        'BaseEntry' => $baseEntry,
+                        'BaseLine'  => (int) $baseLine,
+                        'Quantity'  => $qty,
                     ];
+
+                    $whsCode = $item->whs_code ?: ($detail?->whs_code ?: null);
+                    if (!empty($whsCode)) {
+                        $lineObj['WhsCode'] = (string) $whsCode;
+                    }
+
+                    $ocrCode  = $detail?->ocr_code;
+                    $ocrCode2 = $detail?->ocr_code2;
+                    $ocrCode3 = $detail?->ocr_code3;
+
+                    if (!empty($ocrCode)) {
+                        $lineObj['OcrCode'] = (string) $ocrCode;
+                    }
+                    if (!empty($ocrCode2)) {
+                        $lineObj['OcrCode2'] = (string) $ocrCode2;
+                    }
+                    if (!empty($ocrCode3)) {
+                        $lineObj['OcrCode3'] = (string) $ocrCode3;
+                    }
+
+                    $lines[] = $lineObj;
                 }
             }
 
@@ -833,7 +847,7 @@ class PicklistService
                 throw new \Exception("No valid lines with pick quantity > 0 for Sales Order #{$so->order_no}.", 400);
             }
 
-            // Header mapping
+            // Header mapping for this SO
             $postingDate = $picklist->posting_date ? Carbon::parse($picklist->posting_date) : now();
             $dueDate = $picklist->due_date ? Carbon::parse($picklist->due_date) : $postingDate;
 
@@ -847,86 +861,122 @@ class PicklistService
                 ? Carbon::parse($payload['TaxDate'])->format('Y-m-d\TH:i:s')
                 : $postingDate->format('Y-m-d\TH:i:s');
 
-            $slpCode = isset($payload['SlpCode'])
-                ? (int) $payload['SlpCode']
-                : (is_numeric($so->slp_code) ? (int) $so->slp_code : -1);
-
-            $cntctCode = isset($payload['CntctCode'])
-                ? (int) $payload['CntctCode']
-                : (is_numeric($so->cntct_code) ? (int) $so->cntct_code : 0);
-
             $series = isset($payload['Series'])
                 ? (int) $payload['Series']
-                : (isset($payload['series']) ? (int) $payload['series'] : (is_numeric($so->series) ? (int) $so->series : 1));
+                : (isset($payload['series']) ? (int) $payload['series'] : (!empty($picklist->series) ? (int) $picklist->series : (is_numeric($so->series) ? (int) $so->series : 75)));
 
-            $doPayload = [
-                'Series'          => $series,
-                'CardCode'        => (string) ($payload['CardCode'] ?? $payload['card_code'] ?? $so->card_code ?? ''),
-                'NumAtCard'       => (string) ($payload['NumAtCard'] ?? $payload['num_at_card'] ?? $so->po_number ?: ($so->order_no ?? '')),
-                'DocDate'         => $docDateFormatted,
-                'DocDueDate'      => $docDueDateFormatted,
-                'TaxDate'         => $taxDateFormatted,
-                'SlpCode'         => $slpCode,
-                'CntctCode'       => $cntctCode,
-                'PayToCode'       => (string) ($payload['PayToCode'] ?? $payload['pay_to_code'] ?? $so->pay_to_code ?? ''),
-                'Address'         => (string) ($payload['Address'] ?? $payload['address'] ?? $so->address ?? ''),
-                'ShipToCode'      => (string) ($payload['ShipToCode'] ?? $payload['ship_to_code'] ?? $so->ship_to_code ?? ''),
-                'Address2'        => (string) ($payload['Address2'] ?? $payload['address2'] ?? $so->address2 ?? ''),
-                'Comments'        => (string) ($payload['Comments'] ?? $payload['comments'] ?? $picklist->comments ?: ($so->comments ?? '')),
-                'DiscountPercent' => isset($payload['DiscountPercent']) ? (float) $payload['DiscountPercent'] : (float) ($so->disc_percent ?? 0),
-                'DocTotal'        => isset($payload['DocTotal']) ? (float) $payload['DocTotal'] : (float) ($so->doc_total ?? 0),
-                'IdDiskon'        => (string) ($payload['IdDiskon'] ?? $payload['id_diskon'] ?? $so->id_discount ?? ''),
-                'NoPol'           => (string) ($payload['NoPol'] ?? $payload['nopol'] ?? $picklist->license_plate ?: ($so->nopol ?? '')),
-                'KodeEkspedisi'   => (string) ($payload['KodeEkspedisi'] ?? $payload['kode_ekspedisi'] ?? ($picklist->expedition?->code ?? '')),
-                'Sopir'           => (string) ($payload['Sopir'] ?? $payload['sopir'] ?? $picklist->driver_name ?: ($so->nama_supir ?? '')),
-                'NamaEkspedisi'   => (string) ($payload['NamaEkspedisi'] ?? $payload['nama_ekspedisi'] ?? $picklist->expedition_name ?? ''),
-                'NamaChecker'     => (string) ($payload['NamaChecker'] ?? $payload['nama_checker'] ?? $picklist->checker_name ?? ''),
-                'Container'       => (string) ($payload['Container'] ?? $payload['container'] ?? ''),
-                'AddonId'         => 2, // Hardcoded 2 as per requirement
-                'UserId'          => (string) ($userId ?: ($payload['UserId'] ?? $payload['user_id'] ?? '1')),
-                'Lines'           => $lines,
+            $numAtCard = (string) ($payload['NumAtCard'] ?? $payload['num_at_card'] ?? $so->po_number ?: ($so->order_no ?? ''));
+            $comments  = (string) ($payload['Comments'] ?? $payload['comments'] ?? $picklist->comments ?: ($so->comments ?? ''));
+            $noPol     = (string) ($payload['NoPol'] ?? $payload['nopol'] ?? $picklist->license_plate ?: ($so->nopol ?? ''));
+            $kodeEksp  = (string) ($payload['KodeEkspedisi'] ?? $payload['kode_ekspedisi'] ?? ($picklist->expedition?->code ?? ($picklist->shipping_type === Picklist::SHIPPING_TYPE_INTERNAL ? 'INTERNAL' : '')));
+            $namaEksp  = (string) ($payload['NamaEkspedisi'] ?? $payload['nama_ekspedisi'] ?? ($picklist->expedition_name ?? ($picklist->shipping_type === Picklist::SHIPPING_TYPE_INTERNAL ? 'Armada Sendiri' : '')));
+            $sopir     = (string) ($payload['Sopir'] ?? $payload['sopir'] ?? $picklist->driver_name ?: ($so->nama_supir ?? ''));
+            $checker   = (string) ($payload['NamaChecker'] ?? $payload['nama_checker'] ?? $picklist->checker_name ?? '');
+            $noseal    = (string) ($payload['Noseal'] ?? $payload['noseal'] ?? $picklist->seal_number ?? '');
+
+            $headerObj = [
+                'Series'        => $series,
+                'DocDate'       => $docDateFormatted,
+                'DocDueDate'    => $docDueDateFormatted,
+                'TaxDate'       => $taxDateFormatted,
+                'NumAtCard'     => $numAtCard,
+                'Comments'      => $comments,
+                'NoPol'         => $noPol,
+                'KodeEkspedisi' => $kodeEksp,
+                'NamaEkspedisi' => $namaEksp,
+                'Sopir'         => $sopir,
+                'NamaChecker'   => $checker,
+                'AddonId'       => 2,
+                'UserId'        => (string) ($userId ?: ($payload['UserId'] ?? $payload['user_id'] ?? '1')),
+                'Lines'         => $lines,
             ];
 
-            try {
-                $response = Http::timeout(30)->post("{$sapUrl}/api/AddDO", $doPayload);
-            } catch (\Throwable $e) {
-                Log::error("Failed to connect to SAP /api/AddDO for Picklist #{$picklistId}: " . $e->getMessage(), ['payload' => $doPayload]);
-                throw new \Exception("Failed to connect to SAP API for Delivery Order: " . $e->getMessage(), 400);
+            if (!empty($noseal)) {
+                $headerObj['Noseal'] = $noseal;
             }
 
-            if (!$response->successful()) {
-                $status = $response->status();
-                $body = $response->body();
-                Log::error("SAP /api/AddDO returned HTTP {$status} for Picklist #{$picklistId}: {$body}");
-                throw new \Exception("Failed to process Delivery Order in SAP (HTTP {$status}): " . substr($body, 0, 250), 400);
+            if (!empty($payload['CardCode']) || !empty($payload['card_code'])) {
+                $headerObj['CardCode'] = (string) ($payload['CardCode'] ?? $payload['card_code']);
             }
 
-            $result = $response->json();
-            if (isset($result['ErrorCode']) && (int) $result['ErrorCode'] !== 0) {
-                $errMsg = $result['Message'] ?? 'Unknown SAP error during Delivery Order.';
-                Log::error("SAP /api/AddDO returned ErrorCode {$result['ErrorCode']} for Picklist #{$picklistId}: {$errMsg}");
-                throw new \Exception("SAP Delivery Order Error [{$result['ErrorCode']}]: {$errMsg}", 400);
-            }
+            $batchPayload[] = $headerObj;
+            $orderContexts[] = [
+                'so'    => $so,
+                'items' => $items,
+            ];
+        }
 
-            // Extract DocEntry and DocNum
+        if (empty($batchPayload)) {
+            throw new \Exception("No valid sales orders to generate Delivery Order.", 400);
+        }
+
+        try {
+            $response = Http::timeout(60)->post("{$sapUrl}/api/AddDO", $batchPayload);
+        } catch (\Throwable $e) {
+            Log::error("Failed to connect to SAP /api/AddDO for Picklist #{$picklistId}: " . $e->getMessage(), ['payload' => $batchPayload]);
+            throw new \Exception("Failed to connect to SAP API for Delivery Order: " . $e->getMessage(), 400);
+        }
+
+        if (!$response->successful()) {
+            $status = $response->status();
+            $body = $response->body();
+            Log::error("SAP /api/AddDO returned HTTP {$status} for Picklist #{$picklistId}: {$body}");
+            throw new \Exception("Failed to process Delivery Order in SAP (HTTP {$status}): " . substr($body, 0, 250), 400);
+        }
+
+        $result = $response->json();
+        if (isset($result['ErrorCode']) && (int) $result['ErrorCode'] !== 0) {
+            $errMsg = $result['Message'] ?? 'Unknown SAP error during Delivery Order.';
+            Log::error("SAP /api/AddDO returned ErrorCode {$result['ErrorCode']} for Picklist #{$picklistId}: {$errMsg}");
+            throw new \Exception("SAP Delivery Order Error [{$result['ErrorCode']}]: {$errMsg}", 400);
+        }
+
+        // Parse result for each document
+        $rawResult = $result['Result'] ?? $result['result'] ?? null;
+        $msg = $result['Message'] ?? $result['message'] ?? '';
+
+        $allDocNumsFromMsg = [];
+        $allDocEntriesFromMsg = [];
+        if (!empty($msg)) {
+            if (preg_match_all('/DocNum:\s*([A-Za-z0-9_-]+)/i', $msg, $mNums)) {
+                $allDocNumsFromMsg = $mNums[1];
+            }
+            if (preg_match_all('/DocEntry:\s*(\d+)/i', $msg, $mEntries)) {
+                $allDocEntriesFromMsg = $mEntries[1];
+            }
+        }
+
+        $resultsPerOrder = [];
+        $latestDocNum = null;
+        $latestDocEntry = null;
+
+        foreach ($orderContexts as $index => $ctx) {
+            $so = $ctx['so'];
             $docEntry = null;
             $docNum = null;
 
-            if (isset($result['Result'])) {
-                if (is_array($result['Result'])) {
-                    $docEntry = $result['Result']['DocEntry'] ?? $result['Result'][0]['DocEntry'] ?? null;
-                    $docNum   = $result['Result']['DocNum'] ?? $result['Result'][0]['DocNum'] ?? null;
-                } elseif (is_numeric($result['Result'])) {
-                    $docEntry = (string) $result['Result'];
+            if (is_array($rawResult)) {
+                if (isset($rawResult[$index])) {
+                    $itemRes = $rawResult[$index];
+                    if (is_array($itemRes)) {
+                        $docEntry = $itemRes['DocEntry'] ?? $itemRes['doc_entry'] ?? null;
+                        $docNum   = $itemRes['DocNum'] ?? $itemRes['doc_num'] ?? null;
+                    } elseif (is_numeric($itemRes) || is_string($itemRes)) {
+                        $docEntry = (string) $itemRes;
+                    }
+                } elseif ($index === 0 && isset($rawResult['DocEntry'])) {
+                    $docEntry = $rawResult['DocEntry'] ?? $rawResult['doc_entry'] ?? null;
+                    $docNum   = $rawResult['DocNum'] ?? $rawResult['doc_num'] ?? null;
                 }
+            } elseif (is_numeric($rawResult) || is_string($rawResult)) {
+                $docEntry = (string) $rawResult;
             }
 
-            $msg = $result['Message'] ?? '';
-            if (!$docNum && !empty($msg) && preg_match('/DocNum:\s*([A-Za-z0-9_-]+)/i', $msg, $m)) {
-                $docNum = $m[1];
+            if (!$docNum && isset($allDocNumsFromMsg[$index])) {
+                $docNum = $allDocNumsFromMsg[$index];
             }
-            if (!$docEntry && !empty($msg) && preg_match('/DocEntry:\s*(\d+)/i', $msg, $m)) {
-                $docEntry = $m[1];
+            if (!$docEntry && isset($allDocEntriesFromMsg[$index])) {
+                $docEntry = $allDocEntriesFromMsg[$index];
             }
 
             $docNum   = $docNum ? (string) $docNum : ($docEntry ? (string) $docEntry : 'PROCESSED');
@@ -1008,16 +1058,22 @@ class PicklistService
      */
     public function directAddDeliveryOrder(array $payload, ?int $userId = null): array
     {
-        // Enforce hardcoded AddonId 2
-        $payload['AddonId'] = 2;
-        $payload['UserId']  = (string) ($userId ?: ($payload['UserId'] ?? $payload['user_id'] ?? '1'));
+        // Support either single document payload or array of documents
+        $isBatch = isset($payload[0]) && is_array($payload[0]);
+        $batchPayload = $isBatch ? $payload : [$payload];
+
+        foreach ($batchPayload as &$header) {
+            $header['AddonId'] = 2;
+            $header['UserId']  = (string) ($userId ?: ($header['UserId'] ?? $header['user_id'] ?? '1'));
+        }
+        unset($header);
 
         $sapUrl = rtrim(config('services.sap.url') ?: env('SAP_API_URL', 'http://103.18.133.187:3100'), '/');
 
         try {
-            $response = Http::timeout(30)->post("{$sapUrl}/api/AddDO", $payload);
+            $response = Http::timeout(60)->post("{$sapUrl}/api/AddDO", $batchPayload);
         } catch (\Throwable $e) {
-            Log::error("Failed to connect to SAP /api/AddDO: " . $e->getMessage(), ['payload' => $payload]);
+            Log::error("Failed to connect to SAP /api/AddDO: " . $e->getMessage(), ['payload' => $batchPayload]);
             throw new \Exception("Failed to connect to SAP API for Delivery Order: " . $e->getMessage(), 400);
         }
 
@@ -1035,91 +1091,138 @@ class PicklistService
             throw new \Exception("SAP Delivery Order Error [{$result['ErrorCode']}]: {$errMsg}", 400);
         }
 
-        // Extract DocEntry and DocNum
-        $docEntry = null;
-        $docNum = null;
+        $rawResult = $result['Result'] ?? $result['result'] ?? null;
+        $msg = $result['Message'] ?? $result['message'] ?? '';
 
-        if (isset($result['Result'])) {
-            if (is_array($result['Result'])) {
-                $docEntry = $result['Result']['DocEntry'] ?? $result['Result'][0]['DocEntry'] ?? null;
-                $docNum   = $result['Result']['DocNum'] ?? $result['Result'][0]['DocNum'] ?? null;
-            } elseif (is_numeric($result['Result'])) {
-                $docEntry = (string) $result['Result'];
+        $allDocNumsFromMsg = [];
+        $allDocEntriesFromMsg = [];
+        if (!empty($msg)) {
+            if (preg_match_all('/DocNum:\s*([A-Za-z0-9_-]+)/i', $msg, $mNums)) {
+                $allDocNumsFromMsg = $mNums[1];
+            }
+            if (preg_match_all('/DocEntry:\s*(\d+)/i', $msg, $mEntries)) {
+                $allDocEntriesFromMsg = $mEntries[1];
             }
         }
 
-        $msg = $result['Message'] ?? '';
-        if (!$docNum && !empty($msg) && preg_match('/DocNum:\s*([A-Za-z0-9_-]+)/i', $msg, $m)) {
-            $docNum = $m[1];
-        }
-        if (!$docEntry && !empty($msg) && preg_match('/DocEntry:\s*(\d+)/i', $msg, $m)) {
-            $docEntry = $m[1];
-        }
+        $processedDocs = [];
+        $latestDocNum = null;
+        $latestDocEntry = null;
+        $firstSo = null;
+        $firstPicklist = null;
 
-        $docNum   = $docNum ? (string) $docNum : ($docEntry ? (string) $docEntry : 'PROCESSED');
-        $docEntry = $docEntry ? (string) $docEntry : $docNum;
+        foreach ($batchPayload as $index => $docPayload) {
+            $docEntry = null;
+            $docNum = null;
 
-        // Find associated Sales Order if possible
-        $so = null;
-        if (!empty($payload['sales_order_id'])) {
-            $so = SalesOrder::find($payload['sales_order_id']);
-        }
-        if (!$so && !empty($payload['Lines'][0]['BaseEntry'])) {
-            $baseEntry = $payload['Lines'][0]['BaseEntry'];
-            $so = SalesOrder::where('sap_doc_entry', is_numeric($baseEntry) ? (int)$baseEntry : 0)->first();
-        }
-        if (!$so && !empty($payload['NumAtCard'])) {
-            $so = SalesOrder::where('po_number', $payload['NumAtCard'])
-                ->orWhere('order_no', $payload['NumAtCard'])
-                ->first();
-        }
-
-        $picklist = null;
-        if (!empty($payload['picklist_id'])) {
-            $picklist = Picklist::find($payload['picklist_id']);
-        }
-
-        if ($so) {
-            $so->update([
-                'delivery_order_no' => $docNum,
-                'sap_do_doc_entry'  => (string) $docEntry,
-                'sap_do_doc_num'    => (string) $docNum,
-                'sap_do_status'     => 'SUCCESS',
-                'sap_last_doc_type' => 'DO',
-                'sap_last_doc_num'  => (string) $docNum,
-                'delivery_date'     => now(),
-            ]);
-
-            if (!$picklist) {
-                $pItem = PicklistItem::where('sales_order_id', $so->id)->orderBy('id', 'desc')->first();
-                if ($pItem) {
-                    $picklist = Picklist::find($pItem->picklist_id);
+            if (is_array($rawResult)) {
+                if (isset($rawResult[$index])) {
+                    $itemRes = $rawResult[$index];
+                    if (is_array($itemRes)) {
+                        $docEntry = $itemRes['DocEntry'] ?? $itemRes['doc_entry'] ?? null;
+                        $docNum   = $itemRes['DocNum'] ?? $itemRes['doc_num'] ?? null;
+                    } elseif (is_numeric($itemRes) || is_string($itemRes)) {
+                        $docEntry = (string) $itemRes;
+                    }
+                } elseif ($index === 0 && isset($rawResult['DocEntry'])) {
+                    $docEntry = $rawResult['DocEntry'] ?? $rawResult['doc_entry'] ?? null;
+                    $docNum   = $rawResult['DocNum'] ?? $rawResult['doc_num'] ?? null;
                 }
+            } elseif (is_numeric($rawResult) || is_string($rawResult)) {
+                $docEntry = (string) $rawResult;
             }
-        }
 
-        if ($picklist) {
-            $picklist->update([
-                'delivery_order_no' => $docNum,
-                'do_doc_entry'      => (string) $docEntry,
-                'do_doc_num'        => (string) $docNum,
-                'do_status'         => 'SUCCESS',
-                'updated_by'        => $userId,
-            ]);
+            if (!$docNum && isset($allDocNumsFromMsg[$index])) {
+                $docNum = $allDocNumsFromMsg[$index];
+            }
+            if (!$docEntry && isset($allDocEntriesFromMsg[$index])) {
+                $docEntry = $allDocEntriesFromMsg[$index];
+            }
+
+            $docNum   = $docNum ? (string) $docNum : ($docEntry ? (string) $docEntry : 'PROCESSED');
+            $docEntry = $docEntry ? (string) $docEntry : $docNum;
+
+            $latestDocNum = $docNum;
+            $latestDocEntry = $docEntry;
+
+            // Find associated Sales Order if possible
+            $so = null;
+            if (!empty($docPayload['sales_order_id'])) {
+                $so = SalesOrder::find($docPayload['sales_order_id']);
+            }
+            if (!$so && !empty($docPayload['Lines'][0]['BaseEntry'])) {
+                $baseEntry = $docPayload['Lines'][0]['BaseEntry'];
+                $so = SalesOrder::where('sap_doc_entry', is_numeric($baseEntry) ? (int)$baseEntry : 0)->first();
+            }
+            if (!$so && !empty($docPayload['NumAtCard'])) {
+                $so = SalesOrder::where('po_number', $docPayload['NumAtCard'])
+                    ->orWhere('order_no', $docPayload['NumAtCard'])
+                    ->first();
+            }
+
+            $picklist = null;
+            if (!empty($docPayload['picklist_id'])) {
+                $picklist = Picklist::find($docPayload['picklist_id']);
+            }
 
             if ($so) {
-                PicklistItem::where('picklist_id', $picklist->id)
-                    ->where('sales_order_id', $so->id)
-                    ->update(['delivery_order_no' => $docNum]);
+                if (!$firstSo) {
+                    $firstSo = $so;
+                }
+                $so->update([
+                    'delivery_order_no' => $docNum,
+                    'sap_do_doc_entry'  => (string) $docEntry,
+                    'sap_do_doc_num'    => (string) $docNum,
+                    'sap_do_status'     => 'SUCCESS',
+                    'sap_last_doc_type' => 'DO',
+                    'sap_last_doc_num'  => (string) $docNum,
+                    'delivery_date'     => now(),
+                ]);
+
+                if (!$picklist) {
+                    $pItem = PicklistItem::where('sales_order_id', $so->id)->orderBy('id', 'desc')->first();
+                    if ($pItem) {
+                        $picklist = Picklist::find($pItem->picklist_id);
+                    }
+                }
             }
+
+            if ($picklist) {
+                if (!$firstPicklist) {
+                    $firstPicklist = $picklist;
+                }
+                $picklist->update([
+                    'delivery_order_no' => $docNum,
+                    'do_doc_entry'      => (string) $docEntry,
+                    'do_doc_num'        => (string) $docNum,
+                    'do_status'         => 'SUCCESS',
+                    'updated_by'        => $userId,
+                ]);
+
+                if ($so) {
+                    PicklistItem::where('picklist_id', $picklist->id)
+                        ->where('sales_order_id', $so->id)
+                        ->update(['delivery_order_no' => $docNum]);
+                }
+            }
+
+            $processedDocs[] = [
+                'doc_entry'       => (string) $docEntry,
+                'doc_num'         => (string) $docNum,
+                'sales_order_id'  => $so?->id,
+                'order_no'        => $so?->order_no,
+                'picklist_id'     => $picklist?->id,
+                'picklist_no'     => $picklist?->picklist_no,
+            ];
         }
 
         return [
-            'delivery_order_no' => $docNum,
-            'doc_entry'         => (string) $docEntry,
-            'doc_num'           => (string) $docNum,
-            'sales_order_id'    => $so?->id,
-            'picklist_id'       => $picklist?->id,
+            'delivery_order_no' => (string) $latestDocNum,
+            'doc_entry'         => (string) $latestDocEntry,
+            'doc_num'           => (string) $latestDocNum,
+            'sales_order_id'    => $firstSo?->id,
+            'picklist_id'       => $firstPicklist?->id,
+            'documents'         => $processedDocs,
             'response'          => $result,
         ];
     }

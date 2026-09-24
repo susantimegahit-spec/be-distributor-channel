@@ -638,12 +638,12 @@ class LogisticPicklistTest extends TestCase
             ], 200),
             '*/api/AddDO' => function ($request) use ($soDo) {
                 $body = $request->data();
-                $this->assertEquals(2, $body['AddonId']);
-                $this->assertEquals($soDo->card_code, $body['CardCode']);
-                $this->assertCount(1, $body['Lines']);
-                $this->assertEquals(5001, $body['Lines'][0]['BaseEntry']);
-                $this->assertEquals(0, $body['Lines'][0]['BaseLine']);
-                $this->assertEquals(25.0, $body['Lines'][0]['Quantity']);
+                $header = is_array($body) && isset($body[0]) ? $body[0] : $body;
+                $this->assertEquals(2, $header['AddonId']);
+                $this->assertCount(1, $header['Lines']);
+                $this->assertEquals(5001, $header['Lines'][0]['BaseEntry']);
+                $this->assertEquals(0, $header['Lines'][0]['BaseLine']);
+                $this->assertEquals(25.0, $header['Lines'][0]['Quantity']);
 
                 return Http::response([
                     'ErrorCode' => 0,
@@ -786,11 +786,12 @@ class LogisticPicklistTest extends TestCase
         Http::fake([
             '*/api/AddDO' => function ($request) {
                 $body = $request->data();
-                $this->assertEquals(2, $body['AddonId']);
-                $this->assertEquals('B 1234 ABC', $body['NoPol']);
-                $this->assertEquals('Budi', $body['Sopir']);
-                $this->assertEquals('JNE Express', $body['NamaEkspedisi']);
-                $this->assertEquals('Siti', $body['NamaChecker']);
+                $header = is_array($body) && isset($body[0]) ? $body[0] : $body;
+                $this->assertEquals(2, $header['AddonId']);
+                $this->assertEquals('B 1234 ABC', $header['NoPol']);
+                $this->assertEquals('Budi', $header['Sopir']);
+                $this->assertEquals('JNE Express', $header['NamaEkspedisi']);
+                $this->assertEquals('Siti', $header['NamaChecker']);
 
                 return Http::response([
                     'ErrorCode' => 0,
@@ -858,5 +859,159 @@ class LogisticPicklistTest extends TestCase
         $this->assertEquals('20260088', $so->sap_do_doc_num);
         $this->assertEquals('1052', $so->sap_do_doc_entry);
     }
+
+    public function test_create_picklist_stores_series_and_seal_number(): void
+    {
+        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::fake([
+            '*/api/addIT' => Http::response([
+                'ErrorCode' => 0,
+                'Message'   => 'Success DocNum: 7788 DocEntry: 5566',
+                'Result'    => [
+                    'DocEntry' => 5566,
+                    'DocNum'   => 7788,
+                ],
+            ], 200),
+        ]);
+
+        $payload = [
+            'shipping_type' => 'pickup',
+            'posting_date'  => '2026-09-24',
+            'due_date'      => '2026-09-24',
+            'series'        => 75,
+            'series_name'   => 'DO-JKT',
+            'seal_number'   => 'SEAL-998877',
+            'items' => [
+                [
+                    'sales_order_id'        => $this->order1->id,
+                    'sales_order_detail_id' => $this->detail1->id,
+                    'item_code'             => $this->item1->item_code,
+                    'pick_qty'              => 5,
+                ],
+            ],
+        ];
+
+        $res = $this->actingAs($this->user)
+            ->postJson('/api/distributor-channel/v1/logistic/picklists', $payload);
+
+        $res->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.series', 75)
+            ->assertJsonPath('data.series_name', 'DO-JKT')
+            ->assertJsonPath('data.seal_number', 'SEAL-998877');
+
+        $picklistId = $res->json('data.id');
+        $picklist = Picklist::find($picklistId);
+        $this->assertEquals(75, $picklist->series);
+        $this->assertEquals('DO-JKT', $picklist->series_name);
+        $this->assertEquals('SEAL-998877', $picklist->seal_number);
+    }
+
+    public function test_direct_add_do_with_batch_array_payload_matches_new_spec(): void
+    {
+        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::fake([
+            '*/api/AddDO' => function ($request) {
+                $body = $request->data();
+                $this->assertIsArray($body);
+                $this->assertCount(2, $body);
+
+                // Verify first doc
+                $this->assertEquals(75, $body[0]['Series']);
+                $this->assertEquals('12345', $body[0]['Noseal']);
+                $this->assertEquals(2, $body[0]['AddonId']);
+                $this->assertCount(2, $body[0]['Lines']);
+                $this->assertEquals(1052, $body[0]['Lines'][0]['BaseEntry']);
+                $this->assertEquals(0, $body[0]['Lines'][0]['BaseLine']);
+                $this->assertEquals(5.0, $body[0]['Lines'][0]['Quantity']);
+
+                // Verify second doc
+                $this->assertEquals(75, $body[1]['Series']);
+                $this->assertEquals(1053, $body[1]['Lines'][0]['BaseEntry']);
+                $this->assertEquals(10.0, $body[1]['Lines'][0]['Quantity']);
+
+                return Http::response([
+                    'ErrorCode' => 0,
+                    'Message'   => 'Success - [AddDeliveryOrder]. DocEntry: 9001, DocNum: DO-9001; DocEntry: 9002, DocNum: DO-9002',
+                    'Result'    => [
+                        ['DocEntry' => 9001, 'DocNum' => 'DO-9001'],
+                        ['DocEntry' => 9002, 'DocNum' => 'DO-9002'],
+                    ],
+                ], 200);
+            },
+        ]);
+
+        $batchPayload = [
+            [
+                'Series'        => 75,
+                'DocDate'       => '2026-09-24T00:00:00',
+                'DocDueDate'    => '2026-09-24T00:00:00',
+                'TaxDate'       => '2026-09-24T00:00:00',
+                'NumAtCard'     => 'PO-CUST-001',
+                'Comments'      => 'Pengiriman parsial SO tahap 1',
+                'NoPol'         => 'B 1234 ABC',
+                'KodeEkspedisi' => 'JNE',
+                'NamaEkspedisi' => 'JNE Trucking',
+                'Sopir'         => 'Budi Santoso',
+                'NamaChecker'   => 'Andi',
+                'Noseal'        => '12345',
+                'Lines'         => [
+                    [
+                        'BaseEntry' => 1052,
+                        'BaseLine'  => 0,
+                        'Quantity'  => 5.0,
+                        'WhsCode'   => '01',
+                        'OcrCode'   => 'SBY',
+                        'OcrCode2'  => 'GRM',
+                        'OcrCode3'  => 'MKT',
+                    ],
+                    [
+                        'BaseEntry' => 1052,
+                        'BaseLine'  => 1,
+                        'Quantity'  => 2.0,
+                        'WhsCode'   => '01',
+                        'OcrCode'   => 'SBY',
+                        'OcrCode2'  => 'GRM',
+                        'OcrCode3'  => 'MKT',
+                    ],
+                ],
+            ],
+            [
+                'Series'        => 75,
+                'DocDate'       => '2026-09-24T00:00:00',
+                'DocDueDate'    => '2026-09-25T00:00:00',
+                'TaxDate'       => '2026-09-24T00:00:00',
+                'NumAtCard'     => 'PO-CUST-002',
+                'Comments'      => 'Pengiriman SO cabang timur',
+                'NoPol'         => 'B 5678 XYZ',
+                'KodeEkspedisi' => 'INTERNAL',
+                'NamaEkspedisi' => 'Armada Sendiri',
+                'Sopir'         => 'Santoso',
+                'NamaChecker'   => 'Andi',
+                'Lines'         => [
+                    [
+                        'BaseEntry' => 1053,
+                        'BaseLine'  => 0,
+                        'Quantity'  => 10.0,
+                        'WhsCode'   => '02',
+                        'OcrCode'   => 'SBY',
+                        'OcrCode2'  => 'GRM',
+                        'OcrCode3'  => 'MKT',
+                    ],
+                ],
+            ],
+        ];
+
+        $res = $this->actingAs($this->user)
+            ->postJson('/api/distributor-channel/v1/logistic/picklists/add-do', $batchPayload);
+
+        $res->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.documents.0.doc_num', 'DO-9001')
+            ->assertJsonPath('data.documents.0.doc_entry', '9001')
+            ->assertJsonPath('data.documents.1.doc_num', 'DO-9002')
+            ->assertJsonPath('data.documents.1.doc_entry', '9002');
+    }
 }
+
 
