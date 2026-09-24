@@ -17792,51 +17792,27 @@ paths:
                         type: string
                         description: Kode departemen (Cost Center 3)
                         example: "MKT"
-                              type: number
-                              example: 1
             example:
-              Series: 1
-              CardCode: "C20000"
-              NumAtCard: "PO-12345"
-              DocDate: "2026-09-08T00:00:00"
-              DocDueDate: "2026-09-08T00:00:00"
-              TaxDate: "2026-09-08T00:00:00"
-              SlpCode: -1
-              CntctCode: 0
-              PayToCode: ""
-              Address: "Jl. Contoh Alamat Penagihan No. 123"
-              ShipToCode: ""
-              Address2: "Jl. Contoh Alamat Pengiriman No. 123"
-              Comments: "Catatan pengiriman"
-              DiscountPercent: 0
-              DocTotal: 0
-              IdDiskon: ""
+              Series: 75
+              NumAtCard: "PO-CUST-001"
+              DocDate: "2026-09-24T00:00:00"
+              DocDueDate: "2026-09-24T00:00:00"
+              TaxDate: "2026-09-24T00:00:00"
+              Comments: "Pengiriman parsial SO tahap 1"
               NoPol: "B 1234 ABC"
               KodeEkspedisi: "JNE"
-              Sopir: "Budi"
-              NamaEkspedisi: "JNE Express"
-              NamaChecker: "Siti"
-              Container: ""
-              AddonId: 2
-              UserId: "1"
-              sales_order_id: 1
+              NamaEkspedisi: "JNE Trucking"
+              Sopir: "Budi Santoso"
+              NamaChecker: "Andi"
+              Noseal: "12345"
               Lines:
-                - BaseEntry: 1
+                - BaseEntry: 1052
                   BaseLine: 0
-                  ItemCode: "ITEM-001"
-                  Quantity: 1
+                  Quantity: 5.0
                   WhsCode: "01"
-                  UomEntry: -1
-                  UnitMsr: "PCS"
-                  LineTotal: 0
-                  GrossBuyPr: 0
-                  Currency: "IDR"
-                  Rate: 1
-                  TaxCode: "PPN11"
-                  Price: 10000
-                  BinAllocations:
-                    - BinAbsEntry: 1
-                      Quantity: 1
+                  OcrCode: "SBY"
+                  OcrCode2: "GRM"
+                  OcrCode3: "MKT"
       responses:
         '200':
           description: Delivery Order successfully created in SAP and saved to database.
