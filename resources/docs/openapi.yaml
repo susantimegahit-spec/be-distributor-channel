@@ -13283,18 +13283,224 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: Detail Production Order (PDO) dari SAP berhasil diambil.
+                    example: "Production Order detail retrieved successfully from SAP."
                   data:
                     type: object
                     properties:
                       header:
                         type: object
+                        description: Header data dokumen Production Order dari SAP
+                        properties:
+                          DocEntry:
+                            type: integer
+                            example: 6692
+                          DocNum:
+                            type: string
+                            example: "20260012"
+                          Series:
+                            type: integer
+                            example: 15
+                          SeriesName:
+                            type: string
+                            example: "PDO26-01"
+                          series_name:
+                            type: string
+                            example: "PDO26-01"
+                          ItemCode:
+                            type: string
+                            example: "FG00124"
+                          ProdName:
+                            type: string
+                            example: "Garam Halus Beryodium 250gr (Sak 50kg)"
+                          Status:
+                            type: string
+                            enum: [PLANNED, RELEASED, CLOSED, CANCELLED]
+                            example: "RELEASED"
+                          Type:
+                            type: string
+                            example: "S"
+                          PlannedQty:
+                            type: number
+                            format: float
+                            example: 1000.0
+                          CmpltQty:
+                            type: number
+                            format: float
+                            example: 500.0
+                          RjctQty:
+                            type: number
+                            format: float
+                            example: 0.0
+                          StartDate:
+                            type: string
+                            format: date-time
+                            example: "2026-09-24T00:00:00"
+                          PostDate:
+                            type: string
+                            format: date-time
+                            example: "2026-09-24T00:00:00"
+                          DueDate:
+                            type: string
+                            format: date-time
+                            example: "2026-09-25T00:00:00"
+                          WhsCode:
+                            type: string
+                            example: "FG01"
+                          Uom:
+                            type: string
+                            description: Satuan ukuran produk jadi (Unit of Measure)
+                            example: "SAK"
+                          Shift:
+                            type: string
+                            description: Shift kerja produksi (A = Shift 1, B = Shift 2, C = Shift 3)
+                            example: "A"
+                          Unit:
+                            type: string
+                            description: Unit bisnis / plant produksi
+                            example: "GRM"
+                          Remarks:
+                            type: string
+                            nullable: true
+                            example: "Produksi Garam Halus Shift Pagi"
+                          OcrCode:
+                            type: string
+                            nullable: true
+                            example: "SBY"
+                          OcrCode2:
+                            type: string
+                            nullable: true
+                            example: "GRM"
+                          OcrCode3:
+                            type: string
+                            nullable: true
+                            example: "PRD"
                       items:
                         type: array
+                        description: Daftar baris bahan baku & resource yang dialokasikan untuk Production Order
                         items:
                           type: object
+                          properties:
+                            LineNum:
+                              type: integer
+                              example: 0
+                            ItemType:
+                              type: string
+                              description: "Tipe item: I = Item / Bahan Baku, R = Resource / Mesin, T = Text"
+                              example: "I"
+                            ItemCode:
+                              type: string
+                              example: "RAW001"
+                            ItemName:
+                              type: string
+                              example: "Garam Kasar Cuci Kering Grade A"
+                            BaseQty:
+                              type: number
+                              format: float
+                              example: 1.02
+                            PlannedQty:
+                              type: number
+                              format: float
+                              example: 1020.0
+                            IssuedQty:
+                              type: number
+                              format: float
+                              example: 510.0
+                            Uom:
+                              type: string
+                              description: Satuan ukuran bahan / resource (Unit of Measure)
+                              example: "KG"
+                            WhsCode:
+                              type: string
+                              example: "RM01"
+                            IssueMethod:
+                              type: string
+                              description: "Metode pengeluaran: M = Manual, B = Backflush"
+                              example: "M"
+                            OcrCode:
+                              type: string
+                              nullable: true
+                              example: "SBY"
+                            OcrCode2:
+                              type: string
+                              nullable: true
+                              example: "GRM"
+                            OcrCode3:
+                              type: string
+                              nullable: true
+                              example: "PRD"
                       raw:
                         type: object
+                        description: Data raw asli dari response SAP endpoint /api/getPDObyId
+              example:
+                success: true
+                message: "Production Order detail retrieved successfully from SAP."
+                data:
+                  header:
+                    DocEntry: 6692
+                    DocNum: "20260012"
+                    Series: 15
+                    SeriesName: "PDO26-01"
+                    ItemCode: "FG00124"
+                    ProdName: "Garam Halus Beryodium 250gr (Sak 50kg)"
+                    Status: "RELEASED"
+                    Type: "S"
+                    PlannedQty: 1000.0
+                    CmpltQty: 500.0
+                    RjctQty: 0.0
+                    StartDate: "2026-09-24T00:00:00"
+                    PostDate: "2026-09-24T00:00:00"
+                    DueDate: "2026-09-25T00:00:00"
+                    WhsCode: "FG01"
+                    Uom: "SAK"
+                    Shift: "A"
+                    Unit: "GRM"
+                    Remarks: "Produksi Garam Halus Shift Pagi"
+                    OcrCode: "SBY"
+                    OcrCode2: "GRM"
+                    OcrCode3: "PRD"
+                  items:
+                    - LineNum: 0
+                      ItemType: "I"
+                      ItemCode: "RAW001"
+                      ItemName: "Garam Kasar Cuci Kering Grade A"
+                      BaseQty: 1.02
+                      PlannedQty: 1020.0
+                      IssuedQty: 510.0
+                      Uom: "KG"
+                      WhsCode: "RM01"
+                      IssueMethod: "M"
+                      OcrCode: "SBY"
+                      OcrCode2: "GRM"
+                      OcrCode3: "PRD"
+                    - LineNum: 1
+                      ItemType: "I"
+                      ItemCode: "PK0001"
+                      ItemName: "Karung Sak 50kg Susanti"
+                      BaseQty: 1.0
+                      PlannedQty: 1000.0
+                      IssuedQty: 500.0
+                      Uom: "PCS"
+                      WhsCode: "PK01"
+                      IssueMethod: "M"
+                      OcrCode: "SBY"
+                      OcrCode2: "GRM"
+                      OcrCode3: "PRD"
+                    - LineNum: 2
+                      ItemType: "R"
+                      ItemCode: "RES-LINE-01"
+                      ItemName: "Mesin Kemas Otomatis Line 1"
+                      BaseQty: 0.05
+                      PlannedQty: 50.0
+                      IssuedQty: 25.0
+                      Uom: "JAM"
+                      WhsCode: "FG01"
+                      IssueMethod: "B"
+                      OcrCode: "SBY"
+                      OcrCode2: "GRM"
+                      OcrCode3: "PRD"
+                  raw:
+                    ErrorCode: 0
+                    Message: "Success"
         '401':
           description: Tidak terautentikasi.
         '422':

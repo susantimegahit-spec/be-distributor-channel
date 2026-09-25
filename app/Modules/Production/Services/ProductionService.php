@@ -1177,25 +1177,31 @@ class ProductionService
             $header['ItemCode'] = $hCode;
             $header['ProdName'] = $hName;
             $header['SeriesName'] = $sName;
-            $header['series_name'] = $sName;
             $header['StartDate'] = $startDate;
-            $header['start_date'] = $startDate;
             $header['Uom'] = $hUom;
-            $header['uom'] = $hUom;
-            $header['UOM'] = $hUom;
-            $header['SalUnitMsr'] = $hUom;
-            $header['sal_unit_msr'] = $hUom;
 
-            // Shift field (return raw value so FE can format/convert as needed)
+            // Shift field (canonical: Shift)
             $rawShift = (string) ($header['Shift'] ?? $header['U_Shift'] ?? $header['shift'] ?? $header['u_shift'] ?? $localOrder?->u_shift ?? '');
-            $header['Shift'] = $rawShift;
-            $header['shift'] = $rawShift;
-            $header['U_Shift'] = $rawShift;
-            $header['u_shift'] = $rawShift;
+            if ($rawShift !== '') {
+                $header['Shift'] = $rawShift;
+            }
 
-            unset($header['item_code'], $header['item'], $header['prod_name'], $header['item_name'], $header['ItemName']);
+            // Unit field (canonical: Unit for business unit / plant)
+            $rawUnit = (string) ($header['Unit'] ?? $header['U_Unit'] ?? $header['unit'] ?? $header['u_unit'] ?? $localOrder?->u_unit ?? '');
+            if ($rawUnit !== '') {
+                $header['Unit'] = $rawUnit;
+            }
 
-            // Normalize item lines
+            // Strip redundant duplicate keys from header
+            unset(
+                $header['item_code'], $header['item'], $header['prod_name'], $header['item_name'], $header['ItemName'],
+                $header['series_name'], $header['start_date'],
+                $header['uom'], $header['UOM'], $header['SalUnitMsr'], $header['sal_unit_msr'],
+                $header['shift'], $header['U_Shift'], $header['u_shift'],
+                $header['unit'], $header['U_Unit'], $header['u_unit']
+            );
+
+            // Normalize item lines (canonical: Uom for component unit of measure)
             if (!empty($items) && is_array($items)) {
                 foreach ($items as &$it) {
                     if (!is_array($it)) continue;
@@ -1214,11 +1220,12 @@ class ProductionService
                     $it['ItemCode'] = $itCode;
                     $it['ItemName'] = $itName;
                     $it['Uom'] = $itUom;
-                    $it['uom'] = $itUom;
-                    $it['UOM'] = $itUom;
-                    $it['Unit'] = $itUom;
-                    $it['unit'] = $itUom;
-                    unset($it['item_code'], $it['item'], $it['item_name'], $it['prod_name'], $it['ProdName'], $it['Dscription'], $it['dscription']);
+
+                    // Strip redundant duplicate keys from item lines
+                    unset(
+                        $it['item_code'], $it['item'], $it['item_name'], $it['prod_name'], $it['ProdName'], $it['Dscription'], $it['dscription'],
+                        $it['uom'], $it['UOM'], $it['Unit'], $it['unit'], $it['UnitMsr'], $it['SalUnitMsr']
+                    );
                 }
                 unset($it);
             }
@@ -1238,32 +1245,21 @@ class ProductionService
                 'DocNum'      => (string) ($localOrder->doc_num ?: $localOrder->prod_order_no),
                 'Series'      => $localOrder->series ?: 15,
                 'SeriesName'  => (string) $localOrder->series_name,
-                'series_name' => (string) $localOrder->series_name,
                 'ItemCode'    => $hCode,
                 'ProdName'    => $hName,
                 'Uom'         => $hUom,
-                'uom'         => $hUom,
-                'UOM'         => $hUom,
-                'SalUnitMsr'  => $hUom,
-                'sal_unit_msr' => $hUom,
                 'Status'      => (string) $localOrder->status,
                 'Type'        => (string) $localOrder->type,
                 'PlannedQty'  => floatval($localOrder->planned_qty),
                 'CmpltQty'    => floatval($localOrder->cmplt_qty),
                 'RjctQty'     => floatval($localOrder->rjct_qty),
                 'StartDate'   => $localOrder->start_date ? date('Y-m-d\TH:i:s', strtotime($localOrder->start_date)) : ($localOrder->post_date ? date('Y-m-d\TH:i:s', strtotime($localOrder->post_date)) : null),
-                'start_date'  => $localOrder->start_date ? date('Y-m-d\TH:i:s', strtotime($localOrder->start_date)) : ($localOrder->post_date ? date('Y-m-d\TH:i:s', strtotime($localOrder->post_date)) : null),
                 'PostDate'    => $localOrder->post_date ? date('Y-m-d\TH:i:s', strtotime($localOrder->post_date)) : null,
                 'DueDate'     => $localOrder->due_date ? date('Y-m-d\TH:i:s', strtotime($localOrder->due_date)) : null,
                 'WhsCode'     => (string) $localOrder->warehouse,
                 'Remarks'     => (string) $localOrder->comments,
                 'Shift'       => $rawLocalShift,
-                'shift'       => $rawLocalShift,
-                'U_Shift'     => $rawLocalShift,
-                'u_shift'     => $rawLocalShift,
                 'Unit'        => (string) $localOrder->u_unit,
-                'U_Unit'      => (string) $localOrder->u_unit,
-                'u_unit'      => (string) $localOrder->u_unit,
                 'Bomid'       => (string) $localOrder->production_bom_id,
                 'is_local'    => true,
             ];
@@ -1280,10 +1276,6 @@ class ProductionService
                     'ItemCode'    => $lCode,
                     'ItemName'    => $lName,
                     'Uom'         => $lUom,
-                    'uom'         => $lUom,
-                    'UOM'         => $lUom,
-                    'Unit'        => $lUom,
-                    'unit'        => $lUom,
                     'BaseQty'     => floatval($line->base_qty),
                     'PlannedQty'  => floatval($line->planned_qty),
                     'IssuedQty'   => floatval($line->issued_qty),
