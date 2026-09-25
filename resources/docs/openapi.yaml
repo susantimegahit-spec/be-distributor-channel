@@ -18081,6 +18081,281 @@ paths:
         '400':
           description: Business error or SAP AddDO failure.
 
+  /v1/dashboard-layouts/me:
+    get:
+      summary: Mengambil Layout Dashboard Pengguna Aktif
+      description: |
+        Mengambil konfigurasi tata letak widget dashboard berdasarkan role pengguna yang sedang login.
+        Jika role pengguna belum memiliki konfigurasi kustom, backend mengembalikan konfigurasi default kosong dengan HTTP 200 (bukan 404).
+      tags:
+        - Dashboard - Builder
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Konfigurasi layout dashboard berhasil diambil atau default layout kosong.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Dashboard layout retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      role_id:
+                        type: integer
+                        example: 5
+                      version:
+                        type: integer
+                        example: 3
+                      rows:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            row:
+                              type: integer
+                              example: 1
+                            columns:
+                              type: integer
+                              example: 3
+                      widgets:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              example: "customer-orders"
+                            sort:
+                              type: integer
+                              example: 1
+                            row:
+                              type: integer
+                              example: 1
+                            column:
+                              type: integer
+                              example: 1
+                            span:
+                              type: integer
+                              example: 1
+                            properties:
+                              type: object
+                              nullable: true
+                              example: null
+                      updated_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                        example: "2026-09-25T10:30:00+07:00"
+        '401':
+          description: Unauthenticated.
+
+  /v1/dashboard-layouts/roles/{roleId}:
+    get:
+      summary: Mengambil Layout Dashboard Berdasarkan Role
+      description: |
+        Mengambil konfigurasi tata letak widget dashboard untuk suatu role tertentu.
+        Hanya dapat diakses oleh Administrator.
+      tags:
+        - Dashboard - Builder
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          description: ID role sistem
+          schema:
+            type: integer
+          example: 5
+      responses:
+        '200':
+          description: Konfigurasi layout dashboard role berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Dashboard layout retrieved successfully"
+                  data:
+                    type: object
+        '403':
+          description: Akses ditolak. Hanya administrator yang dapat mengakses.
+        '404':
+          description: Role ID tidak ditemukan.
+
+    put:
+      summary: Menyimpan / Update Layout Dashboard Berdasarkan Role (Upsert & Optimistic Locking)
+      description: |
+        Menyimpan atau memperbarui konfigurasi baris, kolom, dan widget dashboard untuk role tertentu.
+        Mendukung optimistic locking melalui field version. Jika version request tidak cocok dengan versi di database, mengembalikan HTTP 409 Conflict.
+        Hanya dapat diakses oleh Administrator.
+      tags:
+        - Dashboard - Builder
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          description: ID role sistem
+          schema:
+            type: integer
+          example: 5
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - version
+                - rows
+                - widgets
+              properties:
+                version:
+                  type: integer
+                  description: Versi konfigurasi terakhir yang diketahui frontend
+                  example: 3
+                rows:
+                  type: array
+                  description: Pengaturan baris dan jumlah kolom (1-3 kolom per baris, 1-10 baris)
+                  items:
+                    type: object
+                    required:
+                      - row
+                      - columns
+                    properties:
+                      row:
+                        type: integer
+                        example: 1
+                      columns:
+                        type: integer
+                        example: 3
+                widgets:
+                  type: array
+                  description: Daftar penempatan widget pada baris dan kolom
+                  items:
+                    type: object
+                    required:
+                      - id
+                      - sort
+                      - row
+                      - column
+                      - span
+                    properties:
+                      id:
+                        type: string
+                        example: "customer-orders"
+                      sort:
+                        type: integer
+                        example: 1
+                      row:
+                        type: integer
+                        example: 1
+                      column:
+                        type: integer
+                        example: 1
+                      span:
+                        type: integer
+                        example: 1
+                      properties:
+                        type: object
+                        nullable: true
+                        example: null
+            example:
+              version: 3
+              rows:
+                - row: 1
+                  columns: 3
+                - row: 2
+                  columns: 2
+              widgets:
+                - id: "customer-orders"
+                  sort: 1
+                  row: 1
+                  column: 1
+                  span: 1
+                - id: "order-ready"
+                  sort: 2
+                  row: 2
+                  column: 1
+                  span: 2
+      responses:
+        '200':
+          description: Dashboard layout berhasil disimpan dan versi baru dihasilkan.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Dashboard layout saved successfully"
+                  data:
+                    type: object
+        '403':
+          description: Akses ditolak.
+        '409':
+          description: Version conflict. Telah diperbarui oleh pengguna lain.
+        '422':
+          description: Validasi layout gagal (melebihi span kolom, baris tidak urut, dsb).
+
+    delete:
+      summary: Mereset / Menghapus Layout Dashboard Role
+      description: |
+        Menghapus konfigurasi kustom layout dashboard untuk role tertentu sehingga kembali ke kondisi default.
+        Hanya dapat diakses oleh Administrator.
+      tags:
+        - Dashboard - Builder
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          description: ID role sistem
+          schema:
+            type: integer
+          example: 5
+      responses:
+        '200':
+          description: Dashboard layout berhasil direset.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Dashboard layout reset successfully"
+                  data:
+                    type: string
+                    nullable: true
+                    example: null
+        '403':
+          description: Akses ditolak.
+        '404':
+          description: Role ID tidak ditemukan.
+
 components:
   securitySchemes:
     BearerAuth:

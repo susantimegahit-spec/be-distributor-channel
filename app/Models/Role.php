@@ -62,4 +62,12 @@ class Role extends Model
     {
         return $this->hasOne(RoleMenu::class);
     }
+
+    /**
+     * Get the dashboard layout configuration for the role.
+     */
+    public function dashboardLayout(): HasOne
+    {
+        return $this->hasOne(DashboardLayout::class);
+    }
 }

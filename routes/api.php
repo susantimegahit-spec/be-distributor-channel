@@ -15,5 +15,9 @@ Route::match(['get', 'post'], '/GetListByOwnerId', [\App\Modules\MasterApproval\
 Route::match(['get', 'post'], '/GetDetailByObjectCode', [\App\Modules\MasterApproval\Controllers\MasterApprovalController::class, 'getDocumentDetail'])->middleware('auth:sanctum');
 Route::match(['get', 'post'], '/GetOriginator', [\App\Modules\MasterApproval\Controllers\MasterApprovalController::class, 'getOriginators'])->middleware('auth:sanctum');
 
-
-
+Route::prefix('dashboard-layouts')->middleware('auth:sanctum')->group(function () {
+    Route::get('/me', [\App\Modules\Dashboard\Controllers\DashboardLayoutController::class, 'getMyLayout']);
+    Route::get('/roles/{roleId}', [\App\Modules\Dashboard\Controllers\DashboardLayoutController::class, 'getByRole']);
+    Route::put('/roles/{roleId}', [\App\Modules\Dashboard\Controllers\DashboardLayoutController::class, 'saveByRole']);
+    Route::delete('/roles/{roleId}', [\App\Modules\Dashboard\Controllers\DashboardLayoutController::class, 'resetByRole']);
+});
