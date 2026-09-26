@@ -7876,6 +7876,24 @@ paths:
           schema:
             type: string
           description: Keyword pencarian customer code, nama customer, item code, atau nama item
+        - name: code_customer
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan kode customer distributor (untuk role distributor, otomatis terisolasi ke kode miliknya)
+        - name: item_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan kode item spesifik
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Status harga (1 = aktif, 0 = nonaktif)
       responses:
         '200':
           description: Daftar harga item distributor berhasil diambil
