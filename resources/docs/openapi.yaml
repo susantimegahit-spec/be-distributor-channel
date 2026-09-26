@@ -13303,9 +13303,6 @@ paths:
                           SeriesName:
                             type: string
                             example: "PDO26-01"
-                          series_name:
-                            type: string
-                            example: "PDO26-01"
                           ItemCode:
                             type: string
                             example: "FG00124"
@@ -13409,6 +13406,10 @@ paths:
                               type: string
                               description: Satuan ukuran bahan / resource (Unit of Measure)
                               example: "KG"
+                            Unit:
+                              type: string
+                              description: Satuan ukuran bahan / resource
+                              example: "KG"
                             WhsCode:
                               type: string
                               example: "RM01"
@@ -13467,6 +13468,7 @@ paths:
                       PlannedQty: 1020.0
                       IssuedQty: 510.0
                       Uom: "KG"
+                      Unit: "KG"
                       WhsCode: "RM01"
                       IssueMethod: "M"
                       OcrCode: "SBY"
@@ -13480,6 +13482,7 @@ paths:
                       PlannedQty: 1000.0
                       IssuedQty: 500.0
                       Uom: "PCS"
+                      Unit: "PCS"
                       WhsCode: "PK01"
                       IssueMethod: "M"
                       OcrCode: "SBY"
@@ -13493,6 +13496,7 @@ paths:
                       PlannedQty: 50.0
                       IssuedQty: 25.0
                       Uom: "JAM"
+                      Unit: "JAM"
                       WhsCode: "FG01"
                       IssueMethod: "B"
                       OcrCode: "SBY"

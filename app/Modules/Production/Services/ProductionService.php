@@ -1186,11 +1186,19 @@ class ProductionService
                 $header['Shift'] = $rawShift;
             }
 
-            // Unit field (canonical: Unit for business unit / plant)
-            $rawUnit = (string) ($header['Unit'] ?? $header['U_Unit'] ?? $header['unit'] ?? $header['u_unit'] ?? $localOrder?->u_unit ?? '');
-            if ($rawUnit !== '') {
-                $header['Unit'] = $rawUnit;
-            }
+            // Unit field (canonical: Unit)
+            $rawUnit = (string) (
+                $header['Unit'] ??
+                $header['U_Unit'] ??
+                $header['unit'] ??
+                $header['u_unit'] ??
+                $header['OcrCode2'] ??
+                $header['ocr_code2'] ??
+                $localOrder?->u_unit ??
+                $localOrder?->ocr_code2 ??
+                ''
+            );
+            $header['Unit'] = $rawUnit;
 
             // Strip redundant duplicate keys from header
             unset(
@@ -1201,7 +1209,7 @@ class ProductionService
                 $header['unit'], $header['U_Unit'], $header['u_unit']
             );
 
-            // Normalize item lines (canonical: Uom for component unit of measure)
+            // Normalize item lines (canonical: Uom & Unit)
             if (!empty($items) && is_array($items)) {
                 foreach ($items as &$it) {
                     if (!is_array($it)) continue;
@@ -1220,11 +1228,12 @@ class ProductionService
                     $it['ItemCode'] = $itCode;
                     $it['ItemName'] = $itName;
                     $it['Uom'] = $itUom;
+                    $it['Unit'] = $itUom;
 
-                    // Strip redundant duplicate keys from item lines
+                    // Strip redundant duplicate keys from item lines (keep canonical Uom & Unit)
                     unset(
                         $it['item_code'], $it['item'], $it['item_name'], $it['prod_name'], $it['ProdName'], $it['Dscription'], $it['dscription'],
-                        $it['uom'], $it['UOM'], $it['Unit'], $it['unit'], $it['UnitMsr'], $it['SalUnitMsr']
+                        $it['uom'], $it['UOM'], $it['unit'], $it['UnitMsr'], $it['SalUnitMsr'], $it['sal_unit_msr']
                     );
                 }
                 unset($it);
@@ -1259,7 +1268,7 @@ class ProductionService
                 'WhsCode'     => (string) $localOrder->warehouse,
                 'Remarks'     => (string) $localOrder->comments,
                 'Shift'       => $rawLocalShift,
-                'Unit'        => (string) $localOrder->u_unit,
+                'Unit'        => (string) ($localOrder->u_unit ?: $localOrder->ocr_code2 ?: ''),
                 'Bomid'       => (string) $localOrder->production_bom_id,
                 'is_local'    => true,
             ];
@@ -1276,6 +1285,7 @@ class ProductionService
                     'ItemCode'    => $lCode,
                     'ItemName'    => $lName,
                     'Uom'         => $lUom,
+                    'Unit'        => $lUom,
                     'BaseQty'     => floatval($line->base_qty),
                     'PlannedQty'  => floatval($line->planned_qty),
                     'IssuedQty'   => floatval($line->issued_qty),
