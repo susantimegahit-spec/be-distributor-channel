@@ -8,7 +8,7 @@ use App\Modules\TaskManagement\Controllers\TimeTrackingController;
 use App\Modules\TaskManagement\Controllers\CommentController;
 use App\Modules\TaskManagement\Controllers\MasterDataController;
 
-Route::prefix('task-management')->middleware('auth:sanctum')->group(function () {
+$registerRoutes = function () {
     // 1. Task Core Endpoints
     Route::get('/tasks', [TaskController::class, 'index']);
     Route::post('/tasks', [TaskController::class, 'store']);
@@ -57,4 +57,7 @@ Route::prefix('task-management')->middleware('auth:sanctum')->group(function () 
     Route::get('/master/tags', [MasterDataController::class, 'getTags']);
     Route::get('/master/departments', [MasterDataController::class, 'getDepartments']);
     Route::get('/master/employees', [MasterDataController::class, 'getEmployees']);
-});
+};
+
+Route::prefix('v1/task-management')->middleware('auth:sanctum')->group($registerRoutes);
+Route::prefix('task-management')->middleware('auth:sanctum')->group($registerRoutes);
