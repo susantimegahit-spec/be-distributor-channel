@@ -748,13 +748,16 @@ class PicklistService
                         continue;
                     }
 
-                    $baseEntry = isset($cLine['BaseEntry']) ? (int) $cLine['BaseEntry'] : ($so->sap_doc_entry ?: 1);
+                    $baseEntry = isset($cLine['BaseEntry']) ? (int) $cLine['BaseEntry'] : ($so->docentry ?: $so->sap_doc_entry ?: 1);
                     $baseLine  = isset($cLine['BaseLine']) ? (int) $cLine['BaseLine'] : 0;
                     $itemCode  = trim((string) ($cLine['ItemCode'] ?? $cLine['item_code'] ?? ''));
 
                     $matchedDetail = null;
                     if (!empty($itemCode)) {
                         $matchedDetail = $soDetails->firstWhere('item_code', $itemCode);
+                    }
+                    if (!$matchedDetail && isset($cLine['BaseLine'])) {
+                        $matchedDetail = $soDetails->firstWhere('baseline', (int)$cLine['BaseLine']);
                     }
                     if (!$matchedDetail && isset($soDetails[$baseLine])) {
                         $matchedDetail = $soDetails[$baseLine];
@@ -800,19 +803,17 @@ class PicklistService
                     if ($item->sales_order_detail_id) {
                         $detail = $soDetails->firstWhere('id', $item->sales_order_detail_id);
                         if ($detail) {
-                            $idx = $soDetails->search(fn($d) => $d->id === $detail->id);
-                            $baseLine = $idx !== false ? $idx : 0;
+                            $baseLine = $detail->baseline !== null ? (int) $detail->baseline : ($soDetails->search(fn($d) => $d->id === $detail->id) ?: 0);
                         }
                     }
                     if (!$detail) {
                         $detail = $soDetails->firstWhere('item_code', $itemCode);
                         if ($detail) {
-                            $idx = $soDetails->search(fn($d) => $d->id === $detail->id);
-                            $baseLine = $idx !== false ? $idx : 0;
+                            $baseLine = $detail->baseline !== null ? (int) $detail->baseline : ($soDetails->search(fn($d) => $d->id === $detail->id) ?: 0);
                         }
                     }
 
-                    $baseEntry = (int) ($payload['BaseEntry'] ?? $payload['base_entry'] ?? ($so->sap_doc_entry ?: 1));
+                    $baseEntry = (int) ($payload['BaseEntry'] ?? $payload['base_entry'] ?? ($so->docentry ?: $so->sap_doc_entry ?: 1));
 
                     $lineObj = [
                         'BaseEntry' => $baseEntry,
