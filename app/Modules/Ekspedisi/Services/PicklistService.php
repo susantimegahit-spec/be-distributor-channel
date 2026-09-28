@@ -735,6 +735,12 @@ class PicklistService
                 continue;
             }
 
+            // Validasi BaseEntry dari Sales Order
+            $baseEntry = $so->docentry ?: $so->sap_doc_entry;
+            if (empty($baseEntry)) {
+                throw new \Exception("Sales Order #{$so->order_no} belum memiliki DocEntry (belum approved / terintegrasi ke SAP). Tidak bisa Add DO.", 400);
+            }
+
             $soDetails = $so->details ? $so->details->sortBy('id')->values() : collect();
 
             // Build Lines for this SO
@@ -748,24 +754,33 @@ class PicklistService
                         continue;
                     }
 
-                    $baseEntry = isset($cLine['BaseEntry']) ? (int) $cLine['BaseEntry'] : ($so->docentry ?: $so->sap_doc_entry ?: 1);
-                    $baseLine  = isset($cLine['BaseLine']) ? (int) $cLine['BaseLine'] : 0;
-                    $itemCode  = trim((string) ($cLine['ItemCode'] ?? $cLine['item_code'] ?? ''));
+                    $itemCode = trim((string) ($cLine['ItemCode'] ?? $cLine['item_code'] ?? ''));
 
                     $matchedDetail = null;
-                    if (!empty($itemCode)) {
+                    if (!empty($cLine['sales_order_detail_id'])) {
+                        $matchedDetail = $soDetails->firstWhere('id', (int) $cLine['sales_order_detail_id']);
+                    }
+                    if (!$matchedDetail && !empty($itemCode)) {
                         $matchedDetail = $soDetails->firstWhere('item_code', $itemCode);
                     }
                     if (!$matchedDetail && isset($cLine['BaseLine'])) {
-                        $matchedDetail = $soDetails->firstWhere('baseline', (int)$cLine['BaseLine']);
+                        $matchedDetail = $soDetails->firstWhere('baseline', (int) $cLine['BaseLine']);
                     }
-                    if (!$matchedDetail && isset($soDetails[$baseLine])) {
-                        $matchedDetail = $soDetails[$baseLine];
+                    if (!$matchedDetail && isset($cLine['baseline'])) {
+                        $matchedDetail = $soDetails->firstWhere('baseline', (int) $cLine['baseline']);
+                    }
+
+                    if (!$matchedDetail) {
+                        throw new \Exception("Item '{$itemCode}' tidak ditemukan pada detail Sales Order #{$so->order_no}.", 400);
+                    }
+
+                    if ($matchedDetail->baseline === null) {
+                        throw new \Exception("Item '{$matchedDetail->item_code}' pada Sales Order #{$so->order_no} belum memiliki BaseLine di database. Tidak bisa Add DO.", 400);
                     }
 
                     $lineObj = [
-                        'BaseEntry' => $baseEntry,
-                        'BaseLine'  => $baseLine,
+                        'BaseEntry' => (int) $baseEntry,
+                        'BaseLine'  => (int) $matchedDetail->baseline,
                         'Quantity'  => $qty,
                     ];
 
@@ -799,25 +814,24 @@ class PicklistService
                     }
 
                     $detail = null;
-                    $baseLine = 0;
                     if ($item->sales_order_detail_id) {
-                        $detail = $soDetails->firstWhere('id', $item->sales_order_detail_id);
-                        if ($detail) {
-                            $baseLine = $detail->baseline !== null ? (int) $detail->baseline : ($soDetails->search(fn($d) => $d->id === $detail->id) ?: 0);
-                        }
+                        $detail = $soDetails->firstWhere('id', (int) $item->sales_order_detail_id);
                     }
                     if (!$detail) {
                         $detail = $soDetails->firstWhere('item_code', $itemCode);
-                        if ($detail) {
-                            $baseLine = $detail->baseline !== null ? (int) $detail->baseline : ($soDetails->search(fn($d) => $d->id === $detail->id) ?: 0);
-                        }
                     }
 
-                    $baseEntry = (int) ($payload['BaseEntry'] ?? $payload['base_entry'] ?? ($so->docentry ?: $so->sap_doc_entry ?: 1));
+                    if (!$detail) {
+                        throw new \Exception("Item '{$itemCode}' tidak ditemukan pada detail Sales Order #{$so->order_no}.", 400);
+                    }
+
+                    if ($detail->baseline === null) {
+                        throw new \Exception("Item '{$detail->item_code}' pada Sales Order #{$so->order_no} belum memiliki BaseLine di database. Tidak bisa Add DO.", 400);
+                    }
 
                     $lineObj = [
-                        'BaseEntry' => $baseEntry,
-                        'BaseLine'  => (int) $baseLine,
+                        'BaseEntry' => (int) $baseEntry,
+                        'BaseLine'  => (int) $detail->baseline,
                         'Quantity'  => $qty,
                     ];
 
@@ -1066,6 +1080,97 @@ class PicklistService
         foreach ($batchPayload as &$header) {
             $header['AddonId'] = 2;
             $header['UserId']  = (string) ($userId ?: ($header['UserId'] ?? $header['user_id'] ?? '1'));
+
+            // 1. Resolve Sales Order
+            $so = null;
+            if (!empty($header['sales_order_id'])) {
+                $so = SalesOrder::with('details')->find($header['sales_order_id']);
+            }
+            if (!$so && !empty($header['order_no'])) {
+                $so = SalesOrder::with('details')->where('order_no', $header['order_no'])->first();
+            }
+            if (!$so && !empty($header['NumAtCard'])) {
+                $so = SalesOrder::with('details')->where('order_no', $header['NumAtCard'])
+                    ->orWhere('po_number', $header['NumAtCard'])
+                    ->first();
+            }
+            if (!$so && !empty($header['picklist_id'])) {
+                $pItem = PicklistItem::where('picklist_id', $header['picklist_id'])->first();
+                if ($pItem) {
+                    $so = SalesOrder::with('details')->find($pItem->sales_order_id);
+                }
+            }
+
+            $linesKey = isset($header['Lines']) ? 'Lines' : (isset($header['lines']) ? 'lines' : 'Lines');
+            $headerLines = $header[$linesKey] ?? [];
+
+            if (!$so && !empty($headerLines[0])) {
+                $firstBe = $headerLines[0]['BaseEntry'] ?? $headerLines[0]['base_entry'] ?? null;
+                if ($firstBe) {
+                    $so = SalesOrder::with('details')->where('docentry', (int) $firstBe)
+                        ->orWhere('sap_doc_entry', (int) $firstBe)
+                        ->first();
+                }
+            }
+
+            if (empty($headerLines) || !is_array($headerLines)) {
+                throw new \Exception("Payload DO tidak memiliki baris item (Lines).", 400);
+            }
+
+            if ($so) {
+                $baseEntry = $so->docentry ?: $so->sap_doc_entry;
+                if (empty($baseEntry)) {
+                    throw new \Exception("Sales Order #{$so->order_no} belum memiliki DocEntry (belum approved / terintegrasi ke SAP). Tidak bisa Add DO.", 400);
+                }
+
+                $soDetails = $so->details ? $so->details->sortBy('id')->values() : collect();
+
+                foreach ($header[$linesKey] as &$line) {
+                    $itemCode = trim((string) ($line['ItemCode'] ?? $line['item_code'] ?? ''));
+                    $detail = null;
+
+                    if (!empty($line['sales_order_detail_id'])) {
+                        $detail = $soDetails->firstWhere('id', (int) $line['sales_order_detail_id']);
+                    }
+                    if (!$detail && !empty($itemCode)) {
+                        $detail = $soDetails->firstWhere('item_code', $itemCode);
+                    }
+                    if (!$detail && isset($line['BaseLine'])) {
+                        $detail = $soDetails->firstWhere('baseline', (int) $line['BaseLine']);
+                    }
+                    if (!$detail && isset($line['baseline'])) {
+                        $detail = $soDetails->firstWhere('baseline', (int) $line['baseline']);
+                    }
+
+                    if (!$detail) {
+                        throw new \Exception("Item '{$itemCode}' tidak ditemukan pada detail Sales Order #{$so->order_no}.", 400);
+                    }
+
+                    if ($detail->baseline === null) {
+                        throw new \Exception("Item '{$detail->item_code}' pada Sales Order #{$so->order_no} belum memiliki BaseLine di database. Tidak bisa Add DO.", 400);
+                    }
+
+                    $line['BaseEntry'] = (int) $baseEntry;
+                    $line['BaseLine']  = (int) $detail->baseline;
+                }
+                unset($line);
+
+                $header['sales_order_id'] = $so->id;
+            } else {
+                // Jika SO tidak ditemukan di database lokal, periksa apakah BaseEntry dan BaseLine terisi di payload
+                foreach ($header[$linesKey] as &$line) {
+                    $bEntry = $line['BaseEntry'] ?? $line['base_entry'] ?? null;
+                    $bLine  = $line['BaseLine'] ?? $line['base_line'] ?? $line['baseline'] ?? null;
+
+                    if ($bEntry === null || $bEntry === '' || $bLine === null || $bLine === '') {
+                        throw new \Exception("Data BaseEntry atau BaseLine kosong. Tidak bisa Add DO.", 400);
+                    }
+
+                    $line['BaseEntry'] = (int) $bEntry;
+                    $line['BaseLine']  = (int) $bLine;
+                }
+                unset($line);
+            }
         }
         unset($header);
 
