@@ -100,6 +100,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the HRIS employee profile associated with the user.
+     */
+    public function employee(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(HrisEmployee::class, 'user_id');
+    }
+
+    /**
      * Get the organization assignments (distribution rules) associated with the user.
      */
     public function organizationAssignments(): \Illuminate\Database\Eloquent\Relations\HasMany

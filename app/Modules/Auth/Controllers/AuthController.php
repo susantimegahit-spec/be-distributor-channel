@@ -41,9 +41,76 @@ class AuthController extends Controller
         );
 
         $user = $result['user'];
-        $user->load(['role.roleMenu', 'distributor', 'expedition', 'organizationAssignments']);
+        $user->load([
+            'role.roleMenu',
+            'distributor',
+            'expedition',
+            'organizationAssignments',
+            'employee.department',
+            'employee.division',
+            'employee.position',
+            'employee.supervisor',
+        ]);
         $permsMap = $user->getPermissionsMap();
         $originatorDetail = $user->originator_detail;
+
+        $employee = $user->employee;
+        $employeeData = null;
+
+        if ($employee) {
+            $employeeData = [
+                'id' => $employee->id,
+                'nik' => $employee->nik,
+                'user_id' => $employee->user_id,
+                'full_name' => $employee->full_name,
+                'nickname' => $employee->nickname,
+                'email_office' => $employee->email_office,
+                'phone_number' => $employee->phone_number,
+                'telegram_chat_id' => $employee->telegram_chat_id,
+                'department_id' => $employee->department_id,
+                'division_id' => $employee->division_id,
+                'position_id' => $employee->position_id,
+                'direct_supervisor_id' => $employee->direct_supervisor_id,
+                'employment_status' => $employee->employment_status,
+                'join_date' => $employee->join_date?->format('Y-m-d'),
+                'resign_date' => $employee->resign_date?->format('Y-m-d'),
+                'is_active' => (bool) $employee->is_active,
+                'avatar_url' => $employee->avatar_url,
+                'department' => $employee->department ? [
+                    'id' => $employee->department->id,
+                    'dept_code' => $employee->department->dept_code,
+                    'dept_name' => $employee->department->dept_name,
+                    'sap_ocr_code3' => $employee->department->sap_ocr_code3,
+                    'description' => $employee->department->description,
+                    'head_employee_id' => $employee->department->head_employee_id,
+                    'is_active' => (bool) $employee->department->is_active,
+                ] : null,
+                'division' => $employee->division ? [
+                    'id' => $employee->division->id,
+                    'department_id' => $employee->division->department_id,
+                    'division_code' => $employee->division->division_code,
+                    'division_name' => $employee->division->division_name,
+                    'lead_employee_id' => $employee->division->lead_employee_id,
+                    'is_active' => (bool) $employee->division->is_active,
+                ] : null,
+                'position' => $employee->position ? [
+                    'id' => $employee->position->id,
+                    'position_code' => $employee->position->position_code,
+                    'position_name' => $employee->position->position_name,
+                    'level_grade' => $employee->position->level_grade,
+                    'description' => $employee->position->description,
+                    'is_active' => (bool) $employee->position->is_active,
+                ] : null,
+                'direct_supervisor' => $employee->supervisor ? [
+                    'id' => $employee->supervisor->id,
+                    'nik' => $employee->supervisor->nik,
+                    'full_name' => $employee->supervisor->full_name,
+                    'nickname' => $employee->supervisor->nickname,
+                    'email_office' => $employee->supervisor->email_office,
+                    'avatar_url' => $employee->supervisor->avatar_url,
+                ] : null,
+            ];
+        }
 
         return $this->successResponse([
             'user' => [
@@ -76,7 +143,9 @@ class AuthController extends Controller
                 'custom_permissions' => $user->custom_permissions_list,
                 'organization_assignment' => $user->organization_assignment,
                 'organization_assignments' => $user->organizationAssignments,
+                'employee' => $employeeData,
             ],
+            'employee' => $employeeData,
             'originator_detail' => $originatorDetail,
             'organization_assignment' => $user->organization_assignment,
             'menu' => $user->role?->roleMenu?->menu ?? [],
