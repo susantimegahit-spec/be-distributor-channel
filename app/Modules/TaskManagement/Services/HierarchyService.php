@@ -47,6 +47,9 @@ class HierarchyService
 
     public function createSpace(array $data, int $userId): TmSpace
     {
+        if (empty($data['id'])) {
+            $data['id'] = !empty($data['department_id']) ? $data['department_id'] : (Str::slug($data['space_name']) . '-' . rand(100, 999));
+        }
         if (empty($data['space_slug'])) {
             $data['space_slug'] = Str::slug($data['space_name']) . '-' . rand(100, 999);
         }
