@@ -15,6 +15,6 @@ interface TaskRepositoryInterface
     public function update(TmTask $task, array $data): bool;
     public function delete(TmTask $task): bool;
     public function getSubtasks(int $taskId): Collection;
-    public function generateTaskCode(int $spaceId): string;
+    public function generateTaskCode(string|int $spaceId): string;
     public function logActivity(int $taskId, int $performerId, string $actionType, ?string $fieldName = null, ?string $oldValue = null, ?string $newValue = null): void;
 }

@@ -154,7 +154,7 @@ class TaskRepository implements TaskRepositoryInterface
         ->get();
     }
 
-    public function generateTaskCode(int $spaceId): string
+    public function generateTaskCode(string|int $spaceId): string
     {
         $space = TmSpace::with('department')->find($spaceId);
         $deptCode = $space && $space->department ? strtoupper($space->department->dept_code) : 'GEN';

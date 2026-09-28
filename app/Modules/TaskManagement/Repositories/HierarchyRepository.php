@@ -34,7 +34,7 @@ class HierarchyRepository implements HierarchyRepositoryInterface
         ->get();
     }
 
-    public function findSpace(int $id): ?TmSpace
+    public function findSpace(string|int $id): ?TmSpace
     {
         return TmSpace::with(['department', 'members.employee', 'folders.lists', 'lists' => function ($q) {
             $q->whereNull('folder_id');
@@ -51,7 +51,7 @@ class HierarchyRepository implements HierarchyRepositoryInterface
         return $space->update($data);
     }
 
-    public function getFolders(int $spaceId): Collection
+    public function getFolders(string|int $spaceId): Collection
     {
         return TmFolder::where('space_id', $spaceId)
             ->where('is_archived', false)
@@ -75,7 +75,7 @@ class HierarchyRepository implements HierarchyRepositoryInterface
         return $folder->update($data);
     }
 
-    public function getLists(int $spaceId, ?int $folderId = null): Collection
+    public function getLists(string|int $spaceId, ?int $folderId = null): Collection
     {
         $query = TmList::where('space_id', $spaceId)->where('is_archived', false);
         if ($folderId !== null) {

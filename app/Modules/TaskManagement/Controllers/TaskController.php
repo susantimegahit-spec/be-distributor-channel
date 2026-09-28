@@ -55,7 +55,7 @@ class TaskController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'space_id'        => 'required|integer',
+            'space_id'        => 'required|string|max:100',
             'list_id'         => 'required|integer',
             'title'           => 'required|string|max:255',
             'folder_id'       => 'nullable|integer',
@@ -208,7 +208,7 @@ class TaskController extends Controller
 
     public function metrics(Request $request): JsonResponse
     {
-        $spaceId = $request->query('space_id') ? (int)$request->query('space_id') : null;
+        $spaceId = $request->query('space_id') ? (string)$request->query('space_id') : null;
         $metrics = $this->taskService->getSummaryMetrics($spaceId);
 
         return response()->json([

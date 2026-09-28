@@ -62,7 +62,7 @@ class HierarchyController extends Controller
         return response()->json(['status' => 'success', 'data' => $spaces]);
     }
 
-    public function getSpace(int $id): JsonResponse
+    public function getSpace(string $id): JsonResponse
     {
         $space = $this->hierarchyService->getSpaceDetail($id);
         if (!$space) {
@@ -74,6 +74,7 @@ class HierarchyController extends Controller
     public function createSpace(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
+            'id'             => 'nullable|string|max:100',
             'workspace_id'   => 'required|integer',
             'department_id'  => 'nullable|string|max:100',
             'space_name'     => 'required|string|max:150',
@@ -94,7 +95,7 @@ class HierarchyController extends Controller
 
     public function getFolders(Request $request): JsonResponse
     {
-        $spaceId = (int)$request->query('space_id');
+        $spaceId = $request->query('space_id');
         if (!$spaceId) {
             return response()->json(['status' => 'error', 'message' => 'space_id query parameter is required'], 422);
         }
@@ -105,7 +106,7 @@ class HierarchyController extends Controller
     public function createFolder(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'space_id'    => 'required|integer',
+            'space_id'    => 'required|string|max:100',
             'folder_name' => 'required|string|max:150',
             'description' => 'nullable|string',
             'color_hex'   => 'nullable|string|max:10',
@@ -122,7 +123,7 @@ class HierarchyController extends Controller
 
     public function getLists(Request $request): JsonResponse
     {
-        $spaceId = (int)$request->query('space_id');
+        $spaceId = $request->query('space_id');
         if (!$spaceId) {
             return response()->json(['status' => 'error', 'message' => 'space_id query parameter is required'], 422);
         }
@@ -134,7 +135,7 @@ class HierarchyController extends Controller
     public function createList(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'space_id'     => 'required|integer',
+            'space_id'     => 'required|string|max:100',
             'folder_id'    => 'nullable|integer',
             'list_name'    => 'required|string|max:150',
             'description'  => 'nullable|string',

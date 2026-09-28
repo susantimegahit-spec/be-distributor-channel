@@ -15,16 +15,16 @@ interface HierarchyRepositoryInterface
     public function createWorkspace(array $data): TmWorkspace;
 
     public function getSpaces(int $workspaceId): Collection;
-    public function findSpace(int $id): ?TmSpace;
+    public function findSpace(string|int $id): ?TmSpace;
     public function createSpace(array $data): TmSpace;
     public function updateSpace(TmSpace $space, array $data): bool;
 
-    public function getFolders(int $spaceId): Collection;
+    public function getFolders(string|int $spaceId): Collection;
     public function findFolder(int $id): ?TmFolder;
     public function createFolder(array $data): TmFolder;
     public function updateFolder(TmFolder $folder, array $data): bool;
 
-    public function getLists(int $spaceId, ?int $folderId = null): Collection;
+    public function getLists(string|int $spaceId, ?int $folderId = null): Collection;
     public function findList(int $id): ?TmList;
     public function createList(array $data): TmList;
     public function updateList(TmList $list, array $data): bool;

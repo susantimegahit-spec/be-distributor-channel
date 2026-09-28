@@ -8,8 +8,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class TmSpace extends CorporateModel
 {
     protected $table = 'tm_spaces';
+    public $incrementing = false;
+    protected $keyType = 'string';
 
     protected $fillable = [
+        'id',
         'workspace_id',
         'department_id',
         'space_name',

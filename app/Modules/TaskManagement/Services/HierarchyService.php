@@ -40,7 +40,7 @@ class HierarchyService
         return $this->hierarchyRepo->getSpaces($workspaceId);
     }
 
-    public function getSpaceDetail(int $id): ?TmSpace
+    public function getSpaceDetail(string|int $id): ?TmSpace
     {
         return $this->hierarchyRepo->findSpace($id);
     }
@@ -54,14 +54,14 @@ class HierarchyService
         return $this->hierarchyRepo->createSpace($data);
     }
 
-    public function updateSpace(int $id, array $data): TmSpace
+    public function updateSpace(string|int $id, array $data): TmSpace
     {
         $space = $this->hierarchyRepo->findSpace($id);
         $this->hierarchyRepo->updateSpace($space, $data);
         return $this->hierarchyRepo->findSpace($id);
     }
 
-    public function getFolders(int $spaceId): Collection
+    public function getFolders(string|int $spaceId): Collection
     {
         return $this->hierarchyRepo->getFolders($spaceId);
     }
@@ -79,7 +79,7 @@ class HierarchyService
         return $this->hierarchyRepo->findFolder($id);
     }
 
-    public function getLists(int $spaceId, ?int $folderId = null): Collection
+    public function getLists(string|int $spaceId, ?int $folderId = null): Collection
     {
         return $this->hierarchyRepo->getLists($spaceId, $folderId);
     }
