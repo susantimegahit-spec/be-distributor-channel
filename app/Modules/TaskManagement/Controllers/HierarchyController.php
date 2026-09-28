@@ -75,7 +75,7 @@ class HierarchyController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'workspace_id'   => 'required|integer',
-            'department_id'  => 'nullable|integer',
+            'department_id'  => 'nullable|string|max:100',
             'space_name'     => 'required|string|max:150',
             'color_hex'      => 'nullable|string|max:10',
             'icon_name'      => 'nullable|string|max:50',
