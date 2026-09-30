@@ -43,31 +43,13 @@ class UserCrudService
     }
 
     /**
-     * Normalize custom permissions to guarantee 6 standard action keys.
+     * Normalize custom permissions input.
+     * Stored raw directly into custom_permissions column as requested by FE.
      *
      * @param mixed $input
-     * @return array|null
-    /**
-     * Normalize custom permissions input from various FE formats into a standard array format:
-     * [
-     *   {
-     *     "menu_key": "sales-order",
-     *     "actions": {
-     *       "create": false,
-     *       "read": true,
-     *       "update": false,
-     *       "delete": false,
-     *       "approve": false,
-     *       "export": false,
-     *       "sync": true, ... (dynamic actions)
-     *     }
-     *   }
-     * ]
-     *
-     * @param mixed $input
-     * @return array|null
+     * @return mixed
      */
-    public function normalizeCustomPermissions(mixed $input): ?array
+    public function normalizeCustomPermissions(mixed $input): mixed
     {
         if ($input === null) {
             return null;
@@ -75,100 +57,13 @@ class UserCrudService
 
         if (is_string($input)) {
             $decoded = json_decode($input, true);
-            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-                $input = $decoded;
-            } else {
-                return null;
+            if (json_last_error() === JSON_ERROR_NONE) {
+                return $decoded;
             }
-        }
-
-        if (!is_array($input)) {
             return null;
         }
 
-        $formatted = [];
-        foreach ($input as $key => $val) {
-            $menuId = null;
-            $menuKey = null;
-            $actInput = [];
-
-            if (is_string($key) && is_array($val)) {
-                $menuKey = $key;
-                $actInput = $val;
-            } elseif (is_array($val)) {
-                $menuId = $val['menu_id'] ?? $val['id'] ?? null;
-                $menuKey = $val['menu_key'] ?? $val['key'] ?? (string) ($menuId ?? '');
-                $actInput = $val['actions'] ?? [];
-            }
-
-            if (empty($menuKey) && empty($menuId)) {
-                continue;
-            }
-
-            $actions = [
-                'create'  => false,
-                'read'    => true,
-                'update'  => false,
-                'delete'  => false,
-                'approve' => false,
-                'export'  => false,
-            ];
-
-            // Case A: FE sends array of action strings, e.g. ["view", "add", "edit", "delete", "approve", "download", "upload", "sync"]
-            if (is_array($actInput) && isset($actInput[0]) && is_string($actInput[0])) {
-                $lowered = array_map('strtolower', $actInput);
-                $actions['create']  = in_array('add', $lowered) || in_array('create', $lowered);
-                $actions['read']    = in_array('view', $lowered) || in_array('read', $lowered) || in_array('show', $lowered);
-                $actions['update']  = in_array('edit', $lowered) || in_array('update', $lowered);
-                $actions['delete']  = in_array('delete', $lowered) || in_array('destroy', $lowered);
-                $actions['approve'] = in_array('approve', $lowered) || in_array('approval', $lowered);
-                $actions['export']  = in_array('download', $lowered) || in_array('upload', $lowered) || in_array('export', $lowered);
-
-                // Dynamically preserve any other action strings
-                foreach ($lowered as $actStr) {
-                    $cleaned = trim($actStr);
-                    if ($cleaned !== '' && !isset($actions[$cleaned])) {
-                        $actions[$cleaned] = true;
-                    }
-                }
-            }
-            // Case B: FE sends object/associative map, e.g. {"create": true, "read": true, "sync": true, ...}
-            elseif (is_array($actInput)) {
-                // Check aliases
-                if (isset($actInput['add'])) {
-                    $actions['create'] = (bool) $actInput['add'];
-                }
-                if (isset($actInput['view'])) {
-                    $actions['read'] = (bool) $actInput['view'];
-                }
-                if (isset($actInput['edit'])) {
-                    $actions['update'] = (bool) $actInput['edit'];
-                }
-                if (isset($actInput['download']) || isset($actInput['upload'])) {
-                    $actions['export'] = (bool) ($actInput['export'] ?? $actInput['download'] ?? $actInput['upload'] ?? false);
-                }
-
-                // Dynamically include all keys passed by FE
-                foreach ($actInput as $actKey => $actVal) {
-                    if (is_string($actKey) && !in_array($actKey, ['add', 'view', 'edit', 'download', 'upload'])) {
-                        $actions[$actKey] = (bool) $actVal;
-                    }
-                }
-            }
-
-            $itemFormatted = [
-                'menu_key' => (string) ($menuKey ?: $menuId),
-                'actions'  => $actions,
-            ];
-
-            if ($menuId !== null) {
-                $itemFormatted['menu_id'] = is_numeric($menuId) ? (int) $menuId : $menuId;
-            }
-
-            $formatted[] = $itemFormatted;
-        }
-
-        return $formatted;
+        return $input;
     }
 
     /**
@@ -210,9 +105,9 @@ class UserCrudService
             }
         }
         unset(
-            $data['organization_assignment'], 
-            $data['organizational_assignment'], 
-            $data['distribution_rule'], 
+            $data['organization_assignment'],
+            $data['organizational_assignment'],
+            $data['distribution_rule'],
             $data['distribution_rules'],
             $data['warehouses'],
             $data['branches'],
@@ -227,11 +122,11 @@ class UserCrudService
         }
         unset($data['unit']);
 
-        $isProductionUser = !empty($data['whs_code']) || 
-                            !empty($data['units']) ||
-                            !empty($data['ocr_code']) || 
-                            !empty($data['ocr_code2']) || 
-                            !empty($data['ocr_code3']);
+        $isProductionUser = !empty($data['whs_code']) ||
+            !empty($data['units']) ||
+            !empty($data['ocr_code']) ||
+            !empty($data['ocr_code2']) ||
+            !empty($data['ocr_code3']);
 
         if ($isProductionUser && empty($data['production_code'])) {
             $data['production_code'] = User::generateProductionCode();
@@ -292,9 +187,9 @@ class UserCrudService
             }
         }
         unset(
-            $data['organization_assignment'], 
-            $data['organizational_assignment'], 
-            $data['distribution_rule'], 
+            $data['organization_assignment'],
+            $data['organizational_assignment'],
+            $data['distribution_rule'],
             $data['distribution_rules'],
             $data['warehouses'],
             $data['branches'],
@@ -309,11 +204,11 @@ class UserCrudService
         }
         unset($data['unit']);
 
-        $isProductionUser = !empty($data['whs_code']) || 
-                            !empty($data['units']) ||
-                            !empty($data['ocr_code']) || 
-                            !empty($data['ocr_code2']) || 
-                            !empty($data['ocr_code3']);
+        $isProductionUser = !empty($data['whs_code']) ||
+            !empty($data['units']) ||
+            !empty($data['ocr_code']) ||
+            !empty($data['ocr_code2']) ||
+            !empty($data['ocr_code3']);
 
         if ($isProductionUser && empty($data['production_code'])) {
             $user = User::find($id);
