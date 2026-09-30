@@ -23,6 +23,7 @@ interface HierarchyRepositoryInterface
     public function findFolder(int $id): ?TmFolder;
     public function createFolder(array $data): TmFolder;
     public function updateFolder(TmFolder $folder, array $data): bool;
+    public function deleteFolder(TmFolder $folder): bool;
 
     public function getLists(string|int $spaceId, ?int $folderId = null): Collection;
     public function findList(int $id): ?TmList;

@@ -75,6 +75,11 @@ class HierarchyRepository implements HierarchyRepositoryInterface
         return $folder->update($data);
     }
 
+    public function deleteFolder(TmFolder $folder): bool
+    {
+        return $folder->delete();
+    }
+
     public function getLists(string|int $spaceId, ?int $folderId = null): Collection
     {
         $query = TmList::where('space_id', $spaceId)->where('is_archived', false);

@@ -121,6 +121,29 @@ class HierarchyController extends Controller
         return response()->json(['status' => 'success', 'data' => $folder], 201);
     }
 
+    public function deleteFolder(Request $request, int $id): JsonResponse
+    {
+        try {
+            $deleted = $this->hierarchyService->deleteFolder($id);
+            if (!$deleted) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Folder not found',
+                ], 404);
+            }
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Folder and its contents deleted successfully',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Failed to delete folder: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function getLists(Request $request): JsonResponse
     {
         $spaceId = $request->query('space_id');

@@ -363,6 +363,25 @@ paths:
         '201':
           description: Folder berhasil dibuat.
 
+  /task-management/folders/{id}:
+    delete:
+      summary: Hapus Folder Beserta Seluruh Isi Turunannya
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Folder dan seluruh isinya berhasil dihapus.
+        '404':
+          description: Folder tidak ditemukan.
+
   /task-management/lists:
     get:
       summary: Daftar List Tugas

@@ -29,6 +29,7 @@ $registerRoutes = function () {
 
     Route::get('/folders', [HierarchyController::class, 'getFolders']);
     Route::post('/folders', [HierarchyController::class, 'createFolder']);
+    Route::delete('/folders/{id}', [HierarchyController::class, 'deleteFolder']);
 
     Route::get('/lists', [HierarchyController::class, 'getLists']);
     Route::post('/lists', [HierarchyController::class, 'createList']);

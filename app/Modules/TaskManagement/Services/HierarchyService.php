@@ -6,8 +6,10 @@ use App\Models\TmWorkspace;
 use App\Models\TmSpace;
 use App\Models\TmFolder;
 use App\Models\TmList;
+use App\Models\TmTask;
 use App\Modules\TaskManagement\Repositories\HierarchyRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class HierarchyService
@@ -80,6 +82,39 @@ class HierarchyService
         $folder = $this->hierarchyRepo->findFolder($id);
         $this->hierarchyRepo->updateFolder($folder, $data);
         return $this->hierarchyRepo->findFolder($id);
+    }
+
+    public function deleteFolder(int $id): bool
+    {
+        return DB::transaction(function () use ($id) {
+            $folder = $this->hierarchyRepo->findFolder($id);
+            if (!$folder) {
+                return false;
+            }
+
+            // 1. Dapatkan semua ID list di dalam folder ini
+            $listIds = TmList::where('folder_id', $id)->pluck('id')->toArray();
+
+            // 2. Ambil seluruh task yang berada di folder ini atau di list dalam folder ini
+            $tasksQuery = TmTask::withTrashed()->where('folder_id', $id);
+            if (!empty($listIds)) {
+                $tasksQuery->orWhereIn('list_id', $listIds);
+            }
+            $tasks = $tasksQuery->get();
+
+            // 3. Hapus seluruh task beserta cascade turunannya (subtasks, assignees, checklists, dll)
+            foreach ($tasks as $task) {
+                $task->forceDelete();
+            }
+
+            // 4. Hapus seluruh list di bawah folder ini
+            if (!empty($listIds)) {
+                TmList::whereIn('id', $listIds)->delete();
+            }
+
+            // 5. Hapus folder
+            return $this->hierarchyRepo->deleteFolder($folder);
+        });
     }
 
     public function getLists(string|int $spaceId, ?int $folderId = null): Collection
