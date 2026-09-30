@@ -34,6 +34,21 @@ class HrisEmployee extends CorporateModel
         'is_active'   => 'boolean',
     ];
 
+    protected $appends = [
+        'name',
+        'employee_name',
+    ];
+
+    public function getNameAttribute(): ?string
+    {
+        return $this->full_name;
+    }
+
+    public function getEmployeeNameAttribute(): ?string
+    {
+        return $this->full_name;
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');

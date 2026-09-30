@@ -52,9 +52,48 @@ class TaskController extends Controller
         ]);
     }
 
+    protected function normalizeTaskInput(array $data): array
+    {
+        if (!isset($data['assignee_ids'])) {
+            if (isset($data['assignees'])) {
+                $data['assignee_ids'] = $data['assignees'];
+            } elseif (isset($data['assignment'])) {
+                $data['assignee_ids'] = $data['assignment'];
+            } elseif (isset($data['assigned_employees'])) {
+                $data['assignee_ids'] = $data['assigned_employees'];
+            }
+        }
+
+        if (array_key_exists('assignee_ids', $data)) {
+            if (is_string($data['assignee_ids'])) {
+                $decoded = json_decode($data['assignee_ids'], true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $data['assignee_ids'] = $decoded;
+                } else {
+                    $data['assignee_ids'] = array_filter(array_map('trim', explode(',', $data['assignee_ids'])));
+                }
+            }
+
+            if (is_array($data['assignee_ids'])) {
+                $data['assignee_ids'] = array_values(array_filter(array_map(function ($item) {
+                    if (is_array($item) && isset($item['id'])) {
+                        return (int)$item['id'];
+                    }
+                    if (is_object($item) && isset($item->id)) {
+                        return (int)$item->id;
+                    }
+                    return is_numeric($item) ? (int)$item : null;
+                }, $data['assignee_ids']), fn($val) => !is_null($val)));
+            }
+        }
+
+        return $data;
+    }
+
     public function store(Request $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
+        $input = $this->normalizeTaskInput($request->all());
+        $validator = Validator::make($input, [
             'space_id'        => 'required|string|max:100',
             'list_id'         => 'required|integer',
             'title'           => 'required|string|max:255',
@@ -115,7 +154,8 @@ class TaskController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
+        $input = $this->normalizeTaskInput($request->all());
+        $validator = Validator::make($input, [
             'title'               => 'sometimes|required|string|max:255',
             'description'         => 'nullable|string',
             'folder_id'           => 'nullable|integer',

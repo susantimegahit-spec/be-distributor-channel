@@ -88,8 +88,8 @@ class TaskService
             }
 
             $assigneeIds = null;
-            if (isset($data['assignee_ids'])) {
-                $assigneeIds = $data['assignee_ids'];
+            if (array_key_exists('assignee_ids', $data)) {
+                $assigneeIds = is_array($data['assignee_ids']) ? $data['assignee_ids'] : [];
                 unset($data['assignee_ids']);
             }
 
@@ -154,9 +154,10 @@ class TaskService
 
     public function syncAssignees(int $taskId, array $employeeIds, int $assignedByEmployeeId): void
     {
-        $existing = TmTaskAssignee::where('task_id', $taskId)->pluck('employee_id')->toArray();
-        $toAdd = array_diff($employeeIds, $existing);
-        $toRemove = array_diff($existing, $toAdd);
+        $employeeIds = array_values(array_unique(array_filter(array_map('intval', $employeeIds))));
+        $existing = array_values(array_unique(array_map('intval', TmTaskAssignee::where('task_id', $taskId)->pluck('employee_id')->toArray())));
+        $toAdd = array_values(array_diff($employeeIds, $existing));
+        $toRemove = array_values(array_diff($existing, $employeeIds));
 
         foreach ($toAdd as $empId) {
             TmTaskAssignee::firstOrCreate([

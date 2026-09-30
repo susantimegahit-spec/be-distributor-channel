@@ -50,6 +50,30 @@ class TmTask extends CorporateModel
         'sort_order'          => 'integer',
     ];
 
+    protected $appends = [
+        'assignees',
+        'assignee_ids',
+    ];
+
+    public function getAssigneesAttribute()
+    {
+        if ($this->relationLoaded('assignedEmployees')) {
+            return $this->assignedEmployees;
+        }
+        return $this->assignedEmployees()->get();
+    }
+
+    public function getAssigneeIdsAttribute(): array
+    {
+        if ($this->relationLoaded('assignedEmployees')) {
+            return $this->assignedEmployees->pluck('id')->values()->all();
+        }
+        if ($this->relationLoaded('assignees')) {
+            return $this->assignees->pluck('employee_id')->values()->all();
+        }
+        return $this->assignedEmployees()->pluck('hris_employees.id')->values()->all();
+    }
+
     public function space(): BelongsTo
     {
         return $this->belongsTo(TmSpace::class, 'space_id');
