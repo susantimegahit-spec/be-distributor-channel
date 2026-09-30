@@ -60,7 +60,16 @@ class TaskService
             $assigneeIds = $data['assignee_ids'] ?? [];
             unset($data['assignee_ids']);
 
-            $task = $this->taskRepo->create($data);
+            try {
+                $task = $this->taskRepo->create($data);
+            } catch (\Illuminate\Database\QueryException $qe) {
+                if (str_contains($qe->getMessage(), 'tm_tasks_task_code_unique') || str_contains($qe->getMessage(), '23505')) {
+                    $data['task_code'] = $this->taskRepo->generateTaskCode($data['space_id']);
+                    $task = $this->taskRepo->create($data);
+                } else {
+                    throw $qe;
+                }
+            }
 
             if (!empty($assigneeIds)) {
                 $this->syncAssignees($task->id, $assigneeIds, $creatorEmployeeId);

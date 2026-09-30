@@ -4,6 +4,7 @@ namespace App\Modules\TaskManagement\Repositories;
 
 use App\Models\TmTask;
 use App\Models\TmSpace;
+use App\Models\HrisDepartment;
 use App\Models\TmTaskActivityLog;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
@@ -157,19 +158,55 @@ class TaskRepository implements TaskRepositoryInterface
     public function generateTaskCode(string|int $spaceId): string
     {
         $space = TmSpace::with('department')->find($spaceId);
-        $deptCode = $space && $space->department ? strtoupper($space->department->dept_code) : 'GEN';
-        $year = date('Y');
 
-        $latestTask = TmTask::where('task_code', 'like', "TSK-{$deptCode}-{$year}-%")
-            ->orderBy('id', 'desc')
-            ->first();
-
-        $nextNumber = 1;
-        if ($latestTask && preg_match('/TSK-' . preg_quote($deptCode, '/') . '-' . $year . '-(\d+)/', $latestTask->task_code, $matches)) {
-            $nextNumber = ((int)$matches[1]) + 1;
+        $department = null;
+        if ($space) {
+            if ($space->relationLoaded('department') && $space->department) {
+                $department = $space->department;
+            } elseif (!empty($space->department_id)) {
+                if (is_numeric($space->department_id)) {
+                    $department = HrisDepartment::find((int)$space->department_id);
+                } else {
+                    $department = HrisDepartment::where('dept_code', $space->department_id)->first();
+                }
+            }
         }
 
-        return sprintf('TSK-%s-%s-%05d', $deptCode, $year, $nextNumber);
+        $deptCode = null;
+        if ($department && !empty($department->dept_code)) {
+            $deptCode = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $department->dept_code));
+        } elseif ($space && !empty($space->id) && !is_numeric($space->id)) {
+            $deptCode = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string)$space->id));
+        } elseif (!empty($spaceId) && !is_numeric($spaceId)) {
+            $deptCode = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string)$spaceId));
+        }
+        $deptCode = !empty($deptCode) ? substr($deptCode, 0, 10) : 'GEN';
+
+        $year = date('Y');
+        $pattern = "TSK-{$deptCode}-{$year}-%";
+
+        $existingCodes = TmTask::withTrashed()
+            ->where('task_code', 'like', $pattern)
+            ->pluck('task_code')
+            ->toArray();
+
+        $maxNumber = 0;
+        foreach ($existingCodes as $code) {
+            if (preg_match('/TSK-' . preg_quote($deptCode, '/') . '-' . $year . '-(\d+)/i', $code, $matches)) {
+                $num = (int)$matches[1];
+                if ($num > $maxNumber) {
+                    $maxNumber = $num;
+                }
+            }
+        }
+
+        $nextNumber = $maxNumber + 1;
+        do {
+            $taskCode = sprintf('TSK-%s-%s-%05d', $deptCode, $year, $nextNumber);
+            $nextNumber++;
+        } while (TmTask::withTrashed()->where('task_code', $taskCode)->exists());
+
+        return $taskCode;
     }
 
     public function logActivity(int $taskId, int $performerId, string $actionType, ?string $fieldName = null, ?string $oldValue = null, ?string $newValue = null): void
