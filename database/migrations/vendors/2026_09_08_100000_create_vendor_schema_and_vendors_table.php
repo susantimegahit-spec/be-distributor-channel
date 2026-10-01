@@ -24,16 +24,6 @@ return new class extends Migration
     public function up(): void
     {
         $conn = $this->getConnection();
-        $driver = DB::connection($conn)->getDriverName();
-        $schemaExists = $driver === 'sqlite' ? [true] : DB::select("SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'vendor'");
-
-        if (empty($schemaExists) && $driver !== 'sqlite') {
-            try {
-                DB::statement('CREATE SCHEMA vendor');
-            } catch (\Throwable $e) {
-                Log::warning("Failed to auto-create schema 'vendor': " . $e->getMessage());
-            }
-        }
 
         if (!Schema::connection($conn)->hasTable('vendors')) {
             Schema::connection($conn)->create('vendors', function (Blueprint $table) {

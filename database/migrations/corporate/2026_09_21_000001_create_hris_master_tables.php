@@ -24,13 +24,6 @@ return new class extends Migration
     public function up(): void
     {
         $conn = $this->getConnection();
-        if (config('database.default') !== 'sqlite') {
-            try {
-                DB::connection('pgsql')->statement('CREATE SCHEMA IF NOT EXISTS corporate');
-            } catch (\Throwable $e) {
-                Log::warning("Failed to auto-create schema 'corporate': " . $e->getMessage());
-            }
-        }
 
         // 1. hris_departments
         if (!Schema::connection($conn)->hasTable('hris_departments')) {
