@@ -148,11 +148,12 @@ class CorporateTaskManagementSeeder extends Seeder
         ];
 
         foreach ($spaceConfigs as $sc) {
-            $space = TmSpace::firstOrCreate([
-                'workspace_id' => $workspace->id,
-                'space_slug'   => $sc['slug'],
+            $space = TmSpace::updateOrCreate([
+                'id' => $sc['dept'],
             ], [
-                'department_id'      => $deptModels[$sc['dept']]->id,
+                'workspace_id'       => $workspace->id,
+                'space_slug'         => $sc['slug'],
+                'department_id'      => $sc['dept'],
                 'space_name'         => $sc['name'],
                 'color_hex'          => $sc['color'],
                 'icon_name'          => $sc['icon'],
