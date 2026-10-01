@@ -21,6 +21,7 @@ class SalesOrderDetail extends Model
         'disc_percent',
         'vat_group',
         'line_total',
+        'baseline',
         'free_text',
         'ocr_code',
         'ocr_code2',
@@ -32,6 +33,7 @@ class SalesOrderDetail extends Model
         'unit_price' => 'decimal:2',
         'disc_percent' => 'decimal:2',
         'line_total' => 'decimal:2',
+        'baseline' => 'integer',
     ];
 
     protected $appends = [
@@ -145,5 +147,13 @@ class SalesOrderDetail extends Model
     public function getOcrName3Attribute(): ?string
     {
         return $this->ocr3?->ocr_name;
+    }
+
+    /**
+     * Get picklist items associated with this sales order line.
+     */
+    public function picklistItems(): HasMany
+    {
+        return $this->hasMany(PicklistItem::class, 'sales_order_detail_id');
     }
 }

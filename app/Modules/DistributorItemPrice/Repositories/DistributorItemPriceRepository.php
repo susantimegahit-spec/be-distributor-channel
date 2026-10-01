@@ -20,13 +20,27 @@ class DistributorItemPriceRepository implements DistributorItemPriceRepositoryIn
             ->leftJoin('distributors', 'distributor_item_prices.code_customer', '=', 'distributors.code_customer')
             ->leftJoin('items', 'distributor_item_prices.item_code', '=', 'items.item_code');
 
+        if (!empty($filters['code_customer'])) {
+            $codes = is_array($filters['code_customer']) ? $filters['code_customer'] : [$filters['code_customer']];
+            $query->whereIn('distributor_item_prices.code_customer', $codes);
+        }
+
+        if (isset($filters['status']) && $filters['status'] !== '' && $filters['status'] !== null) {
+            $query->where('distributor_item_prices.status', $filters['status']);
+        }
+
+        if (!empty($filters['item_code'])) {
+            $query->where('distributor_item_prices.item_code', $filters['item_code']);
+        }
+
         if (!empty($filters['search'])) {
             $search = $filters['search'];
-            $query->where(function ($q) use ($search) {
-                $q->where('distributor_item_prices.code_customer', 'ilike', "%{$search}%")
-                  ->orWhere('distributors.name', 'ilike', "%{$search}%")
-                  ->orWhere('distributor_item_prices.item_code', 'ilike', "%{$search}%")
-                  ->orWhere('items.item_name', 'ilike', "%{$search}%");
+            $likeOperator = \Illuminate\Support\Facades\DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
+            $query->where(function ($q) use ($search, $likeOperator) {
+                $q->where('distributor_item_prices.code_customer', $likeOperator, "%{$search}%")
+                  ->orWhere('distributors.name', $likeOperator, "%{$search}%")
+                  ->orWhere('distributor_item_prices.item_code', $likeOperator, "%{$search}%")
+                  ->orWhere('items.item_name', $likeOperator, "%{$search}%");
             });
         }
 

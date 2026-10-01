@@ -727,10 +727,19 @@ class SalesOrderService
                 'status' => 'ORDER_APPROVED',
                 'approval_id' => 6, // 6 = COMPLETED (ORDER_APPROVED)
                 'sap_doc_entry' => $sapDocEntry,
+                'docentry' => $sapDocEntry,
                 'sap_doc_num' => $sapDocNum,
                 'integrated_at' => now(),
                 'sap_error' => null,
             ]);
+
+            // Update baseline in sales_order_details: line pertama 0, kedua 1, dst.
+            $details = $salesOrder->details()->orderBy('id', 'asc')->get();
+            foreach ($details as $index => $detail) {
+                $detail->update([
+                    'baseline' => $index,
+                ]);
+            }
 
             if ($userId) {
                 $this->auditLogService->log(
@@ -1774,7 +1783,10 @@ class SalesOrderService
             ];
         }
 
-        $sapUrl = config('services.sap.url', 'http://103.18.133.187:3100');
+        $sapUrl = config('services.sap.url') ?: env('SAP_API_URL');
+        if (empty($sapUrl)) {
+            throw new \Exception('SAP URL configuration (services.sap.url / SAP_API_URL) is not configured in .env.');
+        }
 
         // Chunk card codes to prevent oversized query payloads
         $chunks = array_chunk($cardCodes, 50);
@@ -1942,6 +1954,7 @@ class SalesOrderService
                 $salesOrder->series = !empty($h['series']) ? (int) $h['series'] : null;
                 $salesOrder->status = $status;
                 $salesOrder->sap_doc_entry = $sapDocEntry;
+                $salesOrder->docentry = $sapDocEntry;
                 $salesOrder->sap_doc_num = $sapDocNum;
                 $salesOrder->sap_status = $sapStatus;
                 $salesOrder->sap_last_synced_at = now();
@@ -1958,7 +1971,7 @@ class SalesOrderService
                 // Sync line items
                 SalesOrderDetail::where('sales_order_id', $salesOrder->id)->delete();
 
-                foreach ($orderData['lines'] as $line) {
+                foreach ($orderData['lines'] as $lineIndex => $line) {
                     SalesOrderDetail::create([
                         'sales_order_id' => $salesOrder->id,
                         'item_code' => $line['item_code'] ?? '',
@@ -1970,6 +1983,7 @@ class SalesOrderService
                         'disc_percent' => (float) ($line['line_disc_percent'] ?? 0),
                         'vat_group' => $line['vat_group'] ?? null,
                         'line_total' => (float) ($line['line_total'] ?? 0),
+                        'baseline' => $line['baseline'] ?? $lineIndex,
                         'free_text' => $line['free_text'] ?? null,
                         'ocr_code' => $line['ocr_code'] ?? null,
                         'ocr_code2' => $line['ocr_code2'] ?? null,

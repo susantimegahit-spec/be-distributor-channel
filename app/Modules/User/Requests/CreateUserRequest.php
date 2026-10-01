@@ -20,7 +20,7 @@ class CreateUserRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $fields = ['production_code', 'whs_code', 'units', 'unit', 'ocr_code', 'ocr_code2', 'ocr_code3'];
-        
+
         $updates = [];
         foreach ($fields as $field) {
             if ($this->has($field)) {
@@ -36,11 +36,11 @@ class CreateUserRequest extends FormRequest
                 }
             }
         }
-        
+
         if (isset($updates['unit']) && !isset($updates['units'])) {
             $updates['units'] = $updates['unit'];
         }
-        
+
         $stringFields = ['code_customer', 'id_distributor', 'expedition_code', 'originator', 'stage'];
         foreach ($stringFields as $field) {
             if ($this->has($field)) {
@@ -66,7 +66,7 @@ class CreateUserRequest extends FormRequest
                 }
             }
         }
-        
+
         if (!empty($updates)) {
             $this->merge($updates);
         }

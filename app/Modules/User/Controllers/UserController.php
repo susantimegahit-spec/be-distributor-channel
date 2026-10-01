@@ -147,10 +147,15 @@ class UserController extends Controller
         $request->validate([
             'actions' => 'sometimes|array',
             'custom_permissions' => 'sometimes|array',
+            'custom_permision' => 'sometimes|array',
             'permissions' => 'sometimes|array',
         ]);
 
-        $permissionsInput = $request->input('actions') ?? $request->input('custom_permissions') ?? $request->input('permissions') ?? [];
+        $permissionsInput = $request->input('actions') 
+            ?? $request->input('custom_permissions') 
+            ?? $request->input('custom_permision') 
+            ?? $request->input('permissions') 
+            ?? [];
         $formatted = $this->userService->normalizeCustomPermissions($permissionsInput);
 
         $user->update(['custom_permissions' => $formatted]);

@@ -14,8 +14,10 @@
         "laravel/reverb": "^1.10",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.10.1",
+        "opcodesio/log-viewer": "*",
         "phpoffice/phpspreadsheet": "*",
-        "pusher/pusher-php-server": "*"
+        "pusher/pusher-php-server": "*",
+        "spatie/laravel-health": "*"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

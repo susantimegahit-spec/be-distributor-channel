@@ -5,7 +5,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
 
-Route::post('v1/broadcasting/auth', fn (Request $request) => Broadcast::auth($request))
+Route::match(['get', 'post'], 'v1/broadcasting/auth', fn (Request $request) => Broadcast::auth($request))
+    ->middleware('auth:sanctum');
+
+Route::match(['get', 'post'], 'broadcasting/auth', fn (Request $request) => Broadcast::auth($request))
     ->middleware('auth:sanctum');
 
 Route::prefix('v1/notifications')->middleware('auth:sanctum')->group(function () {

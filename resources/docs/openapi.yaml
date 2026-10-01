@@ -14,7 +14,695 @@ servers:
   - url: http://localhost:8000/api/distributor-channel
     description: Local Server
 paths:
+  /task-management/tasks:
+    get:
+      summary: Daftar Tugas (Tasks) & Filter Hirarki
+      description: Mengambil daftar tugas dengan dukungan filter space_id, folder_id, list_id, assignee_id, status_id, status_category, search, dan pagination.
+      tags:
+        - Task Management - Tasks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: space_id
+          in: query
+          description: ID Space departemen
+          schema:
+            type: integer
+        - name: folder_id
+          in: query
+          description: ID Folder project
+          schema:
+            type: integer
+        - name: list_id
+          in: query
+          description: ID List
+          schema:
+            type: integer
+        - name: assignee_id
+          in: query
+          description: ID Karyawan HRIS (hris_employees.id)
+          schema:
+            type: integer
+        - name: status_id
+          in: query
+          description: ID status tugas
+          schema:
+            type: integer
+        - name: status_category
+          in: query
+          description: Kategori status
+          schema:
+            type: string
+            enum: [TO_DO, IN_PROGRESS, REVIEW, DONE, CANCELLED]
+        - name: search
+          in: query
+          description: Pencarian teks judul, deskripsi, atau kode tugas
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Data list tugas berhasil diambil.
+    post:
+      summary: Buat Tugas Baru (Create Task / Subtask)
+      description: Membuat tugas baru atau subtask dengan auto-generator task_code (format TSK-DEPT-YYYY-NNNNN) dan penugasan karyawan.
+      tags:
+        - Task Management - Tasks
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - space_id
+                - list_id
+                - title
+              properties:
+                space_id:
+                  type: integer
+                  example: 1
+                list_id:
+                  type: integer
+                  example: 1
+                folder_id:
+                  type: integer
+                  nullable: true
+                  example: 1
+                parent_task_id:
+                  type: integer
+                  nullable: true
+                  description: Diisi ID parent task jika membuat subtask
+                  example: null
+                title:
+                  type: string
+                  example: "Implementasi Skema DB Corporate Task Management"
+                description:
+                  type: string
+                  example: "Migrasi master data HRIS dan tabel ClickUp-like ke skema corporate"
+                status_id:
+                  type: integer
+                  nullable: true
+                  example: 1
+                priority_id:
+                  type: integer
+                  nullable: true
+                  example: 2
+                task_type_id:
+                  type: integer
+                  nullable: true
+                  example: 1
+                due_date:
+                  type: string
+                  format: date-time
+                  example: "2026-09-25 17:00:00"
+                estimated_hours:
+                  type: number
+                  example: 8.5
+                assignee_ids:
+                  type: array
+                  items:
+                    type: integer
+                  example: [1, 2]
+      responses:
+        '201':
+          description: Tugas berhasil dibuat.
+
+  /task-management/tasks/{id}:
+    get:
+      summary: Detail Lengkap Tugas (Task Detail)
+      description: Mengambil detail tugas beserta checklists, assignees, subtasks, tags, attachments, comments, dan riwayat activity logs.
+      tags:
+        - Task Management - Tasks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail tugas berhasil diambil.
+        '404':
+          description: Tugas tidak ditemukan.
+    put:
+      summary: Perbarui Tugas (Update Task)
+      description: Memperbarui data tugas dan otomatis mencatat perubahan pada activity logs audit trail.
+      tags:
+        - Task Management - Tasks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                priority_id:
+                  type: integer
+                due_date:
+                  type: string
+                  format: date-time
+                progress_percentage:
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+                assignee_ids:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '200':
+          description: Tugas berhasil diperbarui.
+    delete:
+      summary: Hapus Tugas (Soft Delete Task)
+      tags:
+        - Task Management - Tasks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Tugas berhasil dihapus.
+
+  /task-management/tasks/{id}/status:
+    post:
+      summary: Transisi Status Tugas (Update Task Status)
+      description: Mengubah status tugas, otomatis mengupdate progress / waktu selesai jika status tutup, dan mencatat histori log aktivitas.
+      tags:
+        - Task Management - Tasks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status_id
+              properties:
+                status_id:
+                  type: integer
+                  example: 4
+      responses:
+        '200':
+          description: Status tugas berhasil diubah.
+
+  /task-management/tasks/metrics:
+    get:
+      summary: Metrik Ringkasan Tugas (Task Analytics & KPI)
+      description: Agregasi jumlah total tugas, To Do, In Progress, Review, Done, Overdue, dan Completion Rate %.
+      tags:
+        - Task Management - Tasks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: space_id
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Metrik berhasil diambil.
+
+  /task-management/workspaces:
+    get:
+      summary: Daftar Workspace Korporat
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar workspace berhasil diambil.
+
+  /task-management/spaces:
+    get:
+      summary: Daftar Space Departemen / Divisi
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: workspace_id
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Daftar spaces berhasil diambil.
+    post:
+      summary: Buat Space Departemen Baru
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - workspace_id
+                - space_name
+              properties:
+                workspace_id:
+                  type: integer
+                department_id:
+                  type: integer
+                  nullable: true
+                space_name:
+                  type: string
+                color_hex:
+                  type: string
+                  default: "#4F46E5"
+                icon_name:
+                  type: string
+                  default: "folder"
+                is_private:
+                  type: boolean
+                  default: false
+      responses:
+        '201':
+          description: Space berhasil dibuat.
+
+  /task-management/folders:
+    get:
+      summary: Daftar Folder Project di Space
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: space_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Daftar folder berhasil diambil.
+    post:
+      summary: Buat Folder Project Baru
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - space_id
+                - folder_name
+              properties:
+                space_id:
+                  type: integer
+                folder_name:
+                  type: string
+                description:
+                  type: string
+                color_hex:
+                  type: string
+      responses:
+        '201':
+          description: Folder berhasil dibuat.
+
+  /task-management/folders/{id}:
+    delete:
+      summary: Hapus Folder Beserta Seluruh Isi Turunannya
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Folder dan seluruh isinya berhasil dihapus.
+        '404':
+          description: Folder tidak ditemukan.
+
+  /task-management/lists:
+    get:
+      summary: Daftar List Tugas
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: space_id
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: folder_id
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Daftar list tugas berhasil diambil.
+    post:
+      summary: Buat List Tugas Baru
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - space_id
+                - list_name
+              properties:
+                space_id:
+                  type: integer
+                folder_id:
+                  type: integer
+                  nullable: true
+                list_name:
+                  type: string
+                default_view:
+                  type: string
+                  enum: [LIST, BOARD, CALENDAR, GANTT]
+                  default: LIST
+      responses:
+        '201':
+          description: List tugas berhasil dibuat.
+
+  /task-management/checklists:
+    post:
+      summary: Buat Header Checklist pada Task
+      tags:
+        - Task Management - Checklists
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - task_id
+                - checklist_title
+              properties:
+                task_id:
+                  type: integer
+                checklist_title:
+                  type: string
+      responses:
+        '201':
+          description: Checklist berhasil dibuat.
+
+  /task-management/checklists/{id}/items:
+    post:
+      summary: Tambah Item Checklist
+      tags:
+        - Task Management - Checklists
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - item_text
+              properties:
+                item_text:
+                  type: string
+                assignee_employee_id:
+                  type: integer
+                  nullable: true
+                due_date:
+                  type: string
+                  format: date
+      responses:
+        '201':
+          description: Item checklist berhasil ditambahkan.
+
+  /task-management/checklist-items/{id}/toggle:
+    post:
+      summary: Toggle Status Selesai Item Checklist
+      tags:
+        - Task Management - Checklists
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Status item checklist berhasil diubah.
+
+  /task-management/time-tracking/start:
+    post:
+      summary: Mulai Timer Pengerjaan Tugas (Start Timer)
+      description: Memulai sesi pencatatan durasi kerja aktif untuk karyawan login. Jika ada timer aktif sebelumnya, otomatis dihentikan terlebih dahulu.
+      tags:
+        - Task Management - Time Tracking
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - task_id
+              properties:
+                task_id:
+                  type: integer
+                note:
+                  type: string
+      responses:
+        '201':
+          description: Timer berhasil dimulai.
+
+  /task-management/time-tracking/{id}/stop:
+    post:
+      summary: Hentikan Timer Pengerjaan Tugas (Stop Timer)
+      tags:
+        - Task Management - Time Tracking
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Timer berhasil dihentikan dan akumulasi actual_hours task diperbarui.
+
+  /task-management/time-tracking/manual:
+    post:
+      summary: Entri Manual Jam Kerja (Timesheet)
+      tags:
+        - Task Management - Time Tracking
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - task_id
+                - duration_minutes
+              properties:
+                task_id:
+                  type: integer
+                duration_minutes:
+                  type: integer
+                  example: 120
+                note:
+                  type: string
+                start_time:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Log waktu kerja berhasil dicatat.
+
+  /task-management/tasks/{taskId}/comments:
+    get:
+      summary: Daftar Diskusi & Komentar Tugas
+      tags:
+        - Task Management - Comments
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Daftar komentar berhasil diambil.
+    post:
+      summary: Tambah Komentar / Balasan pada Tugas
+      tags:
+        - Task Management - Comments
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - comment_text
+              properties:
+                comment_text:
+                  type: string
+                parent_comment_id:
+                  type: integer
+                  nullable: true
+                  description: Diisi ID parent comment jika merupakan balasan (reply)
+                is_internal_only:
+                  type: boolean
+                  default: false
+      responses:
+        '201':
+          description: Komentar berhasil ditambahkan.
+
+  /task-management/master/statuses:
+    get:
+      summary: Master Status Tugas
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: space_id
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Daftar status berhasil diambil.
+
+  /task-management/master/priorities:
+    get:
+      summary: Master Prioritas Tugas (Urgent, High, Normal, Low)
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar prioritas berhasil diambil.
+
+  /task-management/master/task-types:
+    get:
+      summary: Master Tipe Pekerjaan (Task, Bug, Feature, Milestone, dll.)
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar tipe tugas berhasil diambil.
+
+  /task-management/master/departments:
+    get:
+      summary: Master Departemen HRIS Terintegrasi
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar departemen HRIS berhasil diambil.
+
+  /task-management/master/employees:
+    get:
+      summary: Master Karyawan HRIS (Dropdown Assignee Picker)
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: department_id
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Daftar karyawan berhasil diambil.
+
   /v1/production/change-products:
+
     get:
       summary: Daftar Transaksi Change Product
       description: Mengambil seluruh riwayat transaksi Change Product (penggantian item lama ke item baru) beserta status sinkronisasi SAP.
@@ -3126,6 +3814,27 @@ paths:
         - Master Approvals
       security:
         - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Nomor halaman pagination (opsional)
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: per_page
+          in: query
+          description: Jumlah item per halaman (opsional)
+          schema:
+            type: integer
+            default: 15
+            example: 10
+        - name: refresh
+          in: query
+          description: Force refresh cache data SAP (opsional)
+          schema:
+            type: boolean
+            default: false
       responses:
         '200':
           description: Data approval stages berhasil diambil dari SAP
@@ -3217,7 +3926,7 @@ paths:
   /v1/master-approvals/approvals:
     get:
       summary: Get Approval List from SAP API
-      description: Mengambil daftar antrean persetujuan dokumen dari SAP B1 middleware (/api/getapproval). Status 'W' otomatis dikonversi menjadi 'Pending'. Jika data kosong atau SAP mengembalikan placeholder dummy (WddCode 0), backend mengembalikan pesan 'Data not found.' dengan data array kosong [].
+      description: Mengambil daftar antrean persetujuan dokumen dari SAP B1 middleware (/api/getapproval). Urutan siklus alur approval adalah Pending -> Approved -> Generated. Status 'W' otomatis dikonversi menjadi 'Pending', 'Y' dengan DocEntry 0/null/kosong menjadi 'Approved', dan 'Y' dengan DocEntry > 0 menjadi 'Generated' (raw_status 'G'). Jika data kosong atau SAP mengembalikan placeholder dummy (WddCode 0), backend mengembalikan pesan 'Data not found.' dengan data array kosong [].
       tags:
         - Master Approvals
       security:
@@ -3231,12 +3940,26 @@ paths:
           example: 2
         - name: refresh
           in: query
-          description: Parameter refresh cache SAP. Default adalah true (selalu mengambil data live real-time terbaru dari SAP). Kirim false jika ingin menggunakan cache.
+          description: Parameter refresh cache SAP (default false, kirim true untuk mengambil live dari SAP).
           required: false
           schema:
             type: boolean
-            default: true
-          example: true
+            default: false
+            example: false
+        - name: page
+          in: query
+          description: Nomor halaman pagination (opsional)
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: per_page
+          in: query
+          description: Jumlah item per halaman (opsional)
+          schema:
+            type: integer
+            default: 15
+            example: 10
       responses:
         '200':
           description: Data approval berhasil diambil dari SAP
@@ -3276,6 +3999,11 @@ paths:
                           example: "Pending"
                         Remarks:
                           type: string
+                          description: Catatan dokumen approval asli dari record SAP
+                          example: ""
+                        StageRemarks:
+                          type: string
+                          description: Catatan tahapan approval current step (jika ada)
                           example: ""
         '500':
           description: Gagal terhubung ke SAP B1 middleware
@@ -7167,6 +7895,24 @@ paths:
           schema:
             type: string
           description: Keyword pencarian customer code, nama customer, item code, atau nama item
+        - name: code_customer
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan kode customer distributor (untuk role distributor, otomatis terisolasi ke kode miliknya)
+        - name: item_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan kode item spesifik
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Status harga (1 = aktif, 0 = nonaktif)
       responses:
         '200':
           description: Daftar harga item distributor berhasil diambil
@@ -8179,6 +8925,233 @@ paths:
         '401':
           description: Tidak terautentikasi
 
+  /v1/ekspedisi/nama-ekspedisi:
+    get:
+      summary: Get List of Expedition Names from SAP
+      description: Mengambil daftar nama ekspedisi langsung dari API SAP B1 (/api/getNamaEkspedisi). Jika kosong/dummy, mengembalikan "Data not found."
+      tags:
+        - Ekspedisi - SAP Master Data
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter pencarian kode atau nama ekspedisi
+      responses:
+        '200':
+          description: Daftar nama ekspedisi berhasil diambil dari SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Expedition list retrieved successfully from SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Code:
+                          type: string
+                          example: "01"
+                        U_NamaEkspedisi:
+                          type: string
+                          example: Internal
+                        U_VendorEkspedisi:
+                          type: string
+                          example: Internal
+        '401':
+          description: Unauthenticated
+    post:
+      summary: Get List of Expedition Names from SAP (POST)
+      description: Mengambil daftar nama ekspedisi langsung dari API SAP B1 (/api/getNamaEkspedisi) via method POST.
+      tags:
+        - Ekspedisi - SAP Master Data
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Expedition list retrieved successfully from SAP.
+
+  /v1/ekspedisi/nama-checker:
+    get:
+      summary: Get List of Warehouse Checkers from SAP
+      description: Mengambil daftar nama checker gudang langsung dari API SAP B1 (/api/getNamaChecker). Jika kosong/dummy, mengembalikan "Data not found."
+      tags:
+        - Ekspedisi - SAP Master Data
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter pencarian kode atau nama checker
+      responses:
+        '200':
+          description: Daftar nama checker berhasil diambil dari SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Checker list retrieved successfully from SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Code:
+                          type: string
+                          example: "001"
+                        Name:
+                          type: string
+                          example: AZHAR
+        '401':
+          description: Unauthenticated
+    post:
+      summary: Get List of Warehouse Checkers from SAP (POST)
+      description: Mengambil daftar nama checker gudang langsung dari API SAP B1 (/api/getNamaChecker) via method POST.
+      tags:
+        - Ekspedisi - SAP Master Data
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Checker list retrieved successfully from SAP.
+
+  /v1/ekspedisi/kendaraan:
+    get:
+      summary: Get List of Vehicles from SAP
+      description: Mengambil daftar master kendaraan/armada beserta kapasitas tonase dan kubikasi dari API SAP B1 (/api/getKendaraan). Jika kosong/dummy, mengembalikan "Data not found."
+      tags:
+        - Ekspedisi - SAP Master Data
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter pencarian nopol atau merk kendaraan
+      responses:
+        '200':
+          description: Daftar kendaraan berhasil diambil dari SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Vehicle list retrieved successfully from SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Nopol:
+                          type: string
+                          example: L9870CE
+                        U_Merk:
+                          type: string
+                          example: HINO DUTRO
+                        U_KapasitasKg:
+                          type: string
+                          example: "6000.000000"
+                        U_KapasitasM3:
+                          type: string
+                          example: "13.600000"
+        '401':
+          description: Unauthenticated
+    post:
+      summary: Get List of Vehicles from SAP (POST)
+      description: Mengambil daftar master kendaraan dari API SAP B1 (/api/getKendaraan) via method POST.
+      tags:
+        - Ekspedisi - SAP Master Data
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Vehicle list retrieved successfully from SAP.
+
+  /v1/ekspedisi/sopir:
+    get:
+      summary: Get List of Drivers from SAP
+      description: Mengambil daftar supir/driver beserta cabang operasional dari API SAP B1 (/api/getSopir). Jika kosong/dummy, mengembalikan "Data not found."
+      tags:
+        - Ekspedisi - SAP Master Data
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter pencarian nama sopir
+        - name: cabang
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter kode cabang (misal SBY)
+      responses:
+        '200':
+          description: Daftar sopir berhasil diambil dari SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Driver list retrieved successfully from SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Name:
+                          type: string
+                          example: TEGUH
+                        U_Cabang:
+                          type: string
+                          example: SBY
+        '401':
+          description: Unauthenticated
+    post:
+      summary: Get List of Drivers from SAP (POST)
+      description: Mengambil daftar supir dari API SAP B1 (/api/getSopir) via method POST.
+      tags:
+        - Ekspedisi - SAP Master Data
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Driver list retrieved successfully from SAP.
+
   /v1/ekspedisi/expeditions/upload:
     post:
       summary: Upload master expeditions file (Excel/CSV)
@@ -8578,8 +9551,15 @@ paths:
 
   /v1/ekspedisi/rates/rank:
     get:
-      summary: Get ranked expedition rates list
-      description: Mendapatkan daftar perankingan tarif ekspedisi teraktif terurut dari harga termurah berdasarkan asal, tujuan, dan berat barang.
+      summary: Get ranked expedition rates list (Supports destination_id or card_code)
+      description: |
+        Mendapatkan daftar rekomendasi perankingan tarif ekspedisi teraktif terurut dari harga termurah berdasarkan asal, tujuan, dan berat barang:
+        - Parameter tujuan (`destination`, `destination_id`, `card_code`) dapat diisi dengan:
+          1. **Card Code:** Kode distributor / customer (contoh: `C210000285` atau `c210000285`). Sistem otomatis mencari seluruh shipto customer tersebut.
+          2. **ShipTo ID:** ID numerik spesifik dari tabel `customer_shiptos` (contoh: `12`). Sistem juga otomatis mencocokkan tarif customer yang sama.
+          3. **ShipTo Code / Address ID SAP:** Contoh `SHIPTO-SOLO-01` atau alias nama gudang.
+        - Parameter asal (`origin`, `origin_id`, `whs_code`, `warehouse_id`) dapat berupa kode gudang (contoh: `FG04`) atau ID numerik gudang.
+        - Mendukung method `GET` dan `POST`.
       tags:
         - Master Tarif Ekspedisi
       security:
@@ -8587,37 +9567,49 @@ paths:
       parameters:
         - name: origin
           in: query
-          required: true
+          required: false
           schema:
             type: string
-          description: Kode gudang asal (whs_code, contoh FG04)
+          description: Kode gudang asal (whs_code, contoh FG04) atau ID gudang. Alias `origin_id`, `warehouse_id`, `whs_code`.
         - name: destination
           in: query
-          required: true
+          required: false
           schema:
             type: string
-          description: Kode customer tujuan (card_code, contoh C210000285) atau ID
+          description: Kode customer tujuan (card_code, contoh C210000285) atau ID Shipto tujuan.
+        - name: destination_id
+          in: query
+          required: false
+          schema:
+            type: string
+          description: ID Shipto tujuan atau Card Code customer. Alias untuk `destination`.
+        - name: card_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Card Code customer distributor. Alias untuk `destination`.
         - name: weight
           in: query
           required: false
           schema:
             type: number
-          description: Berat barang dalam KG atau satuan tarif (contoh 500)
+          description: Berat barang dalam KG atau tonase (contoh 500). Alias `tonnage`, `qty`.
         - name: service_type
           in: query
           required: false
           schema:
             type: string
-          description: Jenis layanan/tarif (misalnya TONASE, RIT, dll)
+          description: Jenis layanan/tarif (misalnya REGULER, TONASE, RIT, dll)
         - name: transport_mode
           in: query
           required: false
           schema:
             type: string
-          description: Moda pengiriman/transportasi. Mendukung multiple value dipisahkan koma (contoh DARAT,LAUT) atau single (contoh DARAT)
+          description: Moda pengiriman/transportasi (DARAT, LAUT, UDARA). Mendukung multiple value dipisahkan koma.
       responses:
         '200':
-          description: Perankingan tarif ekspedisi berhasil diambil
+          description: Expedition rates ranking retrieved successfully
           content:
             application/json:
               schema:
@@ -8628,7 +9620,7 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: Perankingan tarif ekspedisi berhasil diambil.
+                    example: Expedition rates ranking retrieved successfully.
                   data:
                     type: array
                     items:
@@ -8639,6 +9631,65 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+    post:
+      summary: Get ranked expedition rates list via POST (Supports destination_id or card_code)
+      description: Sama dengan GET `/v1/ekspedisi/rates/rank`, namun menerima parameter dalam request body JSON.
+      tags:
+        - Master Tarif Ekspedisi
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - origin
+              properties:
+                origin:
+                  type: string
+                  example: "FG04"
+                destination:
+                  type: string
+                  example: "C210000285"
+                destination_id:
+                  type: string
+                  example: "C210000285"
+                card_code:
+                  type: string
+                  example: "C210000285"
+                weight:
+                  type: number
+                  example: 1000
+                service_type:
+                  type: string
+                  example: "REGULER"
+                transport_mode:
+                  type: string
+                  example: "DARAT"
+      responses:
+        '200':
+          description: Expedition rates ranking retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Expedition rates ranking retrieved successfully.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ExpeditionRate'
+        '422':
+          description: Validasi gagal
         '401':
           description: Tidak terautentikasi
 
@@ -8980,8 +10031,8 @@ paths:
 
   /v1/ekspedisi/rates/{id}/approve:
     post:
-      summary: Approve expedition rate (Set Flag True)
-      description: Menyetujui tarif ekspedisi oleh Atasan/Supervisor sehingga Flag aktif dan tarif siap digunakan dalam perankingan kalkulasi pengiriman.
+      summary: Approve expedition rate (Set Flag True & Status ACTIVE)
+      description: Menyetujui tarif ekspedisi oleh Atasan/Supervisor sehingga Status menjadi ACTIVE, Flag aktif (true), dan tarif siap digunakan dalam perankingan kalkulasi pengiriman.
       tags:
         - Master Tarif Ekspedisi
       security:
@@ -9005,14 +10056,14 @@ paths:
                   example: "Tarif disetujui sesuai kontrak Q3 2026"
       responses:
         '200':
-          description: Tarif ekspedisi berhasil disetujui (Flag Aktif)
+          description: Tarif ekspedisi berhasil disetujui (Status ACTIVE & Flag Aktif)
         '404':
           description: Data tarif tidak ditemukan
 
   /v1/ekspedisi/rates/{id}/reject:
     post:
-      summary: Reject expedition rate (Set Flag False)
-      description: Menolak tarif ekspedisi oleh Atasan/Supervisor dengan mencantumkan alasan penolakan.
+      summary: Reject expedition rate (Set Flag False & Status INACTIVE)
+      description: Menolak tarif ekspedisi oleh Atasan/Supervisor sehingga Status menjadi INACTIVE, Flag non-aktif (false), dengan mencantumkan alasan penolakan.
       tags:
         - Master Tarif Ekspedisi
       security:
@@ -9036,12 +10087,12 @@ paths:
                   example: "Harga per kg terlalu mahal, mohon negosiasi ulang."
       responses:
         '200':
-          description: Tarif ekspedisi ditolak
+          description: Tarif ekspedisi ditolak (Status INACTIVE)
 
   /v1/ekspedisi/rates/bulk-approve:
     post:
-      summary: Bulk approve expedition rates
-      description: Menyetujui banyak tarif ekspedisi sekaligus berdasarkan array ID.
+      summary: Bulk approve expedition rates (Set Flag True & Status ACTIVE)
+      description: Menyetujui banyak tarif ekspedisi sekaligus berdasarkan array ID (Status menjadi ACTIVE, Flag true).
       tags:
         - Master Tarif Ekspedisi
       security:
@@ -12269,18 +13320,228 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: Detail Production Order (PDO) dari SAP berhasil diambil.
+                    example: "Production Order detail retrieved successfully from SAP."
                   data:
                     type: object
                     properties:
                       header:
                         type: object
+                        description: Header data dokumen Production Order dari SAP
+                        properties:
+                          DocEntry:
+                            type: integer
+                            example: 6692
+                          DocNum:
+                            type: string
+                            example: "20260012"
+                          Series:
+                            type: integer
+                            example: 15
+                          SeriesName:
+                            type: string
+                            example: "PDO26-01"
+                          ItemCode:
+                            type: string
+                            example: "FG00124"
+                          ProdName:
+                            type: string
+                            example: "Garam Halus Beryodium 250gr (Sak 50kg)"
+                          Status:
+                            type: string
+                            enum: [PLANNED, RELEASED, CLOSED, CANCELLED]
+                            example: "RELEASED"
+                          Type:
+                            type: string
+                            example: "S"
+                          PlannedQty:
+                            type: number
+                            format: float
+                            example: 1000.0
+                          CmpltQty:
+                            type: number
+                            format: float
+                            example: 500.0
+                          RjctQty:
+                            type: number
+                            format: float
+                            example: 0.0
+                          StartDate:
+                            type: string
+                            format: date-time
+                            example: "2026-09-24T00:00:00"
+                          PostDate:
+                            type: string
+                            format: date-time
+                            example: "2026-09-24T00:00:00"
+                          DueDate:
+                            type: string
+                            format: date-time
+                            example: "2026-09-25T00:00:00"
+                          WhsCode:
+                            type: string
+                            example: "FG01"
+                          Uom:
+                            type: string
+                            description: Satuan ukuran produk jadi (Unit of Measure)
+                            example: "SAK"
+                          Shift:
+                            type: string
+                            description: Shift kerja produksi (A = Shift 1, B = Shift 2, C = Shift 3)
+                            example: "A"
+                          Unit:
+                            type: string
+                            description: Unit bisnis / plant produksi
+                            example: "GRM"
+                          Remarks:
+                            type: string
+                            nullable: true
+                            example: "Produksi Garam Halus Shift Pagi"
+                          OcrCode:
+                            type: string
+                            nullable: true
+                            example: "SBY"
+                          OcrCode2:
+                            type: string
+                            nullable: true
+                            example: "GRM"
+                          OcrCode3:
+                            type: string
+                            nullable: true
+                            example: "PRD"
                       items:
                         type: array
+                        description: Daftar baris bahan baku & resource yang dialokasikan untuk Production Order
                         items:
                           type: object
+                          properties:
+                            LineNum:
+                              type: integer
+                              example: 0
+                            ItemType:
+                              type: string
+                              description: "Tipe item: I = Item / Bahan Baku, R = Resource / Mesin, T = Text"
+                              example: "I"
+                            ItemCode:
+                              type: string
+                              example: "RAW001"
+                            ItemName:
+                              type: string
+                              example: "Garam Kasar Cuci Kering Grade A"
+                            BaseQty:
+                              type: number
+                              format: float
+                              example: 1.02
+                            PlannedQty:
+                              type: number
+                              format: float
+                              example: 1020.0
+                            IssuedQty:
+                              type: number
+                              format: float
+                              example: 510.0
+                            Uom:
+                              type: string
+                              description: Satuan ukuran bahan / resource (Unit of Measure)
+                              example: "KG"
+                            Unit:
+                              type: string
+                              description: Satuan ukuran bahan / resource
+                              example: "KG"
+                            WhsCode:
+                              type: string
+                              example: "RM01"
+                            IssueMethod:
+                              type: string
+                              description: "Metode pengeluaran: M = Manual, B = Backflush"
+                              example: "M"
+                            OcrCode:
+                              type: string
+                              nullable: true
+                              example: "SBY"
+                            OcrCode2:
+                              type: string
+                              nullable: true
+                              example: "GRM"
+                            OcrCode3:
+                              type: string
+                              nullable: true
+                              example: "PRD"
                       raw:
                         type: object
+                        description: Data raw asli dari response SAP endpoint /api/getPDObyId
+              example:
+                success: true
+                message: "Production Order detail retrieved successfully from SAP."
+                data:
+                  header:
+                    DocEntry: 6692
+                    DocNum: "20260012"
+                    Series: 15
+                    SeriesName: "PDO26-01"
+                    ItemCode: "FG00124"
+                    ProdName: "Garam Halus Beryodium 250gr (Sak 50kg)"
+                    Status: "RELEASED"
+                    Type: "S"
+                    PlannedQty: 1000.0
+                    CmpltQty: 500.0
+                    RjctQty: 0.0
+                    StartDate: "2026-09-24T00:00:00"
+                    PostDate: "2026-09-24T00:00:00"
+                    DueDate: "2026-09-25T00:00:00"
+                    WhsCode: "FG01"
+                    Uom: "SAK"
+                    Shift: "A"
+                    Unit: "GRM"
+                    Remarks: "Produksi Garam Halus Shift Pagi"
+                    OcrCode: "SBY"
+                    OcrCode2: "GRM"
+                    OcrCode3: "PRD"
+                  items:
+                    - LineNum: 0
+                      ItemType: "I"
+                      ItemCode: "RAW001"
+                      ItemName: "Garam Kasar Cuci Kering Grade A"
+                      BaseQty: 1.02
+                      PlannedQty: 1020.0
+                      IssuedQty: 510.0
+                      Uom: "KG"
+                      Unit: "KG"
+                      WhsCode: "RM01"
+                      IssueMethod: "M"
+                      OcrCode: "SBY"
+                      OcrCode2: "GRM"
+                      OcrCode3: "PRD"
+                    - LineNum: 1
+                      ItemType: "I"
+                      ItemCode: "PK0001"
+                      ItemName: "Karung Sak 50kg Susanti"
+                      BaseQty: 1.0
+                      PlannedQty: 1000.0
+                      IssuedQty: 500.0
+                      Uom: "PCS"
+                      Unit: "PCS"
+                      WhsCode: "PK01"
+                      IssueMethod: "M"
+                      OcrCode: "SBY"
+                      OcrCode2: "GRM"
+                      OcrCode3: "PRD"
+                    - LineNum: 2
+                      ItemType: "R"
+                      ItemCode: "RES-LINE-01"
+                      ItemName: "Mesin Kemas Otomatis Line 1"
+                      BaseQty: 0.05
+                      PlannedQty: 50.0
+                      IssuedQty: 25.0
+                      Uom: "JAM"
+                      Unit: "JAM"
+                      WhsCode: "FG01"
+                      IssueMethod: "B"
+                      OcrCode: "SBY"
+                      OcrCode2: "GRM"
+                      OcrCode3: "PRD"
+                  raw:
+                    ErrorCode: 0
+                    Message: "Success"
         '401':
           description: Tidak terautentikasi.
         '422':
@@ -12907,10 +14168,12 @@ paths:
                       Message:
                         type: string
                         example: "Success - [AddIssueForProduction]. DocNum: 40512"
+        '400':
+          description: Failed to process Goods Issue for Production to SAP (SAP Error).
         '422':
           description: Validasi request gagal.
         '500':
-          description: Gagal memproses Goods Issue ke SAP.
+          description: Internal server error.
 
   /v1/warehouses/stock-by-item:
     post:
@@ -13037,7 +14300,13 @@ paths:
                         example: 10025
                       BaseLine:
                         type: integer
-                        example: 0
+                        nullable: true
+                        description: Nomor baris referensi PDO (jika null atau dikosongkan, backend otomatis mengirimkan -1 untuk header produk jadi)
+                        example: -1
+                      ItemCode:
+                        type: string
+                        description: Kode barang / item code produk jadi (opsional, otomatis diambil dari PDO jika kosong)
+                        example: "FG-SALT-01"
                       Quantity:
                         type: number
                         example: 50
@@ -13079,10 +14348,12 @@ paths:
                       Message:
                         type: string
                         example: "Success - Receipt for Production. DocNum: 40513"
+        '400':
+          description: Failed to process Receipt for Production to SAP (SAP Error).
         '422':
           description: Validasi request gagal.
         '500':
-          description: Gagal memproses Receipt ke SAP.
+          description: Internal server error.
 
   /v1/production/orders/sap/cancel:
     post:
@@ -13815,17 +15086,3522 @@ paths:
         '200':
           description: Daftar Task Type berhasil diambil.
 
-  /v1/reporting/filters/timelines:
-    get:
-      summary: Get Distinct Timelines / Sprints for Dropdown
-      description: Mengambil daftar unik Timelines / Sprints beserta total tasks.
+  /customer-monthly-orders/{id}/post-to-so:
+    post:
+      summary: Post Customer Monthly Order (CMO) to Sales Order
+      description: Memproses CMO dari status DRAFT menjadi POSTED dan membuat Sales Order baru dengan status WAITING_OM. Mendukung pengiriman eta_date atau request_delivery_date / doc_due_date dari frontend untuk memperbarui tanggal permintaan pengiriman distributor pada CMO dan Sales Order yang terbentuk.
       tags:
-        - Reporting & Analytics
+        - Customer Monthly Order (CMO)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 26
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                eta_date:
+                  type: string
+                  format: date
+                  description: Tanggal estimasi tiba / jadwal pengiriman baru yang diajukan distributor
+                  example: "2026-09-26"
+                doc_due_date:
+                  type: string
+                  format: date
+                  description: Tanggal pengiriman yang diminta (Request Delivery Date)
+                  example: "2026-09-26"
+                request_delivery_date:
+                  type: string
+                  format: date
+                  description: Alias untuk doc_due_date
+                  example: "2026-09-26"
+      responses:
+        '201':
+          description: Customer monthly order berhasil diposting ke Sales Order dengan status WAITING_OM.
+        '400':
+          description: Validasi gagal atau order sudah diposting sebelumnya.
+        '404':
+          description: Customer monthly order tidak ditemukan.
+
+  /vendor-portal/ping:
+    get:
+      summary: Health Check / Connectivity Test Vendor Portal API
+      description: Endpoint pengujian konektivitas backend Vendor Portal untuk frontend.
+      tags:
+        - Vendor Portal
+      responses:
+        '200':
+          description: API Vendor Portal aktif dan dapat diakses.
+
+  /vendor-portal/test:
+    get:
+      summary: Quick Test Ping Endpoint
+      tags:
+        - Vendor Portal
+      responses:
+        '200':
+          description: Test OK.
+
+  /vendor-portal/register:
+    post:
+      summary: Pendaftaran Calon Mitra Vendor (Ekspedisi, Distributor, dll)
+      description: Mendaftarkan profil perusahaan calon vendor dan mengunggah 4 berkas dokumen legalitas (Akta, NIB, NPWP, Pendukung).
+      tags:
+        - Vendor Portal
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - vendor_type
+                - company_name
+                - company_email
+                - pic_name
+                - pic_phone
+                - terms_agreed
+              properties:
+                vendor_type:
+                  type: string
+                  example: expedition
+                  description: Tipe vendor (expedition, distributor, raw_material, packaging, general_supplier)
+                company_name:
+                  type: string
+                  example: PT Trans Megah Logistik
+                company_email:
+                  type: string
+                  format: email
+                  example: vendor@transmegah.com
+                company_phone:
+                  type: string
+                  example: 031-8921122
+                company_npwp:
+                  type: string
+                  description: Nomor Pokok Wajib Pajak (NPWP) Perusahaan (Format 15/16 digit)
+                  example: "01.234.567.8-901.000"
+                nik:
+                  type: string
+                  description: 'Nomor Induk Kependudukan (NIK) penanggung jawab / perusahaan (Default: "0000000000000000")'
+                  example: "0000000000000000"
+                address:
+                  type: string
+                  description: Alamat jalan domisili perusahaan
+                  example: Jl. Rungkut Industri No. 45
+                village:
+                  type: string
+                  description: Desa / Kelurahan
+                  example: Rungkut Menanggal
+                district:
+                  type: string
+                  description: Kecamatan
+                  example: Gunung Anyar
+                city:
+                  type: string
+                  description: Kota
+                  example: Surabaya
+                regencies:
+                  type: string
+                  description: Kabupaten / Kota (juga mendukung alias regency)
+                  example: Surabaya
+                province:
+                  type: string
+                  description: Provinsi
+                  example: Jawa Timur
+                postal_code:
+                  type: string
+                  description: Kode Pos
+                  example: "60293"
+                pic_name:
+                  type: string
+                  example: Budi Prasetyo
+                pic_phone:
+                  type: string
+                  example: "081234567890"
+                pic_email:
+                  type: string
+                  example: budi@transmegah.com
+                terms_agreed:
+                  type: boolean
+                  example: true
+                documents:
+                  type: array
+                  description: Daftar berkas dokumen legalitas dinamis dari form FE.
+                  items:
+                    type: object
+                    properties:
+                      document_type:
+                        type: string
+                        example: akta
+                        description: Tipe berkas (akta, sk_akta_pendirian, akta_perubahan, sk_akta_perubahan, nib, npwp, ktp_direktur, sertifikat_halal, pakta_integritas, peraturan_kerjasama, support)
+                      file:
+                        type: string
+                        format: binary
+                        description: File binary dokumen (PDF, JPG, PNG, DOC, DOCX - Maks 10MB)
+                      notes:
+                        type: string
+                        example: Keterangan tambahan dokumen
+                      document_number:
+                        type: string
+                        example: AHU-0012345.AH.01.01.2025
+                akta:
+                  type: string
+                  format: binary
+                  description: Berkas Akta Pendirian / Perubahan (PDF/JPG/PNG, Max 10MB)
+                akta_notes:
+                  type: string
+                  description: Catatan / keterangan terkait berkas Akta
+                  example: Salinan akta perubahan direksi tahun 2025
+                nib:
+                  type: string
+                  format: binary
+                  description: Berkas NIB / Izin Usaha (PDF/JPG/PNG, Max 10MB)
+                nib_notes:
+                  type: string
+                  description: Catatan / keterangan terkait berkas NIB
+                  example: NIB OSS RBA terbitan BKPM
+                npwp:
+                  type: string
+                  format: binary
+                  description: Berkas NPWP Perusahaan (PDF/JPG/PNG, Max 10MB)
+                npwp_notes:
+                  type: string
+                  description: Catatan / keterangan terkait berkas NPWP
+                  example: NPWP 16 digit terdaftar di KPP Pratama
+                support:
+                  type: string
+                  format: binary
+                  description: Berkas Dokumen Pendukung (PDF/JPG/PNG, Max 10MB)
+                support_notes:
+                  type: string
+                  description: Catatan / keterangan dokumen pendukung
+                pakta_integritas:
+                  type: string
+                  format: binary
+                  description: Berkas Pakta Integritas yang telah ditandatangani dan bermeterai (PDF/JPG/PNG, Max 10MB)
+                pakta_integritas_notes:
+                  type: string
+                  description: Catatan pakta integritas
+                perjanjian_kerjasama:
+                  type: string
+                  format: binary
+                  description: Berkas Dokumen Perjanjian Kerjasama (PKS) (PDF/JPG/PNG, Max 10MB)
+                perjanjian_kerjasama_notes:
+                  type: string
+                  description: Catatan dokumen perjanjian kerjasama
+      responses:
+        '201':
+          description: Pendaftaran berhasil dikirim dan menunggu verifikasi legal.
+        '422':
+          description: Validasi form gagal atau email sudah terdaftar.
+
+  /vendor-portal/check-email:
+    get:
+      summary: Pengecekan Ketersediaan Email Perusahaan Vendor
+      description: Memeriksa apakah email perusahaan sudah digunakan dalam sistem vendor.
+      tags:
+        - Vendor Portal
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: string
+            format: email
+            example: vendor@transmegah.com
+      responses:
+        '200':
+          description: Status ketersediaan email berhasil diperiksa.
+
+  /vendor-portal/templates:
+    get:
+      summary: Daftar Template Dokumen Legalitas Calon Mitra Vendor
+      description: Mengambil daftar berkas template resmi (Pakta Integritas, Peraturan Kerjasama, dll) yang dapat diunduh oleh calon vendor beserta link download dan status ketersediaannya di server.
+      tags:
+        - Vendor Portal
+      responses:
+        '200':
+          description: Daftar template berkas berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Vendor document templates retrieved successfully.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        slug:
+                          type: string
+                          example: pakta-integritas
+                        title:
+                          type: string
+                          example: Pakta Integritas Vendor Ekspedisi
+                        filename:
+                          type: string
+                          example: PAKTA INTEGRITAS VENDOR EKSPEDISI - A4.docx
+                        format:
+                          type: string
+                          example: docx
+                        description:
+                          type: string
+                          example: Template resmi Pakta Integritas bermeterai untuk calon mitra ekspedisi.
+                        is_available:
+                          type: boolean
+                          example: true
+                        file_size:
+                          type: integer
+                          example: 45200
+                        download_url:
+                          type: string
+                          example: https://api.domain.com/api/distributor-channel/v1/vendor-portal/templates/pakta-integritas
+                        static_url:
+                          type: string
+                          example: https://api.domain.com/templates/vendor/PAKTA%20INTEGRITAS%20VENDOR%20EKSPEDISI%20-%20A4.docx
+
+  /vendor-portal/templates/{slug}:
+    get:
+      summary: Download Berkas Template Dokumen Vendor (.docx)
+      description: Mengunduh file template fisik dokumen berdasarkan slug (pakta-integritas, peraturan-kerjasama) atau nama file langsung.
+      tags:
+        - Vendor Portal
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [pakta-integritas, peraturan-kerjasama]
+          example: pakta-integritas
+          description: Slug atau nama file template dokumen yang akan diunduh.
+      responses:
+        '200':
+          description: Berkas dokumen Word (.docx) berhasil diunduh.
+          content:
+            application/vnd.openxmlformats-officedocument.wordprocessingml.document:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: File template belum diunggah di server.
+
+  /vendor-portal/documents/{documentId}/reupload:
+    post:
+      summary: Upload Ulang Berkas Dokumen Revisi oleh Vendor
+      description: Mengunggah berkas pengganti untuk dokumen yang diminta revisi (status NEEDS_REVISION) oleh tim legal. File lama akan digantikan, status dokumen di-reset menjadi PENDING, dan riwayat revisi dicatat.
+      tags:
+        - Vendor Portal
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                vendor_code:
+                  type: string
+                  description: Kode vendor resmi (contoh VND-202609-0001). Wajib jika request dipanggil tanpa Authorization Bearer Token.
+                  example: VND-202609-0001
+                file:
+                  type: string
+                  format: binary
+                  description: Berkas dokumen pengganti baru (PDF/JPG/PNG, Max 10MB)
+                notes:
+                  type: string
+                  description: Catatan klarifikasi / perbaikan dari pihak vendor
+                  example: Berkas scan akta perubahan direksi asli telah diunggah ulang lembar 1-5.
+                document_number:
+                  type: string
+                  description: Nomor identitas dokumen jika ada perubahan
+                  example: AHU-001234.AH.01.02.TAHUN 2025
+      responses:
+        '200':
+          description: Dokumen revisi berhasil diunggah ulang dan kembali ke antrean verifikasi legal.
+        '403':
+          description: Vendor code tidak cocok dengan kepemilikan dokumen.
+        '404':
+          description: Dokumen tidak ditemukan.
+        '422':
+          description: Validasi berkas gagal atau vendor sudah disetujui.
+
+  /vendor-portal/login:
+    post:
+      summary: Otentikasi Login Vendor Portal
+      description: Masuk ke vendor portal menggunakan akun vendor yang telah disetujui tim legal.
+      tags:
+        - Vendor Portal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: vendor@transmegah.com
+                password:
+                  type: string
+                  example: secret123
+                vendor_type:
+                  type: string
+                  example: expedition
+      responses:
+        '200':
+          description: Login berhasil dan mengembalikan token akses Sanctum.
+        '422':
+          description: Kredensial tidak valid atau akun belum disetujui tim legal.
+
+  /vendor-portal/me:
+    get:
+      summary: Profil Vendor yang Sedang Login beserta Dokumen Legalitas
+      description: Mengambil data profil institusi vendor, data user aktif, dan rincian berkas legalitas yang telah diunggah.
+      tags:
+        - Vendor Portal
       security:
         - BearerAuth: []
       responses:
         '200':
-          description: Daftar Timeline berhasil diambil.
+          description: Profil vendor dan berkas dokumen legalitas berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Vendor profile and documents retrieved successfully.
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                          name:
+                            type: string
+                          email:
+                            type: string
+                          role:
+                            type: string
+                          must_change_password:
+                            type: boolean
+                      vendor:
+                        $ref: '#/components/schemas/VendorDetail'
+                      sap_vendor_code:
+                        type: string
+                        description: Kode akun vendor di SAP Business One (CardCode)
+                        example: V10001
+                      documents:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                            document_type:
+                              type: string
+                              example: AKTA
+                            document_number:
+                              type: string
+                            file_name:
+                              type: string
+                            file_size:
+                              type: integer
+                            file_mime:
+                              type: string
+                            file_url:
+                              type: string
+                            verification_status:
+                              type: string
+                              example: VALID
+                            notes:
+                              type: string
+                            verification_notes:
+                              type: string
+                              example: Mohon perbarui dengan akta perubahan modal terbaru.
+                            verified_at:
+                              type: string
+                              format: date-time
+        '401':
+          description: Unauthenticated.
+
+  /vendor-portal/change-password:
+    post:
+      summary: Ganti Kata Sandi Akun Vendor
+      description: Mengubah kata sandi pengguna vendor portal. Mengharuskan kata sandi lama yang benar dan kata sandi baru minimal 8 karakter.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - current_password
+                - new_password
+                - new_password_confirmation
+              properties:
+                current_password:
+                  type: string
+                  format: password
+                  example: OldPassword123!
+                new_password:
+                  type: string
+                  format: password
+                  example: NewPassword123!
+                new_password_confirmation:
+                  type: string
+                  format: password
+                  example: NewPassword123!
+      responses:
+        '200':
+          description: Password changed successfully.
+        '401':
+          description: Unauthenticated.
+        '422':
+          description: Validation error or current password does not match.
+
+  /vendor-portal/logout:
+    post:
+      summary: Logout Vendor Portal
+      description: Mencabut token akses sesi vendor.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Berhasil logout dari vendor portal.
+
+  /vendor-portal/rates/headers:
+    get:
+      summary: Daftar Header Pengajuan Tarif Vendor (Batch Submissions)
+      description: Mengambil daftar ringkasan pengajuan tarif per batch upload/submission (periode valid_from/valid_until, status pengajuan, total rute) untuk tabel utama FE Vendor Portal. Hanya dapat diakses oleh akun mitra Vendor Portal (`VendorUser`). Untuk staf internal SMETSA, gunakan endpoint `/vendor-management/rates/headers`.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: approval_status
+          in: query
+          description: Filter status persetujuan tarif (PENDING, APPROVED, REJECTED)
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED]
+        - name: search
+          in: query
+          description: Pencarian kode batch atau catatan
+          schema:
+            type: string
+        - name: date_from
+          in: query
+          description: Filter tanggal mulai periode (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          description: Filter tanggal selesai periode (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: per_page
+          in: query
+          description: Jumlah data per halaman
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Rate submission headers retrieved successfully.
+        '401':
+          description: Unauthenticated access.
+        '403':
+          description: Unauthorized access or vendor account not approved yet.
+
+  /vendor-portal/rates/headers/{batchId}:
+    get:
+      summary: Detail Batch Pengajuan Tarif (Header & Rincian Rute)
+      description: Mengambil informasi header batch pengajuan tarif beserta array details (daftar rute pengiriman, lead time, tonase, dan tarif) untuk mitra Vendor Portal (`VendorUser`). Untuk staf internal SMETSA, gunakan endpoint `/vendor-management/rates/headers/{batchId}`.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: batchId
+          in: path
+          required: true
+          description: ID batch pengajuan tarif (misal BATCH-RATE-20260910-001 atau MANUAL-SUBMIT-...)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Rate batch details retrieved successfully.
+        '404':
+          description: Batch rate data not found.
+
+  /vendor-portal/rates:
+    get:
+      summary: Daftar Tarif Pengiriman Vendor (Rate Card Items)
+      description: Mengambil daftar tarif pengiriman per rute untuk mitra vendor yang login (`VendorUser`). Otomatis terkunci ke vendor miliknya. Untuk staf internal SMETSA, gunakan endpoint `/vendor-management/rates`.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: batch_id
+          in: query
+          description: Filter berdasarkan ID batch pengajuan tarif
+          schema:
+            type: string
+        - name: approval_status
+          in: query
+          description: Filter status persetujuan tarif (PENDING, APPROVED, REJECTED)
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED]
+        - name: transport_mode
+          in: query
+          description: Filter moda transportasi (DARAT, LAUT, UDARA)
+          schema:
+            type: string
+        - name: warehouse_id
+          in: query
+          description: Filter ID gudang asal
+          schema:
+            type: integer
+        - name: destination_id
+          in: query
+          description: Filter ID shipto tujuan
+          schema:
+            type: integer
+        - name: search
+          in: query
+          description: Pencarian nama gudang, nama tujuan, atau catatan
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          description: Jumlah data per halaman
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Vendor rates retrieved successfully.
+        '401':
+          description: Unauthenticated access.
+        '403':
+          description: Unauthorized access or vendor account not approved yet.
+        '422':
+          description: Vendor is not of type EXPEDITION.
+    post:
+      summary: Pengajuan Tarif Pengiriman Baru (Manual)
+      description: Mengajukan tarif pengiriman baru secara manual melalui form Vendor Portal. Tarif akan berstatus PENDING hingga disetujui tim logistik.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - price
+              properties:
+                warehouse_id:
+                  type: integer
+                  example: 1
+                origin:
+                  type: string
+                  example: WHS-GRS-01
+                destination_id:
+                  type: integer
+                  example: 12
+                destination:
+                  type: string
+                  example: CUST-SMG-01
+                transport_mode:
+                  type: string
+                  example: DARAT
+                service_type:
+                  type: string
+                  example: REGULER
+                min_tonnage:
+                  type: number
+                  example: 0
+                max_tonnage:
+                  type: number
+                  example: 15000
+                price:
+                  type: number
+                  example: 4500000
+                leadtime:
+                  type: integer
+                  example: 2
+                  description: Estimasi waktu tempuh pengiriman dalam hari (alias eta_days)
+                eta_days:
+                  type: integer
+                  example: 2
+                min_shipment_qty:
+                  type: number
+                  example: 1
+                max_shipment_qty:
+                  type: number
+                  example: 100
+                valid_from:
+                  type: string
+                  format: date
+                  example: 2026-09-10
+                valid_until:
+                  type: string
+                  format: date
+                  example: 2027-09-10
+                periode:
+                  type: string
+                  example: 2026-09-10
+                  description: Input periode tunggal jika valid_from dan valid_until sama
+                remarks:
+                  type: string
+                  example: Pengajuan penyesuaian tarif armada wingbox Q4
+      responses:
+        '201':
+          description: Expedition rate submitted successfully. Pending review by logistics team.
+        '401':
+          description: Unauthenticated access.
+        '403':
+          description: Unauthorized access or vendor account not approved yet.
+        '422':
+          description: Validation error.
+
+  /vendor-portal/rates/upload:
+    post:
+      summary: Upload Massal Pengajuan Tarif (Excel / CSV) dengan Periode Pop-up
+      description: Mengunggah spreadsheet daftar tarif (.xlsx, .xls, .csv). Pengajuan tarif otomatis dikaitkan dengan vendor ekspedisi yang sedang login dan berstatus PENDING. Kolom periode diisi dari form pop-up FE.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File Excel (.xlsx, .xls) atau CSV (Maksimal 10MB) dengan kolom No, Origin Name, Destination, Transport Mode, Min Weight (Kg), Max Weight (Kg), Service Type, Rate, Lead Time.
+                valid_from:
+                  type: string
+                  format: date
+                  example: 2026-08-15
+                  description: Tanggal mulai periode pengajuan (dari pop-up modal FE)
+                valid_until:
+                  type: string
+                  format: date
+                  example: 2027-08-15
+                  description: Tanggal selesai periode pengajuan (dari pop-up modal FE)
+                periode:
+                  type: string
+                  example: 2026-08-15
+                  description: Input periode tunggal (otomatis mengisi valid_from dan valid_until)
+      responses:
+        '200':
+          description: Rate spreadsheet uploaded and processed successfully. Submitted rates are pending review.
+        '401':
+          description: Unauthenticated access.
+        '403':
+          description: Unauthorized access or vendor account not approved yet.
+        '422':
+          description: Validation error or invalid file type.
+
+  /vendor-portal/rates/template:
+    get:
+      summary: Download Template CSV Pengajuan Tarif
+      description: Mengunduh template CSV resmi (No, Origin Name, Destination, Transport Mode, Min Weight (Kg), Max Weight (Kg), Service Type, Rate, Lead Time) untuk pengajuan tarif pengiriman massal oleh mitra vendor ekspedisi.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: CSV template file download stream.
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+
+  /vendor-management/registrations:
+    get:
+      summary: Daftar Permohonan Registrasi Vendor (Backoffice Legal)
+      description: Menampilkan daftar permohonan mitra vendor dengan filter status, tipe vendor, dan pencarian.
+      tags:
+        - Vendor Management (Legal)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ALL, PENDING_LEGAL_APPROVAL, REVISION_REQUIRED, APPROVED, REJECTED]
+            example: PENDING_LEGAL_APPROVAL
+        - name: vendor_type
+          in: query
+          schema:
+            type: string
+            enum: [ALL, EXPEDITION, DISTRIBUTOR, RAW_MATERIAL, PACKAGING, GENERAL_SUPPLIER]
+            example: EXPEDITION
+        - name: search
+          in: query
+          schema:
+            type: string
+            example: Trans Megah
+        - name: page
+          in: query
+          schema:
+            type: integer
+            example: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            example: 15
+      responses:
+        '200':
+          description: Daftar permohonan vendor berhasil diambil.
+
+  /vendor-management/registrations/{id}:
+    get:
+      summary: Detail Lengkap Permohonan Vendor & Dokumen Legalitas
+      description: Menampilkan informasi institusi vendor, berkas dokumen yang diunggah, riwayat audit approval, dan akun user.
+      tags:
+        - Vendor Management (Legal)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Detail vendor berhasil diambil beserta dokumen dan nama wilayah administratif.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/VendorDetail'
+        '404':
+          description: Vendor tidak ditemukan.
+
+  /vendor-management/registrations/{id}/approve:
+    post:
+      summary: Persetujuan Legal Permohonan Vendor
+      description: Menyetujui pendaftaran vendor, meng-generate akun user login di vendor_users, auto-sync ke master ekspedisi jika tipe EXPEDITION, sinkronisasi vendor baru ke SAP B1 via POST /api/addvendor, dan mencatat log dispatch kredensial.
+      tags:
+        - Vendor Management (Legal)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                legal_notes:
+                  type: string
+                  example: Berkas legalitas lengkap dan diverifikasi valid.
+                sap_vendor_code:
+                  type: string
+                  example: V10001
+                initial_password:
+                  type: string
+                  example: CustomPassword123!
+      responses:
+        '200':
+          description: Pendaftaran vendor disetujui, disinkronkan ke SAP, dan kredensial akun berhasil digenerate.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Vendor registration approved successfully. Login credentials have been generated and dispatched.
+                  data:
+                    type: object
+                    properties:
+                      vendor_code:
+                        type: string
+                        example: VND-202609-0001
+                      company_name:
+                        type: string
+                        example: PT Sumber Makmur Sejahtera
+                      registration_status:
+                        type: string
+                        example: APPROVED
+                      legal_approval_status:
+                        type: string
+                        example: APPROVED
+                      sap_vendor_code:
+                        type: string
+                        example: VN10001
+                      sap_sync:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                            example: true
+                          card_code:
+                            type: string
+                            example: VN10001
+                          message:
+                            type: string
+                            example: "Success - [AddVendor]. CardCode: VN10001"
+                      credentials:
+                        type: object
+                      expedition_linked:
+                        type: object
+        '404':
+          description: Vendor tidak ditemukan.
+        '422':
+          description: Permohonan gagal diproses (misal vendor sudah di-approve sebelumnya atau sinkronisasi ke SAP gagal/ditolak).
+
+  /vendor-management/registrations/{id}/reject:
+    post:
+      summary: Penolakan Permohonan Vendor
+      description: Menolak permohonan pendaftaran vendor oleh tim legal dengan alasan penolakan wajib. Sistem secara otomatis mengirimkan email resmi pemberitahuan penolakan (beserta alasan penolakan dan kontak klarifikasi) ke alamat email perusahaan vendor.
+      tags:
+        - Vendor Management (Legal)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rejection_reason
+              properties:
+                rejection_reason:
+                  type: string
+                  example: NIB izin usaha tidak sesuai dengan bidang logistik.
+      responses:
+        '200':
+          description: Pendaftaran vendor berhasil ditolak dan notifikasi email resmi telah dikirim ke vendor.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Vendor registration rejected successfully.
+                  data:
+                    type: object
+                    properties:
+                      vendor_code:
+                        type: string
+                        example: VND-202609-0001
+                      registration_status:
+                        type: string
+                        example: REJECTED
+                      legal_notes:
+                        type: string
+                        example: NIB izin usaha tidak sesuai dengan bidang logistik.
+        '404':
+          description: Vendor tidak ditemukan.
+
+  /vendor-management/registrations/{id}/request-revision:
+    post:
+      summary: Permintaan Revisi Dokumen Legalitas ke Vendor
+      description: Mengirim instruksi perbaikan berkas ke calon mitra vendor.
+      tags:
+        - Vendor Management (Legal)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - revision_notes
+              properties:
+                revision_notes:
+                  type: string
+                  example: Mohon lampirkan lembar akta perubahan susunan pengurus terbaru.
+                document_types:
+                  type: array
+                  items:
+                    type: string
+                  example: [AKTA]
+      responses:
+        '200':
+          description: Instruksi revisi berhasil dikirim ke vendor.
+        '404':
+          description: Vendor tidak ditemukan.
+
+  /vendor-management/documents/{documentId}/verify:
+    post:
+      summary: Verifikasi Individual Berkas Dokumen Legalitas (Valid / Needs Revision / Invalid)
+      description: Memverifikasi satu berkas dokumen tertentu (Akta, NIB, NPWP, Pendukung) dengan opsi VALID, NEEDS_REVISION, atau INVALID beserta catatan review dari legal.
+      tags:
+        - Vendor Management (Legal)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [VALID, NEEDS_REVISION, INVALID]
+                  example: VALID
+                notes:
+                  type: string
+                  example: NIB berkas terverifikasi asli dan terdaftar di OSS.
+      responses:
+        '200':
+          description: Status verifikasi dokumen berhasil diperbarui.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Document verification status updated successfully.
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      vendor_id:
+                        type: integer
+                        example: 1
+                      document_type:
+                        type: string
+                        example: NIB
+                      verification_status:
+                        type: string
+                        example: VALID
+                      verified_by:
+                        type: integer
+                        example: 5
+                      verified_at:
+                        type: string
+                        format: date-time
+                        example: "2026-09-09T09:54:00.000000Z"
+                      verification_notes:
+                        type: string
+                        example: NIB berkas terverifikasi asli dan terdaftar di OSS.
+                      notes:
+                        type: string
+                        example: NIB berkas terverifikasi asli dan terdaftar di OSS.
+                      file_url:
+                        type: string
+                        example: https://smesta-dev.susantimegah.com/storage/vendor_documents/VND-202609-0001/nib_oss.pdf
+        '404':
+          description: Dokumen tidak ditemukan.
+        '422':
+          description: Validasi input gagal.
+
+  /vendor-management/documents/{documentId}/preview:
+    get:
+      summary: Preview / Stream Berkas Dokumen Legalitas (Inline PDF / Image)
+      description: Menampilkan berkas dokumen legalitas secara streaming inline (PDF atau Image) di tab baru browser atau iframe/modal preview frontend tanpa harus download file.
+      tags:
+        - Vendor Management (Legal)
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Berkas dokumen berhasil di-stream secara inline.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Dokumen tidak ditemukan atau berkas fisik tidak ada di disk storage server.
+
+  /vendor-management/rates/headers:
+    get:
+      summary: Daftar Header Pengajuan Tarif Vendor (SMETSA Internal)
+      description: Mengambil daftar ringkasan pengajuan tarif per batch upload/submission untuk staf internal SMETSA Backoffice. Mendukung filter berdasarkan vendor_id, expedition_id, approval_status, search, tanggal, dan pagination.
+      tags:
+        - Vendor Management (Rates)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: vendor_id
+          in: query
+          required: false
+          description: Filter ID master vendor
+          schema:
+            type: integer
+        - name: expedition_id
+          in: query
+          required: false
+          description: Filter ID master ekspedisi
+          schema:
+            type: integer
+        - name: approval_status
+          in: query
+          description: Filter status persetujuan tarif (PENDING, APPROVED, REJECTED)
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED]
+        - name: search
+          in: query
+          description: Pencarian kode batch atau catatan
+          schema:
+            type: string
+        - name: date_from
+          in: query
+          description: Filter tanggal mulai periode (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          description: Filter tanggal selesai periode (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: per_page
+          in: query
+          description: Jumlah data per halaman
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Rate submission headers retrieved successfully with vendor details and expedition info.
+        '401':
+          description: Unauthenticated access.
+        '403':
+          description: Unauthorized access. Only internal users can access this endpoint.
+
+  /vendor-management/rates/headers/{batchId}:
+    get:
+      summary: Detail Batch Pengajuan Tarif (SMETSA Internal)
+      description: Mengambil informasi header batch pengajuan tarif beserta vendor detail, expedition info, dan array details (daftar rute pengiriman, lead time, tonase, dan tarif) untuk staf internal SMETSA Backoffice.
+      tags:
+        - Vendor Management (Rates)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: batchId
+          in: path
+          required: true
+          description: ID batch pengajuan tarif (misal BATCH-RATE-20260910-001)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Rate batch details retrieved successfully with header, expedition, and vendor detail.
+        '401':
+          description: Unauthenticated access.
+        '403':
+          description: Unauthorized access. Only internal users can access this endpoint.
+        '404':
+          description: Batch rate data not found.
+
+  /vendor-management/rates:
+    get:
+      summary: Daftar Tarif Pengiriman Vendor (SMETSA Internal)
+      description: Mengambil daftar tarif pengiriman per rute untuk staf internal SMETSA Backoffice. Mendukung filter by vendor_id, expedition_id, batch_id, approval_status, transport_mode, warehouse_id, destination_id, search, dan pagination.
+      tags:
+        - Vendor Management (Rates)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: vendor_id
+          in: query
+          required: false
+          description: Filter ID master vendor
+          schema:
+            type: integer
+        - name: expedition_id
+          in: query
+          required: false
+          description: Filter ID master ekspedisi
+          schema:
+            type: integer
+        - name: batch_id
+          in: query
+          description: Filter berdasarkan ID batch pengajuan tarif
+          schema:
+            type: string
+        - name: approval_status
+          in: query
+          description: Filter status persetujuan tarif (PENDING, APPROVED, REJECTED)
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED]
+        - name: transport_mode
+          in: query
+          description: Filter moda transportasi (DARAT, LAUT, UDARA)
+          schema:
+            type: string
+        - name: warehouse_id
+          in: query
+          description: Filter ID gudang asal
+          schema:
+            type: integer
+        - name: destination_id
+          in: query
+          description: Filter ID customer shipto tujuan
+          schema:
+            type: integer
+        - name: search
+          in: query
+          description: Pencarian nama gudang, nama tujuan, atau catatan
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          description: Jumlah data per halaman
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Vendor rates retrieved successfully.
+        '401':
+          description: Unauthenticated access.
+        '403':
+          description: Unauthorized access. Only internal users can access this endpoint.
+
+  /v1/ekspedisi/leadtimes:
+    get:
+      summary: Daftar Master Leadtime Pengiriman (CRUD)
+      description: Mengambil daftar benchmark durasi/lead time pengiriman antar gudang asal ke tujuan/kota distributor. Mendukung filter pencarian rute, kode gudang asal, kota tujuan, moda transportasi, status, dan pagination.
+      tags:
+        - Ekspedisi - Master Leadtime
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          description: Pencarian nama gudang asal, kode gudang, kota asal, nama tujuan, kode tujuan, atau catatan
+          schema:
+            type: string
+        - name: origin_warehouse_code
+          in: query
+          description: Filter kode gudang asal (contoh WHS-SUB, WHS-JKT)
+          schema:
+            type: string
+        - name: destination_city
+          in: query
+          description: Filter nama kota/kabupaten tujuan (contoh SEMARANG, BANDUNG)
+          schema:
+            type: string
+        - name: destination_code
+          in: query
+          description: Filter kode tujuan spesifik
+          schema:
+            type: string
+        - name: transport_mode
+          in: query
+          description: Filter moda transportasi (LAND, SEA, AIR)
+          schema:
+            type: string
+            enum: [LAND, SEA, AIR]
+        - name: status
+          in: query
+          description: Filter status master leadtime (ACTIVE, INACTIVE)
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE]
+        - name: per_page
+          in: query
+          description: Jumlah baris data per halaman (default 15)
+          schema:
+            type: integer
+            default: 15
+        - name: page
+          in: query
+          description: Halaman data yang diminta
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Master lead times retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Master lead times retrieved successfully.
+                  data:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                        example: 1
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MasterLeadtimeItem'
+                      total:
+                        type: integer
+                        example: 45
+        '401':
+          description: Unauthenticated access.
+    post:
+      summary: Tambah Master Leadtime Rute Baru
+      description: Menambahkan rute dan benchmark estimasi lead time pengiriman baru dari gudang asal ke titik/kota tujuan.
+      tags:
+        - Ekspedisi - Master Leadtime
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - destination_name
+                - avg_lead_time_days
+              properties:
+                warehouse_origin_id:
+                  type: integer
+                  description: ID master warehouse origin (opsional)
+                  example: 1
+                origin_warehouse_code:
+                  type: string
+                  description: Kode gudang asal pengiriman (contoh WHS-SUB)
+                  example: "WHS-SUB"
+                origin_warehouse_name:
+                  type: string
+                  description: Nama gudang asal pengiriman
+                  example: "Gudang Utama Surabaya Waru"
+                origin_city:
+                  type: string
+                  description: Kota gudang asal
+                  example: "SURABAYA"
+                destination_id:
+                  type: integer
+                  description: ID entitas tujuan / customer shipto
+                  example: 12
+                destination_regency_id:
+                  type: integer
+                  description: ID master kabupaten/kota tujuan
+                  example: 3578
+                destination_code:
+                  type: string
+                  description: Kode titik tujuan / CardCode / shipto
+                  example: "DEST-BDG"
+                destination_name:
+                  type: string
+                  description: Nama tujuan pengiriman
+                  example: "Gudang Distributor Bandung"
+                destination_city:
+                  type: string
+                  description: Kota/kabupaten tujuan
+                  example: "BANDUNG"
+                destination_province:
+                  type: string
+                  description: Provinsi tujuan
+                  example: "JAWA BARAT"
+                avg_lead_time_days:
+                  type: number
+                  format: float
+                  description: Rata-rata durasi lead time pengiriman dalam hari
+                  example: 2.50
+                min_lead_time_days:
+                  type: number
+                  format: float
+                  description: Minimal durasi lead time dalam hari
+                  example: 2.00
+                max_lead_time_days:
+                  type: number
+                  format: float
+                  description: Maksimal durasi lead time dalam hari
+                  example: 3.00
+                lead_time_unit:
+                  type: string
+                  enum: [DAYS, HOURS]
+                  default: DAYS
+                  example: "DAYS"
+                transport_mode:
+                  type: string
+                  enum: [LAND, SEA, AIR]
+                  default: LAND
+                  example: "LAND"
+                distance_km:
+                  type: number
+                  format: float
+                  description: Jarak rute dalam kilometer
+                  example: 680.00
+                status:
+                  type: string
+                  enum: [ACTIVE, INACTIVE]
+                  default: ACTIVE
+                  example: "ACTIVE"
+                remarks:
+                  type: string
+                  description: Catatan tambahan rute operasional
+                  example: "Truk Fuso reguler via tol Trans Jawa"
+      responses:
+        '201':
+          description: Master lead time created successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Master lead time created successfully.
+                  data:
+                    $ref: '#/components/schemas/MasterLeadtimeItem'
+        '422':
+          description: Validation error.
+
+  /v1/ekspedisi/leadtimes/{id}:
+    get:
+      summary: Detail Master Leadtime Rute
+      description: Mengambil data detail satu baris master leadtime berdasarkan ID.
+      tags:
+        - Ekspedisi - Master Leadtime
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Master Leadtime
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Master lead time detail retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Master lead time detail retrieved successfully.
+                  data:
+                    $ref: '#/components/schemas/MasterLeadtimeItem'
+        '404':
+          description: Master lead time not found.
+    put:
+      summary: Update Master Leadtime
+      description: Memperbarui data rute, benchmark lead time, status, atau catatan rute pengiriman.
+      tags:
+        - Ekspedisi - Master Leadtime
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Master Leadtime
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                origin_warehouse_code:
+                  type: string
+                  example: "WHS-SUB"
+                origin_warehouse_name:
+                  type: string
+                  example: "Gudang Utama Surabaya Waru"
+                origin_city:
+                  type: string
+                  example: "SURABAYA"
+                destination_name:
+                  type: string
+                  example: "Gudang Distributor Bandung"
+                destination_city:
+                  type: string
+                  example: "BANDUNG"
+                destination_province:
+                  type: string
+                  example: "JAWA BARAT"
+                avg_lead_time_days:
+                  type: number
+                  format: float
+                  example: 3.00
+                min_lead_time_days:
+                  type: number
+                  format: float
+                  example: 2.50
+                max_lead_time_days:
+                  type: number
+                  format: float
+                  example: 4.00
+                lead_time_unit:
+                  type: string
+                  enum: [DAYS, HOURS]
+                  example: "DAYS"
+                transport_mode:
+                  type: string
+                  enum: [LAND, SEA, AIR]
+                  example: "LAND"
+                distance_km:
+                  type: number
+                  format: float
+                  example: 680.00
+                status:
+                  type: string
+                  enum: [ACTIVE, INACTIVE]
+                  example: "ACTIVE"
+                remarks:
+                  type: string
+                  example: "Penyesuaian perbaikan jalan tol"
+      responses:
+        '200':
+          description: Master lead time updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Master lead time updated successfully.
+                  data:
+                    $ref: '#/components/schemas/MasterLeadtimeItem'
+        '404':
+          description: Master lead time not found.
+        '422':
+          description: Validation error.
+    delete:
+      summary: Hapus Master Leadtime
+      description: Menghapus data rute benchmark master leadtime dari sistem.
+      tags:
+        - Ekspedisi - Master Leadtime
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Master Leadtime
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Master lead time deleted successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Master lead time deleted successfully.
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+  /v1/master-approvals/originators:
+    get:
+      summary: Get Originators List from SAP
+      description: |
+        Mengambil daftar user originator persetujuan langsung dari middleware SAP Business One (`/api/GetOriginator`).
+      tags:
+        - SAP - Master Approval
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: refresh
+          in: query
+          description: Force refresh cache data SAP
+          schema:
+            type: boolean
+            default: false
+        - name: page
+          in: query
+          description: Nomor halaman pagination (opsional)
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: per_page
+          in: query
+          description: Jumlah item per halaman (opsional)
+          schema:
+            type: integer
+            default: 15
+            example: 10
+      responses:
+        '200':
+          description: Originators list retrieved successfully from SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Originators list retrieved successfully from SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        USERID:
+                          type: string
+                          example: "1"
+                        USER_CODE:
+                          type: string
+                          example: "manager"
+                        U_NAME:
+                          type: string
+                          example: "Direksi"
+    post:
+      summary: Get Originators List from SAP (POST Method)
+      description: Mengambil daftar user originator persetujuan langsung dari middleware SAP Business One (`/api/GetOriginator`).
+      tags:
+        - SAP - Master Approval
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Originators list retrieved successfully from SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Originators list retrieved successfully from SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        USERID:
+                          type: string
+                          example: "1"
+                        USER_CODE:
+                          type: string
+                          example: "manager"
+                        U_NAME:
+                          type: string
+                          example: "Direksi"
+  /v1/master-approvals/by-owner:
+    get:
+      summary: Get Owner / My Document Approval List from SAP
+      description: |
+        Mengambil daftar dokumen yang diajukan oleh pembuat dokumen (Originator/Owner) beserta status persetujuan dari SAP Business One (`/api/GetListByOwnerId`).
+        Urutan alur approval: `Pending -> Approved -> Generated`.
+        - `Pending`: Status SAP `W`.
+        - `Approved`: Status SAP `Y` DAN (`DocEntry == 0` atau null atau kosong) (disetujui, belum generate dokumen final definitif di SAP).
+        - `Generated`: Status SAP `Y` DAN `DocEntry > 0` (dokumen transaksi final definitif telah berhasil digenerate di SAP).
+      tags:
+        - SAP - Master Approval
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: CustomQuery
+          in: query
+          description: ID Originator query SAP (opsional, otomatis menggunakan originator user login jika tidak diisi)
+          schema:
+            type: integer
+            example: 62
+        - name: UserId
+          in: query
+          description: User ID SAP (opsional)
+          schema:
+            type: string
+            example: "3"
+        - name: ObjectCode
+          in: query
+          description: Object code dokumen SAP (opsional, contoh 1470000113)
+          schema:
+            type: string
+            example: "1470000113"
+        - name: From
+          in: query
+          description: Tanggal mulai (YYYYMMDD atau YYYY-MM-DD, opsional)
+          schema:
+            type: string
+            example: "20251201"
+        - name: To
+          in: query
+          description: Tanggal akhir (YYYYMMDD atau YYYY-MM-DD, opsional)
+          schema:
+            type: string
+            example: "20261231"
+        - name: Status
+          in: query
+          description: Filter status persetujuan (W, Y, N, C, G, Pending, Approved, Generated, dsb)
+          schema:
+            type: string
+            example: "Y"
+        - name: page
+          in: query
+          description: Nomor halaman data (opsional, pagination)
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: per_page
+          in: query
+          description: Jumlah data per halaman (opsional, pagination)
+          schema:
+            type: integer
+            default: 15
+            example: 10
+        - name: refresh
+          in: query
+          description: Set true untuk force refresh mengambil data terbaru dari SAP
+          schema:
+            type: boolean
+            default: false
+            example: false
+      responses:
+        '200':
+          description: Owner document approval list retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Owner document approval list retrieved successfully.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        WddCode:
+                          type: string
+                          example: "7689"
+                        DocEntry:
+                          type: string
+                          example: "5339"
+                        DraftEntry:
+                          type: string
+                          example: "679"
+                        DraftNum:
+                          type: string
+                          example: "260140084"
+                        DocNum:
+                          type: string
+                          example: "260140087"
+                        ObjType:
+                          type: string
+                          example: "1470000113"
+                        DocDate:
+                          type: string
+                          example: "20260810"
+                        CurrStep:
+                          type: string
+                          example: "4"
+                        Status:
+                          type: string
+                          example: "Generated"
+                        raw_status:
+                          type: string
+                          example: "G"
+                        StatusCode:
+                          type: string
+                          example: "G"
+                        StatusDescription:
+                          type: string
+                          example: "Generated"
+                        Name:
+                          type: string
+                          description: Nama tahapan persetujuan dari getstages
+                          example: "Production Mng. SBY"
+                        Remarks:
+                          type: string
+                          description: Keterangan tahapan persetujuan dari getstages
+                          example: "Production Manager Surabaya"
+                  pagination:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                        example: 1
+                      last_page:
+                        type: integer
+                        example: 5
+                      per_page:
+                        type: integer
+                        example: 10
+                      total:
+                        type: integer
+                        example: 48
+                      from:
+                        type: integer
+                        example: 1
+                      to:
+                        type: integer
+                        example: 10
+    post:
+      summary: Get Owner / My Document Approval List from SAP (POST Method)
+      description: Mengambil daftar dokumen yang diajukan oleh pembuat dokumen (Originator/Owner) melalui POST request payload.
+      tags:
+        - SAP - Master Approval
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                CustomQuery:
+                  type: integer
+                  example: 62
+                UserId:
+                  type: string
+                  example: "3"
+                ObjectCode:
+                  type: string
+                  example: "1470000113"
+                From:
+                  type: string
+                  example: "20251201"
+                To:
+                  type: string
+                  example: "20261231"
+                Status:
+                  type: string
+                  description: Filter status persetujuan (W, Y, N, C, G, Pending, Approved, Generated, dsb)
+                  example: "Y"
+                page:
+                  type: integer
+                  example: 1
+                per_page:
+                  type: integer
+                  example: 10
+                refresh:
+                  type: boolean
+                  example: false
+      responses:
+        '200':
+          description: Owner document approval list retrieved successfully.
+
+  /v1/master-approvals/detail-by-object:
+    get:
+      summary: Get Document Approval Detail by Object Code from SAP
+      description: |
+        Mengambil detail dokumen transaksi persetujuan dari SAP Business One (`/api/GetDetailByObjectCode`) berdasarkan DocEntry dan ObjectCode.
+        Parameter `Status` mendukung pencarian draft (`"W"`) maupun approved/final (`"Y"`), dengan fitur auto-fallback ke draft (`"W"`) jika status tidak dikirim.
+        Jika data kosong atau tidak ditemukan di SAP, backend mengembalikan `{"success": false, "message": "Data not found."}` tanpa field `data`.
+      tags:
+        - SAP - Master Approval
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: CustomQuery
+          in: query
+          required: true
+          description: DocEntry dokumen transaksi
+          schema:
+            type: integer
+            example: 180
+        - name: ObjectCode
+          in: query
+          required: false
+          description: Object code tipe dokumen SAP (opsional)
+          schema:
+            type: string
+            example: "1470000113"
+        - name: Status
+          in: query
+          required: false
+          description: Status persetujuan dokumen SAP (contoh "Y", "W", "N", "C", "G", atau "APPROVED", "PENDING", "GENERATED", dll.)
+          schema:
+            type: string
+            example: "Y"
+        - name: page
+          in: query
+          description: Nomor halaman pagination untuk baris item transaksi (opsional)
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: per_page
+          in: query
+          description: Jumlah baris item transaksi per halaman (opsional)
+          schema:
+            type: integer
+            default: 15
+            example: 10
+        - name: refresh
+          in: query
+          description: Force refresh cache SAP
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Document approval detail retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Document approval detail retrieved successfully.
+                  data:
+                    type: object
+                    properties:
+                      header:
+                        type: object
+                        nullable: true
+                        properties:
+                          Series:
+                            type: string
+                            example: "6486"
+                          SeriesName:
+                            type: string
+                            example: "GSK26-01"
+                          DocEntry:
+                            type: string
+                            example: "180"
+                          DocNum:
+                            type: string
+                            example: "260140032"
+                          DocDate:
+                            type: string
+                            example: "20260112"
+                          TaxDate:
+                            type: string
+                            example: "20260112"
+                          U_Shift:
+                            type: string
+                            example: ""
+                          U_Unit:
+                            type: string
+                            example: ""
+                          JrnlMemo:
+                            type: string
+                            example: ""
+                          Comments:
+                            type: string
+                            example: "UNTUK FITTING PIPING OUTDOOR UNIT 2 GRESIK"
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            DocEntry:
+                              type: string
+                              example: "180"
+                            LineNum:
+                              type: string
+                              example: "0"
+                            ItemCode:
+                              type: string
+                              example: "JS000013"
+                            ItemName:
+                              type: string
+                              example: "BOLT NUT M20X90MM SS304"
+                            Quantity:
+                              type: string
+                              example: "120.000000"
+                            WhsCode:
+                              type: string
+                              example: "SPR04"
+                            WhsName:
+                              type: string
+                              example: "GUDANG SPAREPART - GRESIK"
+                            Uom:
+                              type: string
+                              example: "PCS"
+                            OcrCode:
+                              type: string
+                              example: "GSK"
+                            OcrCode2:
+                              type: string
+                              example: "GRM"
+                            OcrCode3:
+                              type: string
+                              example: "PRO"
+    post:
+      summary: Get Document Approval Detail by Object Code from SAP (POST Method)
+      description: Mengambil detail dokumen transaksi persetujuan dari SAP Business One melalui POST request payload.
+      tags:
+        - SAP - Master Approval
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - CustomQuery
+              properties:
+                CustomQuery:
+                  type: integer
+                  example: 180
+                ObjectCode:
+                  type: string
+                  example: "1470000113"
+                Status:
+                  type: string
+                  description: Status persetujuan dokumen SAP (contoh "Y", "W", "N", "C", atau "APPROVED")
+                  example: "Y"
+                page:
+                  type: integer
+                  example: 1
+                per_page:
+                  type: integer
+                  example: 15
+                refresh:
+                  type: boolean
+                  example: false
+      responses:
+        '200':
+          description: Document approval detail retrieved successfully.
+
+  /v1/logistic/orders/dashboard:
+    get:
+      summary: Dashboard Delivery Readiness & Logistics Monitoring
+      description: Mengambil metrik KPI kesiapan armada logistik (total orders, pending, logistic approved, reschedule requested, admin sales approved) serta daftar order yang dapat difilter berdasarkan tab status (approved, reschedule, logistic_approved, admin_approved, reschedule_requested, pending, all).
+      tags:
+        - Logistic - Order Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: tab
+          in: query
+          description: Filter kategori tab status pengiriman
+          schema:
+            type: string
+            enum: [all, approved, reschedule, logistic_approved, admin_approved, reschedule_requested, pending]
+            default: all
+        - name: search
+          in: query
+          description: Pencarian nomor dokumen (doc_num), DocEntry SAP, atau nama distributor
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Filter status Sales Order (WAITING_FINANCE, ORDER_APPROVED)
+          schema:
+            type: string
+            enum: [WAITING_FINANCE, ORDER_APPROVED]
+        - name: logistic_status
+          in: query
+          description: Filter status kesiapan logistik (mendukung multi status dipisah koma)
+          schema:
+            type: string
+        - name: date_from
+          in: query
+          description: Filter tanggal pengiriman mulai (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          description: Filter tanggal pengiriman akhir (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: per_page
+          in: query
+          description: Jumlah data per halaman
+          schema:
+            type: integer
+            default: 15
+        - name: page
+          in: query
+          description: Halaman data
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Dashboard delivery orders retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Dashboard delivery orders retrieved successfully.
+                  data:
+                    type: object
+                    properties:
+                      summary:
+                        type: object
+                        properties:
+                          total_orders:
+                            type: integer
+                            example: 45
+                          pending_count:
+                            type: integer
+                            example: 10
+                          logistic_approved_count:
+                            type: integer
+                            example: 20
+                          reschedule_requested_count:
+                            type: integer
+                            example: 5
+                          admin_approved_count:
+                            type: integer
+                            example: 10
+                          total_approved_count:
+                            type: integer
+                            example: 30
+                          total_reschedule_count:
+                            type: integer
+                            example: 15
+                      current_tab:
+                        type: string
+                        example: approved
+                      orders:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/LogisticOrderListItem'
+                      meta:
+                        type: object
+                        properties:
+                          current_page:
+                            type: integer
+                            example: 1
+                          last_page:
+                            type: integer
+                            example: 3
+                          per_page:
+                            type: integer
+                            example: 15
+                          total:
+                            type: integer
+                            example: 45
+        '401':
+          description: Unauthenticated access.
+
+  /v1/logistic/orders:
+    get:
+      summary: List Sales Orders for Logistics Delivery Readiness
+      description: |
+        Mengambil daftar Sales Order dengan status `WAITING_FINANCE` atau `ORDER_APPROVED` untuk pemantauan kesiapan armada logistik.
+        Dilengkapi data benchmark lead time dari master leadtime, kalkulasi lead time usulan, dan flag kesiapan aksi logistik / sales.
+      tags:
+        - Logistic - Order Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: tab
+          in: query
+          description: Filter tab kategori status (approved, reschedule, logistic_approved, admin_approved, reschedule_requested, pending, all)
+          schema:
+            type: string
+            enum: [all, approved, reschedule, logistic_approved, admin_approved, reschedule_requested, pending]
+        - name: search
+          in: query
+          description: Pencarian nomor dokumen (doc_num), DocEntry SAP, atau nama distributor
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Filter status Sales Order (WAITING_FINANCE, ORDER_APPROVED)
+          schema:
+            type: string
+            enum: [WAITING_FINANCE, ORDER_APPROVED]
+        - name: logistic_status
+          in: query
+          description: Filter status kesiapan logistik (PENDING, APPROVED, RESCHEDULE_REQUESTED, RESCHEDULE_APPROVED, REJECTED)
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, RESCHEDULE_REQUESTED, RESCHEDULE_APPROVED, REJECTED]
+        - name: date_from
+          in: query
+          description: Filter tanggal pengiriman mulai (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          description: Filter tanggal pengiriman akhir (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: per_page
+          in: query
+          description: Jumlah data per halaman
+          schema:
+            type: integer
+            default: 15
+        - name: page
+          in: query
+          description: Halaman data
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Orders retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Orders retrieved successfully.
+                  data:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                        example: 1
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/LogisticOrderListItem'
+                      total:
+                        type: integer
+                        example: 25
+        '401':
+          description: Unauthenticated access.
+
+  /v1/logistic/orders/{id}/reschedule:
+    post:
+      summary: Propose Delivery Reschedule by Logistics
+      description: |
+        Digunakan oleh tim logistik untuk mengajukan penyesuaian tanggal kirim (`proposed_delivery_date`) dan/atau estimasi tiba (`proposed_eta_date`) apabila armada belum siap atau kapasitas penuh.
+        Hanya dapat diajukan jika status SO sudah `ORDER_APPROVED`.
+        Akan mengubah `logistic_status` menjadi `RESCHEDULE_REQUESTED` dan mencatat riwayat aktivitas ke monitoring log.
+      tags:
+        - Logistic - Order Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Sales Order
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - proposed_delivery_date
+                - notes
+              properties:
+                proposed_delivery_date:
+                  type: string
+                  format: date
+                  description: Usulan tanggal pengiriman baru dari logistik (YYYY-MM-DD)
+                  example: "2026-09-20"
+                proposed_eta_date:
+                  type: string
+                  format: date
+                  description: Usulan estimasi barang tiba di distributor (YYYY-MM-DD, opsional)
+                  example: "2026-09-23"
+                notes:
+                  type: string
+                  description: Alasan penjadwalan ulang dari logistik
+                  example: "Armada wingbox ke area Jawa Tengah sedang jadwal servis rutin, pengiriman diundur 2 hari."
+      responses:
+        '200':
+          description: Delivery reschedule requested successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Delivery reschedule requested successfully.
+                  data:
+                    $ref: '#/components/schemas/LogisticOrderListItem'
+        '404':
+          description: Sales Order not found.
+        '422':
+          description: Unprocessable entity / validation error.
+
+  /v1/logistic/orders/{id}/approve:
+    post:
+      summary: Approve Delivery Schedule (Logistic Confirmation or Sales Reschedule Approval)
+      description: |
+        Menangani persetujuan jadwal pengiriman Sales Order:
+        1. **Persetujuan Kesiapan Logistik:** Jika `logistic_status = PENDING` dan SO `ORDER_APPROVED`, tim logistik mengonfirmasi kesiapan armada/jadwal -> status berubah ke `APPROVED`.
+        2. **Persetujuan Reschedule Admin Sales:** Jika `logistic_status = RESCHEDULE_REQUESTED`, Admin Sales menyetujui tanggal baru usulan logistik -> status berubah ke `RESCHEDULE_APPROVED`, dan sistem otomatis memperbarui `req_due_date`, `doc_due_date`, serta `eta_date` pada Sales Order.
+      tags:
+        - Logistic - Order Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Sales Order
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                due_date:
+                  type: string
+                  format: date
+                  description: Tanggal pengiriman baru (opsional)
+                  example: "2026-09-22"
+                eta_date:
+                  type: string
+                  format: date
+                  description: Estimasi tanggal tiba baru (opsional)
+                  example: "2026-09-25"
+                notes:
+                  type: string
+                  description: Catatan persetujuan
+                  example: "Armada siap, jadwal pengiriman disetujui."
+      responses:
+        '200':
+          description: Order delivery schedule approved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Logistics delivery schedule confirmed and approved successfully.
+                  data:
+                    $ref: '#/components/schemas/LogisticOrderListItem'
+        '404':
+          description: Sales Order not found.
+        '422':
+          description: Unprocessable entity / validation error.
+
+  /v1/logistic/orders/{id}/inventory-transfer:
+    post:
+      summary: Process Inventory Transfer (IT) to SAP for Approved Order
+      description: |
+        Melakukan eksekusi pemindahan stok barang (Inventory Transfer / addIT) ke SAP B1 untuk Sales Order yang sudah disetujui jadwalnya (`logistic_status = APPROVED` atau `RESCHEDULE_APPROVED`):
+        - Mengirimkan data dokumen ke SAP B1 endpoint `/api/addIT` (AddonId: 2).
+        - Memperbarui nomor dokumen SAP IT (`sap_it_doc_num`, `sap_it_doc_entry`), status IT (`sap_it_status = SUCCESS`), gudang tujuan (`to_whs_code`), serta data armada (`nopol`, `nama_supir`).
+        - Mencatat riwayat aktivitas pemantauan logistik dengan action `LOGISTIC_INVENTORY_TRANSFER`.
+        - Bersifat atomik: jika SAP addIT gagal atau mengembalikan ErrorCode, API mengembalikan HTTP 400 beserta pesan error dari SAP dan perubahan data IT tidak disimpan.
+      tags:
+        - Logistic - Order Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Sales Order
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                to_whs_code:
+                  type: string
+                  description: Kode gudang tujuan transfer SAP (default "VPGMN01")
+                  example: "VPGMN01"
+                nopol:
+                  type: string
+                  description: Nomor Polisi armada kendaraan (opsional)
+                  example: "L 9999 XX"
+                nama_supir:
+                  type: string
+                  description: Nama driver / pengemudi (opsional)
+                  example: "Pak Driver"
+                berat_bruto:
+                  type: number
+                  format: float
+                  description: Berat kotor muatan kendaraan dalam kg (opsional)
+                  example: 15000.00
+                berat_tara:
+                  type: number
+                  format: float
+                  description: Berat kosong kendaraan dalam kg (opsional)
+                  example: 5000.00
+                notes:
+                  type: string
+                  description: Catatan pengiriman / transfer IT (opsional)
+                  example: "Armada siap jalan, transfer stok logistik diproses ke SAP."
+      responses:
+        '200':
+          description: Inventory Transfer (IT) processed successfully to SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Inventory Transfer (IT) processed successfully to SAP.
+                  data:
+                    $ref: '#/components/schemas/LogisticOrderListItem'
+        '400':
+          description: Failed to process Inventory Transfer to SAP or already processed or schedule not yet approved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "SAP Inventory Transfer Error [-1]: Insufficient stock in warehouse FG01"
+        '404':
+          description: Sales Order not found.
+        '422':
+          description: Unprocessable entity / validation error.
+
+  /v1/logistic/orders/{id}/logs:
+    get:
+      summary: Get Logistic Monitoring Logs for Sales Order
+      description: Mengambil detail Sales Order beserta seluruh riwayat aktivitas pemantauan logistik secara kronologis.
+      tags:
+        - Logistic - Order Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Sales Order
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Logistic order logs retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Logistic order logs retrieved successfully.
+                  data:
+                    type: object
+                    properties:
+                      order:
+                        $ref: '#/components/schemas/LogisticOrderListItem'
+                      logs:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/LogisticOrderLog'
+        '404':
+          description: Sales Order not found.
+
+  /v1/logistic/picklists/available-orders:
+    get:
+      summary: Get Available Sales Orders for Picklist
+      description: Mengambil daftar Sales Order yang berstatus ORDER_APPROVED dengan kesiapan logistik APPROVED atau RESCHEDULE_APPROVED beserta sisa kuantitas item yang belum di-pick.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          description: Pencarian berdasarkan nomor SO, nama customer, atau card code
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Available orders for picklist retrieved successfully.
+
+  /v1/logistic/picklists:
+    get:
+      summary: List Dokumen Picklist
+      description: Mengambil daftar dokumen picklist logistik dengan filter tipe pengiriman, status, dan rentang tanggal.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: shipping_type
+          in: query
+          description: Filter jenis pengiriman (internal, external, pickup)
+          schema:
+            type: string
+            enum: [internal, external, pickup]
+        - name: status
+          in: query
+          description: Filter status picklist (OPEN, COMPLETED, CANCELLED)
+          schema:
+            type: string
+            enum: [OPEN, COMPLETED, CANCELLED]
+        - name: search
+          in: query
+          description: Pencarian nomor picklist, plat nomor, supir, checker, atau nomor SO
+          schema:
+            type: string
+        - name: date_from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Picklists retrieved successfully.
+    post:
+      summary: Buat Dokumen Picklist Baru
+      description: |
+        Membuat dokumen picklist baru untuk armada logistik.
+        - Internal: wajib mengisi license_plate, mendukung multiple Sales Orders.
+        - External & Pickup: tidak menggunakan armada sendiri, strictly dibatasi hanya 1 Sales Order.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - shipping_type
+                - posting_date
+                - due_date
+                - items
+              properties:
+                shipping_type:
+                  type: string
+                  enum: [internal, external, pickup]
+                posting_date:
+                  type: string
+                  format: date
+                due_date:
+                  type: string
+                  format: date
+                delivery_order_no:
+                  type: string
+                total_weight_limit:
+                  type: number
+                comments:
+                  type: string
+                license_plate:
+                  type: string
+                driver_name:
+                  type: string
+                checker_name:
+                  type: string
+                expedition_id:
+                  type: integer
+                expedition_name:
+                  type: string
+                expedition_rate_id:
+                  type: integer
+                service_type:
+                  type: string
+                estimated_cost:
+                  type: number
+                to_whs_code:
+                  type: string
+                  default: 'VPGMN01'
+                  description: Gudang tujuan transfer (hardcoded ke VPGMN01 di backend)
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - sales_order_id
+                      - item_code
+                      - pick_qty
+                    properties:
+                      sales_order_id:
+                        type: integer
+                      sales_order_detail_id:
+                        type: integer
+                      item_code:
+                        type: string
+                      item_name:
+                        type: string
+                      whs_code:
+                        type: string
+                      unit_msr:
+                        type: string
+                      ordered_qty:
+                        type: number
+                      pick_qty:
+                        type: number
+                      unit_weight:
+                        type: number
+                      direct_bin_quantity:
+                        type: number
+                        description: Input qty jika gudang tidak memiliki bin
+                      bin_allocations:
+                        type: array
+                        description: Daftar alokasi BIN jika gudang asal menggunakan bin management
+                        items:
+                          type: object
+                          properties:
+                            value:
+                              type: integer
+                              description: AbsEntry BIN SAP
+                            AbsEntry:
+                              type: integer
+                            code:
+                              type: string
+                              description: Bin Code
+                            name:
+                              type: string
+                              description: Bin Description
+                            quantity:
+                              type: number
+                            Quantity:
+                              type: number
+      responses:
+        '201':
+          description: Picklist created successfully (Inventory Transfer to SAP VPGMN01 succeeded, it_doc_num & it_doc_entry saved).
+        '400':
+          description: Business validation error or SAP Inventory Transfer failure.
+        '422':
+          description: Input validation error.
+
+  /v1/logistic/picklists/{id}:
+    get:
+      summary: Detail Dokumen Picklist
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Picklist detail retrieved successfully.
+        '404':
+          description: Picklist not found.
+
+  /v1/logistic/picklists/{id}/status:
+    patch:
+      summary: Update Status Dokumen Picklist
+      description: Mengubah status picklist dari OPEN menjadi COMPLETED atau CANCELLED.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [COMPLETED, CANCELLED]
+      responses:
+        '200':
+          description: Picklist status updated successfully.
+        '400':
+          description: Invalid transition or picklist is not OPEN.
+        '404':
+          description: Picklist not found.
+
+  /v1/logistic/picklists/{id}/add-do:
+    post:
+      summary: Add Delivery Order (DO) ke SAP B1 berdasarkan Picklist ID (Batch Atomic)
+      description: |
+        Menjalankan integrasi Add Delivery Order (DO) ke SAP Business One (/api/AddDO) untuk picklist yang ditentukan.
+        Payload dikirim ke SAP dalam format JSON Array berisi kumpulan dokumen DO berbasis Sales Order secara sekaligus (batch) dengan transaksi atomik SAP (StartTransaction dan EndTransaction). Jika salah satu dokumen gagal dibuat, seluruh dokumen dalam antrean otomatis dibatalkan (Rollback).
+        Data barang (ItemCode, harga satuan, UoM/satuan, dan kode pajak) otomatis mewarisi Sales Order asal.
+        Nomor DO (DocNum dan DocEntry) otomatis disimpan ke database Picklist dan Sales Order.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Picklist
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        description: |
+          Payload opsional. Jika request body dikosongkan (`{}`), sistem akan mengumpulkan data secara otomatis dari dokumen Picklist dan Sales Order terkait.
+          Field-field override opsional dapat dikirimkan seperti Series, Noseal, NoPol, Sopir, atau Lines kustom.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sales_order_id:
+                  type: integer
+                  description: Opsional jika picklist memiliki multiple Sales Orders dan hanya ingin membuat DO untuk salah satu Sales Order tertentu
+                  example: 1
+                Series:
+                  type: integer
+                  description: Nomor Series DO di SAP (misal 75). Default mengambil dari picklist->series atau SO->series
+                  example: 75
+                NumAtCard:
+                  type: string
+                  description: Nomor PO Customer / Order No
+                  example: "PO-CUST-001"
+                DocDate:
+                  type: string
+                  format: date-time
+                  description: Tanggal dokumen
+                  example: "2026-09-24T00:00:00"
+                DocDueDate:
+                  type: string
+                  format: date-time
+                  description: Tanggal jatuh tempo pengiriman
+                  example: "2026-09-24T00:00:00"
+                TaxDate:
+                  type: string
+                  format: date-time
+                  description: Tanggal pajak
+                  example: "2026-09-24T00:00:00"
+                Comments:
+                  type: string
+                  description: Catatan pengiriman
+                  example: "Pengiriman parsial SO tahap 1"
+                NoPol:
+                  type: string
+                  description: Nomor polisi armada kendaraan
+                  example: "B 1234 ABC"
+                KodeEkspedisi:
+                  type: string
+                  description: Kode ekspedisi
+                  example: "JNE"
+                NamaEkspedisi:
+                  type: string
+                  description: Nama vendor ekspedisi
+                  example: "JNE Trucking"
+                Sopir:
+                  type: string
+                  description: Nama supir / driver
+                  example: "Budi Santoso"
+                NamaChecker:
+                  type: string
+                  description: Nama staf checker gudang
+                  example: "Andi"
+                Noseal:
+                  type: string
+                  description: Nomor segel pengiriman (seal number)
+                  example: "12345"
+                CardCode:
+                  type: string
+                  description: Opsional. Sistem otomatis mewarisi CardCode dari Sales Order asal (BaseEntry)
+                  example: "C20000"
+                AddonId:
+                  type: integer
+                  description: Otomatis di-hardcode bernilai 2 di backend
+                  example: 2
+                UserId:
+                  type: string
+                  description: ID pengguna dari sesi login
+                  example: "1"
+                Lines:
+                  type: array
+                  description: Minimal data baris pengiriman (opsional; jika dikosongkan otomatis membaca item picklist)
+                  items:
+                    type: object
+                    required:
+                      - BaseEntry
+                      - BaseLine
+                      - Quantity
+                    properties:
+                      BaseEntry:
+                        type: integer
+                        description: DocEntry dari Sales Order SAP
+                        example: 1052
+                      BaseLine:
+                        type: integer
+                        description: Nomor baris/LineNum dari Sales Order (indeks dimulai dari 0)
+                        example: 0
+                      Quantity:
+                        type: number
+                        description: Jumlah barang yang dikirim (tidak boleh melebihi sisa open quantity di SO)
+                        example: 5.0
+                      WhsCode:
+                        type: string
+                        description: Opsional. Kode gudang jika ingin mengalihkan pengiriman
+                        example: "01"
+                      OcrCode:
+                        type: string
+                        description: Kode cabang (Cost Center 1)
+                        example: "SBY"
+                      OcrCode2:
+                        type: string
+                        description: Kode unit (Cost Center 2)
+                        example: "GRM"
+                      OcrCode3:
+                        type: string
+                        description: Kode departemen (Cost Center 3)
+                        example: "MKT"
+            example:
+              Series: 75
+              NumAtCard: "PO-CUST-001"
+              DocDate: "2026-09-24T00:00:00"
+              DocDueDate: "2026-09-24T00:00:00"
+              TaxDate: "2026-09-24T00:00:00"
+              Comments: "Pengiriman parsial SO tahap 1"
+              NoPol: "B 1234 ABC"
+              KodeEkspedisi: "JNE"
+              NamaEkspedisi: "JNE Trucking"
+              Sopir: "Budi Santoso"
+              NamaChecker: "Andi"
+              Noseal: "12345"
+              Lines:
+                - BaseEntry: 1052
+                  BaseLine: 0
+                  Quantity: 5.0
+                  WhsCode: "01"
+                  OcrCode: "SBY"
+                  OcrCode2: "GRM"
+                  OcrCode3: "MKT"
+      responses:
+        '200':
+          description: Delivery Order successfully created in SAP and saved to database.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Delivery Order successfully created in SAP (DocNum: 20260088)."
+                  data:
+                    type: object
+                    properties:
+                      picklist_id:
+                        type: integer
+                        example: 1
+                      picklist_no:
+                        type: string
+                        example: "PKL-20260923-0001"
+                      delivery_order_no:
+                        type: string
+                        example: "20260088"
+                      doc_entry:
+                        type: string
+                        example: "1052"
+                      doc_num:
+                        type: string
+                        example: "20260088"
+        '400':
+          description: Business error or SAP AddDO failure.
+        '404':
+          description: Picklist not found.
+
+  /v1/logistic/picklists/add-do:
+    post:
+      summary: Direct Add Delivery Order (DO) ke SAP B1 (Batch Atomic JSON Array)
+      description: |
+        Mengirim payload request Delivery Order secara langsung ke SAP Business One (/api/AddDO).
+        Mendukung pembuatan satu atau banyak dokumen DO sekaligus (batch) berbasis Sales Order dalam satu transaksi atomik database SAP (StartTransaction dan EndTransaction).
+        Jika salah satu dokumen gagal dibuat, seluruh dokumen dalam antrean request otomatis dibatalkan (Rollback / gagal satu, gagal semua).
+        CardCode tidak wajib diisi karena sistem otomatis membaca CardCode, sales person, dan kontak dari Sales Order asal (BaseEntry).
+        ItemCode, harga satuan, UoM/satuan, dan kode pajak tidak perlu dikirim karena otomatis mewarisi Sales Order.
+        Setelah berhasil, nomor DO (DocNum dan DocEntry) disimpan ke kolom database Sales Order dan Picklist terkait.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        description: JSON Array berisi kumpulan objek header DO dan barisnya (atau objek tunggal)
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                required:
+                  - Series
+                  - Lines
+                properties:
+                  Series:
+                    type: integer
+                    description: Nomor Series DO di SAP
+                    example: 75
+                  DocDate:
+                    type: string
+                    format: date-time
+                    description: Tanggal dokumen
+                    example: "2026-09-24T00:00:00"
+                  DocDueDate:
+                    type: string
+                    format: date-time
+                    description: Tanggal jatuh tempo pengiriman
+                    example: "2026-09-24T00:00:00"
+                  TaxDate:
+                    type: string
+                    format: date-time
+                    description: Tanggal pajak
+                    example: "2026-09-24T00:00:00"
+                  NumAtCard:
+                    type: string
+                    description: Nomor referensi / PO customer
+                    example: "PO-CUST-001"
+                  Comments:
+                    type: string
+                    description: Catatan pengiriman
+                    example: "Pengiriman parsial SO tahap 1"
+                  NoPol:
+                    type: string
+                    description: Nomor polisi armada kendaraan
+                    example: "B 1234 ABC"
+                  KodeEkspedisi:
+                    type: string
+                    description: Kode ekspedisi
+                    example: "JNE"
+                  NamaEkspedisi:
+                    type: string
+                    description: Nama vendor ekspedisi
+                    example: "JNE Trucking"
+                  Sopir:
+                    type: string
+                    description: Nama supir
+                    example: "Budi Santoso"
+                  NamaChecker:
+                    type: string
+                    description: Nama staf checker
+                    example: "Andi"
+                  AddonId:
+                    type: integer
+                    description: Otomatis di-hardcode bernilai 2
+                    example: 2
+                  UserId:
+                    type: string
+                    description: ID pengguna dari user login
+                    example: "1"
+                  Noseal:
+                    type: string
+                    description: Nomor segel pengiriman (seal number)
+                    example: "12345"
+                  CardCode:
+                    type: string
+                    description: Opsional. Otomatis membaca dari SO (BaseEntry)
+                    example: "C20000"
+                  Lines:
+                    type: array
+                    description: Minimal data baris pengiriman
+                    items:
+                      type: object
+                      required:
+                        - BaseEntry
+                        - BaseLine
+                        - Quantity
+                      properties:
+                        BaseEntry:
+                          type: integer
+                          description: DocEntry dari Sales Order
+                          example: 1052
+                        BaseLine:
+                          type: integer
+                          description: Nomor baris/LineNum dari Sales Order (indeks dimulai dari 0)
+                          example: 0
+                        Quantity:
+                          type: number
+                          description: Jumlah barang yang dikirim (tidak boleh melebihi sisa open quantity di SO)
+                          example: 5.0
+                        WhsCode:
+                          type: string
+                          description: Opsional. Gudang pengiriman jika berbeda dari SO
+                          example: "01"
+                        OcrCode:
+                          type: string
+                          description: Kode cabang (Cost Center 1)
+                          example: "SBY"
+                        OcrCode2:
+                          type: string
+                          description: Kode unit (Cost Center 2)
+                          example: "GRM"
+                        OcrCode3:
+                          type: string
+                          description: Kode departemen (Cost Center 3)
+                          example: "MKT"
+            example:
+              - Series: 75
+                DocDate: "2026-09-24T00:00:00"
+                DocDueDate: "2026-09-24T00:00:00"
+                TaxDate: "2026-09-24T00:00:00"
+                NumAtCard: "PO-CUST-001"
+                Comments: "Pengiriman parsial SO tahap 1"
+                NoPol: "B 1234 ABC"
+                KodeEkspedisi: "JNE"
+                NamaEkspedisi: "JNE Trucking"
+                Sopir: "Budi Santoso"
+                NamaChecker: "Andi"
+                AddonId: 2
+                UserId: "1"
+                Noseal: "12345"
+                Lines:
+                  - BaseEntry: 1052
+                    BaseLine: 0
+                    Quantity: 5.0
+                    WhsCode: "01"
+                    OcrCode: "SBY"
+                    OcrCode2: "GRM"
+                    OcrCode3: "MKT"
+                  - BaseEntry: 1052
+                    BaseLine: 1
+                    Quantity: 2.0
+                    WhsCode: "01"
+                    OcrCode: "SBY"
+                    OcrCode2: "GRM"
+                    OcrCode3: "MKT"
+              - Series: 75
+                DocDate: "2026-09-24T00:00:00"
+                DocDueDate: "2026-09-25T00:00:00"
+                TaxDate: "2026-09-24T00:00:00"
+                NumAtCard: "PO-CUST-002"
+                Comments: "Pengiriman SO cabang timur"
+                NoPol: "B 5678 XYZ"
+                KodeEkspedisi: "INTERNAL"
+                NamaEkspedisi: "Armada Sendiri"
+                Sopir: "Santoso"
+                NamaChecker: "Andi"
+                AddonId: 2
+                UserId: "1"
+                Lines:
+                  - BaseEntry: 1053
+                    BaseLine: 0
+                    Quantity: 10.0
+                    WhsCode: "02"
+                    OcrCode: "SBY"
+                    OcrCode2: "GRM"
+                    OcrCode3: "MKT"
+      responses:
+        '200':
+          description: Delivery Order successfully created in SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Delivery Order successfully created in SAP."
+                  data:
+                    type: object
+                    properties:
+                      delivery_order_no:
+                        type: string
+                        example: "20260088"
+                      doc_entry:
+                        type: string
+                        example: "1052"
+                      doc_num:
+                        type: string
+                        example: "20260088"
+                      documents:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            doc_entry:
+                              type: string
+                              example: "1052"
+                            doc_num:
+                              type: string
+                              example: "20260088"
+                            sales_order_id:
+                              type: integer
+                              example: 1
+                            order_no:
+                              type: string
+                              example: "SO-PKL-001"
+                            picklist_id:
+                              type: integer
+                              example: 10
+                            picklist_no:
+                              type: string
+                              example: "PKL-202609-0001"
+        '400':
+          description: Business error or SAP AddDO failure.
+
+  /v1/dashboard-layouts/me:
+    get:
+      summary: Mengambil Layout Dashboard Pengguna Aktif
+      description: |
+        Mengambil konfigurasi tata letak widget dashboard berdasarkan role pengguna yang sedang login.
+        Jika role pengguna belum memiliki konfigurasi kustom, backend mengembalikan konfigurasi default kosong dengan HTTP 200 (bukan 404).
+      tags:
+        - Dashboard - Builder
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Konfigurasi layout dashboard berhasil diambil atau default layout kosong.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Dashboard layout retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      role_id:
+                        type: integer
+                        example: 5
+                      version:
+                        type: integer
+                        example: 3
+                      rows:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            row:
+                              type: integer
+                              example: 1
+                            columns:
+                              type: integer
+                              example: 3
+                      widgets:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              example: "customer-orders"
+                            sort:
+                              type: integer
+                              example: 1
+                            row:
+                              type: integer
+                              example: 1
+                            column:
+                              type: integer
+                              example: 1
+                            span:
+                              type: integer
+                              example: 1
+                            properties:
+                              type: object
+                              nullable: true
+                              example: null
+                      updated_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                        example: "2026-09-25T10:30:00+07:00"
+        '401':
+          description: Unauthenticated.
+
+  /v1/dashboard-layouts/roles/{roleId}:
+    get:
+      summary: Mengambil Layout Dashboard Berdasarkan Role
+      description: |
+        Mengambil konfigurasi tata letak widget dashboard untuk suatu role tertentu.
+        Hanya dapat diakses oleh Administrator.
+      tags:
+        - Dashboard - Builder
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          description: ID role sistem
+          schema:
+            type: integer
+          example: 5
+      responses:
+        '200':
+          description: Konfigurasi layout dashboard role berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Dashboard layout retrieved successfully"
+                  data:
+                    type: object
+        '403':
+          description: Akses ditolak. Hanya administrator yang dapat mengakses.
+        '404':
+          description: Role ID tidak ditemukan.
+
+    put:
+      summary: Menyimpan / Update Layout Dashboard Berdasarkan Role (Upsert & Optimistic Locking)
+      description: |
+        Menyimpan atau memperbarui konfigurasi baris, kolom, dan widget dashboard untuk role tertentu.
+        Mendukung optimistic locking melalui field version. Jika version request tidak cocok dengan versi di database, mengembalikan HTTP 409 Conflict.
+        Hanya dapat diakses oleh Administrator.
+      tags:
+        - Dashboard - Builder
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          description: ID role sistem
+          schema:
+            type: integer
+          example: 5
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - version
+                - rows
+                - widgets
+              properties:
+                version:
+                  type: integer
+                  description: Versi konfigurasi terakhir yang diketahui frontend
+                  example: 3
+                rows:
+                  type: array
+                  description: Pengaturan baris dan jumlah kolom (1-3 kolom per baris, 1-10 baris)
+                  items:
+                    type: object
+                    required:
+                      - row
+                      - columns
+                    properties:
+                      row:
+                        type: integer
+                        example: 1
+                      columns:
+                        type: integer
+                        example: 3
+                widgets:
+                  type: array
+                  description: Daftar penempatan widget pada baris dan kolom
+                  items:
+                    type: object
+                    required:
+                      - id
+                      - sort
+                      - row
+                      - column
+                      - span
+                    properties:
+                      id:
+                        type: string
+                        example: "customer-orders"
+                      sort:
+                        type: integer
+                        example: 1
+                      row:
+                        type: integer
+                        example: 1
+                      column:
+                        type: integer
+                        example: 1
+                      span:
+                        type: integer
+                        example: 1
+                      properties:
+                        type: object
+                        nullable: true
+                        example: null
+            example:
+              version: 3
+              rows:
+                - row: 1
+                  columns: 3
+                - row: 2
+                  columns: 2
+              widgets:
+                - id: "customer-orders"
+                  sort: 1
+                  row: 1
+                  column: 1
+                  span: 1
+                - id: "order-ready"
+                  sort: 2
+                  row: 2
+                  column: 1
+                  span: 2
+      responses:
+        '200':
+          description: Dashboard layout berhasil disimpan dan versi baru dihasilkan.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Dashboard layout saved successfully"
+                  data:
+                    type: object
+        '403':
+          description: Akses ditolak.
+        '409':
+          description: Version conflict. Telah diperbarui oleh pengguna lain.
+        '422':
+          description: Validasi layout gagal (melebihi span kolom, baris tidak urut, dsb).
+
+    delete:
+      summary: Mereset / Menghapus Layout Dashboard Role
+      description: |
+        Menghapus konfigurasi kustom layout dashboard untuk role tertentu sehingga kembali ke kondisi default.
+        Hanya dapat diakses oleh Administrator.
+      tags:
+        - Dashboard - Builder
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          description: ID role sistem
+          schema:
+            type: integer
+          example: 5
+      responses:
+        '200':
+          description: Dashboard layout berhasil direset.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Dashboard layout reset successfully"
+                  data:
+                    type: string
+                    nullable: true
+                    example: null
+        '403':
+          description: Akses ditolak.
+        '404':
+          description: Role ID tidak ditemukan.
 
   /customer-monthly-orders/{id}/post-to-so:
     post:
@@ -17445,5 +22221,426 @@ components:
           type: string
           format: date-time
 
+    VendorDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        vendor_code:
+          type: string
+          example: VND-202609-0001
+        vendor_type:
+          type: string
+          example: EXPEDITION
+        company_name:
+          type: string
+          example: PT Cepat Aman Logistik
+        company_email:
+          type: string
+          example: contact@cepataman.com
+        company_phone:
+          type: string
+          nullable: true
+          example: 021-5551234
+        company_npwp:
+          type: string
+          nullable: true
+          example: 01.234.567.8-901.000
+        nik:
+          type: string
+          nullable: true
+          example: "3173010101900001"
+        address:
+          type: string
+          nullable: true
+          example: Jl. Daan Mogot KM 12
+        province:
+          type: string
+          nullable: true
+          description: Kode ID provinsi
+          example: "31"
+        province_name:
+          type: string
+          nullable: true
+          description: Nama provinsi ter-resolve
+          example: DKI JAKARTA
+        city:
+          type: string
+          nullable: true
+          description: Kode ID kabupaten / kota
+          example: "3173"
+        city_name:
+          type: string
+          nullable: true
+          description: Nama kabupaten / kota ter-resolve
+          example: KOTA ADM. JAKARTA BARAT
+        regencies:
+          type: string
+          nullable: true
+          description: Kode ID kabupaten / kota
+          example: "3173"
+        regency_name:
+          type: string
+          nullable: true
+          description: Nama kabupaten / kota ter-resolve
+          example: KOTA ADM. JAKARTA BARAT
+        regencies_name:
+          type: string
+          nullable: true
+          description: Nama kabupaten / kota ter-resolve
+          example: KOTA ADM. JAKARTA BARAT
+        district:
+          type: string
+          nullable: true
+          description: Kode ID kecamatan
+          example: "317301"
+        district_name:
+          type: string
+          nullable: true
+          description: Nama kecamatan ter-resolve
+          example: CENGKARENG
+        village:
+          type: string
+          nullable: true
+          description: Kode ID desa / kelurahan
+          example: "3173011001"
+        village_name:
+          type: string
+          nullable: true
+          description: Nama desa / kelurahan ter-resolve
+          example: CENGKARENG BARAT
+        region_info:
+          type: object
+          nullable: true
+          description: Keterangan terstruktur id dan name seluruh tingkatan wilayah administratif
+          properties:
+            village:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: "3173011001"
+                name:
+                  type: string
+                  example: CENGKARENG BARAT
+            district:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: "317301"
+                name:
+                  type: string
+                  example: CENGKARENG
+            regency:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: "3173"
+                name:
+                  type: string
+                  example: KOTA ADM. JAKARTA BARAT
+            province:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: "31"
+                name:
+                  type: string
+                  example: DKI JAKARTA
+        postal_code:
+          type: string
+          nullable: true
+          example: "11840"
+        pic_name:
+          type: string
+          example: Hendro Wijaya
+        pic_phone:
+          type: string
+          example: 081298765432
+        pic_email:
+          type: string
+          nullable: true
+          example: hendro@cepataman.com
+        terms_agreed:
+          type: boolean
+          example: true
+        registration_status:
+          type: string
+          example: APPROVED
+        legal_approval_status:
+          type: string
+          example: APPROVED
+        sap_vendor_code:
+          type: string
+          nullable: true
+          example: VN10001
+        documents:
+          type: array
+          items:
+            type: object
+        users:
+          type: array
+          items:
+            type: object
+        approval_histories:
+          type: array
+          items:
+            type: object
+
+    LogisticOrderListItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 101
+        doc_num:
+          type: string
+          example: "SO-2026-00045"
+        doc_entry:
+          type: integer
+          nullable: true
+          example: 98124
+        customer_id:
+          type: integer
+          example: 5
+        customer_shipto_id:
+          type: integer
+          nullable: true
+          example: 12
+        doc_date:
+          type: string
+          format: date
+          example: "2026-09-14"
+        doc_due_date:
+          type: string
+          format: date
+          example: "2026-09-17"
+        req_due_date:
+          type: string
+          format: date
+          example: "2026-09-17"
+        eta_date:
+          type: string
+          format: date
+          example: "2026-09-20"
+        status:
+          type: string
+          example: ORDER_APPROVED
+        logistic_status:
+          type: string
+          example: PENDING
+        proposed_delivery_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-09-19"
+        proposed_eta_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-09-22"
+        logistic_notes:
+          type: string
+          nullable: true
+          example: "Armada wingbox siap."
+        logistic_action_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-09-14T10:00:00.000000Z"
+        logistic_action_by:
+          type: integer
+          nullable: true
+          example: 3
+        benchmark_lead_time_days:
+          type: integer
+          example: 3
+        calculated_lead_time_days:
+          type: integer
+          example: 3
+        is_urgent:
+          type: boolean
+          example: false
+        can_logistic_action:
+          type: boolean
+          example: true
+        can_sales_approve:
+          type: boolean
+          example: false
+        customer:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 5
+            name:
+              type: string
+              example: PT Maju Jaya Bersama
+            code_customer:
+              type: string
+              example: C110000100
+        customer_shipto:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+              example: 12
+            name:
+              type: string
+              example: Gudang Distribusi Solo
+            city:
+              type: string
+              example: SURAKARTA
+        latest_logistic_log:
+          $ref: '#/components/schemas/LogisticOrderLog'
+
+    LogisticOrderLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        sales_order_id:
+          type: integer
+          example: 101
+        action:
+          type: string
+          example: APPROVE_SCHEDULE
+        previous_status:
+          type: string
+          nullable: true
+          example: PENDING
+        new_status:
+          type: string
+          example: APPROVED
+        proposed_delivery_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-09-17"
+        proposed_eta_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-09-20"
+        notes:
+          type: string
+          nullable: true
+          example: "Armada wingbox siap berangkat sesuai jadwal."
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-09-14T10:30:00.000000Z"
+        user:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+              example: 3
+            name:
+              type: string
+              example: Tim Logistik
+            username:
+              type: string
+              example: logistic_user
+
+    MasterLeadtimeItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        warehouse_origin_id:
+          type: integer
+          nullable: true
+          example: 1
+        origin_warehouse_code:
+          type: string
+          nullable: true
+          example: "WHS-SUB"
+        origin_warehouse_name:
+          type: string
+          example: "Gudang Utama Surabaya Waru"
+        origin_city:
+          type: string
+          nullable: true
+          example: "SURABAYA"
+        destination_id:
+          type: integer
+          nullable: true
+          example: 12
+        destination_regency_id:
+          type: integer
+          nullable: true
+          example: 3578
+        destination_code:
+          type: string
+          nullable: true
+          example: "DEST-BDG"
+        destination_name:
+          type: string
+          example: "Gudang Distributor Bandung"
+        destination_city:
+          type: string
+          nullable: true
+          example: "BANDUNG"
+        destination_province:
+          type: string
+          nullable: true
+          example: "JAWA BARAT"
+        avg_lead_time_days:
+          type: number
+          format: float
+          example: 2.50
+        min_lead_time_days:
+          type: number
+          format: float
+          nullable: true
+          example: 2.00
+        max_lead_time_days:
+          type: number
+          format: float
+          nullable: true
+          example: 3.00
+        lead_time_unit:
+          type: string
+          example: "DAYS"
+        transport_mode:
+          type: string
+          example: "LAND"
+        distance_km:
+          type: number
+          format: float
+          nullable: true
+          example: 680.00
+        status:
+          type: string
+          example: "ACTIVE"
+        remarks:
+          type: string
+          nullable: true
+          example: "Truk Fuso reguler via tol Trans Jawa"
+        created_by:
+          type: integer
+          nullable: true
+          example: 1
+        updated_by:
+          type: integer
+          nullable: true
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-09-14T10:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-09-14T10:00:00.000000Z"
 
 

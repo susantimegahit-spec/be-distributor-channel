@@ -36,17 +36,32 @@ abstract class TestCase extends BaseTestCase
 
             config([
                 'database.connections.sqlite.database' => $defaultDb,
+                'database.connections.sqlite.busy_timeout' => 5000,
+                'database.connections.sqlite.journal_mode' => 'WAL',
+                'database.connections.sqlite.foreign_key_constraints' => false,
                 'database.connections.pgsql_ekspedisi' => [
                     'driver' => 'sqlite',
                     'database' => $ekspedisiDb,
                     'prefix' => '',
                     'foreign_key_constraints' => false,
+                    'busy_timeout' => 5000,
+                    'journal_mode' => 'WAL',
                 ],
                 'database.connections.pgsql_production' => [
                     'driver' => 'sqlite',
                     'database' => $productionDb,
                     'prefix' => '',
                     'foreign_key_constraints' => false,
+                    'busy_timeout' => 5000,
+                    'journal_mode' => 'WAL',
+                ],
+                'database.connections.pgsql_vendor' => [
+                    'driver' => 'sqlite',
+                    'database' => $defaultDb,
+                    'prefix' => '',
+                    'foreign_key_constraints' => false,
+                    'busy_timeout' => 5000,
+                    'journal_mode' => 'WAL',
                 ],
             ]);
 
@@ -67,15 +82,12 @@ abstract class TestCase extends BaseTestCase
                     }
                 };
             });
+            if ($needsMigration) {
+                $this->artisan('migrate', ['--database' => 'sqlite', '--force' => true]);
+                $this->artisan('migrate', ['--database' => 'pgsql_ekspedisi', '--path' => 'database/migrations/ekspedisi', '--force' => true]);
+            }
         }
 
         parent::setUp();
-
-        if (config('database.default') === 'sqlite' && !empty($needsMigration)) {
-            $this->artisan('migrate', [
-                '--path' => 'database/migrations/production',
-                '--database' => 'pgsql_production',
-            ]);
-        }
     }
 }

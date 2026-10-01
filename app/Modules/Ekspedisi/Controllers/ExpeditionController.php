@@ -18,7 +18,7 @@ class ExpeditionController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Expedition::query();
+        $query = Expedition::with('vendor');
 
         if ($request->has('search')) {
             $search = $request->get('search');
@@ -26,7 +26,10 @@ class ExpeditionController extends Controller
                 $q->where('expedition_code', 'like', "%{$search}%")
                   ->orWhere('expedition_name', 'like', "%{$search}%")
                   ->orWhere('city', 'like', "%{$search}%")
-                  ->orWhere('pic_name', 'like', "%{$search}%");
+                  ->orWhere('pic_name', 'like', "%{$search}%")
+                  ->orWhereHas('vendor', function ($vq) use ($search) {
+                      $vq->where('sap_vendor_code', 'like', "%{$search}%");
+                  });
             });
         }
 
@@ -41,7 +44,7 @@ class ExpeditionController extends Controller
             $expeditions = $query->orderBy('expedition_name')->get();
         }
 
-        return $this->successResponse($expeditions, 'Daftar master ekspedisi berhasil diambil.');
+        return $this->successResponse($expeditions, 'Expedition master list retrieved successfully.');
     }
 
     /**
@@ -88,13 +91,13 @@ class ExpeditionController extends Controller
      */
     public function show(int $id): JsonResponse
     {
-        $expedition = Expedition::with(['rates', 'creator', 'updater'])->find($id);
+        $expedition = Expedition::with(['vendor', 'rates', 'creator', 'updater'])->find($id);
 
         if (!$expedition) {
-            return $this->errorResponse('Data ekspedisi tidak ditemukan.', [], 404);
+            return $this->errorResponse('Expedition data not found.', [], 404);
         }
 
-        return $this->successResponse($expedition, 'Detail master ekspedisi berhasil diambil.');
+        return $this->successResponse($expedition, 'Expedition master details retrieved successfully.');
     }
 
     /**

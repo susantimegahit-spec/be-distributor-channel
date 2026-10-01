@@ -127,7 +127,7 @@ class ExpeditionUploadService
      * @param UploadedFile $file
      * @return array
      */
-    public function uploadRates(UploadedFile $file): array
+    public function uploadRates(UploadedFile $file, ?int $forcedExpeditionId = null, ?array $overridePeriod = null): array
     {
         $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getRealPath());
         $worksheet = $spreadsheet->getActiveSheet();
@@ -141,14 +141,16 @@ class ExpeditionUploadService
         $rawHeaders = array_shift($rows);
         $headerMap = $this->mapHeaders($rawHeaders, [
             'expedition_code'  => ['expedition_code', 'kode_ekspedisi', 'expedition_id', 'expedition'],
-            'warehouse_code'   => ['warehouse_code', 'whs_code', 'kode_gudang', 'warehouse_id', 'origin'],
-            'destination_id'   => ['destination_id', 'tujuan_id', 'tujuan', 'destination'],
-            'transport_mode'   => ['transport_mode', 'moda', 'moda_pengiriman'],
-            'service_type'     => ['service_type', 'jenis_layanan', 'layanan'],
-            'min_tonnage'      => ['min_tonnage', 'tonase_min', 'tonase_minimal', 'min_kg'],
-            'max_tonnage'      => ['max_tonnage', 'tonase_max', 'tonase_maksimal', 'max_kg'],
+            'warehouse_code'   => ['warehouse_code', 'whs_code', 'kode_gudang', 'warehouse_id', 'origin', 'origin_code', 'kode_asal'],
+            'origin_name'      => ['origin_name', 'nama_asal', 'whs_name', 'nama_gudang'],
+            'destination_id'   => ['destination_id', 'tujuan_id', 'tujuan', 'destination', 'destination_code', 'card_code'],
+            'destination_city' => ['destination_city', 'kota_tujuan', 'city', 'kota'],
+            'transport_mode'   => ['transport_mode', 'moda', 'moda_pengiriman', 'moda_transportasi'],
+            'service_type'     => ['service_type', 'jenis_layanan', 'layanan', 'tipe_layanan'],
+            'min_tonnage'      => ['min_tonnage', 'tonase_min', 'tonase_minimal', 'min_kg', 'min_weight_kg', 'min_weight', 'minimal_berat', 'berat_min'],
+            'max_tonnage'      => ['max_tonnage', 'tonase_max', 'tonase_maksimal', 'max_kg', 'max_weight_kg', 'max_weight', 'maksimal_berat', 'berat_max'],
             'price'            => ['price', 'harga', 'tarif', 'rate'],
-            'eta_days'         => ['eta_days', 'eta_hari', 'eta'],
+            'eta_days'         => ['eta_days', 'eta_hari', 'eta', 'leadtime', 'lead_time', 'lead_time_days'],
             'min_shipment_qty' => ['min_shipment_qty', 'minimal_pengiriman'],
             'max_shipment_qty' => ['max_shipment_qty', 'maksimal_pengiriman'],
             'valid_from'       => ['valid_from', 'berlaku_mulai'],
@@ -157,7 +159,7 @@ class ExpeditionUploadService
             'remarks'          => ['remarks', 'keterangan'],
         ]);
 
-        if (!isset($headerMap['expedition_code'])) {
+        if (!$forcedExpeditionId && !isset($headerMap['expedition_code'])) {
             throw new \Exception('Header "expedition_code" atau "kode_ekspedisi" wajib ada dalam file.');
         }
 
@@ -186,7 +188,40 @@ class ExpeditionUploadService
             $expeditionMap[(string) $exp->id] = $exp->id;
         }
 
-        $warehouseMap = Warehouse::pluck('id', 'whs_code')->toArray();
+        $warehouseMap = [];
+        $allWarehouses = Warehouse::all();
+        foreach ($allWarehouses as $w) {
+            $code = trim((string) $w->whs_code);
+            $name = trim((string) $w->whs_name);
+            if ($code !== '') {
+                $warehouseMap[$code] = $w->id;
+                $warehouseMap[strtoupper($code)] = $w->id;
+                $warehouseMap[strtolower($code)] = $w->id;
+            }
+            if ($name !== '') {
+                $warehouseMap[$name] = $w->id;
+                $warehouseMap[strtoupper($name)] = $w->id;
+                $warehouseMap[strtolower($name)] = $w->id;
+            }
+            $warehouseMap[(string) $w->id] = $w->id;
+        }
+
+        try {
+            $allOrigins = \App\Models\WarehouseOrigin::all();
+            foreach ($allOrigins as $wo) {
+                $targetWhsId = $warehouseMap[trim((string) $wo->whs_code)] ?? null;
+                if ($targetWhsId) {
+                    $originName = trim((string) ($wo->whs_name_origin ?? $wo->whs_name ?? ''));
+                    if ($originName !== '') {
+                        $warehouseMap[$originName] = $targetWhsId;
+                        $warehouseMap[strtoupper($originName)] = $targetWhsId;
+                        $warehouseMap[strtolower($originName)] = $targetWhsId;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Safe fallback if warehouse_origins table is absent in test environment
+        }
 
         DB::beginTransaction();
         try {
@@ -197,38 +232,42 @@ class ExpeditionUploadService
                     continue;
                 }
 
-                $rawExpInput = trim((string) ($this->getValueByMap($row, $headerMap, 'expedition_code') ?? ''));
-                $expUpper = strtoupper($rawExpInput);
-                $expClean = preg_replace('/[^A-Z0-9]/', '', $expUpper);
-                $expCodePart = str_contains($rawExpInput, '-') ? trim(explode('-', $rawExpInput)[0]) : $rawExpInput;
-                $expCodePartUpper = strtoupper($expCodePart);
-                $expCodePartClean = preg_replace('/[^A-Z0-9]/', '', $expCodePartUpper);
+                if ($forcedExpeditionId) {
+                    $expeditionId = $forcedExpeditionId;
+                } else {
+                    $rawExpInput = trim((string) ($this->getValueByMap($row, $headerMap, 'expedition_code') ?? ''));
+                    $expUpper = strtoupper($rawExpInput);
+                    $expClean = preg_replace('/[^A-Z0-9]/', '', $expUpper);
+                    $expCodePart = str_contains($rawExpInput, '-') ? trim(explode('-', $rawExpInput)[0]) : $rawExpInput;
+                    $expCodePartUpper = strtoupper($expCodePart);
+                    $expCodePartClean = preg_replace('/[^A-Z0-9]/', '', $expCodePartUpper);
 
-                // Find expedition ID
-                $expeditionId = $expeditionMap[$rawExpInput]
-                    ?? $expeditionMap[$expUpper]
-                    ?? $expeditionMap[$expClean]
-                    ?? $expeditionMap[$expCodePartUpper]
-                    ?? $expeditionMap[$expCodePartClean]
-                    ?? null;
+                    // Find expedition ID
+                    $expeditionId = $expeditionMap[$rawExpInput]
+                        ?? $expeditionMap[$expUpper]
+                        ?? $expeditionMap[$expClean]
+                        ?? $expeditionMap[$expCodePartUpper]
+                        ?? $expeditionMap[$expCodePartClean]
+                        ?? null;
 
-                if (!$expeditionId) {
-                    // Fallback: direct database search with LIKE / ILIKE
-                    $expObj = Expedition::where('expedition_code', $rawExpInput)
-                        ->orWhere('expedition_code', 'ILIKE', $expCodePart)
-                        ->orWhere('expedition_name', 'ILIKE', $rawExpInput)
-                        ->orWhere('expedition_name', 'ILIKE', "%{$rawExpInput}%")
-                        ->first();
+                    if (!$expeditionId) {
+                        // Fallback: direct database search with LIKE / ILIKE
+                        $expObj = Expedition::where('expedition_code', $rawExpInput)
+                            ->orWhere('expedition_code', 'ILIKE', $expCodePart)
+                            ->orWhere('expedition_name', 'ILIKE', $rawExpInput)
+                            ->orWhere('expedition_name', 'ILIKE', "%{$rawExpInput}%")
+                            ->first();
 
-                    if ($expObj) {
-                        $expeditionId = $expObj->id;
-                        $expeditionMap[$expUpper] = $expObj->id;
+                        if ($expObj) {
+                            $expeditionId = $expObj->id;
+                            $expeditionMap[$expUpper] = $expObj->id;
+                        }
                     }
-                }
 
-                if (!$expeditionId) {
-                    $errors[] = "Baris #{$rowNum}: Ekspedisi dengan kode/nama '{$rawExpInput}' belum terdaftar di Master Ekspedisi. Harap daftarkan ekspedisi ini terlebih dahulu di menu Master Ekspedisi.";
-                    continue;
+                    if (!$expeditionId) {
+                        $errors[] = "Baris #{$rowNum}: Ekspedisi dengan kode/nama '{$rawExpInput}' belum terdaftar di Master Ekspedisi. Harap daftarkan ekspedisi ini terlebih dahulu di menu Master Ekspedisi.";
+                        continue;
+                    }
                 }
 
                 $priceVal = $this->getValueByMap($row, $headerMap, 'price');
@@ -238,39 +277,60 @@ class ExpeditionUploadService
                 }
 
                 // Match warehouse ID by code, name, or warehouse_origins (whs_name_origin)
-                $whsInput = trim((string) ($this->getValueByMap($row, $headerMap, 'warehouse_code') ?? ''));
-                $whsCode = $whsInput;
-                if (str_contains($whsCode, '-')) {
-                    $whsCode = trim(explode('-', $whsCode)[0]);
-                }
+                $whsInput = trim((string) ($this->getValueByMap($row, $headerMap, 'warehouse_code') ?? $this->getValueByMap($row, $headerMap, 'origin_name') ?? ''));
                 
                 $warehouseId = null;
-                if (isset($warehouseMap[$whsCode])) {
-                    $warehouseId = $warehouseMap[$whsCode];
-                } elseif (is_numeric($whsCode) && in_array((int) $whsCode, $warehouseMap)) {
-                    $warehouseId = (int) $whsCode;
-                } else {
+                if (isset($warehouseMap[$whsInput])) {
+                    $warehouseId = $warehouseMap[$whsInput];
+                } elseif (str_contains($whsInput, ' - ') && isset($warehouseMap[trim(explode(' - ', $whsInput)[0])])) {
+                    $warehouseId = $warehouseMap[trim(explode(' - ', $whsInput)[0])];
+                } elseif (str_contains($whsInput, '-') && isset($warehouseMap[trim(explode('-', $whsInput)[0])])) {
+                    $warehouseId = $warehouseMap[trim(explode('-', $whsInput)[0])];
+                } elseif (is_numeric($whsInput) && in_array((int) $whsInput, $warehouseMap)) {
+                    $warehouseId = (int) $whsInput;
+                    $whsCodePart = str_contains($whsInput, '-') ? trim(explode('-', $whsInput)[0]) : $whsInput;
+                    $likeOp = DB::connection()->getDriverName() === 'pgsql' ? 'ILIKE' : 'LIKE';
+
                     // Check directly in public.warehouses
-                    $whsObj = Warehouse::where('whs_code', $whsCode)
+                    $whsObj = Warehouse::where('whs_code', $whsInput)
+                        ->orWhere('whs_code', $whsCodePart)
                         ->orWhere('whs_name', $whsInput)
-                        ->orWhere('whs_name', 'LIKE', "%{$whsInput}%")
+                        ->orWhere('whs_name', $likeOp, "%{$whsInput}%")
                         ->first();
 
                     // If not found, check in ekspedisi.warehouse_origins (whs_name_origin)
                     if (!$whsObj) {
-                        $originObj = \App\Models\WarehouseOrigin::where('whs_name_origin', $whsInput)
-                            ->orWhere('whs_name_origin', 'LIKE', "%{$whsInput}%")
-                            ->orWhere('whs_name', $whsInput)
-                            ->orWhere('whs_code', $whsCode)
-                            ->first();
+                        try {
+                            $originObj = \App\Models\WarehouseOrigin::where('whs_name_origin', $whsInput)
+                                ->orWhere('whs_name_origin', $likeOp, "%{$whsInput}%")
+                                ->orWhere('whs_name', $whsInput)
+                                ->orWhere('whs_name', $likeOp, "%{$whsInput}%")
+                                ->orWhere('whs_code', $whsCodePart)
+                                ->first();
 
-                        if ($originObj && !empty($originObj->whs_code)) {
-                            $whsObj = Warehouse::where('whs_code', $originObj->whs_code)->first();
+                            if ($originObj && !empty($originObj->whs_code)) {
+                                $whsObj = Warehouse::where('whs_code', $originObj->whs_code)->first();
+                            }
+                        } catch (\Throwable $e) {
+                            // ignore table absence in testing
                         }
                     }
 
                     if ($whsObj) {
                         $warehouseId = $whsObj->id;
+                        $warehouseMap[$whsInput] = $whsObj->id;
+                    }
+                }
+
+                $originName = trim((string) ($this->getValueByMap($row, $headerMap, 'origin_name') ?? ''));
+                if (!$warehouseId && $originName !== '') {
+                    $likeOp = DB::connection()->getDriverName() === 'pgsql' ? 'ILIKE' : 'LIKE';
+                    $whsObj = Warehouse::where('whs_name', $originName)
+                        ->orWhere('whs_name', $likeOp, "%{$originName}%")
+                        ->first();
+                    if ($whsObj) {
+                        $warehouseId = $whsObj->id;
+                        $warehouseMap[$originName] = $whsObj->id;
                     }
                 }
 
@@ -342,9 +402,13 @@ class ExpeditionUploadService
                     'eta_days'         => is_numeric($this->getValueByMap($row, $headerMap, 'eta_days')) ? (int) $this->getValueByMap($row, $headerMap, 'eta_days') : null,
                     'min_shipment_qty' => floatval($this->getValueByMap($row, $headerMap, 'min_shipment_qty') ?? 0),
                     'max_shipment_qty' => floatval($this->getValueByMap($row, $headerMap, 'max_shipment_qty') ?? 0),
-                    'valid_from'       => $this->parseDate($this->getValueByMap($row, $headerMap, 'valid_from')),
-                    'valid_until'      => $this->parseDate($this->getValueByMap($row, $headerMap, 'valid_until')),
-                    'status'           => strtoupper((string) ($this->getValueByMap($row, $headerMap, 'status') ?? 'ACTIVE')),
+                    'valid_from'       => !empty($overridePeriod['valid_from'])
+                                            ? $this->parseDate($overridePeriod['valid_from'])
+                                            : $this->parseDate($this->getValueByMap($row, $headerMap, 'valid_from')),
+                    'valid_until'      => !empty($overridePeriod['valid_until'])
+                                            ? $this->parseDate($overridePeriod['valid_until'])
+                                            : $this->parseDate($this->getValueByMap($row, $headerMap, 'valid_until')),
+                    'status'           => 'INACTIVE',
                     'flag'             => false,
                     'approval_status'  => 'PENDING',
                     'remarks'          => $this->getValueByMap($row, $headerMap, 'remarks'),
@@ -375,12 +439,14 @@ class ExpeditionUploadService
 
                 $existingRate = $existingRateQuery->first();
 
+                $internalUserId = (auth()->check() && auth()->user() instanceof \App\Models\User) ? auth()->id() : null;
+
                 if ($existingRate) {
-                    $ratePayload['updated_by'] = auth()->id();
+                    $ratePayload['updated_by'] = $internalUserId;
                     $existingRate->update($ratePayload);
                     $updated++;
                 } else {
-                    $ratePayload['created_by'] = auth()->id();
+                    $ratePayload['created_by'] = $internalUserId;
                     ExpeditionRate::create($ratePayload);
                     $created++;
                 }
@@ -414,9 +480,12 @@ class ExpeditionUploadService
             if (empty($raw)) {
                 continue;
             }
-            $clean = strtolower(trim(str_replace([' ', '-'], '_', (string) $raw)));
+            $rawClean = strtolower(trim((string) $raw));
+            $clean = strtolower(trim(str_replace([' ', '-', '(', ')', '[', ']'], '_', (string) $raw)));
+            $clean = preg_replace('/_+/', '_', $clean);
+            $clean = trim($clean, '_');
             foreach ($definitions as $key => $aliases) {
-                if (in_array($clean, $aliases)) {
+                if (in_array($clean, $aliases) || in_array($rawClean, $aliases)) {
                     $map[$key] = $index;
                     break;
                 }

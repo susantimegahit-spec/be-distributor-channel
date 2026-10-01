@@ -17,3 +17,7 @@ Schedule::command('sap:sync-discount-types')->daily();
 Schedule::command('sap:sync-sales-employees')->daily();
 Schedule::command('sap:sync-warehouses')->daily();
 Schedule::command('sap:sync-ocr-codes')->daily();
+
+// Spatie Health Monitoring Check (every minute)
+Schedule::command(\Spatie\Health\Commands\RunHealthChecksCommand::class)->everyMinute();
+

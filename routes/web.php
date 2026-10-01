@@ -27,7 +27,7 @@ Route::post('/docs/login', function (Request $request) {
             'docs_authenticated' => true,
             'docs_last_activity' => time(),
         ]);
-        return redirect('/docs');
+        return redirect()->intended('/docs');
     }
 
     return redirect('/docs/login')->with('error', 'Username atau password yang Anda masukkan salah!');
@@ -97,6 +97,21 @@ Route::middleware('web')->prefix('monitoringsm')->group(function () {
 
         // ClickUp Task Reporting Dashboard
         Route::get('/reporting-tasks', [\App\Http\Controllers\ReportingTaskWebController::class, 'index']);
+
+        // Dynamic Master Data CRUD Management
+        Route::get('/master-data', [\App\Http\Controllers\MasterDataWebController::class, 'index']);
+        Route::post('/master-data/{table}', [\App\Http\Controllers\MasterDataWebController::class, 'store']);
+        Route::post('/master-data/{table}/{id}/update', [\App\Http\Controllers\MasterDataWebController::class, 'update']);
+        Route::post('/master-data/{table}/{id}/delete', [\App\Http\Controllers\MasterDataWebController::class, 'destroy']);
+
+        // Spatie Server & Service Health Monitoring Dashboard
+        Route::get('/health', function (\Illuminate\Http\Request $request, \Spatie\Health\ResultStores\ResultStore $resultStore, \Spatie\Health\Health $health) {
+            if ($request->has('fresh') || $resultStore->latestResults() === null) {
+                \Illuminate\Support\Facades\Artisan::call(\Spatie\Health\Commands\RunHealthChecksCommand::class);
+            }
+            return app(\Spatie\Health\Http\Controllers\HealthCheckResultsController::class)($request, $resultStore, $health);
+        });
+        Route::get('/health/json', \Spatie\Health\Http\Controllers\HealthCheckJsonResultsController::class);
     });
 });
 
@@ -124,6 +139,29 @@ Route::middleware([DocsAuthSession::class])->group(function () {
 
     Route::get('/docs/index.html', function () {
         $path = resource_path('docs/index.html');
+        if (!file_exists($path)) {
+            abort(404);
+        }
+        return response()->file($path, [
+            'Content-Type' => 'text/html',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+        ]);
+    });
+
+    // Halaman Dokumentasi API Modern / Next-Gen (Scalar)
+    Route::get('/docsnew', function () {
+        $path = resource_path('docs/docsnew.html');
+        if (!file_exists($path)) {
+            abort(404);
+        }
+        return response()->file($path, [
+            'Content-Type' => 'text/html',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+        ]);
+    });
+
+    Route::get('/docsnew/index.html', function () {
+        $path = resource_path('docs/docsnew.html');
         if (!file_exists($path)) {
             abort(404);
         }

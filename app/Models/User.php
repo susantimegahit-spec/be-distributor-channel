@@ -57,6 +57,7 @@ class User extends Authenticatable
         'accessible_systems',
         'actions',
         'organization_assignment',
+        'originator_detail',
     ];
 
     /**
@@ -96,6 +97,14 @@ class User extends Authenticatable
     public function expedition(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Expedition::class, 'expedition_code', 'expedition_code');
+    }
+
+    /**
+     * Get the HRIS employee profile associated with the user.
+     */
+    public function employee(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(HrisEmployee::class, 'user_id');
     }
 
     /**
@@ -230,6 +239,21 @@ class User extends Authenticatable
     }
 
     /**
+     * Accessor for originator detail from SAP.
+     *
+     * @return array|null
+     */
+    public function getOriginatorDetailAttribute(): ?array
+    {
+        try {
+            return app(\App\Modules\MasterApproval\Services\MasterApprovalService::class)
+                ->findOriginatorDetail($this->originator, $this->username);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
      * Get normalized user-level custom permissions map:
      * [
      *   "sales-order" => ["create" => true, "read" => true, "update" => false, "delete" => false, "approve" => false, "export" => true]
@@ -251,8 +275,24 @@ class User extends Authenticatable
             return [];
         }
 
+        $items = [];
+        if (isset($raw['menu']) || isset($raw['widget'])) {
+            if (isset($raw['menu']) && is_array($raw['menu'])) {
+                foreach ($raw['menu'] as $item) {
+                    $items[] = $item;
+                }
+            }
+            if (isset($raw['widget']) && is_array($raw['widget'])) {
+                foreach ($raw['widget'] as $item) {
+                    $items[] = $item;
+                }
+            }
+        } else {
+            $items = $raw;
+        }
+
         $result = [];
-        foreach ($raw as $key => $val) {
+        foreach ($items as $key => $val) {
             $menuId = null;
             $menuKey = null;
             $actInput = [];
@@ -262,7 +302,7 @@ class User extends Authenticatable
                 $actInput = $val;
             } elseif (is_array($val)) {
                 $menuId = $val['menu_id'] ?? $val['id'] ?? null;
-                $menuKey = $val['menu_key'] ?? $val['key'] ?? (string) ($menuId ?? '');
+                $menuKey = $val['widget_key'] ?? $val['menu_key'] ?? $val['key'] ?? (string) ($menuId ?? '');
                 $actInput = $val['actions'] ?? [];
             }
 
@@ -318,7 +358,7 @@ class User extends Authenticatable
             $mKey = (string) ($menuKey ?: $menuId);
             $result[$mKey] = $actions;
 
-            if ($menuId !== null) {
+            if ($menuId !== null && (string)$menuId !== $mKey) {
                 $result[(string)$menuId] = $result[$mKey];
             }
         }
@@ -327,9 +367,9 @@ class User extends Authenticatable
     }
 
     /**
-     * Get custom permissions as standardized array list.
+     * Get custom permissions as raw array list/structure directly from column.
      */
-    public function getCustomPermissionsListAttribute(): array
+    public function getCustomPermissionsListAttribute(): mixed
     {
         $raw = $this->custom_permissions;
         if (empty($raw)) {
@@ -345,83 +385,8 @@ class User extends Authenticatable
             return [];
         }
 
-        $list = [];
-        foreach ($raw as $key => $val) {
-            $menuId = null;
-            $menuKey = null;
-            $actInput = [];
-
-            if (is_string($key) && is_array($val)) {
-                $menuKey = $key;
-                $actInput = $val;
-            } elseif (is_array($val)) {
-                $menuId = $val['menu_id'] ?? $val['id'] ?? null;
-                $menuKey = $val['menu_key'] ?? $val['key'] ?? (string) ($menuId ?? '');
-                $actInput = $val['actions'] ?? [];
-            }
-
-            if (empty($menuKey) && empty($menuId)) {
-                continue;
-            }
-
-            $actions = [
-                'create'  => false,
-                'read'    => true,
-                'update'  => false,
-                'delete'  => false,
-                'approve' => false,
-                'export'  => false,
-            ];
-
-            if (is_array($actInput) && isset($actInput[0]) && is_string($actInput[0])) {
-                $lowered = array_map('strtolower', $actInput);
-                $actions['create']  = in_array('add', $lowered) || in_array('create', $lowered);
-                $actions['read']    = in_array('view', $lowered) || in_array('read', $lowered) || in_array('show', $lowered);
-                $actions['update']  = in_array('edit', $lowered) || in_array('update', $lowered);
-                $actions['delete']  = in_array('delete', $lowered) || in_array('destroy', $lowered);
-                $actions['approve'] = in_array('approve', $lowered) || in_array('approval', $lowered);
-                $actions['export']  = in_array('download', $lowered) || in_array('upload', $lowered) || in_array('export', $lowered);
-
-                foreach ($lowered as $actStr) {
-                    $cleaned = trim($actStr);
-                    if ($cleaned !== '' && !isset($actions[$cleaned])) {
-                        $actions[$cleaned] = true;
-                    }
-                }
-            } elseif (is_array($actInput)) {
-                if (isset($actInput['add'])) {
-                    $actions['create'] = (bool) $actInput['add'];
-                }
-                if (isset($actInput['view'])) {
-                    $actions['read'] = (bool) $actInput['view'];
-                }
-                if (isset($actInput['edit'])) {
-                    $actions['update'] = (bool) $actInput['edit'];
-                }
-                if (isset($actInput['download']) || isset($actInput['upload'])) {
-                    $actions['export'] = (bool) ($actInput['export'] ?? $actInput['download'] ?? $actInput['upload'] ?? false);
-                }
-
-                foreach ($actInput as $actKey => $actVal) {
-                    if (is_string($actKey) && !in_array($actKey, ['add', 'view', 'edit', 'download', 'upload'])) {
-                        $actions[$actKey] = (bool) $actVal;
-                    }
-                }
-            }
-
-            $item = [
-                'menu_key' => (string) ($menuKey ?: $menuId),
-                'actions'  => $actions,
-            ];
-
-            if ($menuId !== null) {
-                $item['menu_id'] = is_numeric($menuId) ? (int)$menuId : $menuId;
-            }
-
-            $list[] = $item;
-        }
-
-        return $list;
+        // Return raw structure directly as sent by FE (mentah)
+        return $raw;
     }
 
     /**

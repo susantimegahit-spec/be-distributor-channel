@@ -13,13 +13,17 @@ class Province extends Model
      * @var string
      */
     protected $connection = 'pgsql_ekspedisi';
-
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
     protected $table = 'ekspedisi.provinces';
+
+    public function getConnectionName()
+    {
+        return config('database.default') === 'sqlite' ? 'sqlite' : 'pgsql_ekspedisi';
+    }
+
+    public function getTable()
+    {
+        return config('database.default') === 'sqlite' ? 'provinces' : 'ekspedisi.provinces';
+    }
 
     /**
      * Indicates if the IDs are auto-incrementing.

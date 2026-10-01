@@ -27,7 +27,24 @@ class SalesOrder extends Model
         'po_number',
         'doc_date',
         'doc_due_date',
+        'req_due_date',
         'eta_date',
+        'logistic_status',
+        'proposed_delivery_date',
+        'proposed_eta_date',
+        'logistic_notes',
+        'logistic_action_at',
+        'logistic_action_by',
+        'to_whs_code',
+        'nopol',
+        'nama_supir',
+        'sap_it_doc_entry',
+        'sap_it_doc_num',
+        'sap_it_status',
+        'delivery_order_no',
+        'sap_do_doc_entry',
+        'sap_do_doc_num',
+        'sap_do_status',
         'slp_code',
         'cntct_code',
         'pay_to_code',
@@ -43,6 +60,7 @@ class SalesOrder extends Model
         'status',
         'approval_id',
         'sap_doc_entry',
+        'docentry',
         'sap_doc_num',
         'sap_error',
         'sap_discount_code',
@@ -68,10 +86,15 @@ class SalesOrder extends Model
     protected $casts = [
         'doc_date' => 'date',
         'doc_due_date' => 'date',
+        'req_due_date' => 'date',
         'eta_date' => 'date',
+        'proposed_delivery_date' => 'date',
+        'proposed_eta_date' => 'date',
+        'logistic_action_at' => 'datetime',
         'disc_percent' => 'decimal:2',
         'doc_total' => 'decimal:2',
         'approval_id' => 'integer',
+        'docentry' => 'integer',
         'submitted_at' => 'datetime',
         'integrated_at' => 'datetime',
         'delivery_date' => 'datetime',
@@ -89,6 +112,8 @@ class SalesOrder extends Model
         'total_discount',
         'grand_total',
         'depo',
+        'so_number',
+        'order_number',
     ];
 
     /**
@@ -96,7 +121,35 @@ class SalesOrder extends Model
      */
     public function getDepoAttribute(): ?string
     {
-        return $this->distributor?->depo;
+        if ($this->relationLoaded('distributor') && $this->distributor?->depo) {
+            return $this->distributor->depo;
+        }
+
+        if ($this->distributor?->depo) {
+            return $this->distributor->depo;
+        }
+
+        if (!empty($this->card_code)) {
+            return Distributor::where('code_customer', $this->card_code)->value('depo');
+        }
+
+        return null;
+    }
+
+    /**
+     * Get SO number formatted from sap_doc_num with fallback to order_no.
+     */
+    public function getSoNumberAttribute(): ?string
+    {
+        return $this->sap_doc_num ?: $this->order_no;
+    }
+
+    /**
+     * Get order number formatted from sap_doc_num with fallback to order_no.
+     */
+    public function getOrderNumberAttribute(): ?string
+    {
+        return $this->sap_doc_num ?: $this->order_no;
     }
 
     /**
@@ -237,6 +290,30 @@ class SalesOrder extends Model
     public function approvalHistories(): HasMany
     {
         return $this->hasMany(SalesOrderApprovalHistory::class);
+    }
+
+    /**
+     * Get the logistic activity logs for the order.
+     */
+    public function logisticLogs(): HasMany
+    {
+        return $this->hasMany(SalesOrderLogisticLog::class, 'sales_order_id')->orderBy('created_at', 'desc');
+    }
+
+    /**
+     * Get the latest logistic log.
+     */
+    public function latestLogisticLog()
+    {
+        return $this->hasOne(SalesOrderLogisticLog::class, 'sales_order_id')->latestOfMany();
+    }
+
+    /**
+     * Get the picklist items for the sales order.
+     */
+    public function picklistItems(): HasMany
+    {
+        return $this->hasMany(PicklistItem::class, 'sales_order_id');
     }
 
     /**

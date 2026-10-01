@@ -130,6 +130,14 @@ class AppServiceProvider extends ServiceProvider
             \App\Modules\MasterUnit\Repositories\MasterUnitRepositoryInterface::class,
             \App\Modules\MasterUnit\Repositories\MasterUnitRepository::class
         );
+        $this->app->bind(
+            \App\Modules\TaskManagement\Repositories\TaskRepositoryInterface::class,
+            \App\Modules\TaskManagement\Repositories\TaskRepository::class
+        );
+        $this->app->bind(
+            \App\Modules\TaskManagement\Repositories\HierarchyRepositoryInterface::class,
+            \App\Modules\TaskManagement\Repositories\HierarchyRepository::class
+        );
     }
 
     /**
@@ -155,6 +163,8 @@ class AppServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom([
             database_path('migrations/ekspedisi'),
             database_path('migrations/production'),
+            database_path('migrations/vendors'),
+            database_path('migrations/corporate'),
         ]);
 
         // Register Custom Pulse Component (Kill User Control Card)
@@ -177,6 +187,56 @@ class AppServiceProvider extends ServiceProvider
             }
 
             // 3. Fallback to checking logged-in administrator
+            return $user && $user->role && $user->role->name === 'administrator';
+        });
+
+        // Register Spatie Health Checks
+        if (class_exists(\Spatie\Health\Facades\Health::class)) {
+            \Spatie\Health\Facades\Health::checks([
+                \App\Health\Checks\PartitionDiskCheck::new()
+                    ->name('Storage Root (/)')
+                    ->partition('/')
+                    ->warnWhenAbove(80)
+                    ->failWhenAbove(90),
+                \App\Health\Checks\PartitionDiskCheck::new()
+                    ->name('Storage User Data (/home)')
+                    ->partition('/home')
+                    ->warnWhenAbove(80)
+                    ->failWhenAbove(90),
+                \App\Health\Checks\PartitionDiskCheck::new()
+                    ->name('Storage Temporary (/tmp)')
+                    ->partition('/tmp')
+                    ->warnWhenAbove(80)
+                    ->failWhenAbove(90),
+                \Spatie\Health\Checks\Checks\DatabaseCheck::new(),
+                \Spatie\Health\Checks\Checks\DatabaseConnectionCountCheck::new()
+                    ->warnWhenMoreConnectionsThan(50)
+                    ->failWhenMoreConnectionsThan(100),
+                \Spatie\Health\Checks\Checks\CacheCheck::new(),
+                \Spatie\Health\Checks\Checks\OptimizedAppCheck::new(),
+                \Spatie\Health\Checks\Checks\DebugModeCheck::new(),
+                \Spatie\Health\Checks\Checks\EnvironmentCheck::new(),
+                \Spatie\Health\Checks\Checks\PingCheck::new()
+                    ->name('SAP B1 API Service')
+                    ->url(rtrim((string) (config('services.sap.url') ?: env('SAP_API_URL')), '/') . '/api/ListItem')
+                    ->method('POST')
+                    ->timeout(5),
+            ]);
+        }
+
+        // Define gate for Opcodes Log Viewer
+        Gate::define('viewLogViewer', function (?User $user = null) {
+            if (session('pulse_authenticated') === true) {
+                return true;
+            }
+            return $user && $user->role && $user->role->name === 'administrator';
+        });
+
+        // Define gate for Spatie Health Check
+        Gate::define('viewHealth', function (?User $user = null) {
+            if (session('pulse_authenticated') === true) {
+                return true;
+            }
             return $user && $user->role && $user->role->name === 'administrator';
         });
     }
