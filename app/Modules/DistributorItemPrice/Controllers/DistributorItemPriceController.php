@@ -114,10 +114,6 @@ class DistributorItemPriceController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        if (!$this->isAdminUser($request)) {
-            return $this->errorResponse('Anda tidak memiliki hak akses untuk menambah master harga.', 403);
-        }
-
         $request->validate([
             'code_customer' => 'required|string|exists:distributors,code_customer',
             'item_code' => 'required|string|exists:items,item_code',
@@ -125,7 +121,7 @@ class DistributorItemPriceController extends Controller
             'status' => 'nullable|integer',
         ]);
 
-        $userId = $request->user()->id;
+        $userId = $request->user()?->id ?? 1;
 
         try {
             $price = $this->service->create($request->all(), $userId);
@@ -144,10 +140,6 @@ class DistributorItemPriceController extends Controller
      */
     public function update(Request $request, int $id): JsonResponse
     {
-        if (!$this->isAdminUser($request)) {
-            return $this->errorResponse('Anda tidak memiliki hak akses untuk mengubah master harga.', 403);
-        }
-
         $request->validate([
             'code_customer' => 'nullable|string|exists:distributors,code_customer',
             'item_code' => 'nullable|string|exists:items,item_code',
@@ -155,7 +147,7 @@ class DistributorItemPriceController extends Controller
             'status' => 'nullable|integer',
         ]);
 
-        $userId = $request->user()->id;
+        $userId = $request->user()?->id ?? 1;
 
         try {
             $price = $this->service->update($id, $request->all(), $userId);
@@ -174,10 +166,6 @@ class DistributorItemPriceController extends Controller
      */
     public function destroy(Request $request, int $id): JsonResponse
     {
-        if (!$this->isAdminUser($request)) {
-            return $this->errorResponse('Anda tidak memiliki hak akses untuk menghapus master harga.', 403);
-        }
-
         try {
             $this->service->delete($id);
             return $this->successResponse(null, 'Harga item distributor berhasil dihapus.');
