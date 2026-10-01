@@ -25,9 +25,6 @@ return new class extends Migration
         $conn = $this->getConnection();
 
         if (config('database.default') === 'sqlite') {
-            Schema::connection($conn)->table('tm_spaces', function (Blueprint $table) {
-                $table->string('department_id', 100)->nullable()->change();
-            });
             return;
         }
 

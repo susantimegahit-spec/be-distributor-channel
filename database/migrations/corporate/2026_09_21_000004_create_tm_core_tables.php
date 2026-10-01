@@ -30,7 +30,11 @@ return new class extends Migration
                 $table->string('task_code', 100)->unique();
                 $table->string('legacy_clickup_id', 100)->nullable()->unique();
 
-                $table->foreignId('space_id')->constrained('tm_spaces')->onDelete('restrict');
+                if (config('database.default') === 'sqlite') {
+                    $table->string('space_id', 100)->index();
+                } else {
+                    $table->foreignId('space_id')->constrained('tm_spaces')->onDelete('restrict');
+                }
                 $table->foreignId('folder_id')->nullable()->constrained('tm_folders')->onDelete('set null');
                 $table->foreignId('list_id')->constrained('tm_lists')->onDelete('restrict');
                 $table->foreignId('parent_task_id')->nullable()->constrained('tm_tasks')->onDelete('cascade');

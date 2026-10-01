@@ -27,7 +27,11 @@ return new class extends Migration
         if (!Schema::connection($conn)->hasTable('tm_master_statuses')) {
             Schema::connection($conn)->create('tm_master_statuses', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('space_id')->nullable()->constrained('tm_spaces')->onDelete('cascade');
+                if (config('database.default') === 'sqlite') {
+                    $table->string('space_id', 100)->nullable()->index();
+                } else {
+                    $table->foreignId('space_id')->nullable()->constrained('tm_spaces')->onDelete('cascade');
+                }
                 $table->string('status_name', 100);
                 $table->string('status_category', 30)->default('TO_DO'); // TO_DO, IN_PROGRESS, REVIEW, DONE, CANCELLED
                 $table->string('color_hex', 10)->default('#94A3B8');
@@ -70,7 +74,11 @@ return new class extends Migration
         if (!Schema::connection($conn)->hasTable('tm_master_tags')) {
             Schema::connection($conn)->create('tm_master_tags', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('space_id')->nullable()->constrained('tm_spaces')->onDelete('cascade');
+                if (config('database.default') === 'sqlite') {
+                    $table->string('space_id', 100)->nullable()->index();
+                } else {
+                    $table->foreignId('space_id')->nullable()->constrained('tm_spaces')->onDelete('cascade');
+                }
                 $table->string('tag_name', 100);
                 $table->string('color_hex', 10)->default('#64748B');
                 $table->timestamps();
@@ -83,7 +91,11 @@ return new class extends Migration
         if (!Schema::connection($conn)->hasTable('tm_master_custom_fields')) {
             Schema::connection($conn)->create('tm_master_custom_fields', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('space_id')->nullable()->constrained('tm_spaces')->onDelete('cascade');
+                if (config('database.default') === 'sqlite') {
+                    $table->string('space_id', 100)->nullable()->index();
+                } else {
+                    $table->foreignId('space_id')->nullable()->constrained('tm_spaces')->onDelete('cascade');
+                }
                 $table->string('field_name', 100);
                 $table->string('field_key', 100)->unique();
                 $table->string('field_type', 30); // TEXT, NUMBER, DROPDOWN, DATE, CHECKBOX, CURRENCY, URL, RATING

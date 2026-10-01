@@ -14,6 +14,339 @@ servers:
   - url: http://localhost:8000/api/distributor-channel
     description: Local Server
 paths:
+  /task-management/dashboard/summary:
+    get:
+      summary: Ringkasan Dashboard Task Management (Analytics, KPI & Distribusi)
+      description: Mengambil ringkasan analitik komprehensif untuk dashboard Task Management, mencakup overview KPI, distribusi status, prioritas SLA, space/departemen, beban kerja tim (team workload), top urgent tasks, dan aktivitas terbaru.
+      tags:
+        - Task Management - Dashboard
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: workspace_id
+          in: query
+          description: Filter berdasarkan ID Workspace
+          schema:
+            type: integer
+        - name: space_id
+          in: query
+          description: Filter berdasarkan ID Space (Departemen, misal IT, HRD)
+          schema:
+            type: string
+        - name: department_id
+          in: query
+          description: Filter berdasarkan Kode Departemen
+          schema:
+            type: string
+        - name: folder_id
+          in: query
+          description: Filter berdasarkan ID Folder
+          schema:
+            type: integer
+        - name: list_id
+          in: query
+          description: Filter berdasarkan ID List
+          schema:
+            type: integer
+        - name: employee_id
+          in: query
+          description: Filter berdasarkan ID Karyawan Assignee
+          schema:
+            type: integer
+        - name: date_from
+          in: query
+          description: Filter tanggal awal pembuatan (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          description: Filter batas akhir tenggat waktu (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Dashboard summary berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Dashboard summary retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      overview:
+                        type: object
+                        properties:
+                          total_tasks:
+                            type: integer
+                            example: 42
+                          to_do:
+                            type: integer
+                            example: 12
+                          in_progress:
+                            type: integer
+                            example: 15
+                          in_review:
+                            type: integer
+                            example: 5
+                          done:
+                            type: integer
+                            example: 10
+                          cancelled:
+                            type: integer
+                            example: 0
+                          overdue:
+                            type: integer
+                            example: 3
+                          due_today:
+                            type: integer
+                            example: 4
+                          completion_rate:
+                            type: number
+                            format: float
+                            example: 23.8
+                          total_estimated_hours:
+                            type: number
+                            format: float
+                            example: 160.0
+                          total_tracked_hours:
+                            type: number
+                            format: float
+                            example: 38.5
+                      status_distribution:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            status_id:
+                              type: integer
+                              example: 1
+                            status_name:
+                              type: string
+                              example: To Do
+                            status_category:
+                              type: string
+                              example: TO_DO
+                            color_hex:
+                              type: string
+                              example: "#94A3B8"
+                            total_tasks:
+                              type: integer
+                              example: 12
+                            percentage:
+                              type: number
+                              format: float
+                              example: 28.6
+                      priority_distribution:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            priority_id:
+                              type: integer
+                              example: 1
+                            priority_code:
+                              type: string
+                              example: URGENT
+                            priority_name:
+                              type: string
+                              example: Urgent
+                            color_hex:
+                              type: string
+                              example: "#EF4444"
+                            target_sla_hours:
+                              type: integer
+                              example: 4
+                            total_tasks:
+                              type: integer
+                              example: 5
+                            percentage:
+                              type: number
+                              format: float
+                              example: 11.9
+                      space_distribution:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            space_id:
+                              type: string
+                              example: IT
+                            space_name:
+                              type: string
+                              example: Information Technology
+                            space_slug:
+                              type: string
+                              example: it-department
+                            department_id:
+                              type: string
+                              example: IT
+                            color_hex:
+                              type: string
+                              example: "#4F46E5"
+                            icon_name:
+                              type: string
+                              example: folder
+                            total_tasks:
+                              type: integer
+                              example: 20
+                            completed_tasks:
+                              type: integer
+                              example: 8
+                            in_progress_tasks:
+                              type: integer
+                              example: 9
+                            overdue_tasks:
+                              type: integer
+                              example: 3
+                            completion_rate:
+                              type: number
+                              format: float
+                              example: 40.0
+                      team_workload:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            employee_id:
+                              type: integer
+                              example: 1
+                            full_name:
+                              type: string
+                              example: John Doe
+                            nik:
+                              type: string
+                              example: EMP-001
+                            avatar_url:
+                              type: string
+                              nullable: true
+                              example: null
+                            department_name:
+                              type: string
+                              example: Information Technology
+                            total_tasks:
+                              type: integer
+                              example: 10
+                            completed_tasks:
+                              type: integer
+                              example: 4
+                            pending_tasks:
+                              type: integer
+                              example: 6
+                            overdue_tasks:
+                              type: integer
+                              example: 1
+                            total_tracked_hours:
+                              type: number
+                              format: float
+                              example: 18.5
+                      urgent_tasks:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 101
+                            task_code:
+                              type: string
+                              example: TSK-IT-2026-00001
+                            title:
+                              type: string
+                              example: Fix Server Incident
+                            space_id:
+                              type: string
+                              example: IT
+                            space_name:
+                              type: string
+                              example: Information Technology
+                            priority_name:
+                              type: string
+                              example: Urgent
+                            priority_color:
+                              type: string
+                              example: "#EF4444"
+                            status_name:
+                              type: string
+                              example: In Progress
+                            status_color:
+                              type: string
+                              example: "#3B82F6"
+                            due_date:
+                              type: string
+                              example: "2026-10-01 18:00"
+                            is_overdue:
+                              type: boolean
+                              example: true
+                            progress_percentage:
+                              type: integer
+                              example: 50
+                            assignees:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  employee_id:
+                                    type: integer
+                                    example: 1
+                                  full_name:
+                                    type: string
+                                    example: John Doe
+                                  avatar_url:
+                                    type: string
+                                    nullable: true
+                                    example: null
+                      recent_activities:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 55
+                            task_id:
+                              type: integer
+                              example: 101
+                            task_code:
+                              type: string
+                              example: TSK-IT-2026-00001
+                            task_title:
+                              type: string
+                              example: Fix Server Incident
+                            action_type:
+                              type: string
+                              example: STATUS_CHANGED
+                            field_name:
+                              type: string
+                              nullable: true
+                              example: status_id
+                            performer_name:
+                              type: string
+                              example: John Doe
+                            created_at:
+                              type: string
+                              example: "2026-10-01 10:30:00"
+
+  /v1/task-management/dashboard/summary:
+    get:
+      summary: Ringkasan Dashboard Task Management (v1 Alias)
+      description: Alias versi v1 untuk endpoint /task-management/dashboard/summary.
+      tags:
+        - Task Management - Dashboard
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Dashboard summary berhasil diambil.
+
   /task-management/tasks:
     get:
       summary: Daftar Tugas (Tasks) & Filter Hirarki

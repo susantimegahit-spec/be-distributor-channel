@@ -222,7 +222,7 @@ class TaskService
         return $this->taskRepo->delete($task);
     }
 
-    public function getSummaryMetrics(?int $spaceId = null): array
+    public function getSummaryMetrics(?string $spaceId = null): array
     {
         $query = TmTask::query();
         if ($spaceId) {

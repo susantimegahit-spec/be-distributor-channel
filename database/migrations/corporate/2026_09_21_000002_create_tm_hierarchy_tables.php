@@ -40,9 +40,15 @@ return new class extends Migration
         // 2. tm_spaces
         if (!Schema::connection($conn)->hasTable('tm_spaces')) {
             Schema::connection($conn)->create('tm_spaces', function (Blueprint $table) {
-                $table->id();
-                $table->foreignId('workspace_id')->constrained('tm_workspaces')->onDelete('cascade');
-                $table->foreignId('department_id')->nullable()->constrained('hris_departments')->onDelete('set null');
+                if (config('database.default') === 'sqlite') {
+                    $table->string('id', 100)->primary();
+                    $table->foreignId('workspace_id')->constrained('tm_workspaces')->onDelete('cascade');
+                    $table->string('department_id', 100)->nullable();
+                } else {
+                    $table->id();
+                    $table->foreignId('workspace_id')->constrained('tm_workspaces')->onDelete('cascade');
+                    $table->foreignId('department_id')->nullable()->constrained('hris_departments')->onDelete('set null');
+                }
                 $table->string('space_name', 150);
                 $table->string('space_slug', 150)->unique();
                 $table->string('color_hex', 10)->default('#4F46E5');
@@ -60,7 +66,11 @@ return new class extends Migration
         if (!Schema::connection($conn)->hasTable('tm_space_members')) {
             Schema::connection($conn)->create('tm_space_members', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('space_id')->constrained('tm_spaces')->onDelete('cascade');
+                if (config('database.default') === 'sqlite') {
+                    $table->string('space_id', 100);
+                } else {
+                    $table->foreignId('space_id')->constrained('tm_spaces')->onDelete('cascade');
+                }
                 $table->foreignId('employee_id')->constrained('hris_employees')->onDelete('cascade');
                 $table->string('space_role', 30)->default('MEMBER'); // OWNER, ADMIN, MEMBER, VIEWER
                 $table->timestamps();
@@ -73,7 +83,11 @@ return new class extends Migration
         if (!Schema::connection($conn)->hasTable('tm_folders')) {
             Schema::connection($conn)->create('tm_folders', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('space_id')->constrained('tm_spaces')->onDelete('cascade');
+                if (config('database.default') === 'sqlite') {
+                    $table->string('space_id', 100);
+                } else {
+                    $table->foreignId('space_id')->constrained('tm_spaces')->onDelete('cascade');
+                }
                 $table->string('folder_name', 150);
                 $table->text('description')->nullable();
                 $table->string('color_hex', 10)->nullable();
@@ -91,7 +105,11 @@ return new class extends Migration
         if (!Schema::connection($conn)->hasTable('tm_lists')) {
             Schema::connection($conn)->create('tm_lists', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('space_id')->constrained('tm_spaces')->onDelete('cascade');
+                if (config('database.default') === 'sqlite') {
+                    $table->string('space_id', 100);
+                } else {
+                    $table->foreignId('space_id')->constrained('tm_spaces')->onDelete('cascade');
+                }
                 $table->foreignId('folder_id')->nullable()->constrained('tm_folders')->onDelete('set null');
                 $table->string('list_name', 150);
                 $table->text('description')->nullable();

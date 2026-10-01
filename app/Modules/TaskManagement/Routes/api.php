@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Modules\TaskManagement\Controllers\TaskController;
+use App\Modules\TaskManagement\Controllers\DashboardController;
 use App\Modules\TaskManagement\Controllers\HierarchyController;
 use App\Modules\TaskManagement\Controllers\ChecklistController;
 use App\Modules\TaskManagement\Controllers\TimeTrackingController;
@@ -9,6 +10,9 @@ use App\Modules\TaskManagement\Controllers\CommentController;
 use App\Modules\TaskManagement\Controllers\MasterDataController;
 
 $registerRoutes = function () {
+    // 0. Dashboard & Metrics Endpoints
+    Route::get('/dashboard/summary', [DashboardController::class, 'getSummary']);
+
     // 1. Task Core Endpoints
     Route::get('/tasks', [TaskController::class, 'index']);
     Route::post('/tasks', [TaskController::class, 'store']);
