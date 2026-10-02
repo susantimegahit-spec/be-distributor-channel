@@ -58,34 +58,45 @@ class CorporateTaskManagementSeeder extends Seeder
         $mgrPos = HrisPosition::where('position_code', 'MGR')->first();
         $staffPos = HrisPosition::where('position_code', 'STAFF')->first();
 
-        $mgrEmp = HrisEmployee::firstOrCreate([
-            'nik' => 'EMP-0001',
-        ], [
-            'user_id'           => $adminUserId,
-            'full_name'         => 'Manager IT & Digital PT Susanti',
-            'nickname'          => 'IT Head',
-            'email_office'      => 'it.head@susantimegah.com',
-            'phone_number'      => '081234567890',
-            'department_id'     => $deptModels['IT']->id,
-            'position_id'       => $mgrPos->id,
-            'employment_status' => 'PERMANENT',
-            'join_date'         => '2020-01-01',
-            'is_active'         => true,
-        ]);
+        $mgrEmp = HrisEmployee::where('nik', 'EMP-0001')
+            ->orWhere('user_id', $adminUserId)
+            ->orWhere('email_office', 'it.head@susantimegah.com')
+            ->first();
 
-        $staffEmp = HrisEmployee::firstOrCreate([
-            'nik' => 'EMP-0002',
-        ], [
-            'full_name'            => 'Software Developer In-House',
-            'nickname'             => 'Developer',
-            'email_office'         => 'developer@susantimegah.com',
-            'department_id'        => $deptModels['IT']->id,
-            'position_id'          => $staffPos->id,
-            'direct_supervisor_id' => $mgrEmp->id,
-            'employment_status'    => 'PERMANENT',
-            'join_date'            => '2022-06-01',
-            'is_active'            => true,
-        ]);
+        if (!$mgrEmp) {
+            $mgrEmp = HrisEmployee::create([
+                'nik'               => 'EMP-0001',
+                'user_id'           => $adminUserId,
+                'full_name'         => 'Manager IT & Digital PT Susanti',
+                'nickname'          => 'IT Head',
+                'email_office'      => 'it.head@susantimegah.com',
+                'phone_number'      => '081234567890',
+                'department_id'     => $deptModels['IT']->id,
+                'position_id'       => $mgrPos->id,
+                'employment_status' => 'PERMANENT',
+                'join_date'         => '2020-01-01',
+                'is_active'         => true,
+            ]);
+        }
+
+        $staffEmp = HrisEmployee::where('nik', 'EMP-0002')
+            ->orWhere('email_office', 'developer@susantimegah.com')
+            ->first();
+
+        if (!$staffEmp) {
+            $staffEmp = HrisEmployee::create([
+                'nik'                  => 'EMP-0002',
+                'full_name'            => 'Software Developer In-House',
+                'nickname'             => 'Developer',
+                'email_office'         => 'developer@susantimegah.com',
+                'department_id'        => $deptModels['IT']->id,
+                'position_id'          => $staffPos->id,
+                'direct_supervisor_id' => $mgrEmp->id,
+                'employment_status'    => 'PERMANENT',
+                'join_date'            => '2022-06-01',
+                'is_active'            => true,
+            ]);
+        }
 
         // 4. Master Task Statuses (Global Default)
         $statuses = [

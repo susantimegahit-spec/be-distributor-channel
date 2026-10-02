@@ -218,4 +218,23 @@ class TaskManagementDashboardSummaryTest extends TestCase
         $response->assertStatus(200);
         $this->assertEquals(2, $response->json('data.overview.total_tasks'));
     }
+
+    public function test_corporate_task_management_seeder_runs_successfully(): void
+    {
+        // Run once
+        $this->seed(\Database\Seeders\CorporateTaskManagementSeeder::class);
+        // Run again to verify idempotency
+        $this->seed(\Database\Seeders\CorporateTaskManagementSeeder::class);
+
+        $this->assertDatabaseHas('tm_master_statuses', [
+            'status_name' => 'To Do',
+            'status_category' => 'TO_DO',
+        ]);
+        $this->assertDatabaseHas('tm_master_priorities', [
+            'priority_code' => 'URGENT',
+        ]);
+        $this->assertDatabaseHas('tm_master_task_types', [
+            'type_code' => 'TASK',
+        ]);
+    }
 }

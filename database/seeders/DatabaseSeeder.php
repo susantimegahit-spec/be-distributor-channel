@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             DocumentTypeSeeder::class,
             DocumentSchemaSeeder::class,
             DocumentApprovalDummySeeder::class,
+            CorporateTaskManagementSeeder::class,
         ]);
     }
 }
