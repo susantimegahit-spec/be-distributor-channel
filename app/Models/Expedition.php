@@ -52,12 +52,44 @@ class Expedition extends Model
         'updated_by',
     ];
 
+    protected $appends = [
+        'sap_vendor_code',
+    ];
+
     /**
-     * Get the vendor partner associated with this expedition.
+     * Get the vendor partner associated with this expedition via vendor_id.
      */
     public function vendor(): BelongsTo
     {
         return $this->belongsTo(\App\Modules\VendorPortal\Models\Vendor::class, 'vendor_id');
+    }
+
+    /**
+     * Get the vendor partner associated with this expedition via vendors.expedition_id.
+     */
+    public function vendorPartner(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(\App\Modules\VendorPortal\Models\Vendor::class, 'expedition_id');
+    }
+
+    /**
+     * Get SAP vendor code (CardCode in SAP B1) for this expedition.
+     */
+    public function getSapVendorCodeAttribute(): ?string
+    {
+        if ($this->relationLoaded('vendor') && $this->vendor) {
+            return $this->vendor->sap_vendor_code;
+        }
+
+        if ($this->relationLoaded('vendorPartner') && $this->vendorPartner) {
+            return $this->vendorPartner->sap_vendor_code;
+        }
+
+        return $this->vendor?->sap_vendor_code
+            ?? $this->vendorPartner?->sap_vendor_code
+            ?? (\App\Modules\VendorPortal\Models\Vendor::where('expedition_id', $this->id)->value('sap_vendor_code'))
+            ?? (\App\Modules\VendorPortal\Models\Vendor::where('sap_vendor_code', $this->expedition_code)->value('sap_vendor_code'))
+            ?? null;
     }
 
     /**

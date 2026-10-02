@@ -243,4 +243,38 @@ class ExpeditionRateRankTest extends TestCase
         $response->assertStatus(422)
             ->assertJsonPath('success', false);
     }
+
+    public function test_rank_returns_sap_vendor_code_for_rates_and_expedition(): void
+    {
+        // Link expeditionA to a Vendor with sap_vendor_code
+        $vendor = \App\Modules\VendorPortal\Models\Vendor::create([
+            'vendor_code'           => 'VND-202610-0001',
+            'vendor_type'           => 'EXPEDITION',
+            'company_name'          => 'PT Kalog Solusi Ekspedisi',
+            'company_email'         => 'kalog@express.co.id',
+            'pic_name'              => 'Budi PIC',
+            'pic_phone'             => '08123456789',
+            'sap_vendor_code'       => 'VN10001',
+            'expedition_id'         => $this->expeditionA->id,
+            'registration_status'   => 'APPROVED',
+            'legal_approval_status' => 'APPROVED',
+        ]);
+
+        $this->expeditionA->update(['vendor_id' => $vendor->id]);
+
+        $response = $this->actingAs($this->user)
+            ->getJson("/api/distributor-channel/v1/ekspedisi/rates/rank?origin=FG04&destination_id=C210000285");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true);
+
+        $data = $response->json('data');
+        $this->assertNotEmpty($data);
+
+        // rateA is first (lowest price)
+        $rateAItem = collect($data)->firstWhere('id', $this->rateA->id);
+        $this->assertNotNull($rateAItem);
+        $this->assertEquals('VN10001', $rateAItem['sap_vendor_code']);
+        $this->assertEquals('VN10001', $rateAItem['expedition']['sap_vendor_code']);
+    }
 }

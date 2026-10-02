@@ -20861,6 +20861,11 @@ components:
         status:
           type: string
           example: ACTIVE
+        sap_vendor_code:
+          type: string
+          nullable: true
+          description: Kode CardCode Vendor di SAP Business One (contoh VN10001)
+          example: "VN10001"
         created_by:
           type: integer
           nullable: true
@@ -20884,6 +20889,11 @@ components:
         id:
           type: integer
           example: 1
+        sap_vendor_code:
+          type: string
+          nullable: true
+          description: Kode CardCode Vendor di SAP Business One (contoh VN10001)
+          example: "VN10001"
         expedition_id:
           type: integer
           example: 1

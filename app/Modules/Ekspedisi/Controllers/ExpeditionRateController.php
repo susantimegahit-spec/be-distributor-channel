@@ -605,7 +605,7 @@ class ExpeditionRateController extends Controller
         }
 
         // 4. Query active rates matching route and weight limits, sorted by price ASC
-        $query = ExpeditionRate::with(['expedition', 'warehouse', 'destination', 'approver'])
+        $query = ExpeditionRate::with(['expedition.vendor', 'expedition.vendorPartner', 'warehouse', 'destination', 'approver'])
             ->where('warehouse_id', $warehouse->id)
             ->whereIn('destination_id', $shiptoIds)
             ->where('status', 'ACTIVE');
@@ -661,6 +661,31 @@ class ExpeditionRateController extends Controller
         }
 
         $rates = $query->orderBy('price', 'asc')->get();
+
+        // Ensure sap_vendor_code is properly attached to each rate and its expedition
+        $missingVendorExpIds = $rates->filter(function ($rate) {
+            return empty($rate->sap_vendor_code);
+        })->pluck('expedition_id')->filter()->unique()->values()->all();
+
+        $vendorsByExpeditionId = [];
+        if (!empty($missingVendorExpIds)) {
+            $vendorsByExpeditionId = \App\Modules\VendorPortal\Models\Vendor::whereIn('expedition_id', $missingVendorExpIds)
+                ->pluck('sap_vendor_code', 'expedition_id')
+                ->toArray();
+        }
+
+        $rates->each(function ($rate) use ($vendorsByExpeditionId) {
+            $sapVendorCode = $rate->expedition?->vendor?->sap_vendor_code
+                ?? $rate->expedition?->vendorPartner?->sap_vendor_code
+                ?? ($vendorsByExpeditionId[$rate->expedition_id] ?? null)
+                ?? $rate->expedition?->sap_vendor_code
+                ?? null;
+
+            $rate->sap_vendor_code = $sapVendorCode;
+            if ($rate->expedition) {
+                $rate->expedition->sap_vendor_code = $sapVendorCode;
+            }
+        });
 
         return $this->successResponse($rates, 'Expedition rates ranking retrieved successfully.');
     }

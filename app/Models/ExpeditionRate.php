@@ -76,6 +76,20 @@ class ExpeditionRate extends Model
         'approved_at' => 'datetime',
     ];
 
+    protected $appends = [
+        'sap_vendor_code',
+    ];
+
+    /**
+     * Get SAP vendor code from associated expedition or its vendor.
+     */
+    public function getSapVendorCodeAttribute(): ?string
+    {
+        return $this->expedition?->sap_vendor_code
+            ?? $this->expedition?->vendor?->sap_vendor_code
+            ?? null;
+    }
+
     /**
      * Scope to filter only approved rates that are eligible for ranking/routing.
      */
