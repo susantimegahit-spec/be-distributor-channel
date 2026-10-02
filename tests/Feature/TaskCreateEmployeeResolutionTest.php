@@ -131,4 +131,25 @@ class TaskCreateEmployeeResolutionTest extends TestCase
 
         \Illuminate\Support\Facades\Schema::dropIfExists('hris_employees_2');
     }
+
+    /**
+     * Test creating a task with a long title (> 255 characters).
+     */
+    public function test_create_task_with_long_title(): void
+    {
+        $longTitle = str_repeat('Provisioning and configuring high performance cluster server node ', 10); // ~670 chars
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/distributor-channel/v1/task-management/tasks', [
+                'space_id'     => 'IT',
+                'list_id'      => $this->list->id,
+                'title'        => $longTitle,
+                'status_id'    => $this->status->id,
+                'priority_id'  => $this->priority->id,
+                'task_type_id' => $this->taskType->id,
+            ]);
+
+        $response->assertStatus(201);
+        $this->assertEquals(trim($longTitle), $response->json('data.title'));
+    }
 }

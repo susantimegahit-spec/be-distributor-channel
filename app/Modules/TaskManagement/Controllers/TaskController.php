@@ -85,7 +85,7 @@ class TaskController extends Controller
         $validator = Validator::make($input, [
             'space_id'        => 'required|string|max:100',
             'list_id'         => 'required|integer',
-            'title'           => 'required|string|max:255',
+            'title'           => 'required|string',
             'folder_id'       => 'nullable|integer',
             'parent_task_id'  => 'nullable|integer',
             'description'     => 'nullable|string',
@@ -145,7 +145,7 @@ class TaskController extends Controller
     {
         $input = $this->normalizeTaskInput($request->all());
         $validator = Validator::make($input, [
-            'title'               => 'sometimes|required|string|max:255',
+            'title'               => 'sometimes|required|string',
             'description'         => 'nullable|string',
             'folder_id'           => 'nullable|integer',
             'list_id'             => 'nullable|integer',
