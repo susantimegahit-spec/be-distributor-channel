@@ -109,11 +109,11 @@ class SapEkspedisiService
     {
         $rawItems = $this->callSapEndpoint('getNamaChecker');
 
-        // Filter out empty / dummy rows (Rule 5)
-        $items = array_values(array_filter($rawItems, function ($item) {
+        // Filter out empty / dummy rows
+        $filtered = array_values(array_filter($rawItems, function ($item) {
             if (!is_array($item)) return false;
-            $code = trim((string) ($item['Code'] ?? ''));
-            $name = trim((string) ($item['Name'] ?? ''));
+            $code = trim((string) ($item['ValueCode'] ?? ($item['Code'] ?? '')));
+            $name = trim((string) ($item['Description'] ?? ($item['Name'] ?? '')));
 
             if (empty($code) && empty($name)) return false;
             if ($code === '0' && ($name === '' || $name === '0')) return false;
@@ -121,12 +121,30 @@ class SapEkspedisiService
             return true;
         }));
 
+        $items = array_values(array_map(function ($item) {
+            $valueCode = trim((string) ($item['ValueCode'] ?? ($item['Code'] ?? '')));
+            $description = trim((string) ($item['Description'] ?? ($item['Name'] ?? '')));
+
+            return [
+                'TableID'          => $item['TableID'] ?? 'ODLN',
+                'AliasID'          => $item['AliasID'] ?? 'NamaChecker',
+                'FieldDescription' => $item['FieldDescription'] ?? 'Nama Checker',
+                'IndexID'          => (string) ($item['IndexID'] ?? '0'),
+                'ValueCode'        => $valueCode,
+                'Description'      => $description,
+                'Code'             => $valueCode,
+                'Name'             => $description,
+            ];
+        }, $filtered));
+
         // Optional search filter
         $search = trim((string) ($filters['search'] ?? ''));
         if (!empty($search)) {
             $searchLower = strtolower($search);
             $items = array_values(array_filter($items, function ($item) use ($searchLower) {
-                return str_contains(strtolower((string) ($item['Code'] ?? '')), $searchLower)
+                return str_contains(strtolower((string) ($item['ValueCode'] ?? '')), $searchLower)
+                    || str_contains(strtolower((string) ($item['Description'] ?? '')), $searchLower)
+                    || str_contains(strtolower((string) ($item['Code'] ?? '')), $searchLower)
                     || str_contains(strtolower((string) ($item['Name'] ?? '')), $searchLower);
             }));
         }

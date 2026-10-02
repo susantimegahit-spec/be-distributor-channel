@@ -3,13 +3,13 @@
 namespace Tests\Feature;
 
 use Tests\TestCase;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Http;
 use App\Models\User;
 
 class SapEkspedisiApiTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     protected User $user;
 
@@ -96,6 +96,65 @@ class SapEkspedisiApiTest extends TestCase
                 'data' => [
                     ['Code' => '001', 'Name' => 'AZHAR'],
                     ['Code' => '002', 'Name' => 'SUBANDRI'],
+                ],
+            ]);
+    }
+
+    public function test_get_nama_checker_with_new_sap_structure()
+    {
+        Http::fake([
+            '*/api/getNamaChecker' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => '',
+                'Result' => [
+                    [
+                        'TableID' => 'ODLN',
+                        'AliasID' => 'NamaChecker',
+                        'FieldDescription' => 'Nama Checker',
+                        'IndexID' => '0',
+                        'ValueCode' => 'BELUM ADA',
+                        'Description' => 'BELUM ADA',
+                    ],
+                    [
+                        'TableID' => 'ODLN',
+                        'AliasID' => 'NamaChecker',
+                        'FieldDescription' => 'Nama Checker',
+                        'IndexID' => '1',
+                        'ValueCode' => 'AZHAR',
+                        'Description' => 'AZHAR',
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $response = $this->actingAs($this->user, 'sanctum')
+            ->getJson('/api/distributor-channel/v1/ekspedisi/nama-checker');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Checker list retrieved successfully from SAP.',
+                'data' => [
+                    [
+                        'TableID' => 'ODLN',
+                        'AliasID' => 'NamaChecker',
+                        'FieldDescription' => 'Nama Checker',
+                        'IndexID' => '0',
+                        'ValueCode' => 'BELUM ADA',
+                        'Description' => 'BELUM ADA',
+                        'Code' => 'BELUM ADA',
+                        'Name' => 'BELUM ADA',
+                    ],
+                    [
+                        'TableID' => 'ODLN',
+                        'AliasID' => 'NamaChecker',
+                        'FieldDescription' => 'Nama Checker',
+                        'IndexID' => '1',
+                        'ValueCode' => 'AZHAR',
+                        'Description' => 'AZHAR',
+                        'Code' => 'AZHAR',
+                        'Name' => 'AZHAR',
+                    ],
                 ],
             ]);
     }
