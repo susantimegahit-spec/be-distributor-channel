@@ -22,6 +22,7 @@ class SalesOrderDetail extends Model
         'vat_group',
         'line_total',
         'baseline',
+        'line_num',
         'free_text',
         'ocr_code',
         'ocr_code2',
@@ -34,6 +35,7 @@ class SalesOrderDetail extends Model
         'disc_percent' => 'decimal:2',
         'line_total' => 'decimal:2',
         'baseline' => 'integer',
+        'line_num' => 'integer',
     ];
 
     protected $appends = [
@@ -155,5 +157,21 @@ class SalesOrderDetail extends Model
     public function picklistItems(): HasMany
     {
         return $this->hasMany(PicklistItem::class, 'sales_order_detail_id');
+    }
+
+    /**
+     * Accessor for line_num with fallback to baseline.
+     */
+    public function getLineNumAttribute(): ?int
+    {
+        return $this->attributes['line_num'] ?? ($this->attributes['baseline'] ?? null);
+    }
+
+    /**
+     * Accessor for baseline with fallback to line_num.
+     */
+    public function getBaselineAttribute(): ?int
+    {
+        return $this->attributes['baseline'] ?? ($this->attributes['line_num'] ?? null);
     }
 }

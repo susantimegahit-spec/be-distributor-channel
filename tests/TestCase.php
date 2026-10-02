@@ -63,6 +63,22 @@ abstract class TestCase extends BaseTestCase
                     'busy_timeout' => 5000,
                     'journal_mode' => 'WAL',
                 ],
+                'database.connections.pgsql_corporate' => [
+                    'driver' => 'sqlite',
+                    'database' => $defaultDb,
+                    'prefix' => '',
+                    'foreign_key_constraints' => false,
+                    'busy_timeout' => 5000,
+                    'journal_mode' => 'WAL',
+                ],
+                'database.connections.pgsql' => [
+                    'driver' => 'sqlite',
+                    'database' => $defaultDb,
+                    'prefix' => '',
+                    'foreign_key_constraints' => false,
+                    'busy_timeout' => 5000,
+                    'journal_mode' => 'WAL',
+                ],
             ]);
 
             // Bind custom Blueprint globally so that all connections strip schema dot notation from foreign keys
@@ -85,6 +101,7 @@ abstract class TestCase extends BaseTestCase
             if ($needsMigration) {
                 $this->artisan('migrate', ['--database' => 'sqlite', '--force' => true]);
                 $this->artisan('migrate', ['--database' => 'pgsql_ekspedisi', '--path' => 'database/migrations/ekspedisi', '--force' => true]);
+                \Illuminate\Foundation\Testing\RefreshDatabaseState::$migrated = true;
             }
         }
 

@@ -214,6 +214,189 @@ class SalesOrderSapIntegrationTest extends TestCase
     }
 
     /**
+     * Test sending Sales Order with new SAP format: Result object containing DocEntry, DocNum, and Lines.
+     */
+    public function test_send_sales_order_to_sap_with_result_object_and_lines_mapping(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        $order = SalesOrder::create([
+            'order_no' => 'SO-20260611-LINES',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'LESAFFRE SARI',
+            'doc_date' => '2026-02-25',
+            'doc_due_date' => '2026-02-25',
+            'slp_code' => 1,
+            'cntct_code' => -1,
+            'doc_total' => 150000,
+            'status' => 'DRAFT',
+            'id_discount' => 'DISC123',
+        ]);
+
+        $detail1 = $order->details()->create([
+            'item_code' => 'A00001',
+            'quantity' => 10,
+            'unit_price' => 5000,
+            'line_total' => 50000,
+            'whs_code' => 'FG04',
+            'vat_group' => 'S1',
+        ]);
+
+        $detail2 = $order->details()->create([
+            'item_code' => 'A00002',
+            'quantity' => 20,
+            'unit_price' => 5000,
+            'line_total' => 100000,
+            'whs_code' => 'FG04',
+            'vat_group' => 'S1',
+        ]);
+
+        Http::fake([
+            '*/api/addudodiskon' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => 'Discount added successfully',
+            ], 200),
+            '*/api/addso' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => 'Success - [AddSalesOrder]',
+                'Result' => [
+                    'DocEntry' => 10245,
+                    'DocNum' => 20260012,
+                    'Lines' => [
+                        [
+                            'LineNum' => 0,
+                            'ItemCode' => 'A00001',
+                        ],
+                        [
+                            'LineNum' => 1,
+                            'ItemCode' => 'A00002',
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson("/api/distributor-channel/v1/sales-orders/{$order->id}/post-sap");
+
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('sales_orders', [
+            'id' => $order->id,
+            'status' => 'ORDER_APPROVED',
+            'sap_doc_entry' => 10245,
+            'docentry' => 10245,
+            'sap_doc_num' => '20260012',
+            'sap_error' => null,
+        ]);
+
+        $this->assertDatabaseHas('sales_order_details', [
+            'id' => $detail1->id,
+            'item_code' => 'A00001',
+            'baseline' => 0,
+            'line_num' => 0,
+        ]);
+
+        $this->assertDatabaseHas('sales_order_details', [
+            'id' => $detail2->id,
+            'item_code' => 'A00002',
+            'baseline' => 1,
+            'line_num' => 1,
+        ]);
+    }
+
+    /**
+     * Test sending Sales Order matches LineNum strictly by ItemCode regardless of order detail creation order.
+     */
+    public function test_send_sales_order_to_sap_matches_lines_by_item_code_regardless_of_detail_order(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        $order = SalesOrder::create([
+            'order_no' => 'SO-20260611-LINES-REV',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'LESAFFRE SARI',
+            'doc_date' => '2026-02-25',
+            'doc_due_date' => '2026-02-25',
+            'slp_code' => 1,
+            'cntct_code' => -1,
+            'doc_total' => 150000,
+            'status' => 'DRAFT',
+            'id_discount' => 'DISC123',
+        ]);
+
+        // Insert A00002 first, then A00001
+        $detailFirst = $order->details()->create([
+            'item_code' => 'A00002',
+            'quantity' => 20,
+            'unit_price' => 5000,
+            'line_total' => 100000,
+            'whs_code' => 'FG04',
+            'vat_group' => 'S1',
+        ]);
+
+        $detailSecond = $order->details()->create([
+            'item_code' => 'A00001',
+            'quantity' => 10,
+            'unit_price' => 5000,
+            'line_total' => 50000,
+            'whs_code' => 'FG04',
+            'vat_group' => 'S1',
+        ]);
+
+        // SAP returns A00001 as LineNum 0, and A00002 as LineNum 1
+        Http::fake([
+            '*/api/addudodiskon' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => 'Discount added successfully',
+            ], 200),
+            '*/api/addso' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => 'Success - [AddSalesOrder]',
+                'Result' => [
+                    'DocEntry' => 10245,
+                    'DocNum' => 20260012,
+                    'Lines' => [
+                        [
+                            'LineNum' => 0,
+                            'ItemCode' => 'A00001',
+                        ],
+                        [
+                            'LineNum' => 1,
+                            'ItemCode' => 'A00002',
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson("/api/distributor-channel/v1/sales-orders/{$order->id}/post-sap");
+
+        $response->assertStatus(200);
+
+        // A00001 must have line_num 0 even though it was created second
+        $this->assertDatabaseHas('sales_order_details', [
+            'id' => $detailSecond->id,
+            'item_code' => 'A00001',
+            'baseline' => 0,
+            'line_num' => 0,
+        ]);
+
+        // A00002 must have line_num 1 even though it was created first
+        $this->assertDatabaseHas('sales_order_details', [
+            'id' => $detailFirst->id,
+            'item_code' => 'A00002',
+            'baseline' => 1,
+            'line_num' => 1,
+        ]);
+    }
+
+    /**
      * Test sending Sales Order failing in SAP.
      */
     public function test_send_sales_order_to_sap_failure(): void

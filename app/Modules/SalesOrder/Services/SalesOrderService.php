@@ -699,8 +699,18 @@ class SalesOrderService
 
             $status = 'SUCCESS';
 
-            // Get DocEntry and DocNum with fallbacks for different key casings
-            $result = $body['Result'][0] ?? $body['result'][0] ?? null;
+            // Get Result object (can be associative array {DocEntry, DocNum, Lines} or array of objects [{DocEntry, ...}])
+            $result = null;
+            if (isset($body['Result'])) {
+                $result = (isset($body['Result'][0]) && is_array($body['Result'][0]))
+                    ? $body['Result'][0]
+                    : (is_array($body['Result']) ? $body['Result'] : null);
+            } elseif (isset($body['result'])) {
+                $result = (isset($body['result'][0]) && is_array($body['result'][0]))
+                    ? $body['result'][0]
+                    : (is_array($body['result']) ? $body['result'] : null);
+            }
+
             $sapDocEntry = null;
             $sapDocNum = null;
 
@@ -726,19 +736,52 @@ class SalesOrderService
             $salesOrder->update([
                 'status' => 'ORDER_APPROVED',
                 'approval_id' => 6, // 6 = COMPLETED (ORDER_APPROVED)
-                'sap_doc_entry' => $sapDocEntry,
-                'docentry' => $sapDocEntry,
-                'sap_doc_num' => $sapDocNum,
+                'sap_doc_entry' => $sapDocEntry !== null ? (int)$sapDocEntry : null,
+                'docentry' => $sapDocEntry !== null ? (int)$sapDocEntry : null,
+                'sap_doc_num' => $sapDocNum !== null ? (string)$sapDocNum : null,
                 'integrated_at' => now(),
                 'sap_error' => null,
             ]);
 
-            // Update baseline in sales_order_details: line pertama 0, kedua 1, dst.
+            // Extract lines from SAP response
+            $sapLines = $result['Lines'] ?? $result['lines'] ?? $body['Lines'] ?? $body['lines'] ?? [];
+            if (!is_array($sapLines)) {
+                $sapLines = [];
+            }
+
+            // Map SAP LineNum by ItemCode (supporting multiple lines with same ItemCode via FIFO queue)
+            $sapLinesByItem = [];
+            foreach ($sapLines as $sLine) {
+                if (!is_array($sLine)) {
+                    continue;
+                }
+                $itemCode = trim((string)($sLine['ItemCode'] ?? $sLine['item_code'] ?? $sLine['Item_Code'] ?? ''));
+                $lineNum = $sLine['LineNum'] ?? $sLine['line_num'] ?? $sLine['lineNum'] ?? null;
+                if ($itemCode !== '' && $lineNum !== null) {
+                    $sapLinesByItem[$itemCode][] = (int)$lineNum;
+                }
+            }
+
+            // Update baseline & line_num in sales_order_details based on ItemCode from SAP
             $details = $salesOrder->details()->orderBy('id', 'asc')->get();
+            $hasLineNumCol = \Illuminate\Support\Facades\Schema::hasColumn('sales_order_details', 'line_num');
+
             foreach ($details as $index => $detail) {
-                $detail->update([
-                    'baseline' => $index,
-                ]);
+                $detailItemCode = trim((string)$detail->item_code);
+                if (isset($sapLinesByItem[$detailItemCode]) && count($sapLinesByItem[$detailItemCode]) > 0) {
+                    $assignedLineNum = array_shift($sapLinesByItem[$detailItemCode]);
+                } else {
+                    $assignedLineNum = $index;
+                }
+
+                $detailUpdate = [
+                    'baseline' => $assignedLineNum,
+                ];
+                if ($hasLineNumCol) {
+                    $detailUpdate['line_num'] = $assignedLineNum;
+                }
+
+                $detail->update($detailUpdate);
             }
 
             if ($userId) {
