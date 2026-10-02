@@ -13,11 +13,16 @@ class ProductionItem extends Model
      * The database connection that should be used by the model.
      */
     protected $connection = 'pgsql_production';
-
-    /**
-     * The table associated with the model.
-     */
     protected $table = 'production.production_items';
+
+    public function getTable()
+    {
+        $conn = config('database.connections.' . ($this->connection ?: config('database.default')));
+        if (($conn['driver'] ?? '') === 'sqlite' || config('database.default') === 'sqlite') {
+            return 'production_items';
+        }
+        return parent::getTable();
+    }
 
     /**
      * The attributes that are mass assignable.

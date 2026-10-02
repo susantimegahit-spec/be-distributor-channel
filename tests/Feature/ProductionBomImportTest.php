@@ -436,5 +436,52 @@ class ProductionBomImportTest extends TestCase
         $this->assertNull($detail->ocr_code);
         $this->assertNull($detail->comments);
     }
+
+    /**
+     * Test importing BOM with item code not present in sales items table (e.g. E24) succeeds without FK violation.
+     */
+    public function test_import_bom_with_item_not_in_sales_items_table_success(): void
+    {
+        $token = $this->user->createToken('test_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->postJson('/api/distributor-channel/v1/production/boms/import', [
+            'rows' => [
+                [
+                    'BOM ID' => '45',
+                    'Prod ItemCode' => 'E24',
+                    'Prod ItemName' => 'GARAM E24 SPECIAL',
+                    'Alternative BOM' => 1,
+                    'BOM Header Qty' => 1,
+                    'Prod UoM' => 'ZAK',
+                    'Prod Warehouse' => 'PRD01-04',
+                    'BOM Remarks' => 'SBY',
+                    'Header Cabang' => 'SBY',
+                    'Header Business Unit' => 'GRM',
+                    'Header Department' => 'PRO',
+                    'Line No' => 1,
+                    'Component Type' => 'Item',
+                    'Component ItemCode' => 'RAW-E24-01',
+                    'Component Qty BOM' => 10.0,
+                    'Component Warehouse' => 'RAW01-04',
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+
+        $bom = ProductionBom::where('code', 'E24')->first();
+        $this->assertNotNull($bom);
+        $this->assertEquals('E24', $bom->code);
+        $this->assertEquals('PRD01-04', $bom->to_whs);
+        $this->assertEquals('GARAM E24 SPECIAL', $bom->product_name);
+        $this->assertEquals('ZAK', $bom->uom);
+
+        $this->assertDatabaseHas('production_items', [
+            'item_code' => 'E24',
+            'item_name' => 'GARAM E24 SPECIAL',
+        ], 'pgsql_production');
+    }
 }
 

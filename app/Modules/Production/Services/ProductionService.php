@@ -3345,6 +3345,22 @@ class ProductionService
                 $headerData = $group['header'];
                 $detailsData = $group['details'];
 
+                // Ensure item is tracked in ProductionItem table
+                if (!empty($headerData['code'])) {
+                    try {
+                        \App\Models\ProductionItem::firstOrCreate(
+                            ['item_code' => $headerData['code']],
+                            [
+                                'item_name' => !empty($group['prod_item_name']) ? $group['prod_item_name'] : $headerData['code'],
+                                'invntry_uom' => $headerData['u_unit'] ?? null,
+                                'is_active' => true,
+                            ]
+                        );
+                    } catch (\Throwable $eItem) {
+                        // Non-blocking if table or constraint issue
+                    }
+                }
+
                 // Check existing BOM by code and alternate
                 $bom = \App\Models\ProductionBom::where('code', $headerData['code'])
                     ->where('alternate', $headerData['alternate'])

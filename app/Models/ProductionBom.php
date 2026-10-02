@@ -59,7 +59,7 @@ class ProductionBom extends Model
      */
     public function getProductNameAttribute(): ?string
     {
-        return $this->parentItem?->item_name;
+        return $this->productionItem?->item_name ?? $this->parentItem?->item_name;
     }
 
     /**
@@ -67,12 +67,17 @@ class ProductionBom extends Model
      */
     public function getUomAttribute(): ?string
     {
-        return $this->parentItem?->invntry_uom ?? $this->u_unit;
+        return $this->productionItem?->invntry_uom ?? ($this->parentItem?->sal_unit_msr ?? $this->u_unit);
     }
 
     public function details(): HasMany
     {
         return $this->hasMany(ProductionBomItem::class, 'production_bom_id');
+    }
+
+    public function productionItem(): BelongsTo
+    {
+        return $this->belongsTo(ProductionItem::class, 'code', 'item_code');
     }
 
     public function parentItem(): BelongsTo
