@@ -4,7 +4,7 @@ namespace App\Modules\TaskManagement\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\TaskManagement\Services\ChecklistService;
-use App\Models\HrisEmployee;
+use App\Modules\TaskManagement\Traits\ResolvesEmployeeTrait;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -12,24 +12,13 @@ use Exception;
 
 class ChecklistController extends Controller
 {
+    use ResolvesEmployeeTrait;
+
     protected ChecklistService $checklistService;
 
     public function __construct(ChecklistService $checklistService)
     {
         $this->checklistService = $checklistService;
-    }
-
-    protected function getEmployeeId(Request $request): int
-    {
-        $user = $request->user();
-        if ($user) {
-            $employee = HrisEmployee::where('user_id', $user->id)->first();
-            if ($employee) {
-                return $employee->id;
-            }
-        }
-        $first = HrisEmployee::first();
-        return $first ? $first->id : 1;
     }
 
     public function storeChecklist(Request $request): JsonResponse
