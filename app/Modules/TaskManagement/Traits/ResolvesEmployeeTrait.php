@@ -16,6 +16,13 @@ trait ResolvesEmployeeTrait
      */
     protected function getEmployeeId(Request $request): int
     {
+        $resolvedId = $this->resolveEmployeeId($request);
+        $this->syncToHrisEmployees2($resolvedId);
+        return $resolvedId;
+    }
+
+    protected function resolveEmployeeId(Request $request): int
+    {
         $user = $request->user();
 
         if ($user) {
@@ -111,5 +118,35 @@ trait ResolvesEmployeeTrait
         }
 
         return 1;
+    }
+
+    /**
+     * If production has a legacy or duplicated hris_employees_2 table referenced by old constraints,
+     * sync the resolved employee record to prevent foreign key errors.
+     */
+    protected function syncToHrisEmployees2(int $employeeId): void
+    {
+        try {
+            $conn = config('database.default') === 'sqlite' ? 'sqlite' : 'pgsql_corporate';
+
+            $exists = false;
+            try {
+                $exists = \Illuminate\Support\Facades\Schema::connection($conn)->hasTable('hris_employees_2');
+            } catch (\Throwable $e) {
+                $exists = false;
+            }
+
+            if ($exists) {
+                $hasEmp = \Illuminate\Support\Facades\DB::connection($conn)->table('hris_employees_2')->where('id', $employeeId)->exists();
+                if (!$hasEmp) {
+                    $source = \Illuminate\Support\Facades\DB::connection($conn)->table('hris_employees')->where('id', $employeeId)->first();
+                    if ($source) {
+                        \Illuminate\Support\Facades\DB::connection($conn)->table('hris_employees_2')->insertOrIgnore((array) $source);
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning("Failed to sync employee #{$employeeId} to hris_employees_2: " . $e->getMessage());
+        }
     }
 }

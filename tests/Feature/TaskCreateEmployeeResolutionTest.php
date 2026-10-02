@@ -103,4 +103,32 @@ class TaskCreateEmployeeResolutionTest extends TestCase
         $this->assertNotNull($createdEmployee);
         $this->assertEquals($createdEmployee->id, $response->json('data.created_by_employee_id'));
     }
+
+    /**
+     * Test that if legacy hris_employees_2 table exists, employee record is automatically synced.
+     */
+    public function test_create_task_syncs_to_hris_employees_2_when_table_exists(): void
+    {
+        // Dynamically create temporary hris_employees_2 table in sqlite
+        \Illuminate\Support\Facades\Schema::dropIfExists('hris_employees_2');
+        \Illuminate\Support\Facades\DB::statement("CREATE TABLE hris_employees_2 AS SELECT * FROM hris_employees WHERE 1=0");
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/distributor-channel/v1/task-management/tasks', [
+                'space_id'     => 'IT',
+                'list_id'      => $this->list->id,
+                'title'        => 'Another task with hris_employees_2 existing',
+                'status_id'    => $this->status->id,
+                'priority_id'  => $this->priority->id,
+                'task_type_id' => $this->taskType->id,
+            ]);
+
+        $response->assertStatus(201);
+        $empId = $response->json('data.created_by_employee_id');
+
+        // Verify that hris_employees_2 contains this employee ID
+        $this->assertTrue(\Illuminate\Support\Facades\DB::table('hris_employees_2')->where('id', $empId)->exists());
+
+        \Illuminate\Support\Facades\Schema::dropIfExists('hris_employees_2');
+    }
 }
