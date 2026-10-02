@@ -426,7 +426,7 @@ class PicklistService
                 'license_plate'      => $licensePlate,
                 'driver_name'        => $driverName,
                 'checker_name'       => $checkerName,
-                'expedition_id'      => !empty($payload['expedition_id']) ? (int) $payload['expedition_id'] : null,
+                'expedition_id'      => (isset($payload['expedition_id']) && trim((string) $payload['expedition_id']) !== '') ? trim((string) $payload['expedition_id']) : null,
                 'expedition_name'    => !empty($payload['expedition_name']) ? trim((string) $payload['expedition_name']) : null,
                 'expedition_rate_id' => !empty($payload['expedition_rate_id']) ? (int) $payload['expedition_rate_id'] : null,
                 'service_type'       => !empty($payload['service_type']) ? trim((string) $payload['service_type']) : null,
@@ -887,8 +887,8 @@ class PicklistService
             $numAtCard = (string) ($payload['NumAtCard'] ?? $payload['num_at_card'] ?? $so->po_number ?: ($so->order_no ?? ''));
             $comments  = (string) ($payload['Comments'] ?? $payload['comments'] ?? $picklist->comments ?: ($so->comments ?? ''));
             $noPol     = (string) ($payload['NoPol'] ?? $payload['nopol'] ?? $picklist->license_plate ?: ($so->nopol ?? ''));
-            $kodeEksp  = (string) ($payload['KodeEkspedisi'] ?? $payload['kode_ekspedisi'] ?? ($picklist->expedition?->code ?? ($picklist->shipping_type === Picklist::SHIPPING_TYPE_INTERNAL ? 'INTERNAL' : '')));
-            $namaEksp  = (string) ($payload['NamaEkspedisi'] ?? $payload['nama_ekspedisi'] ?? ($picklist->expedition_name ?? ($picklist->shipping_type === Picklist::SHIPPING_TYPE_INTERNAL ? 'Armada Sendiri' : '')));
+            $kodeEksp  = (string) ($payload['KodeEkspedisi'] ?? $payload['kode_ekspedisi'] ?? ($picklist->expedition_id ?: ($picklist->expedition?->code ?? ($picklist->shipping_type === Picklist::SHIPPING_TYPE_INTERNAL ? '01' : ''))));
+            $namaEksp  = (string) ($payload['NamaEkspedisi'] ?? $payload['nama_ekspedisi'] ?? ($picklist->expedition_name ?? ($picklist->shipping_type === Picklist::SHIPPING_TYPE_INTERNAL ? 'Internal' : '')));
             $sopir     = (string) ($payload['Sopir'] ?? $payload['sopir'] ?? $picklist->driver_name ?: ($so->nama_supir ?? ''));
             $checker   = (string) ($payload['NamaChecker'] ?? $payload['nama_checker'] ?? $picklist->checker_name ?? '');
             $noseal    = (string) ($payload['Noseal'] ?? $payload['noseal'] ?? $picklist->seal_number ?? '');

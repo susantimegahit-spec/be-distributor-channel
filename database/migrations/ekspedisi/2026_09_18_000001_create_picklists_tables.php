@@ -38,7 +38,7 @@ return new class extends Migration
                 $table->string('checker_name', 100)->nullable()->comment('Checker name');
 
                 // External shipping specific fields
-                $table->unsignedBigInteger('expedition_id')->nullable()->index()->comment('Selected expedition vendor ID');
+                $table->string('expedition_id', 100)->nullable()->index()->comment('Selected expedition vendor ID or code');
                 $table->string('expedition_name', 150)->nullable()->comment('Selected expedition vendor name');
                 $table->unsignedBigInteger('expedition_rate_id')->nullable()->index()->comment('Selected expedition rate ID');
                 $table->string('service_type', 50)->nullable()->comment('Expedition service type (e.g., Regular, Cargo)');
@@ -55,7 +55,6 @@ return new class extends Migration
 
                 $table->foreign('created_by')->references('id')->on($userTable)->onDelete('set null');
                 $table->foreign('updated_by')->references('id')->on($userTable)->onDelete('set null');
-                $table->foreign('expedition_id')->references('id')->on($expeditionTable)->onDelete('set null');
                 $table->foreign('expedition_rate_id')->references('id')->on($rateTable)->onDelete('set null');
             });
         }

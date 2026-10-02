@@ -87,7 +87,7 @@ class Picklist extends Model
         'estimated_cost'     => 'decimal:2',
         'created_by'         => 'integer',
         'updated_by'         => 'integer',
-        'expedition_id'      => 'integer',
+        'expedition_id'      => 'string',
         'expedition_rate_id' => 'integer',
     ];
 

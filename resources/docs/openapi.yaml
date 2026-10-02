@@ -18189,9 +18189,13 @@ paths:
                 checker_name:
                   type: string
                 expedition_id:
-                  type: integer
+                  type: string
+                  description: Kode ekspedisi dari master SAP ("01" untuk Internal, "02" untuk Ambil Sendiri, atau kode ekspedisi luar)
+                  example: "01"
                 expedition_name:
                   type: string
+                  description: Nama ekspedisi ("Internal", "Ambil Sendiri", dsb)
+                  example: "Internal"
                 expedition_rate_id:
                   type: integer
                 service_type:

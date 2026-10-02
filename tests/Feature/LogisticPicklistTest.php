@@ -1060,6 +1060,70 @@ class LogisticPicklistTest extends TestCase
             ->assertJsonPath('data.0.Series', 75)
             ->assertJsonPath('data.0.SeriesName', 'DO-SBY');
     }
+
+    public function test_can_create_picklist_with_string_expedition_id(): void
+    {
+        // 1. Internal shipping with expedition_id = '01'
+        $payloadInternal = [
+            'shipping_type'      => 'internal',
+            'posting_date'       => '2026-09-18',
+            'due_date'           => '2026-09-20',
+            'license_plate'      => 'L 1234 AB',
+            'driver_name'        => 'Budi',
+            'checker_name'       => 'Agus',
+            'expedition_id'      => '01',
+            'expedition_name'    => 'Internal',
+            'items' => [
+                [
+                    'sales_order_id'        => $this->order1->id,
+                    'sales_order_detail_id' => $this->detail1->id,
+                    'item_code'             => $this->item1->item_code,
+                    'pick_qty'              => 5,
+                ],
+            ],
+        ];
+
+        $resInternal = $this->actingAs($this->user)
+            ->postJson('/api/distributor-channel/v1/logistic/picklists', $payloadInternal);
+
+        $resInternal->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.expedition_id', '01')
+            ->assertJsonPath('data.expedition_name', 'Internal');
+
+        $picklistInternal = Picklist::find($resInternal->json('data.id'));
+        $this->assertSame('01', $picklistInternal->expedition_id);
+
+        // 2. External shipping with expedition_id = 'EXP-TIKI'
+        $payloadExternal = [
+            'shipping_type'      => 'external',
+            'posting_date'       => '2026-09-18',
+            'due_date'           => '2026-09-20',
+            'expedition_id'      => 'EXP-TIKI',
+            'expedition_name'    => 'TIKI Cargo',
+            'service_type'       => 'Trucking',
+            'estimated_cost'     => 750000,
+            'items' => [
+                [
+                    'sales_order_id'        => $this->order2->id,
+                    'sales_order_detail_id' => $this->detail2->id,
+                    'item_code'             => $this->item2->item_code,
+                    'pick_qty'              => 5,
+                ],
+            ],
+        ];
+
+        $resExternal = $this->actingAs($this->user)
+            ->postJson('/api/distributor-channel/v1/logistic/picklists', $payloadExternal);
+
+        $resExternal->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.expedition_id', 'EXP-TIKI')
+            ->assertJsonPath('data.expedition_name', 'TIKI Cargo');
+
+        $picklistExternal = Picklist::find($resExternal->json('data.id'));
+        $this->assertSame('EXP-TIKI', $picklistExternal->expedition_id);
+    }
 }
 
 

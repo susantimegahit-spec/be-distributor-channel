@@ -88,7 +88,7 @@ class PicklistController extends Controller
             'license_plate'       => 'nullable|string|max:50',
             'driver_name'         => 'nullable|string|max:100',
             'checker_name'        => 'nullable|string|max:100',
-            'expedition_id'       => 'nullable|integer',
+            'expedition_id'       => 'nullable|string|max:100',
             'expedition_name'     => 'nullable|string|max:150',
             'expedition_rate_id'  => 'nullable|integer',
             'service_type'        => 'nullable|string|max:50',
