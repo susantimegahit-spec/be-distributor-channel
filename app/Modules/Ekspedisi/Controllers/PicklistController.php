@@ -108,8 +108,10 @@ class PicklistController extends Controller
             'items.*.direct_bin_quantity'   => 'nullable|numeric|min:0',
             'items.*.directBinQuantity'     => 'nullable|numeric|min:0',
             'to_whs_code'                   => 'nullable|string|max:50',
-            'series'                        => 'nullable|integer',
+            'series'                        => 'nullable',
+            'Series'                        => 'nullable',
             'series_name'                   => 'nullable|string|max:100',
+            'SeriesName'                    => 'nullable|string|max:100',
             'seal_number'                   => 'nullable|string|max:100',
             'noseal'                        => 'nullable|string|max:100',
         ]);
@@ -236,6 +238,50 @@ class PicklistController extends Controller
                 'success' => false,
                 'message' => $e->getMessage(),
             ], $statusCode);
+        }
+    }
+
+    /**
+     * Get available Document Series from SAP B1 for Delivery Order / Picklist.
+     */
+    public function getSeries(Request $request): JsonResponse
+    {
+        $customQuery = $request->query('CustomQuery') ?? $request->input('CustomQuery') ?? date('Ymd');
+        $cardCode = $request->query('CardCode') ?? $request->input('CardCode') ?? $request->query('card_code') ?? $request->input('card_code');
+
+        try {
+            $sapUrl = rtrim(config('services.sap.url') ?: env('SAP_API_URL', 'http://103.18.133.187:3100'), '/');
+            $response = \Illuminate\Support\Facades\Http::timeout(15)->post("{$sapUrl}/api/getSeriesby", [
+                'CustomQuery' => $customQuery,
+                'CardCode' => $cardCode,
+            ]);
+
+            if (!$response->successful()) {
+                $response = \Illuminate\Support\Facades\Http::timeout(15)->post("{$sapUrl}/api/getSeries", [
+                    'CustomQuery' => $customQuery,
+                ]);
+            }
+
+            if (!$response->successful()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal menghubungi API SAP untuk series.',
+                ], 502);
+            }
+
+            $sapData = $response->json();
+            $seriesList = $sapData['Result'] ?? $sapData['result'] ?? [];
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Daftar series berhasil diambil.',
+                'data'    => $seriesList,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve series: ' . $e->getMessage(),
+            ], 500);
         }
     }
 }

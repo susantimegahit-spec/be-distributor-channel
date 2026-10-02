@@ -98,6 +98,7 @@ class LogisticPicklistTest extends TestCase
             'whs_code'       => 'WHS-SBY',
             'unit_price'     => 50000,
             'line_total'     => 5000000,
+            'baseline'       => 0,
         ]);
 
         $this->order2 = SalesOrder::create([
@@ -123,6 +124,7 @@ class LogisticPicklistTest extends TestCase
             'whs_code'       => 'WHS-SBY',
             'unit_price'     => 120000,
             'line_total'     => 6000000,
+            'baseline'       => 0,
         ]);
     }
 
@@ -623,6 +625,7 @@ class LogisticPicklistTest extends TestCase
             'whs_code'       => 'WHS-SBY',
             'unit_price'     => 50000,
             'line_total'     => 5000000,
+            'baseline'       => 0,
         ]);
 
         // 1. Create a picklist
@@ -730,6 +733,7 @@ class LogisticPicklistTest extends TestCase
             'whs_code'       => 'WHS-SBY',
             'unit_price'     => 50000,
             'line_total'     => 5000000,
+            'baseline'       => 0,
         ]);
 
         Http::swap(new \Illuminate\Http\Client\Factory);
@@ -1011,6 +1015,50 @@ class LogisticPicklistTest extends TestCase
             ->assertJsonPath('data.documents.0.doc_entry', '9001')
             ->assertJsonPath('data.documents.1.doc_num', 'DO-9002')
             ->assertJsonPath('data.documents.1.doc_entry', '9002');
+    }
+
+    public function test_available_orders_includes_so_series_and_series_name(): void
+    {
+        $this->order1->update([
+            'series'      => 17,
+            'series_name' => 'SO-SBY',
+        ]);
+
+        $res = $this->actingAs($this->user)
+            ->getJson('/api/distributor-channel/v1/logistic/picklists/available-orders');
+
+        $res->assertStatus(200)
+            ->assertJsonPath('success', true);
+
+        $orders = $res->json('data');
+        $this->assertNotEmpty($orders);
+        $found = collect($orders)->firstWhere('id', $this->order1->id);
+        $this->assertNotNull($found);
+        $this->assertEquals(17, $found['series']);
+        $this->assertEquals('SO-SBY', $found['series_name']);
+    }
+
+    public function test_can_get_series_for_picklist(): void
+    {
+        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::fake([
+            '*/api/getSeriesby' => Http::response([
+                'ErrorCode' => 0,
+                'Message'   => '',
+                'Result'    => [
+                    ['Series' => 75, 'SeriesName' => 'DO-SBY'],
+                    ['Series' => 76, 'SeriesName' => 'DO-JKT'],
+                ],
+            ], 200),
+        ]);
+
+        $res = $this->actingAs($this->user)
+            ->getJson('/api/distributor-channel/v1/logistic/picklists/series?CustomQuery=20261002&CardCode=CUST-001');
+
+        $res->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.0.Series', 75)
+            ->assertJsonPath('data.0.SeriesName', 'DO-SBY');
     }
 }
 

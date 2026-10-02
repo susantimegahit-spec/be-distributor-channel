@@ -18007,6 +18007,53 @@ paths:
         '404':
           description: Sales Order not found.
 
+  /v1/logistic/picklists/series:
+    get:
+      summary: Get Available Document Series from SAP for Delivery Order / Picklist
+      description: Mengambil daftar penomoran Series dokumen SAP B1 yang tersedia untuk pembuatan Delivery Order (DO) dari picklist. Nilai Series ini berbeda dengan Series pada Sales Order.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: CustomQuery
+          in: query
+          description: Tanggal format YYYYMMDD
+          schema:
+            type: string
+            example: "20261002"
+        - name: CardCode
+          in: query
+          description: CardCode customer / distributor
+          schema:
+            type: string
+            example: "CUST-001"
+      responses:
+        '200':
+          description: Daftar series berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Daftar series berhasil diambil."
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Series:
+                          type: integer
+                          example: 75
+                        SeriesName:
+                          type: string
+                          example: "DO-SBY"
+
   /v1/logistic/picklists/available-orders:
     get:
       summary: Get Available Sales Orders for Picklist
@@ -18075,6 +18122,7 @@ paths:
         Membuat dokumen picklist baru untuk armada logistik.
         - Internal: wajib mengisi license_plate, mendukung multiple Sales Orders.
         - External & Pickup: tidak menggunakan armada sendiri, strictly dibatasi hanya 1 Sales Order.
+        - Series: nomor penomoran SAP Document Series untuk Delivery Order (DO) yang akan digenerate dari picklist ini (berbeda dengan series Sales Order).
       tags:
         - Logistic - Picklist
       security:
@@ -18126,6 +18174,18 @@ paths:
                   type: string
                   default: 'VPGMN01'
                   description: Gudang tujuan transfer (hardcoded ke VPGMN01 di backend)
+                series:
+                  type: integer
+                  description: SAP Document Series untuk Delivery Order (DO) yang akan terbentuk dari picklist ini (berbeda dengan series SO)
+                  example: 75
+                series_name:
+                  type: string
+                  description: Nama SAP Document Series untuk Delivery Order (DO)
+                  example: "DO-SBY"
+                seal_number:
+                  type: string
+                  description: Nomor segel (Noseal) armada / truk
+                  example: "SEAL-001"
                 items:
                   type: array
                   items:

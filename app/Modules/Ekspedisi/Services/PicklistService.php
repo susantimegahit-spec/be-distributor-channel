@@ -209,6 +209,8 @@ class PicklistService
                     'doc_due_date'     => $order->doc_due_date?->format('Y-m-d'),
                     'eta_date'         => $order->eta_date?->format('Y-m-d'),
                     'total_weight'     => round($totalRemainingWeight, 4),
+                    'series'           => $order->series,
+                    'series_name'      => $order->series_name,
                     'items'            => $items,
                 ];
             }
@@ -433,7 +435,7 @@ class PicklistService
                 'it_doc_num'         => (string) $itResult['doc_num'],
                 'it_status'          => 'SUCCESS',
                 'to_whs_code'        => self::DEFAULT_IT_TO_WHS_CODE,
-                'series'             => !empty($payload['series']) ? (int) $payload['series'] : (!empty($payload['Series']) ? (int) $payload['Series'] : null),
+                'series'             => (isset($payload['series']) && $payload['series'] !== '' && $payload['series'] !== null) ? (int) $payload['series'] : ((isset($payload['Series']) && $payload['Series'] !== '' && $payload['Series'] !== null) ? (int) $payload['Series'] : null),
                 'series_name'        => !empty($payload['series_name']) ? trim((string) $payload['series_name']) : (!empty($payload['SeriesName']) ? trim((string) $payload['SeriesName']) : null),
                 'seal_number'        => !empty($payload['seal_number']) ? trim((string) $payload['seal_number']) : (!empty($payload['noseal']) ? trim((string) $payload['noseal']) : (!empty($payload['Noseal']) ? trim((string) $payload['Noseal']) : null)),
                 'created_by'         => $userId,
@@ -876,9 +878,11 @@ class PicklistService
                 ? Carbon::parse($payload['TaxDate'])->format('Y-m-d\TH:i:s')
                 : $postingDate->format('Y-m-d\TH:i:s');
 
-            $series = isset($payload['Series'])
+            $series = (isset($payload['Series']) && $payload['Series'] !== '' && $payload['Series'] !== null)
                 ? (int) $payload['Series']
-                : (isset($payload['series']) ? (int) $payload['series'] : (!empty($picklist->series) ? (int) $picklist->series : (is_numeric($so->series) ? (int) $so->series : 75)));
+                : ((isset($payload['series']) && $payload['series'] !== '' && $payload['series'] !== null)
+                    ? (int) $payload['series']
+                    : (!empty($picklist->series) ? (int) $picklist->series : 75));
 
             $numAtCard = (string) ($payload['NumAtCard'] ?? $payload['num_at_card'] ?? $so->po_number ?: ($so->order_no ?? ''));
             $comments  = (string) ($payload['Comments'] ?? $payload['comments'] ?? $picklist->comments ?: ($so->comments ?? ''));
