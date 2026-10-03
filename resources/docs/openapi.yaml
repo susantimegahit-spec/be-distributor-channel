@@ -1033,6 +1033,218 @@ paths:
       responses:
         '200':
           description: Daftar karyawan berhasil diambil.
+    post:
+      summary: Tambah Karyawan Baru (Create Employee)
+      description: Menambahkan data karyawan baru ke tabel HRIS corporate (hris_employees). Otomatis men-generate NIK unik dan alamat email kantor jika dikosongkan, serta mendukung penugasan langsung melalui ID atau kode departemen dan posisi.
+      tags:
+        - Task Management - Master Data
+        - Task Management - Employees
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - full_name
+              properties:
+                full_name:
+                  type: string
+                  description: Nama lengkap karyawan
+                  example: "Ahmad Fauzi"
+                nik:
+                  type: string
+                  description: NIK karyawan (otomatis dibuat format unik EMP-YYYYMMDD-XXXX jika kosong)
+                  example: "EMP-2026-0042"
+                email_office:
+                  type: string
+                  format: email
+                  description: Email kantor (otomatis dibuat dari nama jika kosong)
+                  example: "ahmad.fauzi@susantimegah.com"
+                nickname:
+                  type: string
+                  description: Nama panggilan karyawan
+                  example: "Fauzi"
+                phone_number:
+                  type: string
+                  example: "081234567890"
+                telegram_chat_id:
+                  type: string
+                  example: "123456789"
+                dept_code:
+                  type: string
+                  description: Kode departemen (misal IT, HRD, FIN, SCM). Alternatif dari department_id.
+                  example: "IT"
+                department_id:
+                  type: integer
+                  description: ID departemen HRIS
+                  example: 1
+                position_code:
+                  type: string
+                  description: Kode posisi (misal STAFF, DEV, MANAGER). Alternatif dari position_id.
+                  example: "STAFF"
+                position_id:
+                  type: integer
+                  description: ID posisi HRIS
+                  example: 1
+                division_id:
+                  type: integer
+                  nullable: true
+                  example: null
+                user_id:
+                  type: integer
+                  nullable: true
+                  description: ID akun login users jika ingin ditautkan langsung
+                  example: null
+                employment_status:
+                  type: string
+                  enum: [PERMANENT, CONTRACT, PROBATION, INTERNSHIP, RESIGNED]
+                  default: PERMANENT
+                  example: "PERMANENT"
+                join_date:
+                  type: string
+                  format: date
+                  description: Tanggal bergabung (YYYY-MM-DD, default hari ini)
+                  example: "2026-10-01"
+                resign_date:
+                  type: string
+                  format: date
+                  nullable: true
+                  example: null
+                is_active:
+                  type: boolean
+                  default: true
+                  example: true
+                avatar_url:
+                  type: string
+                  nullable: true
+                  example: null
+      responses:
+        '201':
+          description: Karyawan berhasil dibuat.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Employee created successfully
+                  data:
+                    $ref: '#/components/schemas/HrisEmployee'
+        '422':
+          description: Validasi input gagal.
+
+  /task-management/master/employees/{id}:
+    get:
+      summary: Detail Karyawan HRIS (Employee Detail)
+      description: Mengambil data detail karyawan berdasarkan ID beserta informasi departemen, divisi, dan posisi.
+      tags:
+        - Task Management - Master Data
+        - Task Management - Employees
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Karyawan HRIS
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail karyawan berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    $ref: '#/components/schemas/HrisEmployee'
+        '404':
+          description: Karyawan tidak ditemukan.
+
+  /task-management/employees:
+    get:
+      summary: Master Karyawan HRIS (Direct Alias)
+      description: Alias untuk endpoint /task-management/master/employees.
+      tags:
+        - Task Management - Employees
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: department_id
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Daftar karyawan berhasil diambil.
+    post:
+      summary: Tambah Karyawan Baru (Direct Alias)
+      description: Alias untuk endpoint /task-management/master/employees.
+      tags:
+        - Task Management - Employees
+      security:
+        - BearerAuth: []
+      requestBody:
+        $ref: '#/paths/~1task-management~1master~1employees/post/requestBody'
+      responses:
+        '201':
+          description: Karyawan berhasil dibuat.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Employee created successfully
+                  data:
+                    $ref: '#/components/schemas/HrisEmployee'
+
+  /task-management/employees/{id}:
+    get:
+      summary: Detail Karyawan HRIS (Direct Alias)
+      description: Alias untuk endpoint /task-management/master/employees/{id}.
+      tags:
+        - Task Management - Employees
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail karyawan berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    $ref: '#/components/schemas/HrisEmployee'
 
   /v1/production/change-products:
 
@@ -22493,5 +22705,103 @@ components:
           type: string
           format: date-time
           example: "2026-09-14T10:00:00.000000Z"
+
+    HrisEmployee:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 4
+        nik:
+          type: string
+          example: "EMP-2026-0042"
+        user_id:
+          type: integer
+          nullable: true
+          example: null
+        full_name:
+          type: string
+          example: "Siti Rahmawati"
+        nickname:
+          type: string
+          nullable: true
+          example: "Siti"
+        email_office:
+          type: string
+          example: "siti.rahmawati@susantimegah.com"
+        phone_number:
+          type: string
+          nullable: true
+          example: "081234567890"
+        telegram_chat_id:
+          type: string
+          nullable: true
+          example: null
+        department_id:
+          type: integer
+          example: 1
+        division_id:
+          type: integer
+          nullable: true
+          example: null
+        position_id:
+          type: integer
+          example: 1
+        direct_supervisor_id:
+          type: integer
+          nullable: true
+          example: null
+        employment_status:
+          type: string
+          example: "PERMANENT"
+        join_date:
+          type: string
+          format: date
+          example: "2026-10-01"
+        resign_date:
+          type: string
+          format: date
+          nullable: true
+          example: null
+        is_active:
+          type: boolean
+          example: true
+        avatar_url:
+          type: string
+          nullable: true
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-10-03T02:43:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-10-03T02:43:00.000000Z"
+        department:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            dept_code:
+              type: string
+              example: "IT"
+            dept_name:
+              type: string
+              example: "Information Technology"
+        position:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            position_code:
+              type: string
+              example: "STAFF"
+            position_name:
+              type: string
+              example: "Staff"
+
 
 
