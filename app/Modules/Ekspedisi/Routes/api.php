@@ -1,0 +1,68 @@
+<?php
+
+use App\Modules\Ekspedisi\Controllers\ExpeditionController;
+use App\Modules\Ekspedisi\Controllers\ExpeditionRateController;
+use App\Modules\Ekspedisi\Controllers\WilayahController;
+use App\Modules\Ekspedisi\Controllers\MasterLeadtimeController;
+use App\Modules\Ekspedisi\Controllers\WarehouseOriginController;
+use App\Modules\Ekspedisi\Controllers\SapEkspedisiController;
+use Illuminate\Support\Facades\Route;
+
+Route::prefix('v1/ekspedisi')->middleware('auth:sanctum')->group(function () {
+    // SAP Master Logistics Endpoints (getNamaEkspedisi, getNamaChecker, getKendaraan, getSopir)
+    Route::match(['get', 'post'], 'nama-ekspedisi', [SapEkspedisiController::class, 'getNamaEkspedisi']);
+    Route::match(['get', 'post'], 'nama-checker', [SapEkspedisiController::class, 'getNamaChecker']);
+    Route::match(['get', 'post'], 'kendaraan', [SapEkspedisiController::class, 'getKendaraan']);
+    Route::match(['get', 'post'], 'sopir', [SapEkspedisiController::class, 'getSopir']);
+    // Master Wilayah
+    Route::prefix('wilayah')->group(function () {
+        Route::get('/provinces', [WilayahController::class, 'getProvinces']);
+        Route::get('/regencies', [WilayahController::class, 'getRegencies']);
+        Route::get('/districts', [WilayahController::class, 'getDistricts']);
+        Route::get('/villages', [WilayahController::class, 'getVillages']);
+    });
+
+    // Upload Master Ekspedisi & Rates & Origins (harus dideklarasikan sebelum apiResource agar tidak bentrok dengan {id})
+    Route::post('expeditions/upload', [ExpeditionController::class, 'upload']);
+    Route::post('rates/upload', [ExpeditionRateController::class, 'upload']);
+    Route::post('origins/upload', [WarehouseOriginController::class, 'upload']);
+
+    // Master Ekspedisi (Expedition Vendors)
+    Route::apiResource('expeditions', ExpeditionController::class);
+
+    // Master Tarif Ekspedisi (Expedition Rates) Approval & Ranking
+    Route::match(['get', 'post'], 'rates/rank', [ExpeditionRateController::class, 'rank']);
+    Route::post('rates/bulk-approve', [ExpeditionRateController::class, 'bulkApprove']);
+    Route::post('rates/{id}/approve', [ExpeditionRateController::class, 'approve']);
+    Route::post('rates/{id}/reject', [ExpeditionRateController::class, 'reject']);
+    Route::apiResource('rates', ExpeditionRateController::class);
+
+    // Master Origin/Gudang Asal (Warehouse Origins)
+    Route::apiResource('origins', WarehouseOriginController::class);
+
+    // Master Leadtime (Logistics Route Benchmark Lead Time)
+    Route::apiResource('leadtimes', MasterLeadtimeController::class);
+});
+
+// Logistic & Sales Order Delivery Monitoring Routes
+Route::prefix('v1/logistic/orders')->middleware('auth:sanctum')->group(function () {
+    Route::get('/dashboard', [\App\Modules\Ekspedisi\Controllers\LogisticOrderController::class, 'dashboard']);
+    Route::get('/', [\App\Modules\Ekspedisi\Controllers\LogisticOrderController::class, 'index']);
+    Route::get('/{id}/logs', [\App\Modules\Ekspedisi\Controllers\LogisticOrderController::class, 'logs']);
+    Route::post('/{id}/reschedule', [\App\Modules\Ekspedisi\Controllers\LogisticOrderController::class, 'reschedule']);
+    Route::post('/{id}/approve', [\App\Modules\Ekspedisi\Controllers\LogisticOrderController::class, 'approve']);
+    Route::post('/{id}/inventory-transfer', [\App\Modules\Ekspedisi\Controllers\LogisticOrderController::class, 'inventoryTransfer']);
+});
+
+// Logistic Picklist Routes
+Route::prefix('v1/logistic/picklists')->middleware('auth:sanctum')->group(function () {
+    Route::get('/series', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'getSeries']);
+    Route::get('/available-orders', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'availableOrders']);
+    Route::get('/', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'index']);
+    Route::post('/', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'store']);
+    Route::post('/add-do', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'directAddDo']);
+    Route::get('/{id}', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'show']);
+    Route::patch('/{id}/status', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'updateStatus']);
+    Route::post('/{id}/add-do', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'addDo']);
+});
+
