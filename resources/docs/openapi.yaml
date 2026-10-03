@@ -347,6 +347,310 @@ paths:
         '200':
           description: Dashboard summary berhasil diambil.
 
+  /task-management/dashboard/team-view:
+    get:
+      summary: Team View - Monitor Tugas, Kapasitas & Progress per Karyawan
+      description: |
+        Menyajikan data Team View untuk memonitor beban kerja karyawan secara visual (seperti kartu Kanban / ClickUp Team View).
+        Menampilkan ringkasan metrik (Total tasks, Not done, Done, Overdue, % Completion Rate, % Progress), multi-segment bar distribusi status (Ready, In Progress, Review, dll.), dan daftar tugas pada masing-masing status untuk mendukung visual workload balancing & drag-and-drop.
+      tags:
+        - Task Management - Dashboard
+        - Task Management - Team View
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: space_id
+          in: query
+          description: Filter ID Space / Departemen (misal IT, HRD, FIN)
+          schema:
+            type: string
+            example: "IT"
+        - name: department_id
+          in: query
+          description: Filter Kode atau ID Departemen
+          schema:
+            type: string
+        - name: employee_id
+          in: query
+          description: Filter Karyawan spesifik
+          schema:
+            type: integer
+        - name: search
+          in: query
+          description: Pencarian nama, NIK, atau email karyawan
+          schema:
+            type: string
+        - name: include_tasks
+          in: query
+          description: Sertakan rincian objek tugas pada masing-masing status (default true)
+          schema:
+            type: boolean
+            default: true
+        - name: date_from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Data Team View berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Team view data retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      summary:
+                        type: object
+                        properties:
+                          total_members:
+                            type: integer
+                            example: 5
+                          total_tasks:
+                            type: integer
+                            example: 24
+                          total_not_done:
+                            type: integer
+                            example: 16
+                          total_done:
+                            type: integer
+                            example: 8
+                          total_overdue:
+                            type: integer
+                            example: 2
+                          overall_completion_rate:
+                            type: number
+                            format: float
+                            example: 33.3
+                          total_estimated_hours:
+                            type: number
+                            format: float
+                            example: 48.0
+                          total_tracked_hours:
+                            type: number
+                            format: float
+                            example: 12.5
+                      team:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            employee_id:
+                              type: integer
+                              example: 4
+                            full_name:
+                              type: string
+                              example: "Claudia Maria"
+                            nickname:
+                              type: string
+                              example: "Claudia"
+                            nik:
+                              type: string
+                              example: "EMP-2026-0042"
+                            avatar_url:
+                              type: string
+                              nullable: true
+                              example: null
+                            department:
+                              type: object
+                              properties:
+                                id:
+                                  type: integer
+                                  example: 1
+                                dept_code:
+                                  type: string
+                                  example: "IT"
+                                dept_name:
+                                  type: string
+                                  example: "Information Technology"
+                            position:
+                              type: object
+                              properties:
+                                id:
+                                  type: integer
+                                  example: 1
+                                position_code:
+                                  type: string
+                                  example: "STAFF"
+                                position_name:
+                                  type: string
+                                  example: "Staff"
+                            metrics:
+                              type: object
+                              properties:
+                                total_tasks:
+                                  type: integer
+                                  example: 24
+                                not_done_tasks:
+                                  type: integer
+                                  example: 16
+                                done_tasks:
+                                  type: integer
+                                  example: 8
+                                overdue_tasks:
+                                  type: integer
+                                  example: 2
+                                completion_rate:
+                                  type: number
+                                  format: float
+                                  example: 33.3
+                                progress_percentage:
+                                  type: number
+                                  format: float
+                                  example: 35.0
+                                total_estimated_hours:
+                                  type: number
+                                  format: float
+                                  example: 48.0
+                                total_tracked_hours:
+                                  type: number
+                                  format: float
+                                  example: 12.5
+                            status_distribution:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  status_id:
+                                    type: integer
+                                    example: 1
+                                  status_name:
+                                    type: string
+                                    example: "Ready"
+                                  status_category:
+                                    type: string
+                                    example: "TO_DO"
+                                  color_hex:
+                                    type: string
+                                    example: "#22C55E"
+                                  total_tasks:
+                                    type: integer
+                                    example: 8
+                                  percentage:
+                                    type: number
+                                    format: float
+                                    example: 33.3
+                                  tasks:
+                                    type: array
+                                    items:
+                                      type: object
+                                      properties:
+                                        id:
+                                          type: integer
+                                          example: 101
+                                        task_code:
+                                          type: string
+                                          example: "TSK-IT-2026-00001"
+                                        title:
+                                          type: string
+                                          example: "Setup Infrastructure"
+                                        priority:
+                                          type: object
+                                          properties:
+                                            id:
+                                              type: integer
+                                              example: 1
+                                            priority_name:
+                                              type: string
+                                              example: "Normal"
+                                            color_hex:
+                                              type: string
+                                              example: "#3B82F6"
+                                        due_date:
+                                          type: string
+                                          example: "2026-10-10 17:00"
+                                        is_overdue:
+                                          type: boolean
+                                          example: false
+                                        progress_percentage:
+                                          type: integer
+                                          example: 25
+
+  /task-management/dashboard/team-view/{employeeId}:
+    get:
+      summary: Detail Card Team View untuk Satu Karyawan
+      tags:
+        - Task Management - Dashboard
+        - Task Management - Team View
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Card Team View karyawan berhasil diambil.
+
+  /task-management/team-view:
+    get:
+      summary: Team View (Direct Alias)
+      tags:
+        - Task Management - Team View
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Data Team View berhasil diambil.
+
+  /task-management/tasks/{id}/reassign:
+    post:
+      summary: Reassign Tugas Antar Karyawan (Drag and Drop Support)
+      description: Memindahkan atau memperbarui penugasan task dari satu karyawan ke karyawan lain (misalnya saat mendrag task antar kartu karyawan di Team View).
+      tags:
+        - Task Management - Tasks
+        - Task Management - Team View
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Tugas
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                from_employee_id:
+                  type: integer
+                  description: ID karyawan asal yang akan dilepas dari task
+                  example: 4
+                to_employee_id:
+                  type: integer
+                  description: ID karyawan tujuan yang akan ditugaskan
+                  example: 5
+                assignee_ids:
+                  type: array
+                  items:
+                    type: integer
+                  description: Alternatif langsung menetapkan daftar ID seluruh assignee baru
+                  example: [5]
+      responses:
+        '200':
+          description: Tugas berhasil dipindahkan / di-reassign.
+        '404':
+          description: Tugas tidak ditemukan.
+
   /task-management/tasks:
     get:
       summary: Daftar Tugas (Tasks) & Filter Hirarki

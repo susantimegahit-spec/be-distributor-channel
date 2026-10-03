@@ -8,7 +8,10 @@ use App\Models\TmMasterStatus;
 use App\Models\TmMasterPriority;
 use App\Models\TmTaskTimeTracking;
 use App\Models\TmTaskActivityLog;
+use App\Models\TmSpaceMember;
+use App\Models\TmTaskAssignee;
 use App\Models\HrisEmployee;
+use App\Models\HrisDepartment;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -346,5 +349,270 @@ class DashboardService
                 'created_at'     => $act->created_at ? Carbon::parse($act->created_at)->format('Y-m-d H:i:s') : null,
             ];
         })->values()->all();
+    }
+
+    /**
+     * Get Team View data monitoring tasks, capacity, and status distribution per employee.
+     *
+     * @param array $filters
+     * @return array
+     */
+    public function getTeamView(array $filters = []): array
+    {
+        $spaceId = !empty($filters['space_id']) ? (string)$filters['space_id'] : null;
+        $departmentId = !empty($filters['department_id']) ? (string)$filters['department_id'] : null;
+        $folderId = !empty($filters['folder_id']) ? (int)$filters['folder_id'] : null;
+        $listId = !empty($filters['list_id']) ? (int)$filters['list_id'] : null;
+        $employeeId = !empty($filters['employee_id']) ? (int)$filters['employee_id'] : (!empty($filters['assignee_id']) ? (int)$filters['assignee_id'] : null);
+        $dateFrom = !empty($filters['date_from']) ? $filters['date_from'] : (!empty($filters['start_date_from']) ? $filters['start_date_from'] : null);
+        $dateTo = !empty($filters['date_to']) ? $filters['date_to'] : (!empty($filters['due_date_to']) ? $filters['due_date_to'] : null);
+        $search = !empty($filters['search']) ? trim($filters['search']) : null;
+        $includeTasks = isset($filters['include_tasks']) ? filter_var($filters['include_tasks'], FILTER_VALIDATE_BOOLEAN) : true;
+        $now = Carbon::now();
+
+        // 1. Build base task query
+        $taskQuery = TmTask::query();
+
+        if ($spaceId) {
+            $taskQuery->where('space_id', $spaceId);
+        }
+        if ($departmentId) {
+            $taskQuery->whereHas('space', fn($q) => $q->where('department_id', $departmentId));
+        }
+        if ($folderId) {
+            $taskQuery->where('folder_id', $folderId);
+        }
+        if ($listId) {
+            $taskQuery->where('list_id', $listId);
+        }
+        if ($dateFrom) {
+            $taskQuery->whereDate('created_at', '>=', $dateFrom);
+        }
+        if ($dateTo) {
+            $taskQuery->whereDate('due_date', '<=', $dateTo);
+        }
+
+        // 2. Identify employees to monitor
+        $employeeQuery = HrisEmployee::where('is_active', true)
+            ->with(['department:id,dept_code,dept_name', 'position:id,position_code,position_name']);
+
+        if ($employeeId) {
+            $employeeQuery->where('id', $employeeId);
+        }
+
+        if ($search) {
+            $searchTerm = '%' . $search . '%';
+            $employeeQuery->where(function ($q) use ($searchTerm) {
+                $q->where('full_name', 'like', $searchTerm)
+                  ->orWhere('nik', 'like', $searchTerm)
+                  ->orWhere('email_office', 'like', $searchTerm);
+            });
+        }
+
+        // If filtering by space or department, scope employees accordingly
+        if ($spaceId) {
+            $spaceMemberEmpIds = TmSpaceMember::where('space_id', $spaceId)->pluck('employee_id')->filter()->toArray();
+            $taskAssigneeEmpIds = TmTaskAssignee::whereIn('task_id', (clone $taskQuery)->pluck('id'))->pluck('employee_id')->filter()->toArray();
+            $allowedEmpIds = array_unique(array_merge($spaceMemberEmpIds, $taskAssigneeEmpIds));
+
+            if (!empty($allowedEmpIds)) {
+                $employeeQuery->whereIn('id', $allowedEmpIds);
+            } elseif (empty($employeeId) && empty($search)) {
+                $space = TmSpace::find($spaceId);
+                if ($space && $space->department_id) {
+                    $dept = HrisDepartment::where('dept_code', $space->department_id)
+                        ->orWhere('id', is_numeric($space->department_id) ? (int)$space->department_id : 0)
+                        ->first();
+                    if ($dept) {
+                        $employeeQuery->where('department_id', $dept->id);
+                    }
+                }
+            }
+        } elseif ($departmentId) {
+            $dept = HrisDepartment::where('dept_code', $departmentId)
+                ->orWhere('id', is_numeric($departmentId) ? (int)$departmentId : 0)
+                ->first();
+            if ($dept) {
+                $employeeQuery->where('department_id', $dept->id);
+            }
+        }
+
+        $employees = $employeeQuery->orderBy('full_name')->get();
+
+        // 3. Load all master statuses (scoped by space if available, or all)
+        $statusQuery = TmMasterStatus::query();
+        if ($spaceId) {
+            $statusQuery->where(function ($q) use ($spaceId) {
+                $q->whereNull('space_id')->orWhere('space_id', $spaceId);
+            });
+        } else {
+            $statusQuery->whereNull('space_id');
+        }
+        $statuses = $statusQuery->orderBy('sort_order')->get();
+        if ($statuses->isEmpty()) {
+            $statuses = TmMasterStatus::orderBy('sort_order')->get();
+        }
+
+        // 4. Compute per-employee card metrics & status distribution
+        $teamCards = [];
+        $totalTeamTasks = 0;
+        $totalTeamNotDone = 0;
+        $totalTeamDone = 0;
+        $totalTeamOverdue = 0;
+        $totalTeamEstimatedHours = 0.0;
+        $totalTeamTrackedHours = 0.0;
+
+        foreach ($employees as $emp) {
+            $empTaskQuery = (clone $taskQuery)
+                ->whereHas('assignedEmployees', fn($q) => $q->where('hris_employees.id', $emp->id))
+                ->with(['status:id,status_name,status_category,color_hex', 'priority:id,priority_code,priority_name,color_hex', 'space:id,space_name', 'list:id,list_name']);
+
+            $empTasks = $empTaskQuery->get();
+            $empTotal = $empTasks->count();
+
+            // Status counts & groupings
+            $tasksByStatus = $empTasks->groupBy('status_id');
+
+            $statusDistribution = [];
+            $doneCount = 0;
+            $notDoneCount = 0;
+            $overdueCount = 0;
+            $progressSum = 0;
+            $estimatedHoursSum = 0.0;
+
+            // Map each known status
+            foreach ($statuses as $st) {
+                $statusTasks = $tasksByStatus->get($st->id, collect());
+                $stCount = $statusTasks->count();
+                $stPct = $empTotal > 0 ? round(($stCount / $empTotal) * 100, 1) : 0.0;
+
+                $taskList = [];
+                if ($includeTasks) {
+                    foreach ($statusTasks as $t) {
+                        $isOverdue = empty($t->completed_at) && $t->due_date && $t->due_date < $now && !in_array($st->status_category, ['DONE', 'CANCELLED']);
+                        $taskList[] = [
+                            'id'                  => $t->id,
+                            'task_code'           => $t->task_code,
+                            'title'               => $t->title,
+                            'priority'            => $t->priority ? [
+                                'id'            => $t->priority->id,
+                                'priority_code' => $t->priority->priority_code,
+                                'priority_name' => $t->priority->priority_name,
+                                'color_hex'     => $t->priority->color_hex,
+                            ] : null,
+                            'space_name'          => $t->space ? $t->space->space_name : null,
+                            'list_name'           => $t->list ? $t->list->list_name : null,
+                            'due_date'            => $t->due_date ? Carbon::parse($t->due_date)->format('Y-m-d H:i') : null,
+                            'is_overdue'          => $isOverdue,
+                            'progress_percentage' => (int)$t->progress_percentage,
+                            'estimated_hours'     => (float)$t->estimated_hours,
+                            'actual_hours'        => (float)$t->actual_hours,
+                        ];
+                    }
+                }
+
+                $statusDistribution[] = [
+                    'status_id'       => $st->id,
+                    'status_name'     => $st->status_name,
+                    'status_category' => $st->status_category,
+                    'color_hex'       => $st->color_hex,
+                    'total_tasks'     => $stCount,
+                    'percentage'      => $stPct,
+                    'tasks'           => $taskList,
+                ];
+            }
+
+            foreach ($empTasks as $t) {
+                $stCat = $t->status ? $t->status->status_category : '';
+                if ($stCat === 'DONE' || ($t->status && $t->status->is_closed_status)) {
+                    $doneCount++;
+                } else {
+                    $notDoneCount++;
+                }
+
+                if (empty($t->completed_at) && $t->due_date && $t->due_date < $now && !in_array($stCat, ['DONE', 'CANCELLED'])) {
+                    $overdueCount++;
+                }
+
+                $progressSum += (int)$t->progress_percentage;
+                $estimatedHoursSum += (float)$t->estimated_hours;
+            }
+
+            $completionRate = $empTotal > 0 ? round(($doneCount / $empTotal) * 100, 1) : 0.0;
+            $avgProgress = $empTotal > 0 ? round($progressSum / $empTotal, 1) : 0.0;
+
+            // Tracked time for this employee on these tasks
+            $taskIds = $empTasks->pluck('id')->toArray();
+            $trackedMinutes = !empty($taskIds)
+                ? TmTaskTimeTracking::where('employee_id', $emp->id)->whereIn('task_id', $taskIds)->sum('duration_minutes')
+                : 0;
+            $trackedHours = round($trackedMinutes / 60, 2);
+
+            $teamCards[] = [
+                'employee_id'           => $emp->id,
+                'full_name'             => $emp->full_name,
+                'nickname'              => $emp->nickname ?: explode(' ', $emp->full_name)[0],
+                'nik'                   => $emp->nik,
+                'avatar_url'            => $emp->avatar_url,
+                'department'            => $emp->department ? [
+                    'id'        => $emp->department->id,
+                    'dept_code' => $emp->department->dept_code,
+                    'dept_name' => $emp->department->dept_name,
+                ] : null,
+                'position'              => $emp->position ? [
+                    'id'            => $emp->position->id,
+                    'position_code' => $emp->position->position_code,
+                    'position_name' => $emp->position->position_name,
+                ] : null,
+                'metrics'               => [
+                    'total_tasks'           => $empTotal,
+                    'not_done_tasks'        => $notDoneCount,
+                    'done_tasks'            => $doneCount,
+                    'overdue_tasks'         => $overdueCount,
+                    'completion_rate'       => $completionRate,
+                    'progress_percentage'   => $avgProgress,
+                    'total_estimated_hours' => round($estimatedHoursSum, 2),
+                    'total_tracked_hours'   => $trackedHours,
+                ],
+                'status_distribution'  => $statusDistribution,
+            ];
+
+            $totalTeamTasks += $empTotal;
+            $totalTeamNotDone += $notDoneCount;
+            $totalTeamDone += $doneCount;
+            $totalTeamOverdue += $overdueCount;
+            $totalTeamEstimatedHours += $estimatedHoursSum;
+            $totalTeamTrackedHours += $trackedHours;
+        }
+
+        $overallCompletionRate = $totalTeamTasks > 0 ? round(($totalTeamDone / $totalTeamTasks) * 100, 1) : 0.0;
+
+        return [
+            'summary' => [
+                'total_members'           => count($teamCards),
+                'total_tasks'             => $totalTeamTasks,
+                'total_not_done'          => $totalTeamNotDone,
+                'total_done'              => $totalTeamDone,
+                'total_overdue'           => $totalTeamOverdue,
+                'overall_completion_rate' => $overallCompletionRate,
+                'total_estimated_hours'   => round($totalTeamEstimatedHours, 2),
+                'total_tracked_hours'     => round($totalTeamTrackedHours, 2),
+            ],
+            'team' => $teamCards,
+        ];
+    }
+
+    /**
+     * Get Team View data for a single specific employee.
+     *
+     * @param int $employeeId
+     * @param array $filters
+     * @return array|null
+     */
+    public function getEmployeeTeamView(int $employeeId, array $filters = []): ?array
+    {
+        $filters['employee_id'] = $employeeId;
+        $result = $this->getTeamView($filters);
+        return $result['team'][0] ?? null;
     }
 }

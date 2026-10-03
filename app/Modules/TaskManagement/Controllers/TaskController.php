@@ -246,4 +246,74 @@ class TaskController extends Controller
             'data'    => $metrics,
         ]);
     }
+
+    /**
+     * Reassign a task to another employee or update assignees (drag-and-drop support).
+     *
+     * @param  Request  $request
+     * @param  int      $id
+     * @return JsonResponse
+     */
+    public function reassign(Request $request, int $id): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'to_employee_id'   => 'nullable|integer',
+            'from_employee_id' => 'nullable|integer',
+            'employee_id'      => 'nullable|integer',
+            'assignee_ids'     => 'nullable|array',
+            'assignee_ids.*'   => 'integer',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Validation error',
+                'errors'  => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $task = $this->taskService->getTaskDetail($id);
+            if (!$task) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Task not found',
+                ], 404);
+            }
+
+            $currentPerformerId = $this->getEmployeeId($request);
+            $targetEmployeeId = $request->input('to_employee_id') ?? $request->input('employee_id');
+
+            if ($request->has('assignee_ids')) {
+                $newAssignees = $request->input('assignee_ids');
+            } elseif ($targetEmployeeId) {
+                $fromEmpId = $request->input('from_employee_id');
+                $currentAssigneeIds = $task->assignedEmployees->pluck('id')->toArray();
+                if ($fromEmpId) {
+                    $currentAssigneeIds = array_values(array_diff($currentAssigneeIds, [(int)$fromEmpId]));
+                }
+                $currentAssigneeIds[] = (int)$targetEmployeeId;
+                $newAssignees = array_values(array_unique($currentAssigneeIds));
+            } else {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Target employee ID or assignee_ids is required',
+                ], 422);
+            }
+
+            $this->taskService->syncAssignees($id, $newAssignees, $currentPerformerId);
+            $updatedTask = $this->taskService->getTaskDetail($id);
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Task reassigned successfully',
+                'data'    => $updatedTask,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Failed to reassign task: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 }

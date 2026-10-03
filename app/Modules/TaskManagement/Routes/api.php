@@ -12,6 +12,10 @@ use App\Modules\TaskManagement\Controllers\MasterDataController;
 $registerRoutes = function () {
     // 0. Dashboard & Metrics Endpoints
     Route::get('/dashboard/summary', [DashboardController::class, 'getSummary']);
+    Route::get('/dashboard/team-view', [DashboardController::class, 'getTeamView']);
+    Route::get('/dashboard/team-view/{employeeId}', [DashboardController::class, 'getEmployeeTeamView']);
+    Route::get('/team-view', [DashboardController::class, 'getTeamView']);
+    Route::get('/team-view/{employeeId}', [DashboardController::class, 'getEmployeeTeamView']);
 
     // 1. Task Core Endpoints
     Route::get('/tasks', [TaskController::class, 'index']);
@@ -21,6 +25,7 @@ $registerRoutes = function () {
     Route::put('/tasks/{id}', [TaskController::class, 'update']);
     Route::delete('/tasks/{id}', [TaskController::class, 'destroy']);
     Route::post('/tasks/{id}/status', [TaskController::class, 'updateStatus']);
+    Route::post('/tasks/{id}/reassign', [TaskController::class, 'reassign']);
 
     // 2. Hierarchy Endpoints (Workspaces, Spaces, Folders, Lists)
     Route::get('/workspaces', [HierarchyController::class, 'getWorkspaces']);
