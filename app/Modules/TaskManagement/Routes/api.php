@@ -62,6 +62,13 @@ $registerRoutes = function () {
     Route::get('/master/tags', [MasterDataController::class, 'getTags']);
     Route::get('/master/departments', [MasterDataController::class, 'getDepartments']);
     Route::get('/master/employees', [MasterDataController::class, 'getEmployees']);
+    Route::post('/master/employees', [MasterDataController::class, 'createEmployee']);
+    Route::get('/master/employees/{id}', [MasterDataController::class, 'getEmployee']);
+
+    // Direct Employee Endpoints alias
+    Route::get('/employees', [MasterDataController::class, 'getEmployees']);
+    Route::post('/employees', [MasterDataController::class, 'createEmployee']);
+    Route::get('/employees/{id}', [MasterDataController::class, 'getEmployee']);
 };
 
 Route::prefix('v1/task-management')->middleware('auth:sanctum')->group($registerRoutes);
