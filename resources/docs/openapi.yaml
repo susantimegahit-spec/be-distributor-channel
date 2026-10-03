@@ -1318,6 +1318,126 @@ paths:
         '200':
           description: Daftar departemen HRIS berhasil diambil.
 
+  /task-management/master/positions:
+    get:
+      summary: Master Posisi / Jabatan Karyawan HRIS
+      description: Mengambil daftar posisi/jabatan aktif dari tabel hris_positions terurut berdasarkan level grade.
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          description: Pencarian nama atau kode posisi
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Daftar posisi berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HrisPosition'
+    post:
+      summary: Tambah Posisi / Jabatan Baru
+      description: Menambahkan master jabatan baru ke tabel hris_positions.
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - position_name
+              properties:
+                position_name:
+                  type: string
+                  example: "Technical Lead"
+                position_code:
+                  type: string
+                  example: "TECH_LEAD"
+                level_grade:
+                  type: integer
+                  example: 4
+                description:
+                  type: string
+                  example: "Memimpin arsitektur teknis"
+                is_active:
+                  type: boolean
+                  default: true
+      responses:
+        '201':
+          description: Posisi berhasil dibuat.
+
+  /task-management/master/positions/{id}:
+    get:
+      summary: Detail Posisi / Jabatan
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail posisi berhasil diambil.
+        '404':
+          description: Posisi tidak ditemukan.
+
+  /task-management/positions:
+    get:
+      summary: Master Posisi / Jabatan (Direct Alias)
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar posisi berhasil diambil.
+    post:
+      summary: Tambah Posisi / Jabatan (Direct Alias)
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      responses:
+        '201':
+          description: Posisi berhasil dibuat.
+
+  /task-management/positions/{id}:
+    get:
+      summary: Detail Posisi / Jabatan (Direct Alias)
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail posisi berhasil diambil.
+
   /task-management/master/employees:
     get:
       summary: Master Karyawan HRIS (Dropdown Assignee Picker)
@@ -23106,6 +23226,30 @@ components:
             position_name:
               type: string
               example: "Staff"
+
+    HrisPosition:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        position_code:
+          type: string
+          example: "STAFF"
+        position_name:
+          type: string
+          example: "Staff"
+        level_grade:
+          type: integer
+          example: 1
+        description:
+          type: string
+          nullable: true
+          example: "Staff pelaksana"
+        is_active:
+          type: boolean
+          example: true
+
 
 
 

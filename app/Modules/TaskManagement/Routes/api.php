@@ -66,11 +66,17 @@ $registerRoutes = function () {
     Route::get('/master/task-types', [MasterDataController::class, 'getTaskTypes']);
     Route::get('/master/tags', [MasterDataController::class, 'getTags']);
     Route::get('/master/departments', [MasterDataController::class, 'getDepartments']);
+    Route::get('/master/positions', [MasterDataController::class, 'getPositions']);
+    Route::post('/master/positions', [MasterDataController::class, 'createPosition']);
+    Route::get('/master/positions/{id}', [MasterDataController::class, 'getPosition']);
     Route::get('/master/employees', [MasterDataController::class, 'getEmployees']);
     Route::post('/master/employees', [MasterDataController::class, 'createEmployee']);
     Route::get('/master/employees/{id}', [MasterDataController::class, 'getEmployee']);
 
-    // Direct Employee Endpoints alias
+    // Direct Position & Employee Endpoints alias
+    Route::get('/positions', [MasterDataController::class, 'getPositions']);
+    Route::post('/positions', [MasterDataController::class, 'createPosition']);
+    Route::get('/positions/{id}', [MasterDataController::class, 'getPosition']);
     Route::get('/employees', [MasterDataController::class, 'getEmployees']);
     Route::post('/employees', [MasterDataController::class, 'createEmployee']);
     Route::get('/employees/{id}', [MasterDataController::class, 'getEmployee']);

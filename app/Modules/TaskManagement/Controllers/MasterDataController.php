@@ -69,6 +69,102 @@ class MasterDataController extends Controller
         return response()->json(['status' => 'success', 'data' => $departments]);
     }
 
+    public function getPositions(Request $request): JsonResponse
+    {
+        $query = HrisPosition::where('is_active', true);
+
+        if ($request->query('search')) {
+            $search = '%' . $request->query('search') . '%';
+            $query->where(function ($q) use ($search) {
+                $q->where('position_name', 'like', $search)
+                  ->orWhere('position_code', 'like', $search);
+            });
+        }
+
+        $positions = $query->orderBy('level_grade', 'desc')->orderBy('position_name', 'asc')->get();
+
+        if ($positions->isEmpty()) {
+            $defaults = [
+                ['position_code' => 'DIR', 'position_name' => 'Direktur', 'level_grade' => 7],
+                ['position_code' => 'GM', 'position_name' => 'General Manager', 'level_grade' => 6],
+                ['position_code' => 'MGR', 'position_name' => 'Manager Departemen', 'level_grade' => 5],
+                ['position_code' => 'AMGR', 'position_name' => 'Assistant Manager', 'level_grade' => 4],
+                ['position_code' => 'SPV', 'position_name' => 'Supervisor', 'level_grade' => 3],
+                ['position_code' => 'SR_STAFF', 'position_name' => 'Senior Staff', 'level_grade' => 2],
+                ['position_code' => 'STAFF', 'position_name' => 'Staff / Pelaksana', 'level_grade' => 1],
+            ];
+            foreach ($defaults as $pos) {
+                HrisPosition::firstOrCreate(['position_code' => $pos['position_code']], $pos);
+            }
+            $positions = HrisPosition::where('is_active', true)->orderBy('level_grade', 'desc')->orderBy('position_name', 'asc')->get();
+        }
+
+        return response()->json(['status' => 'success', 'data' => $positions]);
+    }
+
+    public function getPosition(int $id): JsonResponse
+    {
+        $position = HrisPosition::find($id);
+        if (!$position) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Position not found',
+            ], 404);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $position,
+        ]);
+    }
+
+    public function createPosition(Request $request): JsonResponse
+    {
+        $posCode = trim(strtoupper((string)($request->input('position_code') ?? $request->input('code') ?? '')));
+        $posName = trim((string)($request->input('position_name') ?? $request->input('name') ?? ''));
+
+        if (empty($posName)) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Validation error',
+                'errors'  => ['position_name' => ['The position_name or name field is required.']],
+            ], 422);
+        }
+
+        if (empty($posCode)) {
+            $posCode = strtoupper(Str::slug($posName, '_'));
+        }
+
+        if (HrisPosition::where('position_code', $posCode)->exists()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Validation error',
+                'errors'  => ['position_code' => ['The position_code has already been taken.']],
+            ], 422);
+        }
+
+        try {
+            $position = HrisPosition::create([
+                'position_code' => $posCode,
+                'position_name' => $posName,
+                'level_grade'   => $request->input('level_grade', 1),
+                'description'   => $request->input('description'),
+                'is_active'     => $request->boolean('is_active', true),
+            ]);
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Position created successfully',
+                'data'    => $position,
+            ], 201);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Failed to create position: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function getEmployees(Request $request): JsonResponse
     {
         $departmentId = $request->query('department_id');
