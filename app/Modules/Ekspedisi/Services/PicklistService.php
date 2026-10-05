@@ -1009,80 +1009,59 @@ class PicklistService
             throw new \Exception("No valid sales orders to generate Delivery Order.", 400);
         }
 
-        try {
-            $response = Http::timeout(60)->post("{$sapUrl}/api/AddDO", $batchPayload);
-        } catch (\Throwable $e) {
-            Log::error("Failed to connect to SAP /api/AddDO for Picklist #{$picklistId}: " . $e->getMessage(), ['payload' => $batchPayload]);
-            throw new \Exception("Failed to connect to SAP API for Delivery Order: " . $e->getMessage(), 400);
-        }
-
-        if (!$response->successful()) {
-            $status = $response->status();
-            $body = $response->body();
-            Log::error("SAP /api/AddDO returned HTTP {$status} for Picklist #{$picklistId}: {$body}");
-            throw new \Exception("Failed to process Delivery Order in SAP (HTTP {$status}): " . substr($body, 0, 250), 400);
-        }
-
-        $result = $response->json();
-        if (isset($result['ErrorCode']) && (int) $result['ErrorCode'] !== 0) {
-            $errMsg = $result['Message'] ?? 'Unknown SAP error during Delivery Order.';
-            Log::error("SAP /api/AddDO returned ErrorCode {$result['ErrorCode']} for Picklist #{$picklistId}: {$errMsg}");
-            throw new \Exception("SAP Delivery Order Error [{$result['ErrorCode']}]: {$errMsg}", 400);
-        }
-
-        // Parse result for each document
-        $rawResult = $result['Result'] ?? $result['result'] ?? null;
-        $msg = $result['Message'] ?? $result['message'] ?? '';
-
-        $allDocNumsFromMsg = [];
-        $allDocEntriesFromMsg = [];
-        if (!empty($msg)) {
-            if (preg_match_all('/DocNum(?:s)?:\s*([A-Za-z0-9_-]+)/i', $msg, $mNums)) {
-                $allDocNumsFromMsg = $mNums[1];
-            }
-            if (preg_match_all('/DocEntr(?:y|ies):\s*([0-9]+(?:,\s*[0-9]+)*)/i', $msg, $mEntries)) {
-                foreach ($mEntries[1] as $entryGroup) {
-                    foreach (explode(',', $entryGroup) as $singleEntry) {
-                        $val = trim($singleEntry);
-                        if ($val !== '') {
-                            $allDocEntriesFromMsg[] = $val;
-                        }
-                    }
-                }
-            }
-        }
+        $sapUrl = rtrim(config('services.sap.url') ?: env('SAP_API_URL', 'http://103.18.133.187:3100'), '/');
 
         $resultsPerOrder = [];
         $latestDocNum = null;
         $latestDocEntry = null;
 
-        foreach ($orderContexts as $index => $ctx) {
+        // Post each Delivery Order document as a single object to SAP B1 /api/AddDO
+        foreach ($batchPayload as $index => $headerObj) {
+            $ctx = $orderContexts[$index];
             $so = $ctx['so'];
-            $docEntry = null;
+
+            try {
+                $response = Http::timeout(60)->post("{$sapUrl}/api/AddDO", $headerObj);
+            } catch (\Throwable $e) {
+                Log::error("Failed to connect to SAP /api/AddDO for Picklist #{$picklistId}: " . $e->getMessage(), ['payload' => $headerObj]);
+                throw new \Exception("Failed to connect to SAP API for Delivery Order: " . $e->getMessage(), 400);
+            }
+
+            if (!$response->successful()) {
+                $status = $response->status();
+                $body = $response->body();
+                Log::error("SAP /api/AddDO returned HTTP {$status} for Picklist #{$picklistId}: {$body}");
+                throw new \Exception("Failed to process Delivery Order in SAP (HTTP {$status}): " . substr($body, 0, 250), 400);
+            }
+
+            $result = $response->json();
+            if (isset($result['ErrorCode']) && (int) $result['ErrorCode'] !== 0) {
+                $errMsg = $result['Message'] ?? 'Unknown SAP error during Delivery Order.';
+                Log::error("SAP /api/AddDO returned ErrorCode {$result['ErrorCode']} for Picklist #{$picklistId}: {$errMsg}");
+                throw new \Exception("SAP Delivery Order Error [{$result['ErrorCode']}]: {$errMsg}", 400);
+            }
+
+            $rawResult = $result['Result'] ?? $result['result'] ?? null;
+            $msg = $result['Message'] ?? $result['message'] ?? '';
+
             $docNum = null;
+            $docEntry = null;
 
             if (is_array($rawResult)) {
-                if (isset($rawResult[$index])) {
-                    $itemRes = $rawResult[$index];
-                    if (is_array($itemRes)) {
-                        $docEntry = $itemRes['DocEntry'] ?? $itemRes['doc_entry'] ?? null;
-                        $docNum   = $itemRes['DocNum'] ?? $itemRes['doc_num'] ?? null;
-                    } elseif (is_numeric($itemRes) || is_string($itemRes)) {
-                        $docEntry = (string) $itemRes;
-                    }
-                } elseif ($index === 0 && isset($rawResult['DocEntry'])) {
-                    $docEntry = $rawResult['DocEntry'] ?? $rawResult['doc_entry'] ?? null;
-                    $docNum   = $rawResult['DocNum'] ?? $rawResult['doc_num'] ?? null;
-                }
+                $docEntry = $rawResult['DocEntry'] ?? $rawResult['doc_entry'] ?? null;
+                $docNum   = $rawResult['DocNum'] ?? $rawResult['doc_num'] ?? null;
             } elseif (is_numeric($rawResult) || is_string($rawResult)) {
                 $docEntry = (string) $rawResult;
             }
 
-            if (!$docNum && isset($allDocNumsFromMsg[$index])) {
-                $docNum = $allDocNumsFromMsg[$index];
-            }
-            if (!$docEntry && isset($allDocEntriesFromMsg[$index])) {
-                $docEntry = $allDocEntriesFromMsg[$index];
+            if (!empty($msg)) {
+                if (!$docNum && preg_match('/DocNum(?:s)?:\s*([A-Za-z0-9_-]+)/i', $msg, $mNums)) {
+                    $docNum = $mNums[1];
+                }
+                if (!$docEntry && preg_match('/DocEntr(?:y|ies):\s*([0-9]+(?:,\s*[0-9]+)*)/i', $msg, $mEntries)) {
+                    $matchedEntries = explode(',', $mEntries[1]);
+                    $docEntry = trim($matchedEntries[0]);
+                }
             }
 
             $docNum   = $docNum ? (string) $docNum : ($docEntry ? (string) $docEntry : 'PROCESSED');
@@ -1367,9 +1346,8 @@ class PicklistService
                 $sapDoc['Noseal'] = $noseal;
             }
 
-            $cardCode = $header['CardCode'] ?? $header['card_code'] ?? ($so?->card_code ?: null);
-            if (!empty($cardCode)) {
-                $sapDoc['CardCode'] = (string) $cardCode;
+            if (!empty($header['CardCode']) || !empty($header['card_code'])) {
+                $sapDoc['CardCode'] = (string) ($header['CardCode'] ?? $header['card_code']);
             }
 
             $batchPayload[] = $sapDoc;
@@ -1382,80 +1360,58 @@ class PicklistService
 
         $sapUrl = rtrim(config('services.sap.url') ?: env('SAP_API_URL', 'http://103.18.133.187:3100'), '/');
 
-        try {
-            $response = Http::timeout(60)->post("{$sapUrl}/api/AddDO", $batchPayload);
-        } catch (\Throwable $e) {
-            Log::error("Failed to connect to SAP /api/AddDO: " . $e->getMessage(), ['payload' => $batchPayload]);
-            throw new \Exception("Failed to connect to SAP API for Delivery Order: " . $e->getMessage(), 400);
-        }
-
-        if (!$response->successful()) {
-            $status = $response->status();
-            $body = $response->body();
-            Log::error("SAP /api/AddDO returned HTTP {$status}: {$body}");
-            throw new \Exception("Failed to process Delivery Order in SAP (HTTP {$status}): " . substr($body, 0, 250), 400);
-        }
-
-        $result = $response->json();
-        if (isset($result['ErrorCode']) && (int) $result['ErrorCode'] !== 0) {
-            $errMsg = $result['Message'] ?? 'Unknown SAP error during Delivery Order.';
-            Log::error("SAP /api/AddDO returned ErrorCode {$result['ErrorCode']}: {$errMsg}");
-            throw new \Exception("SAP Delivery Order Error [{$result['ErrorCode']}]: {$errMsg}", 400);
-        }
-
-        $rawResult = $result['Result'] ?? $result['result'] ?? null;
-        $msg = $result['Message'] ?? $result['message'] ?? '';
-
-        $allDocNumsFromMsg = [];
-        $allDocEntriesFromMsg = [];
-        if (!empty($msg)) {
-            if (preg_match_all('/DocNum(?:s)?:\s*([A-Za-z0-9_-]+)/i', $msg, $mNums)) {
-                $allDocNumsFromMsg = $mNums[1];
-            }
-            if (preg_match_all('/DocEntr(?:y|ies):\s*([0-9]+(?:,\s*[0-9]+)*)/i', $msg, $mEntries)) {
-                foreach ($mEntries[1] as $entryGroup) {
-                    foreach (explode(',', $entryGroup) as $singleEntry) {
-                        $val = trim($singleEntry);
-                        if ($val !== '') {
-                            $allDocEntriesFromMsg[] = $val;
-                        }
-                    }
-                }
-            }
-        }
-
         $processedDocs = [];
         $latestDocNum = null;
         $latestDocEntry = null;
         $firstSo = null;
         $firstPicklist = null;
+        $lastResult = null;
 
-        foreach ($batchPayload as $index => $docPayload) {
-            $docEntry = null;
+        // SAP B1 /api/AddDO expects a single document object model (not an array)
+        foreach ($batchPayload as $index => $sapDoc) {
+            try {
+                $response = Http::timeout(60)->post("{$sapUrl}/api/AddDO", $sapDoc);
+            } catch (\Throwable $e) {
+                Log::error("Failed to connect to SAP /api/AddDO: " . $e->getMessage(), ['payload' => $sapDoc]);
+                throw new \Exception("Failed to connect to SAP API for Delivery Order: " . $e->getMessage(), 400);
+            }
+
+            if (!$response->successful()) {
+                $status = $response->status();
+                $body = $response->body();
+                Log::error("SAP /api/AddDO returned HTTP {$status}: {$body}");
+                throw new \Exception("Failed to process Delivery Order in SAP (HTTP {$status}): " . substr($body, 0, 250), 400);
+            }
+
+            $result = $response->json();
+            $lastResult = $result;
+
+            if (isset($result['ErrorCode']) && (int) $result['ErrorCode'] !== 0) {
+                $errMsg = $result['Message'] ?? 'Unknown SAP error during Delivery Order.';
+                Log::error("SAP /api/AddDO returned ErrorCode {$result['ErrorCode']}: {$errMsg}");
+                throw new \Exception("SAP Delivery Order Error [{$result['ErrorCode']}]: {$errMsg}", 400);
+            }
+
+            $rawResult = $result['Result'] ?? $result['result'] ?? null;
+            $msg = $result['Message'] ?? $result['message'] ?? '';
+
             $docNum = null;
+            $docEntry = null;
 
             if (is_array($rawResult)) {
-                if (isset($rawResult[$index])) {
-                    $itemRes = $rawResult[$index];
-                    if (is_array($itemRes)) {
-                        $docEntry = $itemRes['DocEntry'] ?? $itemRes['doc_entry'] ?? null;
-                        $docNum   = $itemRes['DocNum'] ?? $itemRes['doc_num'] ?? null;
-                    } elseif (is_numeric($itemRes) || is_string($itemRes)) {
-                        $docEntry = (string) $itemRes;
-                    }
-                } elseif ($index === 0 && isset($rawResult['DocEntry'])) {
-                    $docEntry = $rawResult['DocEntry'] ?? $rawResult['doc_entry'] ?? null;
-                    $docNum   = $rawResult['DocNum'] ?? $rawResult['doc_num'] ?? null;
-                }
+                $docEntry = $rawResult['DocEntry'] ?? $rawResult['doc_entry'] ?? null;
+                $docNum   = $rawResult['DocNum'] ?? $rawResult['doc_num'] ?? null;
             } elseif (is_numeric($rawResult) || is_string($rawResult)) {
                 $docEntry = (string) $rawResult;
             }
 
-            if (!$docNum && isset($allDocNumsFromMsg[$index])) {
-                $docNum = $allDocNumsFromMsg[$index];
-            }
-            if (!$docEntry && isset($allDocEntriesFromMsg[$index])) {
-                $docEntry = $allDocEntriesFromMsg[$index];
+            if (!empty($msg)) {
+                if (!$docNum && preg_match('/DocNum(?:s)?:\s*([A-Za-z0-9_-]+)/i', $msg, $mNum)) {
+                    $docNum = $mNum[1];
+                }
+                if (!$docEntry && preg_match('/DocEntr(?:y|ies):\s*([0-9]+)/i', $msg, $mEntry)) {
+                    $docEntry = $mEntry[1];
+                }
             }
 
             $docNum   = $docNum ? (string) $docNum : ($docEntry ? (string) $docEntry : 'PROCESSED');
@@ -1470,15 +1426,15 @@ class PicklistService
             if (!$so && !empty($meta['raw']['sales_order_id'])) {
                 $so = SalesOrder::find($meta['raw']['sales_order_id']);
             }
-            if (!$so && !empty($docPayload['Lines'][0]['BaseEntry'])) {
-                $baseEntry = $docPayload['Lines'][0]['BaseEntry'];
+            if (!$so && !empty($sapDoc['Lines'][0]['BaseEntry'])) {
+                $baseEntry = $sapDoc['Lines'][0]['BaseEntry'];
                 $so = SalesOrder::where('sap_doc_entry', is_numeric($baseEntry) ? (int)$baseEntry : 0)
                     ->orWhere('docentry', is_numeric($baseEntry) ? (int)$baseEntry : 0)
                     ->first();
             }
-            if (!$so && !empty($docPayload['NumAtCard'])) {
-                $so = SalesOrder::where('po_number', $docPayload['NumAtCard'])
-                    ->orWhere('order_no', $docPayload['NumAtCard'])
+            if (!$so && !empty($sapDoc['NumAtCard'])) {
+                $so = SalesOrder::where('po_number', $sapDoc['NumAtCard'])
+                    ->orWhere('order_no', $sapDoc['NumAtCard'])
                     ->first();
             }
 
@@ -1547,7 +1503,7 @@ class PicklistService
             'sales_order_id'    => $firstSo?->id,
             'picklist_id'       => $firstPicklist?->id,
             'documents'         => $processedDocs,
-            'response'          => $result,
+            'response'          => $lastResult,
         ];
     }
 
