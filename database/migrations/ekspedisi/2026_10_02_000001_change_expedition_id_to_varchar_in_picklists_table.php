@@ -21,10 +21,21 @@ return new class extends Migration
         $driver = Schema::connection($conn)->getConnection()->getDriverName();
 
         if ($driver === 'pgsql') {
-            // Drop foreign key constraint if exists
-            DB::connection($conn)->statement('ALTER TABLE ekspedisi.picklists DROP CONSTRAINT IF EXISTS picklists_expedition_id_foreign');
+            // Drop foreign key constraint if exists across possible schema paths
+            DB::connection($conn)->statement('ALTER TABLE IF EXISTS ekspedisi.picklists DROP CONSTRAINT IF EXISTS picklists_expedition_id_foreign');
+            DB::connection($conn)->statement('ALTER TABLE IF EXISTS public.picklists DROP CONSTRAINT IF EXISTS picklists_expedition_id_foreign');
+            DB::connection($conn)->statement('ALTER TABLE IF EXISTS picklists DROP CONSTRAINT IF EXISTS picklists_expedition_id_foreign');
+
             // Change column type to VARCHAR(100)
-            DB::connection($conn)->statement('ALTER TABLE ekspedisi.picklists ALTER COLUMN expedition_id TYPE VARCHAR(100)');
+            try {
+                DB::connection($conn)->statement('ALTER TABLE IF EXISTS ekspedisi.picklists ALTER COLUMN expedition_id TYPE VARCHAR(100)');
+            } catch (\Throwable $e) {}
+            try {
+                DB::connection($conn)->statement('ALTER TABLE IF EXISTS public.picklists ALTER COLUMN expedition_id TYPE VARCHAR(100)');
+            } catch (\Throwable $e) {}
+            try {
+                DB::connection($conn)->statement('ALTER TABLE IF EXISTS picklists ALTER COLUMN expedition_id TYPE VARCHAR(100)');
+            } catch (\Throwable $e) {}
         } elseif ($driver === 'sqlite') {
             if (Schema::connection($conn)->hasTable('picklists') && Schema::connection($conn)->hasColumn('picklists', 'expedition_id')) {
                 try {

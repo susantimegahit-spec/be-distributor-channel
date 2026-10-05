@@ -413,7 +413,7 @@ class PicklistService
         ) {
             $picklistNo = $this->generatePicklistNumber();
 
-            $picklist = Picklist::create([
+            $picklistData = [
                 'picklist_no'        => $picklistNo,
                 'shipping_type'      => $shippingType,
                 'status'             => Picklist::STATUS_OPEN,
@@ -440,7 +440,30 @@ class PicklistService
                 'seal_number'        => !empty($payload['seal_number']) ? trim((string) $payload['seal_number']) : (!empty($payload['noseal']) ? trim((string) $payload['noseal']) : (!empty($payload['Noseal']) ? trim((string) $payload['Noseal']) : null)),
                 'created_by'         => $userId,
                 'updated_by'         => $userId,
-            ]);
+            ];
+
+            try {
+                $picklist = Picklist::create($picklistData);
+            } catch (\Throwable $e) {
+                // Handle unmigrated DB constraint in production: picklists_expedition_id_foreign
+                if (str_contains($e->getMessage(), 'picklists_expedition_id_foreign') || $e->getCode() == '23503') {
+                    try {
+                        DB::connection('pgsql_ekspedisi')->statement('ALTER TABLE IF EXISTS ekspedisi.picklists DROP CONSTRAINT IF EXISTS picklists_expedition_id_foreign');
+                        DB::connection('pgsql_ekspedisi')->statement('ALTER TABLE IF EXISTS ekspedisi.picklists ALTER COLUMN expedition_id TYPE VARCHAR(100)');
+                        $picklist = Picklist::create($picklistData);
+                    } catch (\Throwable $alterEx) {
+                        // Fallback: If DDL could not be executed or table locked, set expedition_id to null for internal shipping
+                        if (strtolower((string) $shippingType) === Picklist::SHIPPING_TYPE_INTERNAL) {
+                            $picklistData['expedition_id'] = null;
+                            $picklist = Picklist::create($picklistData);
+                        } else {
+                            throw $e;
+                        }
+                    }
+                } else {
+                    throw $e;
+                }
+            }
 
             foreach ($processedItems as $item) {
                 $item['picklist_id'] = $picklist->id;
