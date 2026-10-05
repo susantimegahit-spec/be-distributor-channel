@@ -763,7 +763,25 @@ class PicklistService
             // Validasi BaseEntry dari Sales Order
             $baseEntry = $so->docentry ?: $so->sap_doc_entry;
             if (empty($baseEntry)) {
+                $baseEntry = $payload['BaseEntry'] ?? $payload['base_entry'] ?? $payload['DocEntry'] ?? $payload['doc_entry'] ?? null;
+            }
+            if (empty($baseEntry) && !empty($payload['Lines'][0])) {
+                $baseEntry = $payload['Lines'][0]['BaseEntry'] ?? $payload['Lines'][0]['base_entry'] ?? null;
+            }
+            if (empty($baseEntry) && !empty($payload['lines'][0])) {
+                $baseEntry = $payload['lines'][0]['BaseEntry'] ?? $payload['lines'][0]['base_entry'] ?? null;
+            }
+            if (empty($baseEntry) && !empty($so->sap_doc_num)) {
+                $baseEntry = $so->sap_doc_num;
+            }
+            if (empty($baseEntry)) {
                 throw new \Exception("Sales Order #{$so->order_no} belum memiliki DocEntry (belum approved / terintegrasi ke SAP). Tidak bisa Add DO.", 400);
+            }
+
+            if ($so && $so->docentry === null) {
+                try {
+                    $so->update(['docentry' => (int) $baseEntry, 'sap_doc_entry' => (string) $baseEntry]);
+                } catch (\Throwable $e) {}
             }
 
             $soDetails = $so->details ? $so->details->sortBy('id')->values() : collect();
@@ -773,7 +791,7 @@ class PicklistService
             $customLines = $payload['Lines'] ?? $payload['lines'] ?? null;
 
             if (is_array($customLines) && !empty($customLines)) {
-                foreach ($customLines as $cLine) {
+                foreach ($customLines as $lineIdx => $cLine) {
                     $qty = floatval($cLine['Quantity'] ?? $cLine['quantity'] ?? 0);
                     if ($qty <= 0) {
                         continue;
@@ -786,7 +804,9 @@ class PicklistService
                         $matchedDetail = $soDetails->firstWhere('id', (int) $cLine['sales_order_detail_id']);
                     }
                     if (!$matchedDetail && !empty($itemCode)) {
-                        $matchedDetail = $soDetails->firstWhere('item_code', $itemCode);
+                        $matchedDetail = $soDetails->first(function ($d) use ($itemCode) {
+                            return strtolower(trim((string)$d->item_code)) === strtolower(trim($itemCode));
+                        });
                     }
                     if (!$matchedDetail && isset($cLine['BaseLine'])) {
                         $matchedDetail = $soDetails->firstWhere('baseline', (int) $cLine['BaseLine']);
@@ -794,22 +814,45 @@ class PicklistService
                     if (!$matchedDetail && isset($cLine['baseline'])) {
                         $matchedDetail = $soDetails->firstWhere('baseline', (int) $cLine['baseline']);
                     }
-
-                    if (!$matchedDetail) {
-                        throw new \Exception("Item '{$itemCode}' tidak ditemukan pada detail Sales Order #{$so->order_no}.", 400);
+                    if (!$matchedDetail && isset($soDetails[$lineIdx])) {
+                        $matchedDetail = $soDetails[$lineIdx];
                     }
 
-                    if ($matchedDetail->baseline === null) {
-                        throw new \Exception("Item '{$matchedDetail->item_code}' pada Sales Order #{$so->order_no} belum memiliki BaseLine di database. Tidak bisa Add DO.", 400);
+                    // Resolve line BaseLine safely (fallback to line index if null)
+                    $lineBaseLine = null;
+                    if (isset($cLine['BaseLine']) && $cLine['BaseLine'] !== '' && $cLine['BaseLine'] !== null) {
+                        $lineBaseLine = (int) $cLine['BaseLine'];
+                    } elseif (isset($cLine['baseline']) && $cLine['baseline'] !== '' && $cLine['baseline'] !== null) {
+                        $lineBaseLine = (int) $cLine['baseline'];
+                    } elseif ($matchedDetail && $matchedDetail->baseline !== null) {
+                        $lineBaseLine = (int) $matchedDetail->baseline;
+                    } elseif ($matchedDetail && $matchedDetail->line_num !== null) {
+                        $lineBaseLine = (int) $matchedDetail->line_num;
+                    } else {
+                        $dIndex = $matchedDetail ? $soDetails->search(fn($d) => $d->id === $matchedDetail->id) : false;
+                        $lineBaseLine = ($dIndex !== false) ? (int) $dIndex : (int) $lineIdx;
                     }
+
+                    // Auto-backfill to DB
+                    if ($matchedDetail && $matchedDetail->baseline === null) {
+                        try {
+                            $matchedDetail->update(['baseline' => $lineBaseLine, 'line_num' => $lineBaseLine]);
+                        } catch (\Throwable $e) {}
+                    }
+
+                    $lineBaseEntry = (isset($cLine['BaseEntry']) && $cLine['BaseEntry'] !== '' && $cLine['BaseEntry'] !== null)
+                        ? (int) $cLine['BaseEntry']
+                        : ((isset($cLine['base_entry']) && $cLine['base_entry'] !== '' && $cLine['base_entry'] !== null)
+                            ? (int) $cLine['base_entry']
+                            : (int) $baseEntry);
 
                     $lineObj = [
-                        'BaseEntry' => (int) $baseEntry,
-                        'BaseLine'  => (int) $matchedDetail->baseline,
+                        'BaseEntry' => $lineBaseEntry,
+                        'BaseLine'  => $lineBaseLine,
                         'Quantity'  => $qty,
                     ];
 
-                    $whsCode = $cLine['WhsCode'] ?? $cLine['whs_code'] ?? ($matchedDetail?->whs_code ?: null);
+                    $whsCode = $cLine['WhsCode'] ?? $cLine['whs_code'] ?? ($matchedDetail?->whs_code ?: '01');
                     if (!empty($whsCode)) {
                         $lineObj['WhsCode'] = (string) $whsCode;
                     }
@@ -831,7 +874,7 @@ class PicklistService
                     $lines[] = $lineObj;
                 }
             } else {
-                foreach ($items as $item) {
+                foreach ($items as $lineIdx => $item) {
                     $itemCode = trim((string) $item->item_code);
                     $qty = floatval($item->pick_qty);
                     if (empty($itemCode) || $qty <= 0) {
@@ -843,24 +886,37 @@ class PicklistService
                         $detail = $soDetails->firstWhere('id', (int) $item->sales_order_detail_id);
                     }
                     if (!$detail) {
-                        $detail = $soDetails->firstWhere('item_code', $itemCode);
+                        $detail = $soDetails->first(function ($d) use ($itemCode) {
+                            return strtolower(trim((string)$d->item_code)) === strtolower(trim($itemCode));
+                        });
+                    }
+                    if (!$detail && isset($soDetails[$lineIdx])) {
+                        $detail = $soDetails[$lineIdx];
                     }
 
-                    if (!$detail) {
-                        throw new \Exception("Item '{$itemCode}' tidak ditemukan pada detail Sales Order #{$so->order_no}.", 400);
+                    $lineBaseLine = null;
+                    if ($detail && $detail->baseline !== null) {
+                        $lineBaseLine = (int) $detail->baseline;
+                    } elseif ($detail && $detail->line_num !== null) {
+                        $lineBaseLine = (int) $detail->line_num;
+                    } else {
+                        $dIndex = $detail ? $soDetails->search(fn($d) => $d->id === $detail->id) : false;
+                        $lineBaseLine = ($dIndex !== false) ? (int) $dIndex : (int) $lineIdx;
                     }
 
-                    if ($detail->baseline === null) {
-                        throw new \Exception("Item '{$detail->item_code}' pada Sales Order #{$so->order_no} belum memiliki BaseLine di database. Tidak bisa Add DO.", 400);
+                    if ($detail && $detail->baseline === null) {
+                        try {
+                            $detail->update(['baseline' => $lineBaseLine, 'line_num' => $lineBaseLine]);
+                        } catch (\Throwable $e) {}
                     }
 
                     $lineObj = [
                         'BaseEntry' => (int) $baseEntry,
-                        'BaseLine'  => (int) $detail->baseline,
+                        'BaseLine'  => $lineBaseLine,
                         'Quantity'  => $qty,
                     ];
 
-                    $whsCode = $item->whs_code ?: ($detail?->whs_code ?: null);
+                    $whsCode = $item->whs_code ?: ($detail?->whs_code ?: '01');
                     if (!empty($whsCode)) {
                         $lineObj['WhsCode'] = (string) $whsCode;
                     }
@@ -930,6 +986,7 @@ class PicklistService
                 'NamaChecker'   => $checker,
                 'AddonId'       => 2,
                 'UserId'        => (string) ($userId ?: ($payload['UserId'] ?? $payload['user_id'] ?? '1')),
+                'Container'     => (string) ($payload['Container'] ?? $payload['container'] ?? ''),
                 'Lines'         => $lines,
             ];
 
@@ -980,11 +1037,18 @@ class PicklistService
         $allDocNumsFromMsg = [];
         $allDocEntriesFromMsg = [];
         if (!empty($msg)) {
-            if (preg_match_all('/DocNum:\s*([A-Za-z0-9_-]+)/i', $msg, $mNums)) {
+            if (preg_match_all('/DocNum(?:s)?:\s*([A-Za-z0-9_-]+)/i', $msg, $mNums)) {
                 $allDocNumsFromMsg = $mNums[1];
             }
-            if (preg_match_all('/DocEntry:\s*(\d+)/i', $msg, $mEntries)) {
-                $allDocEntriesFromMsg = $mEntries[1];
+            if (preg_match_all('/DocEntr(?:y|ies):\s*([0-9]+(?:,\s*[0-9]+)*)/i', $msg, $mEntries)) {
+                foreach ($mEntries[1] as $entryGroup) {
+                    foreach (explode(',', $entryGroup) as $singleEntry) {
+                        $val = trim($singleEntry);
+                        if ($val !== '') {
+                            $allDocEntriesFromMsg[] = $val;
+                        }
+                    }
+                }
             }
         }
 
@@ -1102,23 +1166,35 @@ class PicklistService
     {
         // Support either single document payload or array of documents
         $isBatch = isset($payload[0]) && is_array($payload[0]);
-        $batchPayload = $isBatch ? $payload : [$payload];
+        $rawDocs = $isBatch ? $payload : [$payload];
 
-        foreach ($batchPayload as &$header) {
-            $header['AddonId'] = 2;
-            $header['UserId']  = (string) ($userId ?: ($header['UserId'] ?? $header['user_id'] ?? '1'));
+        $batchPayload = [];
+        $metaDocs = [];
 
+        foreach ($rawDocs as $header) {
             // 1. Resolve Sales Order
             $so = null;
             if (!empty($header['sales_order_id'])) {
                 $so = SalesOrder::with('details')->find($header['sales_order_id']);
+                if (!$so) {
+                    $so = SalesOrder::with('details')->where('sap_doc_entry', (int) $header['sales_order_id'])
+                        ->orWhere('docentry', (int) $header['sales_order_id'])
+                        ->first();
+                }
             }
             if (!$so && !empty($header['order_no'])) {
                 $so = SalesOrder::with('details')->where('order_no', $header['order_no'])->first();
             }
             if (!$so && !empty($header['NumAtCard'])) {
-                $so = SalesOrder::with('details')->where('order_no', $header['NumAtCard'])
-                    ->orWhere('po_number', $header['NumAtCard'])
+                $numAtCard = trim((string) $header['NumAtCard']);
+                $so = SalesOrder::with('details')->where('order_no', $numAtCard)
+                    ->orWhere('po_number', $numAtCard)
+                    ->first();
+            }
+            if (!$so && !empty($header['num_at_card'])) {
+                $numAtCard = trim((string) $header['num_at_card']);
+                $so = SalesOrder::with('details')->where('order_no', $numAtCard)
+                    ->orWhere('po_number', $numAtCard)
                     ->first();
             }
             if (!$so && !empty($header['picklist_id'])) {
@@ -1144,62 +1220,165 @@ class PicklistService
                 throw new \Exception("Payload DO tidak memiliki baris item (Lines).", 400);
             }
 
-            if ($so) {
-                $baseEntry = $so->docentry ?: $so->sap_doc_entry;
-                if (empty($baseEntry)) {
-                    throw new \Exception("Sales Order #{$so->order_no} belum memiliki DocEntry (belum approved / terintegrasi ke SAP). Tidak bisa Add DO.", 400);
-                }
-
-                $soDetails = $so->details ? $so->details->sortBy('id')->values() : collect();
-
-                foreach ($header[$linesKey] as &$line) {
-                    $itemCode = trim((string) ($line['ItemCode'] ?? $line['item_code'] ?? ''));
-                    $detail = null;
-
-                    if (!empty($line['sales_order_detail_id'])) {
-                        $detail = $soDetails->firstWhere('id', (int) $line['sales_order_detail_id']);
-                    }
-                    if (!$detail && !empty($itemCode)) {
-                        $detail = $soDetails->firstWhere('item_code', $itemCode);
-                    }
-                    if (!$detail && isset($line['BaseLine'])) {
-                        $detail = $soDetails->firstWhere('baseline', (int) $line['BaseLine']);
-                    }
-                    if (!$detail && isset($line['baseline'])) {
-                        $detail = $soDetails->firstWhere('baseline', (int) $line['baseline']);
-                    }
-
-                    if (!$detail) {
-                        throw new \Exception("Item '{$itemCode}' tidak ditemukan pada detail Sales Order #{$so->order_no}.", 400);
-                    }
-
-                    if ($detail->baseline === null) {
-                        throw new \Exception("Item '{$detail->item_code}' pada Sales Order #{$so->order_no} belum memiliki BaseLine di database. Tidak bisa Add DO.", 400);
-                    }
-
-                    $line['BaseEntry'] = (int) $baseEntry;
-                    $line['BaseLine']  = (int) $detail->baseline;
-                }
-                unset($line);
-
-                $header['sales_order_id'] = $so->id;
-            } else {
-                // Jika SO tidak ditemukan di database lokal, periksa apakah BaseEntry dan BaseLine terisi di payload
-                foreach ($header[$linesKey] as &$line) {
-                    $bEntry = $line['BaseEntry'] ?? $line['base_entry'] ?? null;
-                    $bLine  = $line['BaseLine'] ?? $line['base_line'] ?? $line['baseline'] ?? null;
-
-                    if ($bEntry === null || $bEntry === '' || $bLine === null || $bLine === '') {
-                        throw new \Exception("Data BaseEntry atau BaseLine kosong. Tidak bisa Add DO.", 400);
-                    }
-
-                    $line['BaseEntry'] = (int) $bEntry;
-                    $line['BaseLine']  = (int) $bLine;
-                }
-                unset($line);
+            // Resolve BaseEntry from SO or payload or lines
+            $baseEntry = $so ? ($so->docentry ?: $so->sap_doc_entry) : null;
+            if (empty($baseEntry)) {
+                $baseEntry = $header['BaseEntry'] ?? $header['base_entry'] ?? $header['DocEntry'] ?? $header['doc_entry'] ?? null;
             }
+            if (empty($baseEntry) && !empty($headerLines[0])) {
+                $baseEntry = $headerLines[0]['BaseEntry'] ?? $headerLines[0]['base_entry'] ?? null;
+            }
+            if (empty($baseEntry) && $so && !empty($so->sap_doc_num)) {
+                $baseEntry = $so->sap_doc_num;
+            }
+
+            if (empty($baseEntry)) {
+                $orderIdentifier = $so ? "#{$so->order_no}" : (!empty($header['sales_order_id']) ? "ID #{$header['sales_order_id']}" : '');
+                throw new \Exception("Sales Order {$orderIdentifier} belum memiliki DocEntry / BaseEntry (belum approved / terintegrasi ke SAP). Tidak bisa Add DO.", 400);
+            }
+
+            if ($so && $so->docentry === null) {
+                try {
+                    $so->update(['docentry' => (int) $baseEntry, 'sap_doc_entry' => (string) $baseEntry]);
+                } catch (\Throwable $e) {}
+            }
+
+            $soDetails = $so && $so->details ? $so->details->sortBy('id')->values() : collect();
+
+            $cleanLines = [];
+            foreach ($headerLines as $lineIdx => $line) {
+                $itemCode = trim((string) ($line['ItemCode'] ?? $line['item_code'] ?? ''));
+                $qty = floatval($line['Quantity'] ?? $line['quantity'] ?? 0);
+                if ($qty <= 0) {
+                    continue;
+                }
+
+                $detail = null;
+                if (!empty($line['sales_order_detail_id'])) {
+                    $detail = $soDetails->firstWhere('id', (int) $line['sales_order_detail_id']);
+                }
+                if (!$detail && !empty($itemCode)) {
+                    $detail = $soDetails->first(function ($d) use ($itemCode) {
+                        return strtolower(trim((string)$d->item_code)) === strtolower(trim($itemCode));
+                    });
+                }
+                if (!$detail && isset($line['BaseLine'])) {
+                    $detail = $soDetails->firstWhere('baseline', (int) $line['BaseLine']);
+                }
+                if (!$detail && isset($line['baseline'])) {
+                    $detail = $soDetails->firstWhere('baseline', (int) $line['baseline']);
+                }
+                if (!$detail && isset($soDetails[$lineIdx])) {
+                    $detail = $soDetails[$lineIdx];
+                }
+
+                // Resolve line BaseLine safely without throwing
+                $lineBaseLine = null;
+                if (isset($line['BaseLine']) && $line['BaseLine'] !== '' && $line['BaseLine'] !== null) {
+                    $lineBaseLine = (int) $line['BaseLine'];
+                } elseif (isset($line['baseline']) && $line['baseline'] !== '' && $line['baseline'] !== null) {
+                    $lineBaseLine = (int) $line['baseline'];
+                } elseif (isset($line['base_line']) && $line['base_line'] !== '' && $line['base_line'] !== null) {
+                    $lineBaseLine = (int) $line['base_line'];
+                } elseif ($detail && $detail->baseline !== null) {
+                    $lineBaseLine = (int) $detail->baseline;
+                } elseif ($detail && $detail->line_num !== null) {
+                    $lineBaseLine = (int) $detail->line_num;
+                } else {
+                    $dIndex = $detail ? $soDetails->search(fn($d) => $d->id === $detail->id) : false;
+                    $lineBaseLine = ($dIndex !== false) ? (int) $dIndex : (int) $lineIdx;
+                }
+
+                if ($detail && $detail->baseline === null) {
+                    try {
+                        $detail->update(['baseline' => $lineBaseLine, 'line_num' => $lineBaseLine]);
+                    } catch (\Throwable $e) {}
+                }
+
+                $lineBaseEntry = (isset($line['BaseEntry']) && $line['BaseEntry'] !== '' && $line['BaseEntry'] !== null)
+                    ? (int) $line['BaseEntry']
+                    : ((isset($line['base_entry']) && $line['base_entry'] !== '' && $line['base_entry'] !== null)
+                        ? (int) $line['base_entry']
+                        : (int) $baseEntry);
+
+                $finalItemCode = $itemCode ?: ($detail?->item_code ?: '');
+                $cleanLine = [
+                    'BaseEntry' => $lineBaseEntry,
+                    'BaseLine'  => $lineBaseLine,
+                    'ItemCode'  => $finalItemCode,
+                    'Quantity'  => $qty,
+                    'WhsCode'   => (string) ($line['WhsCode'] ?? $line['whs_code'] ?? ($detail?->whs_code ?: '01')),
+                ];
+
+                $ocrCode  = $line['OcrCode'] ?? $line['ocr_code'] ?? ($detail?->ocr_code ?: null);
+                $ocrCode2 = $line['OcrCode2'] ?? $line['ocr_code2'] ?? ($detail?->ocr_code2 ?: null);
+                $ocrCode3 = $line['OcrCode3'] ?? $line['ocr_code3'] ?? ($detail?->ocr_code3 ?: null);
+
+                if (!empty($ocrCode)) {
+                    $cleanLine['OcrCode'] = (string) $ocrCode;
+                }
+                if (!empty($ocrCode2)) {
+                    $cleanLine['OcrCode2'] = (string) $ocrCode2;
+                }
+                if (!empty($ocrCode3)) {
+                    $cleanLine['OcrCode3'] = (string) $ocrCode3;
+                }
+
+                $cleanLines[] = $cleanLine;
+            }
+
+            if (empty($cleanLines)) {
+                throw new \Exception("Tidak ada baris item valid (quantity > 0) untuk Delivery Order.", 400);
+            }
+
+            // Clean Header formatted for SAP B1
+            $docDate = !empty($header['DocDate']) ? Carbon::parse($header['DocDate'])->format('Y-m-d\TH:i:s') : now()->format('Y-m-d\TH:i:s');
+            $docDueDate = !empty($header['DocDueDate']) ? Carbon::parse($header['DocDueDate'])->format('Y-m-d\TH:i:s') : $docDate;
+            $taxDate = !empty($header['TaxDate']) ? Carbon::parse($header['TaxDate'])->format('Y-m-d\TH:i:s') : $docDate;
+
+            $numAtCard = (string) ($header['NumAtCard'] ?? $header['num_at_card'] ?? ($so?->po_number ?: ($so?->order_no ?? '')));
+            $comments  = (string) ($header['Comments'] ?? $header['comments'] ?? ($so?->comments ?? ''));
+            $noPol     = (string) ($header['NoPol'] ?? $header['nopol'] ?? ($so?->nopol ?? ''));
+            $kodeEksp  = (string) ($header['KodeEkspedisi'] ?? $header['kode_ekspedisi'] ?? ($so?->shipping_type === 'internal' ? '01' : ''));
+            $namaEksp  = (string) ($header['NamaEkspedisi'] ?? $header['nama_ekspedisi'] ?? ($so?->shipping_type === 'internal' ? 'Internal' : ''));
+            $sopir     = (string) ($header['Sopir'] ?? $header['sopir'] ?? ($so?->nama_supir ?? ''));
+            $checker   = (string) ($header['NamaChecker'] ?? $header['nama_checker'] ?? '');
+            $noseal    = (string) ($header['Noseal'] ?? $header['noseal'] ?? ($header['seal_number'] ?? ''));
+
+            $sapDoc = [
+                'Series'        => (int) ($header['Series'] ?? $header['series'] ?? 75),
+                'DocDate'       => $docDate,
+                'DocDueDate'    => $docDueDate,
+                'TaxDate'       => $taxDate,
+                'NumAtCard'     => $numAtCard,
+                'Comments'      => $comments,
+                'NoPol'         => $noPol,
+                'KodeEkspedisi' => $kodeEksp,
+                'NamaEkspedisi' => $namaEksp,
+                'Sopir'         => $sopir,
+                'NamaChecker'   => $checker,
+                'AddonId'       => 2,
+                'UserId'        => (string) ($userId ?: ($header['UserId'] ?? $header['user_id'] ?? '1')),
+                'Container'     => (string) ($header['Container'] ?? $header['container'] ?? ''),
+                'Lines'         => $cleanLines,
+            ];
+
+            if (!empty($noseal)) {
+                $sapDoc['Noseal'] = $noseal;
+            }
+
+            $cardCode = $header['CardCode'] ?? $header['card_code'] ?? ($so?->card_code ?: null);
+            if (!empty($cardCode)) {
+                $sapDoc['CardCode'] = (string) $cardCode;
+            }
+
+            $batchPayload[] = $sapDoc;
+            $metaDocs[] = [
+                'so'          => $so,
+                'picklist_id' => $header['picklist_id'] ?? null,
+                'raw'         => $header,
+            ];
         }
-        unset($header);
 
         $sapUrl = rtrim(config('services.sap.url') ?: env('SAP_API_URL', 'http://103.18.133.187:3100'), '/');
 
@@ -1230,11 +1409,18 @@ class PicklistService
         $allDocNumsFromMsg = [];
         $allDocEntriesFromMsg = [];
         if (!empty($msg)) {
-            if (preg_match_all('/DocNum:\s*([A-Za-z0-9_-]+)/i', $msg, $mNums)) {
+            if (preg_match_all('/DocNum(?:s)?:\s*([A-Za-z0-9_-]+)/i', $msg, $mNums)) {
                 $allDocNumsFromMsg = $mNums[1];
             }
-            if (preg_match_all('/DocEntry:\s*(\d+)/i', $msg, $mEntries)) {
-                $allDocEntriesFromMsg = $mEntries[1];
+            if (preg_match_all('/DocEntr(?:y|ies):\s*([0-9]+(?:,\s*[0-9]+)*)/i', $msg, $mEntries)) {
+                foreach ($mEntries[1] as $entryGroup) {
+                    foreach (explode(',', $entryGroup) as $singleEntry) {
+                        $val = trim($singleEntry);
+                        if ($val !== '') {
+                            $allDocEntriesFromMsg[] = $val;
+                        }
+                    }
+                }
             }
         }
 
@@ -1278,14 +1464,17 @@ class PicklistService
             $latestDocNum = $docNum;
             $latestDocEntry = $docEntry;
 
-            // Find associated Sales Order if possible
-            $so = null;
-            if (!empty($docPayload['sales_order_id'])) {
-                $so = SalesOrder::find($docPayload['sales_order_id']);
+            // Find associated Sales Order from metadata or fallbacks
+            $meta = $metaDocs[$index] ?? [];
+            $so = $meta['so'] ?? null;
+            if (!$so && !empty($meta['raw']['sales_order_id'])) {
+                $so = SalesOrder::find($meta['raw']['sales_order_id']);
             }
             if (!$so && !empty($docPayload['Lines'][0]['BaseEntry'])) {
                 $baseEntry = $docPayload['Lines'][0]['BaseEntry'];
-                $so = SalesOrder::where('sap_doc_entry', is_numeric($baseEntry) ? (int)$baseEntry : 0)->first();
+                $so = SalesOrder::where('sap_doc_entry', is_numeric($baseEntry) ? (int)$baseEntry : 0)
+                    ->orWhere('docentry', is_numeric($baseEntry) ? (int)$baseEntry : 0)
+                    ->first();
             }
             if (!$so && !empty($docPayload['NumAtCard'])) {
                 $so = SalesOrder::where('po_number', $docPayload['NumAtCard'])
@@ -1294,8 +1483,10 @@ class PicklistService
             }
 
             $picklist = null;
-            if (!empty($docPayload['picklist_id'])) {
-                $picklist = Picklist::find($docPayload['picklist_id']);
+            if (!empty($meta['picklist_id'])) {
+                $picklist = Picklist::find($meta['picklist_id']);
+            } elseif (!empty($meta['raw']['picklist_id'])) {
+                $picklist = Picklist::find($meta['raw']['picklist_id']);
             }
 
             if ($so) {
