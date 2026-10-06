@@ -2702,171 +2702,6 @@ paths:
         '404':
           description: Data gudang tidak ditemukan.
 
-  /v1/items:
-    get:
-      summary: Get Daftar Master Item (dengan Filter Status SAP)
-      description: Mengambil daftar master item dengan filter status penjualan (SellItem), pembelian (PrchseItem), persediaan (InvntItem), atau kode grup SAP. Jika parameter filter tidak diisi, mengambil seluruh data (get all).
-      tags:
-        - Master Items
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: sales_item_status
-          in: query
-          required: false
-          description: "Filter status barang penjualan (SellItem). Nilai: Y atau N. Jika tidak diisi, menampilkan semua."
-          schema:
-            type: string
-            enum: [Y, N]
-            example: "Y"
-        - name: purchase_item_status
-          in: query
-          required: false
-          description: "Filter status barang pembelian (PrchseItem). Nilai: Y atau N. Jika tidak diisi, menampilkan semua."
-          schema:
-            type: string
-            enum: [Y, N]
-            example: "Y"
-        - name: inventory_item_status
-          in: query
-          required: false
-          description: "Filter status barang persediaan / gudang (InvntItem). Nilai: Y atau N. Jika tidak diisi, menampilkan semua."
-          schema:
-            type: string
-            enum: [Y, N]
-            example: "Y"
-        - name: itms_grp_cod
-          in: query
-          required: false
-          description: Filter berdasarkan kode grup item SAP (contoh 105, 107)
-          schema:
-            type: string
-            example: "105"
-        - name: search
-          in: query
-          required: false
-          description: Pencarian nama atau kode item
-          schema:
-            type: string
-            example: "ISP001015"
-        - name: code_customer
-          in: query
-          required: false
-          description: Filter harga khusus distributor untuk customer code tertentu
-          schema:
-            type: string
-            example: "CUST-001"
-      responses:
-        '200':
-          description: Daftar item berhasil diambil.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: "Daftar item berhasil diambil."
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id:
-                          type: integer
-                          example: 1
-                        item_code:
-                          type: string
-                          example: "ISP001015"
-                        item_name:
-                          type: string
-                          example: "MCB Gv 2 L10.6,3A"
-                        suom_entry:
-                          type: integer
-                          nullable: true
-                          example: 4
-                        sal_unit_msr:
-                          type: string
-                          nullable: true
-                          example: "Bal"
-                        per_kg:
-                          type: string
-                          nullable: true
-                          example: "10.0000"
-                        iuom_entry:
-                          type: integer
-                          nullable: true
-                          example: -1
-                        invntry_uom:
-                          type: string
-                          nullable: true
-                          example: "Pcs"
-                        puom_entry:
-                          type: integer
-                          nullable: true
-                          example: 0
-                        pur_pack_msr:
-                          type: string
-                          nullable: true
-                          example: ""
-                        prchse_item:
-                          type: string
-                          nullable: true
-                          example: "Y"
-                        sell_item:
-                          type: string
-                          nullable: true
-                          example: "N"
-                        invnt_item:
-                          type: string
-                          nullable: true
-                          example: "Y"
-                        itms_grp_cod:
-                          type: string
-                          nullable: true
-                          example: "105"
-                        brand:
-                          type: string
-                          nullable: true
-                          example: "INDUSTRI"
-                        status:
-                          type: integer
-                          example: 1
-                        price:
-                          type: number
-                          nullable: true
-                          example: 50000
-
-  /v1/items/sync:
-    post:
-      summary: Sinkronisasi Master Item Dari SAP B1 (/api/ListItemProd)
-      description: Mengambil seluruh master item dari endpoint SAP B1 /api/ListItemProd dan memperbarui kolom status serta UoM ke database lokal.
-      tags:
-        - Master Items
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Data item berhasil disinkronisasi dari SAP.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: "Data item berhasil disinkronisasi dari SAP."
-                  data:
-                    type: array
-                    items:
-                      type: object
-
   /v1/warehouses/sync:
     post:
       summary: Sinkronisasi Master Gudang Dari SAP
@@ -6974,8 +6809,8 @@ paths:
 
   /v1/items:
     get:
-      summary: List all items
-      description: Mendapatkan daftar semua item hasil sinkronisasi SAP.
+      summary: List all items (dengan filter status SAP)
+      description: Mendapatkan daftar item hasil sinkronisasi SAP B1 dengan filter status penjualan (SellItem), pembelian (PrchseItem), persediaan (InvntItem), atau kode grup SAP. Jika tidak diisi, mengambil seluruh data (get all).
       tags:
         - Items
       security:
@@ -6987,6 +6822,37 @@ paths:
           schema:
             type: string
           description: Kata kunci untuk mencari item berdasarkan ItemCode atau ItemName (case-insensitive).
+        - name: sales_item_status
+          in: query
+          required: false
+          description: "Filter status barang penjualan (SellItem: Y/N). Jika tidak diisi, menampilkan semua."
+          schema:
+            type: string
+            enum: [Y, N]
+            example: "Y"
+        - name: purchase_item_status
+          in: query
+          required: false
+          description: "Filter status barang pembelian (PrchseItem: Y/N). Jika tidak diisi, menampilkan semua."
+          schema:
+            type: string
+            enum: [Y, N]
+            example: "Y"
+        - name: inventory_item_status
+          in: query
+          required: false
+          description: "Filter status barang persediaan / gudang (InvntItem: Y/N). Jika tidak diisi, menampilkan semua."
+          schema:
+            type: string
+            enum: [Y, N]
+            example: "Y"
+        - name: itms_grp_cod
+          in: query
+          required: false
+          description: Filter berdasarkan kode grup item SAP (contoh 105, 107)
+          schema:
+            type: string
+            example: "105"
         - name: code_customer
           in: query
           required: false
@@ -7020,8 +6886,8 @@ paths:
 
   /v1/items/sync:
     post:
-      summary: Sync items from SAP
-      description: Melakukan sinkronisasi data master item/produk dari SAP ke database lokal.
+      summary: Sync items from SAP (/api/ListItemProd)
+      description: Melakukan sinkronisasi data master item dari endpoint SAP B1 /api/ListItemProd ke database lokal.
       tags:
         - Items
       security:
@@ -20499,6 +20365,38 @@ components:
           type: string
           nullable: true
           example: "10.0000"
+        iuom_entry:
+          type: integer
+          nullable: true
+          example: -1
+        invntry_uom:
+          type: string
+          nullable: true
+          example: "Pcs"
+        puom_entry:
+          type: integer
+          nullable: true
+          example: 0
+        pur_pack_msr:
+          type: string
+          nullable: true
+          example: ""
+        prchse_item:
+          type: string
+          nullable: true
+          example: "Y"
+        sell_item:
+          type: string
+          nullable: true
+          example: "Y"
+        invnt_item:
+          type: string
+          nullable: true
+          example: "Y"
+        itms_grp_cod:
+          type: string
+          nullable: true
+          example: "105"
         brand:
           type: string
           nullable: true
