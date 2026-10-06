@@ -160,4 +160,112 @@ class PurchaseRequestSapIntegrationTest extends TestCase
             'ocr_code3' => 'PCG',
         ]);
     }
+
+    public function test_get_series_returns_sap_series_list()
+    {
+        Http::fake([
+            '*/api/getSeries' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => '',
+                'Result' => [
+                    ['Series' => '4182', 'SeriesName' => 'BJM25-10'],
+                    ['Series' => '4876', 'SeriesName' => 'BLR25-10'],
+                ],
+            ], 200)
+        ]);
+
+        $response = $this->actingAs($this->user)->getJson('/api/distributor-channel/v1/purchasing-request/series?CustomQuery=20251022');
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'success' => true,
+            'message' => 'Daftar series Purchasing Request berhasil diambil.',
+            'data' => [
+                ['Series' => '4182', 'SeriesName' => 'BJM25-10'],
+                ['Series' => '4876', 'SeriesName' => 'BLR25-10'],
+            ]
+        ]);
+    }
+
+    public function test_get_items_returns_items_with_default_uom()
+    {
+        Http::fake([
+            '*/api/ListItem' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => '',
+                'Result' => [
+                    [
+                        'ItemCode' => 'JS000009',
+                        'ItemName' => 'JOP 250 M B @ 10,5 KG/BAL',
+                        'SUoMEntry' => '4',
+                        'SalUnitMsr' => 'Bal',
+                        'Perkg' => '10.500000',
+                    ]
+                ],
+            ], 200)
+        ]);
+
+        $response = $this->actingAs($this->user)->getJson('/api/distributor-channel/v1/purchasing-request/items?search=JS000009');
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'success' => true,
+            'message' => 'Daftar item untuk Purchasing Request berhasil diambil.',
+            'data' => [
+                [
+                    'item_code' => 'JS000009',
+                    'uom_entry' => '-1',
+                    'uom_code' => '-1',
+                    'uom' => 'Bal',
+                ]
+            ]
+        ]);
+    }
+
+    public function test_create_purchasing_request_via_add_pr_alias_succeeds()
+    {
+        Http::fake([
+            '*/api/addpr' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => 'Success',
+                'Result' => 54322,
+            ], 200)
+        ]);
+
+        $payload = [
+            'Series' => '4876',
+            'ReqType' => '12',
+            'Requester' => 'IND01',
+            'RequesterName' => 'Purchasing Balaraja',
+            'Department' => '9',
+            'DocDate' => '2025-10-22',
+            'DocDueDate' => '2025-10-22',
+            'Comments' => '',
+            'UserId' => '19',
+            'AddOnId' => '2',
+            'Lines' => [
+                [
+                    'ItemCode' => 'JS000009',
+                    'PQTReqDate' => '2025-10-22',
+                    'Quantity' => 2.00,
+                    'UomEntry' => '-1',
+                    'UomCode' => '-1',
+                    'WhsCode' => '01',
+                    'UnitMsr' => 'Pcs',
+                    'FreeTxt' => 'untuk upgrade',
+                    'OcrCode' => 'BLR',
+                    'OcrCode2' => 'GRM',
+                    'OcrCode3' => 'PCG',
+                ]
+            ]
+        ];
+
+        $response = $this->actingAs($this->user)->postJson('/api/distributor-channel/v1/purchasing-request/add-pr', $payload);
+
+        $response->assertStatus(201);
+        $response->assertJson([
+            'success' => true,
+            'message' => 'Purchasing Request berhasil dibuat.',
+        ]);
+    }
 }

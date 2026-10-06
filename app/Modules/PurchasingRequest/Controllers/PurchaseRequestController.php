@@ -20,6 +20,22 @@ class PurchaseRequestController extends Controller
         $this->service = $service;
     }
 
+    public function getSeries(Request $request): JsonResponse
+    {
+        $customQuery = $request->query('CustomQuery') ?? $request->query('custom_query') ?? date('Ymd');
+        $series = $this->service->getSeries($customQuery);
+
+        return $this->successResponse($series, 'Daftar series Purchasing Request berhasil diambil.');
+    }
+
+    public function getItems(Request $request): JsonResponse
+    {
+        $filters = $request->only(['search']);
+        $items = $this->service->getItems($filters);
+
+        return $this->successResponse($items, 'Daftar item untuk Purchasing Request berhasil diambil.');
+    }
+
     public function index(Request $request): JsonResponse
     {
         $filters = $request->only([
@@ -41,7 +57,7 @@ class PurchaseRequestController extends Controller
     public function store(SavePurchaseRequestRequest $request): JsonResponse
     {
         try {
-            $userId = $request->user()?->id;
+            $userId = $request->user()?->id ?? (is_numeric($request->input('UserId')) ? (int)$request->input('UserId') : (is_numeric($request->input('user_id')) ? (int)$request->input('user_id') : null));
             $pr = $this->service->create($request->all(), $userId);
 
             return $this->successResponse($pr, 'Purchasing Request berhasil dibuat.', 201);

@@ -39,6 +39,10 @@ class PurchaseRequestDetail extends Model
         'line_total' => 'float',
     ];
 
+    protected $hidden = [
+        'unit_msr',
+    ];
+
     public function purchaseRequest()
     {
         return $this->belongsTo(PurchaseRequest::class, 'purchase_request_id');

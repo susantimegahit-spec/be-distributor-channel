@@ -28,31 +28,116 @@ class PurchaseRequestService
     }
 
     /**
+     * Get available Document Series from SAP B1 for Purchase Request.
+     */
+    public function getSeries(?string $customQuery = null): array
+    {
+        $customQuery = $customQuery ?: date('Ymd');
+        $sapUrl = rtrim(config('services.sap.url') ?: env('SAP_API_URL', 'http://103.18.133.187:3100'), '/');
+
+        try {
+            $response = Http::timeout(15)->post("{$sapUrl}/api/getSeries", [
+                'CustomQuery' => $customQuery,
+                'Document'    => '1470000113', // SAP Object Type for Purchase Request
+            ]);
+
+            if ($response->successful()) {
+                $body = $response->json();
+                if (isset($body['Result']) && is_array($body['Result'])) {
+                    return $body['Result'];
+                }
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to fetch PR series from SAP: ' . $e->getMessage());
+        }
+
+        return [];
+    }
+
+    /**
+     * Get item list for Purchase Request with default UoM parameters.
+     */
+    public function getItems(array $filters = []): array
+    {
+        $search = $filters['search'] ?? null;
+        $sapUrl = rtrim(config('services.sap.url') ?: env('SAP_API_URL', 'http://103.18.133.187:3100'), '/');
+
+        try {
+            $response = Http::timeout(15)->post("{$sapUrl}/api/ListItem", [
+                'CustomQuery' => $search ?: '',
+            ]);
+
+            if ($response->successful()) {
+                $body = $response->json();
+                if (isset($body['Result']) && is_array($body['Result'])) {
+                    $items = [];
+                    foreach ($body['Result'] as $item) {
+                        $items[] = [
+                            'item_code'  => $item['ItemCode'] ?? '',
+                            'item_name'  => $item['ItemName'] ?? '',
+                            'uom_entry'  => '-1',
+                            'uom_code'   => '-1',
+                            'uom'        => $item['SalUnitMsr'] ?? 'Pcs',
+                            'per_kg'     => $item['Perkg'] ?? null,
+                            'suom_entry' => $item['SUoMEntry'] ?? null,
+                        ];
+                    }
+                    return $items;
+                }
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to fetch items from SAP: ' . $e->getMessage());
+        }
+
+        // Fallback to local items table
+        $localItems = \App\Models\Item::query();
+        if ($search) {
+            $localItems->where(function ($q) use ($search) {
+                $q->where('item_code', 'like', "%{$search}%")
+                  ->orWhere('item_name', 'like', "%{$search}%");
+            });
+        }
+
+        return $localItems->limit(50)->get()->map(function ($it) {
+            return [
+                'item_code'  => $it->item_code,
+                'item_name'  => $it->item_name,
+                'uom_entry'  => '-1',
+                'uom_code'   => '-1',
+                'uom'        => $it->sal_unit_msr ?: 'Pcs',
+                'per_kg'     => $it->per_kg,
+                'suom_entry' => $it->suom_entry ? (string)$it->suom_entry : null,
+            ];
+        })->toArray();
+    }
+
+    /**
      * Build SAP payload for addpr API endpoint.
      */
     public function buildSapPayload(array $payload, ?int $userId = null): array
     {
-        $series = (string) ($payload['series'] ?? $payload['Series'] ?? $payload['pr_number'] ?? '4876');
-        $reqType = '12'; // hardcode 12
-        $requester = (string) ($payload['requester'] ?? $payload['Requester'] ?? $payload['requester_code'] ?? 'IND01');
-        $requesterName = (string) ($payload['requester_name'] ?? $payload['RequesterName'] ?? 'Purchasing Balaraja');
-        $department = (string) ($payload['department'] ?? $payload['Department'] ?? '9');
+        $user = auth()->user();
+        $series = (string) ($payload['Series'] ?? $payload['series'] ?? $payload['pr_number'] ?? '4876');
+        $reqType = (string) ($payload['ReqType'] ?? $payload['req_type'] ?? '12'); // hardcode 12
+        $requester = (string) ($payload['Requester'] ?? $payload['requester'] ?? $payload['requester_code'] ?? ($user?->username ?: ($user?->employee_code ?: 'IND01')));
+        $requesterName = (string) ($payload['RequesterName'] ?? $payload['requester_name'] ?? ($user?->name ?: 'Purchasing Balaraja'));
+        $department = (string) ($payload['Department'] ?? $payload['department'] ?? '9');
 
-        $docDateInput = $payload['doc_date'] ?? $payload['DocDate'] ?? date('Y-m-d');
+        $docDateInput = $payload['DocDate'] ?? $payload['doc_date'] ?? date('Y-m-d');
         $docDate = date('Y-m-d', strtotime($docDateInput));
 
-        $docDueDateInput = $payload['doc_due_date'] ?? $payload['DocDueDate'] ?? $payload['required_date'] ?? $docDate;
+        $docDueDateInput = $payload['DocDueDate'] ?? $payload['doc_due_date'] ?? $payload['required_date'] ?? $docDate;
         $docDueDate = date('Y-m-d', strtotime($docDueDateInput));
 
-        $comments = (string) ($payload['comments'] ?? $payload['Comments'] ?? $payload['remarks'] ?? '');
-        $userIdVal = (string) ($payload['user_id'] ?? $payload['UserId'] ?? ($userId ? (string)$userId : '19'));
-        $addonId = '2'; // hardcode 2
+        $comments = (string) ($payload['Comments'] ?? $payload['comments'] ?? $payload['remarks'] ?? '');
+        $userIdVal = (string) ($payload['UserId'] ?? $payload['user_id'] ?? ($userId ? (string)$userId : ($user?->id ? (string)$user->id : '19')));
+        $addonId = (string) ($payload['AddonId'] ?? $payload['AddOnId'] ?? $payload['addon_id'] ?? '2'); // hardcode 2
 
-        $details = $payload['details'] ?? $payload['lines'] ?? $payload['Lines'] ?? [];
+        $details = $payload['Lines'] ?? $payload['lines'] ?? $payload['details'] ?? [];
         $lines = [];
 
         foreach ($details as $item) {
-            $itemCode = (string) ($item['item_code'] ?? $item['ItemCode'] ?? '');
+            $itemCode = (string) ($item['ItemCode'] ?? $item['item_code'] ?? '');
 
             // Check BOM lookup if itemCode is empty
             if ($itemCode === '') {
@@ -69,18 +154,18 @@ class PurchaseRequestService
                 $itemCode = 'JS000009'; // Fallback code
             }
 
-            $pqtReqDateInput = $item['pqt_req_date'] ?? $item['PQTReqDate'] ?? $item['required_date'] ?? $docDueDate;
+            $pqtReqDateInput = $item['PQTReqDate'] ?? $item['pqt_req_date'] ?? $item['required_date'] ?? $docDueDate;
             $pqtReqDate = date('Y-m-d', strtotime($pqtReqDateInput));
 
-            $quantity = floatval($item['quantity'] ?? $item['Quantity'] ?? 1.0);
-            $uomEntry = (string) ($item['uom_entry'] ?? $item['UomEntry'] ?? '-1');
-            $uomCode = (string) ($item['uom_code'] ?? $item['UomCode'] ?? '-1');
-            $whsCode = (string) ($item['whs_code'] ?? $item['WhsCode'] ?? $item['warehouse_code'] ?? '01');
-            $unitMsr = (string) ($item['unit_msr'] ?? $item['UnitMsr'] ?? $item['uom'] ?? 'Pcs');
-            $freeTxt = (string) ($item['free_txt'] ?? $item['FreeTxt'] ?? $item['remarks'] ?? 'untuk upgrade');
-            $ocrCode = (string) ($item['ocr_code'] ?? $item['OcrCode'] ?? $payload['cost_center'] ?? 'BLR');
-            $ocrCode2 = (string) ($item['ocr_code_2'] ?? $item['ocr_code2'] ?? $item['OcrCode2'] ?? 'GRM');
-            $ocrCode3 = (string) ($item['ocr_code_3'] ?? $item['ocr_code3'] ?? $item['OcrCode3'] ?? 'PCG');
+            $quantity = floatval($item['Quantity'] ?? $item['quantity'] ?? 1.0);
+            $uomEntry = (string) ($item['UomEntry'] ?? $item['uom_entry'] ?? '-1');
+            $uomCode = (string) ($item['UomCode'] ?? $item['uom_code'] ?? '-1');
+            $whsCode = (string) ($item['WhsCode'] ?? $item['whs_code'] ?? $item['warehouse_code'] ?? '01');
+            $unitMsr = (string) ($item['UnitMsr'] ?? $item['unit_msr'] ?? $item['uom'] ?? 'Pcs');
+            $freeTxt = (string) ($item['FreeTxt'] ?? $item['free_txt'] ?? $item['remarks'] ?? 'untuk upgrade');
+            $ocrCode = (string) ($item['OcrCode'] ?? $item['ocr_code'] ?? $payload['cost_center'] ?? 'BLR');
+            $ocrCode2 = (string) ($item['OcrCode2'] ?? $item['ocr_code2'] ?? $item['ocr_code_2'] ?? 'GRM');
+            $ocrCode3 = (string) ($item['OcrCode3'] ?? $item['ocr_code3'] ?? $item['ocr_code_3'] ?? 'PCG');
 
             $lines[] = [
                 'ItemCode' => $itemCode,
@@ -108,6 +193,7 @@ class PurchaseRequestService
             'Comments' => $comments,
             'UserId' => $userIdVal,
             'AddonId' => $addonId,
+            'AddOnId' => $addonId,
             'Lines' => $lines,
         ];
     }
@@ -116,7 +202,7 @@ class PurchaseRequestService
     {
         $sapPayload = $this->buildSapPayload($payload, $userId);
 
-        $sapUrl = config('services.sap.url');
+        $sapUrl = rtrim(config('services.sap.url') ?: env('SAP_API_URL', 'http://103.18.133.187:3100'), '/');
         $response = Http::timeout(30)->post("{$sapUrl}/api/addpr", $sapPayload);
 
         if (!$response->successful()) {
@@ -144,8 +230,18 @@ class PurchaseRequestService
             }
         }
 
+        // Regex fallback from Message if Result was empty
+        if (empty($payload['sap_doc_entry']) && !empty($body['Message'])) {
+            if (preg_match('/DocEntr(?:y|ies):\s*([0-9]+)/i', $body['Message'], $mEntry)) {
+                $payload['sap_doc_entry'] = (int)$mEntry[1];
+            }
+            if (preg_match('/DocNum(?:s)?:\s*([A-Za-z0-9_-]+)/i', $body['Message'], $mNum)) {
+                $payload['sap_doc_num'] = (string)$mNum[1];
+            }
+        }
+
         if (empty($payload['pr_number'])) {
-            $payload['pr_number'] = $payload['series'] ?? $sapPayload['Series'] ?? ('PR-' . date('YmdHis'));
+            $payload['pr_number'] = $payload['sap_doc_num'] ?? $payload['series'] ?? $sapPayload['Series'] ?? ('PR-' . date('YmdHis'));
         }
         if (empty($payload['department'])) {
             $payload['department'] = $sapPayload['Department'];

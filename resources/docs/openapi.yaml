@@ -13337,6 +13337,68 @@ paths:
         '404':
           description: Master Budget tidak ditemukan.
 
+  /v1/purchasing-request/series:
+    get:
+      summary: Get Series Dokumen Purchase Request (SAP B1)
+      description: Mengambil daftar penomoran Series dokumen Purchase Request dari SAP Business One (/api/getSeries).
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: CustomQuery
+          in: query
+          required: false
+          description: Tanggal format YYYYMMDD untuk filter series aktif (default tanggal hari ini)
+          schema:
+            type: string
+            example: "20251022"
+      responses:
+        '200':
+          description: Daftar series berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar series Purchasing Request berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Series:
+                          type: string
+                          example: "4876"
+                        SeriesName:
+                          type: string
+                          example: "BLR25-10"
+
+  /v1/purchasing-request/items:
+    get:
+      summary: Get Daftar Item untuk Purchase Request (Beserta default UoM)
+      description: Mengambil daftar item dari SAP B1 (/api/ListItem) atau master item lokal yang siap digunakan untuk baris Purchase Request.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Pencarian kode item atau nama item
+          schema:
+            type: string
+            example: "JS000009"
+      responses:
+        '200':
+          description: Daftar item berhasil diambil.
+
   /v1/purchasing-request/requests:
     get:
       summary: Get Purchase Request list
@@ -13501,6 +13563,20 @@ paths:
                     $ref: '#/components/schemas/PurchaseRequest'
         '422':
           description: Validation error.
+
+  /v1/purchasing-request/add-pr:
+    post:
+      summary: Alias Pembuatan Purchase Request (POST /add-pr)
+      description: Endpoint alternatif untuk membuat Purchase Request langsung ke SAP B1.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      requestBody:
+        $ref: '#/paths/~1v1~1purchasing-request~1requests/post/requestBody'
+      responses:
+        '201':
+          description: Purchasing Request berhasil dibuat ke SAP dan database lokal.
 
   /v1/purchasing-request/requests/{id}:
     get:
@@ -19658,7 +19734,6 @@ paths:
                   data:
                     type: string
                     nullable: true
-                    example: null
         '403':
           description: Akses ditolak.
         '404':

@@ -23,6 +23,10 @@ class SavePurchaseRequestRequest extends FormRequest
             }
         }
 
+        if (isset($input['AddOnId']) && !isset($input['addon_id'])) {
+            $input['addon_id'] = $input['AddOnId'];
+        }
+
         $this->replace($input);
     }
 
@@ -56,6 +60,7 @@ class SavePurchaseRequestRequest extends FormRequest
             'UserId' => 'nullable|string|max:50',
             'addon_id' => 'nullable|string|max:50',
             'AddonId' => 'nullable|string|max:50',
+            'AddOnId' => 'nullable|string|max:50',
             'details' => 'required|array|min:1',
             'details.*.master_budget_id' => 'nullable',
             'details.*.bom_id' => 'nullable',
