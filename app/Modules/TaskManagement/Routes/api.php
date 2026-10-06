@@ -1,0 +1,86 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+use App\Modules\TaskManagement\Controllers\TaskController;
+use App\Modules\TaskManagement\Controllers\DashboardController;
+use App\Modules\TaskManagement\Controllers\HierarchyController;
+use App\Modules\TaskManagement\Controllers\ChecklistController;
+use App\Modules\TaskManagement\Controllers\TimeTrackingController;
+use App\Modules\TaskManagement\Controllers\CommentController;
+use App\Modules\TaskManagement\Controllers\MasterDataController;
+
+$registerRoutes = function () {
+    // 0. Dashboard & Metrics Endpoints
+    Route::get('/dashboard/summary', [DashboardController::class, 'getSummary']);
+    Route::get('/dashboard/team-view', [DashboardController::class, 'getTeamView']);
+    Route::get('/dashboard/team-view/{employeeId}', [DashboardController::class, 'getEmployeeTeamView']);
+    Route::get('/team-view', [DashboardController::class, 'getTeamView']);
+    Route::get('/team-view/{employeeId}', [DashboardController::class, 'getEmployeeTeamView']);
+
+    // 1. Task Core Endpoints
+    Route::get('/tasks', [TaskController::class, 'index']);
+    Route::post('/tasks', [TaskController::class, 'store']);
+    Route::get('/tasks/metrics', [TaskController::class, 'metrics']);
+    Route::get('/tasks/{id}', [TaskController::class, 'show']);
+    Route::put('/tasks/{id}', [TaskController::class, 'update']);
+    Route::delete('/tasks/{id}', [TaskController::class, 'destroy']);
+    Route::post('/tasks/{id}/status', [TaskController::class, 'updateStatus']);
+    Route::post('/tasks/{id}/reassign', [TaskController::class, 'reassign']);
+
+    // 2. Hierarchy Endpoints (Workspaces, Spaces, Folders, Lists)
+    Route::get('/workspaces', [HierarchyController::class, 'getWorkspaces']);
+    Route::get('/workspaces/{id}', [HierarchyController::class, 'getWorkspace']);
+    Route::post('/workspaces', [HierarchyController::class, 'createWorkspace']);
+
+    Route::get('/spaces', [HierarchyController::class, 'getSpaces']);
+    Route::get('/spaces/{id}', [HierarchyController::class, 'getSpace']);
+    Route::post('/spaces', [HierarchyController::class, 'createSpace']);
+
+    Route::get('/folders', [HierarchyController::class, 'getFolders']);
+    Route::post('/folders', [HierarchyController::class, 'createFolder']);
+    Route::delete('/folders/{id}', [HierarchyController::class, 'deleteFolder']);
+
+    Route::get('/lists', [HierarchyController::class, 'getLists']);
+    Route::post('/lists', [HierarchyController::class, 'createList']);
+
+    // 3. Checklist Endpoints
+    Route::post('/checklists', [ChecklistController::class, 'storeChecklist']);
+    Route::delete('/checklists/{id}', [ChecklistController::class, 'deleteChecklist']);
+    Route::post('/checklists/{id}/items', [ChecklistController::class, 'storeItem']);
+    Route::post('/checklist-items/{id}/toggle', [ChecklistController::class, 'toggleItem']);
+    Route::delete('/checklist-items/{id}', [ChecklistController::class, 'destroyItem']);
+
+    // 4. Time Tracking Endpoints
+    Route::get('/time-tracking/active', [TimeTrackingController::class, 'getActive']);
+    Route::post('/time-tracking/start', [TimeTrackingController::class, 'startTimer']);
+    Route::post('/time-tracking/{id}/stop', [TimeTrackingController::class, 'stopTimer']);
+    Route::post('/time-tracking/manual', [TimeTrackingController::class, 'logManual']);
+
+    // 5. Comments Endpoints
+    Route::get('/tasks/{taskId}/comments', [CommentController::class, 'index']);
+    Route::post('/tasks/{taskId}/comments', [CommentController::class, 'store']);
+
+    // 6. Master Data Endpoints
+    Route::get('/master/statuses', [MasterDataController::class, 'getStatuses']);
+    Route::get('/master/priorities', [MasterDataController::class, 'getPriorities']);
+    Route::get('/master/task-types', [MasterDataController::class, 'getTaskTypes']);
+    Route::get('/master/tags', [MasterDataController::class, 'getTags']);
+    Route::get('/master/departments', [MasterDataController::class, 'getDepartments']);
+    Route::get('/master/positions', [MasterDataController::class, 'getPositions']);
+    Route::post('/master/positions', [MasterDataController::class, 'createPosition']);
+    Route::get('/master/positions/{id}', [MasterDataController::class, 'getPosition']);
+    Route::get('/master/employees', [MasterDataController::class, 'getEmployees']);
+    Route::post('/master/employees', [MasterDataController::class, 'createEmployee']);
+    Route::get('/master/employees/{id}', [MasterDataController::class, 'getEmployee']);
+
+    // Direct Position & Employee Endpoints alias
+    Route::get('/positions', [MasterDataController::class, 'getPositions']);
+    Route::post('/positions', [MasterDataController::class, 'createPosition']);
+    Route::get('/positions/{id}', [MasterDataController::class, 'getPosition']);
+    Route::get('/employees', [MasterDataController::class, 'getEmployees']);
+    Route::post('/employees', [MasterDataController::class, 'createEmployee']);
+    Route::get('/employees/{id}', [MasterDataController::class, 'getEmployee']);
+};
+
+Route::prefix('v1/task-management')->middleware('auth:sanctum')->group($registerRoutes);
+Route::prefix('task-management')->middleware('auth:sanctum')->group($registerRoutes);
