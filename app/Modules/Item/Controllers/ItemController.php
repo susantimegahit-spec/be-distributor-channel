@@ -33,7 +33,21 @@ class ItemController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $filters = $request->only(['search', 'code_customer']);
+
+        $salesItemStatus = $request->input('sales_item_status') ?? $request->input('sell_item');
+        $purchaseItemStatus = $request->input('purchase_item_status') ?? $request->input('prchse_item') ?? $request->input('purchase_item');
+        $inventoryItemStatus = $request->input('inventory_item_status') ?? $request->input('invnt_item_status') ?? $request->input('invnt_item');
+        $itmsGrpCod = $request->input('itms_grp_cod');
+
+        $filters = array_merge(
+            $request->only(['search', 'code_customer']),
+            array_filter([
+                'sales_item_status'     => $salesItemStatus,
+                'purchase_item_status'  => $purchaseItemStatus,
+                'inventory_item_status' => $inventoryItemStatus,
+                'itms_grp_cod'          => $itmsGrpCod,
+            ], fn($v) => !is_null($v) && $v !== '')
+        );
 
         $roleName = strtolower($user?->role?->name ?? '');
         $adminRoles = ['administrator', 'admin finance', 'admin sales', 'admin logistic', 'super admin', 'superadmin'];

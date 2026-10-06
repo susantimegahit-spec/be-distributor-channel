@@ -36,6 +36,22 @@ class ItemRepository implements ItemRepositoryInterface
             });
         }
 
+        if (isset($filters['sales_item_status']) && $filters['sales_item_status'] !== '') {
+            $query->where('items.sell_item', strtoupper(trim((string)$filters['sales_item_status'])));
+        }
+
+        if (isset($filters['purchase_item_status']) && $filters['purchase_item_status'] !== '') {
+            $query->where('items.prchse_item', strtoupper(trim((string)$filters['purchase_item_status'])));
+        }
+
+        if (isset($filters['inventory_item_status']) && $filters['inventory_item_status'] !== '') {
+            $query->where('items.invnt_item', strtoupper(trim((string)$filters['inventory_item_status'])));
+        }
+
+        if (isset($filters['itms_grp_cod']) && $filters['itms_grp_cod'] !== '') {
+            $query->where('items.itms_grp_cod', trim((string)$filters['itms_grp_cod']));
+        }
+
         return $query->get();
     }
 
@@ -51,5 +67,47 @@ class ItemRepository implements ItemRepositoryInterface
             ['item_code' => $data['item_code']],
             $data
         );
+    }
+
+    /**
+     * Bulk create or update items.
+     *
+     * @param  array  $rows
+     * @return int
+     */
+    public function upsertBatch(array $rows): int
+    {
+        if (empty($rows)) {
+            return 0;
+        }
+
+        $count = 0;
+        $chunks = array_chunk($rows, 500);
+        foreach ($chunks as $chunk) {
+            Item::upsert(
+                $chunk,
+                ['item_code'],
+                [
+                    'item_name',
+                    'suom_entry',
+                    'sal_unit_msr',
+                    'per_kg',
+                    'iuom_entry',
+                    'invntry_uom',
+                    'puom_entry',
+                    'pur_pack_msr',
+                    'prchse_item',
+                    'sell_item',
+                    'invnt_item',
+                    'itms_grp_cod',
+                    'brand',
+                    'status',
+                    'updated_at',
+                ]
+            );
+            $count += count($chunk);
+        }
+
+        return $count;
     }
 }

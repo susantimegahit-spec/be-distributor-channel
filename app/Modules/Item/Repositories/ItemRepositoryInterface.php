@@ -22,4 +22,12 @@ interface ItemRepositoryInterface
      * @return Item
      */
     public function upsertByCode(array $data): Item;
+
+    /**
+     * Bulk create or update items.
+     *
+     * @param  array  $rows
+     * @return int
+     */
+    public function upsertBatch(array $rows): int;
 }

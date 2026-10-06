@@ -45,45 +45,152 @@ class ItemService
      */
     public function syncFromSap(?int $userId = null): array
     {
-        $sapUrl = config('services.sap.url');
-        $response = Http::timeout(15)->post("{$sapUrl}/api/ListItem");
+        $sapUrl = rtrim((string)(config('services.sap.url') ?: env('SAP_API_URL', 'http://103.18.133.187:3100')), '/');
 
-        if (!$response->successful()) {
-            throw new \Exception('Gagal menghubungi API SAP untuk sinkronisasi barang.');
+        // 1. Fetch ListItemProd from SAP
+        $prodData = [];
+        $prodResponse = null;
+        try {
+            $prodResponse = Http::timeout(60)->post("{$sapUrl}/api/ListItemProd");
+            if ($prodResponse->successful()) {
+                $body = $prodResponse->json();
+                if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
+                    throw new \Exception('API SAP ListItemProd mengembalikan error: ' . ($body['Message'] ?? 'Unknown error'));
+                }
+                $prodData = $body['Result'] ?? [];
+            } else {
+                throw new \Exception('Gagal menghubungi API SAP ListItemProd: HTTP ' . $prodResponse->status());
+            }
+        } catch (\Throwable $e) {
+            // If ListItemProd failed and not mocked, try fallback to ListItem if available
+            if (empty($prodData)) {
+                $fallbackResponse = Http::timeout(15)->post("{$sapUrl}/api/ListItem");
+                if (!$fallbackResponse->successful()) {
+                    throw new \Exception('Gagal menghubungi API SAP untuk sinkronisasi barang: ' . $e->getMessage());
+                }
+                $fallbackBody = $fallbackResponse->json();
+                if (isset($fallbackBody['ErrorCode']) && $fallbackBody['ErrorCode'] !== 0) {
+                    throw new \Exception('API SAP mengembalikan error: ' . ($fallbackBody['Message'] ?? 'Unknown error'));
+                }
+                $prodData = $fallbackBody['Result'] ?? [];
+            }
         }
 
-        $body = $response->json();
-        
-        if (isset($body['ErrorCode']) && $body['ErrorCode'] !== 0) {
-            throw new \Exception('API SAP mengembalikan error: ' . ($body['Message'] ?? 'Unknown error'));
+        // 2. Fetch sales items from ListItem to enrich SUoMEntry, SalUnitMsr, and Perkg
+        $salesMap = [];
+        try {
+            $salesResponse = Http::timeout(15)->post("{$sapUrl}/api/ListItem");
+            if ($salesResponse->successful()) {
+                $salesBody = $salesResponse->json();
+                if (!isset($salesBody['ErrorCode']) || $salesBody['ErrorCode'] === 0) {
+                    foreach ($salesBody['Result'] ?? [] as $si) {
+                        $code = trim($si['ItemCode'] ?? '');
+                        if ($code !== '') {
+                            $salesMap[$code] = $si;
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Non-fatal, proceed with prodData alone
         }
 
-        $sapData = $body['Result'] ?? [];
-        $synced = [];
+        $now = now();
+        $rows = [];
+        $processedCodes = [];
 
-        foreach ($sapData as $item) {
-            $brand = $this->determineBrand($item['ItemCode'], $item['ItemName']);
-            $synced[] = $this->itemRepository->upsertByCode([
-                'item_code' => $item['ItemCode'],
-                'item_name' => $item['ItemName'],
-                'suom_entry' => $item['SUoMEntry'] ?? null,
-                'sal_unit_msr' => $item['SalUnitMsr'] ?? null,
-                'per_kg' => $item['Perkg'] ?? null,
-                'brand' => $brand,
-                'status' => 1,
-            ]);
+        foreach ($prodData as $item) {
+            $itemCode = trim($item['ItemCode'] ?? '');
+            if ($itemCode === '') {
+                continue;
+            }
+            $processedCodes[$itemCode] = true;
+            $itemName = trim($item['ItemName'] ?? '');
+            $brand = $this->determineBrand($itemCode, $itemName);
+            $salesItem = $salesMap[$itemCode] ?? null;
+
+            $suomEntry = isset($item['SUoMEntry']) && $item['SUoMEntry'] !== ''
+                ? (int)$item['SUoMEntry']
+                : (isset($salesItem['SUoMEntry']) && $salesItem['SUoMEntry'] !== ''
+                    ? (int)$salesItem['SUoMEntry']
+                    : (isset($item['UoMEntry']) && $item['UoMEntry'] !== '' ? (int)$item['UoMEntry'] : null));
+
+            $salUnitMsr = $item['SalUnitMsr'] ?? ($salesItem['SalUnitMsr'] ?? null);
+            $perKg = isset($item['Perkg']) && $item['Perkg'] !== ''
+                ? (float)$item['Perkg']
+                : (isset($salesItem['Perkg']) && $salesItem['Perkg'] !== '' ? (float)$salesItem['Perkg'] : null);
+
+            $iuomEntry = isset($item['IUoMEntry']) && $item['IUoMEntry'] !== '' ? (int)$item['IUoMEntry'] : null;
+            $invntryUom = !empty($item['InvntryUom']) ? $item['InvntryUom'] : ($salUnitMsr ?? null);
+            $puomEntry = isset($item['PUoMEntry']) && $item['PUoMEntry'] !== '' ? (int)$item['PUoMEntry'] : null;
+            $purPackMsr = $item['PurPackMsr'] ?? null;
+            $prchseItem = $item['PrchseItem'] ?? null;
+            $sellItem = $item['SellItem'] ?? (isset($salesItem) ? 'Y' : null);
+            $invntItem = $item['InvntItem'] ?? null;
+            $itmsGrpCod = $item['ItmsGrpCod'] ?? null;
+
+            $rows[] = [
+                'item_code'    => $itemCode,
+                'item_name'    => $itemName,
+                'suom_entry'   => $suomEntry,
+                'sal_unit_msr' => $salUnitMsr,
+                'per_kg'       => $perKg,
+                'iuom_entry'   => $iuomEntry,
+                'invntry_uom'  => $invntryUom,
+                'puom_entry'   => $puomEntry,
+                'pur_pack_msr' => $purPackMsr,
+                'prchse_item'  => $prchseItem,
+                'sell_item'    => $sellItem,
+                'invnt_item'   => $invntItem,
+                'itms_grp_cod' => $itmsGrpCod,
+                'brand'        => $brand,
+                'status'       => 1,
+                'created_at'   => $now,
+                'updated_at'   => $now,
+            ];
         }
+
+        // Include any sales items from ListItem that were not in ListItemProd
+        foreach ($salesMap as $code => $si) {
+            if (!isset($processedCodes[$code])) {
+                $processedCodes[$code] = true;
+                $itemName = trim($si['ItemName'] ?? '');
+                $brand = $this->determineBrand($code, $itemName);
+                $rows[] = [
+                    'item_code'    => $code,
+                    'item_name'    => $itemName,
+                    'suom_entry'   => isset($si['SUoMEntry']) && $si['SUoMEntry'] !== '' ? (int)$si['SUoMEntry'] : (isset($si['UoMEntry']) && $si['UoMEntry'] !== '' ? (int)$si['UoMEntry'] : null),
+                    'sal_unit_msr' => $si['SalUnitMsr'] ?? null,
+                    'per_kg'       => isset($si['Perkg']) && $si['Perkg'] !== '' ? (float)$si['Perkg'] : null,
+                    'iuom_entry'   => null,
+                    'invntry_uom'  => $si['SalUnitMsr'] ?? null,
+                    'puom_entry'   => null,
+                    'pur_pack_msr' => null,
+                    'prchse_item'  => 'N',
+                    'sell_item'    => 'Y',
+                    'invnt_item'   => 'Y',
+                    'itms_grp_cod' => null,
+                    'brand'        => $brand,
+                    'status'       => 1,
+                    'created_at'   => $now,
+                    'updated_at'   => $now,
+                ];
+            }
+        }
+
+        // Bulk upsert to database
+        $this->itemRepository->upsertBatch($rows);
 
         // Log to Audit Log if user is authenticated
         if ($userId) {
             $this->auditLogService->log(
                 $userId,
                 'SYNC_ITEMS',
-                'Synchronized ' . count($synced) . ' items from SAP.'
+                'Synchronized ' . count($rows) . ' items from SAP.'
             );
         }
 
-        return $synced;
+        return $rows;
     }
 
     /**
