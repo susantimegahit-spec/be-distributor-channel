@@ -46,15 +46,24 @@ class AuthController extends Controller
             'distributor',
             'expedition',
             'organizationAssignments',
-            'employee.department',
-            'employee.division',
-            'employee.position',
-            'employee.supervisor',
         ]);
+
+        $employee = null;
+        try {
+            $user->load([
+                'employee.department',
+                'employee.division',
+                'employee.position',
+                'employee.supervisor',
+            ]);
+            $employee = $user->employee;
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Could not load employee relation for user #{$user->id}: " . $e->getMessage());
+        }
+
         $permsMap = $user->getPermissionsMap();
         $originatorDetail = $user->originator_detail;
 
-        $employee = $user->employee;
         $employeeData = null;
 
         if ($employee) {

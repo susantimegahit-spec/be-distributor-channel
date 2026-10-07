@@ -25,6 +25,15 @@ return new class extends Migration
     {
         $conn = $this->getConnection();
 
+        $driver = DB::connection($conn)->getDriverName();
+        if ($driver === 'pgsql') {
+            try {
+                DB::connection($conn)->statement('CREATE SCHEMA IF NOT EXISTS corporate');
+            } catch (\Throwable $e) {
+                Log::warning("Failed to auto-create schema 'corporate': " . $e->getMessage());
+            }
+        }
+
         // 1. hris_departments
         if (!Schema::connection($conn)->hasTable('hris_departments')) {
             Schema::connection($conn)->create('hris_departments', function (Blueprint $table) {
