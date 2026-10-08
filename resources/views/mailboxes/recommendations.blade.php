@@ -165,8 +165,8 @@
     </div>
 
     @if($recommendations->hasPages())
-        <div style="display: flex; justify-content: center; margin-top: 20px;">
-            {{ $recommendations->links() }}
+        <div style="display: flex; justify-content: center; margin-top: 20px; width: 100%;">
+            {{ $recommendations->links('mailboxes.pagination') }}
         </div>
     @endif
 @endsection

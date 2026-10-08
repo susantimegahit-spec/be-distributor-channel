@@ -488,6 +488,113 @@
             background-color: #f8fafc;
         }
 
+        /* Custom Pagination Styling */
+        .custom-pagination-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .custom-pagination-info {
+            font-size: 13px;
+            color: var(--slate-600);
+        }
+
+        .custom-pagination-info strong {
+            color: var(--navy);
+            font-weight: 700;
+        }
+
+        .custom-pagination-links {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .page-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: var(--radius-md);
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--slate-700);
+            background: #ffffff;
+            border: 1px solid var(--slate-300);
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .page-btn:hover:not(.disabled) {
+            background-color: var(--slate-50);
+            border-color: var(--slate-400);
+            color: var(--navy);
+        }
+
+        .page-btn.disabled {
+            color: var(--slate-400);
+            background-color: var(--slate-50);
+            border-color: var(--slate-200);
+            cursor: not-allowed;
+        }
+
+        .page-numbers {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .page-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            height: 32px;
+            padding: 0 6px;
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--slate-700);
+            background: #ffffff;
+            border: 1px solid var(--slate-300);
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .page-num:hover:not(.active):not(.disabled) {
+            background-color: var(--slate-50);
+            border-color: var(--slate-400);
+            color: var(--navy);
+        }
+
+        .page-num.active {
+            background-color: #059669;
+            border-color: #059669;
+            color: #ffffff;
+            font-weight: 700;
+        }
+
+        .page-num.disabled {
+            color: var(--slate-400);
+            border: none;
+            background: transparent;
+            cursor: default;
+        }
+
+        /* Generic Laravel Tailwind Pagination Fallback Overrides */
+        nav[role="navigation"] svg {
+            width: 16px !important;
+            height: 16px !important;
+            max-width: 16px !important;
+            max-height: 16px !important;
+            display: inline-block !important;
+            vertical-align: middle !important;
+        }
+
         /* Site Footer */
         .site-footer {
             background: #ffffff;

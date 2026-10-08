@@ -183,8 +183,8 @@
         </div>
 
         @if($mailboxes->hasPages())
-            <div style="padding: 16px 24px; border-top: 1px solid var(--slate-200); display: flex; justify-content: center;">
-                {{ $mailboxes->links() }}
+            <div style="padding: 16px 24px; border-top: 1px solid var(--slate-200); display: flex; justify-content: center; width: 100%;">
+                {{ $mailboxes->links('mailboxes.pagination') }}
             </div>
         @endif
     </div>
