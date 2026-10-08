@@ -17,10 +17,10 @@ class CpanelUapiProvider implements MailboxDataProviderInterface
 
     public function __construct(array $config = [])
     {
-        $this->host      = $config['host'] ?? env('CPANEL_HOST', '127.0.0.1');
-        $this->port      = (int) ($config['port'] ?? env('CPANEL_PORT', 2083));
-        $this->username  = $config['username'] ?? env('CPANEL_USERNAME', 'susantimegah');
-        $this->apiToken  = $config['api_token'] ?? env('CPANEL_API_TOKEN', null);
+        $this->host      = $config['host'] ?? \App\Models\MailboxSetting::get('cpanel_host') ?: env('CPANEL_HOST', '127.0.0.1');
+        $this->port      = (int) ($config['port'] ?? \App\Models\MailboxSetting::get('cpanel_port') ?: env('CPANEL_PORT', 2083));
+        $this->username  = $config['username'] ?? \App\Models\MailboxSetting::get('cpanel_user') ?: env('CPANEL_USERNAME', 'susantimegah');
+        $this->apiToken  = $config['api_token'] ?? \App\Models\MailboxSetting::get('cpanel_api_token') ?: env('CPANEL_API_TOKEN', null);
         $this->sslVerify = filter_var($config['ssl_verify'] ?? env('CPANEL_SSL_VERIFY', false), FILTER_VALIDATE_BOOLEAN);
     }
 
@@ -45,7 +45,7 @@ class CpanelUapiProvider implements MailboxDataProviderInterface
         }
 
         throw new \Exception(
-            "cPanel UAPI credentials not configured (CPANEL_API_TOKEN & CPANEL_USERNAME) and local 'uapi' CLI is not available in current environment. Please configure .env or use CSV/JSON import."
+            "cPanel API Token belum diatur. Untuk sinkronisasi otomatis via web, masukkan cPanel API Token di menu 'Konfigurasi & cPanel' atau tambahkan CPANEL_API_TOKEN di file .env."
         );
     }
 
@@ -104,15 +104,31 @@ class CpanelUapiProvider implements MailboxDataProviderInterface
     }
 
     /**
-     * Check if local uapi binary is executable.
+     * Check if local uapi binary is executable without triggering disabled_function errors.
      */
     protected function canExecuteLocalUapi(): bool
     {
         if (DIRECTORY_SEPARATOR === '\\') {
             return false; // Windows local dev
         }
-        $check = @shell_exec('which uapi 2>/dev/null');
-        return !empty(trim((string) $check));
+
+        // Check if shell_exec is disabled in php.ini
+        if (!function_exists('shell_exec') || !is_callable('shell_exec')) {
+            return false;
+        }
+
+        $disabled = explode(',', (string) ini_get('disable_functions'));
+        $disabled = array_map('trim', $disabled);
+        if (in_array('shell_exec', $disabled, true)) {
+            return false;
+        }
+
+        try {
+            $check = @shell_exec('which uapi 2>/dev/null');
+            return !empty(trim((string) $check));
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     /**
