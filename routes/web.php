@@ -112,8 +112,34 @@ Route::middleware('web')->prefix('monitoringsm')->group(function () {
             return app(\Spatie\Health\Http\Controllers\HealthCheckResultsController::class)($request, $resultStore, $health);
         });
         Route::get('/health/json', \Spatie\Health\Http\Controllers\HealthCheckJsonResultsController::class);
+
+        // Mailbox Monitoring & Quota Management
+        Route::prefix('mailboxes')->group(function () {
+            Route::get('/', [\App\Http\Controllers\MailboxMonitoringWebController::class, 'index'])->name('mailboxes.dashboard');
+            Route::get('/list', [\App\Http\Controllers\MailboxMonitoringWebController::class, 'list'])->name('mailboxes.list');
+            Route::get('/reports', [\App\Http\Controllers\MailboxMonitoringWebController::class, 'reports'])->name('mailboxes.reports');
+            Route::get('/recommendations', [\App\Http\Controllers\MailboxMonitoringWebController::class, 'recommendations'])->name('mailboxes.recommendations');
+            Route::post('/recommendations/{id}', [\App\Http\Controllers\MailboxMonitoringWebController::class, 'updateRecommendation'])->name('mailboxes.recommendations.update');
+            Route::get('/departments', [\App\Http\Controllers\MailboxMonitoringWebController::class, 'departments'])->name('mailboxes.departments');
+            Route::post('/departments', [\App\Http\Controllers\MailboxMonitoringWebController::class, 'storeDepartment'])->name('mailboxes.departments.store');
+            Route::post('/departments/{id}', [\App\Http\Controllers\MailboxMonitoringWebController::class, 'updateDepartment'])->name('mailboxes.departments.update');
+            Route::post('/departments/{id}/delete', [\App\Http\Controllers\MailboxMonitoringWebController::class, 'destroyDepartment'])->name('mailboxes.departments.destroy');
+            Route::get('/settings', [\App\Http\Controllers\MailboxMonitoringWebController::class, 'settings'])->name('mailboxes.settings');
+            Route::post('/settings', [\App\Http\Controllers\MailboxMonitoringWebController::class, 'updateSettings'])->name('mailboxes.settings.update');
+            Route::post('/sync', [\App\Http\Controllers\MailboxMonitoringWebController::class, 'sync'])->name('mailboxes.sync');
+            Route::post('/import', [\App\Http\Controllers\MailboxMonitoringWebController::class, 'import'])->name('mailboxes.import');
+            Route::get('/export/csv', [\App\Http\Controllers\MailboxMonitoringWebController::class, 'exportCsv'])->name('mailboxes.export.csv');
+            Route::get('/{id}', [\App\Http\Controllers\MailboxMonitoringWebController::class, 'show'])->name('mailboxes.show');
+            Route::post('/{id}', [\App\Http\Controllers\MailboxMonitoringWebController::class, 'update'])->name('mailboxes.update');
+        });
     });
 });
+
+// Top-level direct alias for Mailbox Monitoring: /monitoring
+Route::get('/monitoring', function () {
+    return redirect('/monitoringsm/mailboxes');
+});
+
 
 // Standalone ClickUp Task Reporting Dashboard URL (/reporting/tasks)
 Route::middleware(['web', \App\Http\Middleware\PulseAuthSession::class])->group(function () {

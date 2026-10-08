@@ -744,6 +744,16 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a href="{{ url('/monitoringsm/mailboxes') }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                                <polyline points="22,6 12,13 2,6"></polyline>
+                            </svg>
+                            <span>Mailbox Quota</span>
+                            <span class="nav-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">cPanel</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a href="{{ url('/monitoringsm/health') }}">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
@@ -1036,6 +1046,29 @@
                             <span class="action-link-text card-emerald-action">
                                 <span>Buka Swagger Docs</span>
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>
+                            </span>
+                        </div>
+                    </a>
+
+                    <!-- Card: Mailbox Storage & Quota Monitoring -->
+                    <a href="{{ url('/monitoringsm/mailboxes') }}" class="module-card">
+                        <div>
+                            <div class="card-top">
+                                <div class="module-icon-box" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                                        <polyline points="22,6 12,13 2,6"></polyline>
+                                    </svg>
+                                </div>
+                                <span class="nav-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">cPanel Exim</span>
+                            </div>
+                            <h2 class="card-title">Mailbox Storage & Quota Monitoring</h2>
+                            <p class="card-desc">Monitoring pemakaian storage email @susantimegah.com, batas quota, status peringatan (Safe/Monitoring/Warning/Critical), mapping departemen, rekomendasi penambahan quota, dan laporan eksekutif.</p>
+                        </div>
+                        <div class="card-bottom-action">
+                            <span class="action-link-text" style="color: #10b981;">
+                                <span>Buka Mailbox Monitoring</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
                             </span>
                         </div>
                     </a>
