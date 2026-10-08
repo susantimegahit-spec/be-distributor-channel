@@ -100,6 +100,14 @@ class Picklist extends Model
     }
 
     /**
+     * Get all handover/inspection signatures for this picklist.
+     */
+    public function signatures(): HasMany
+    {
+        return $this->hasMany(PicklistSignature::class, 'picklist_id')->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
      * Get the user who created this picklist.
      */
     public function creator(): BelongsTo

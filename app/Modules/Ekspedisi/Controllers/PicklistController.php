@@ -3,6 +3,7 @@
 namespace App\Modules\Ekspedisi\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Picklist;
 use App\Modules\Ekspedisi\Services\PicklistService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -208,6 +209,37 @@ class PicklistController extends Controller
                 'success' => true,
                 'message' => "Delivery Order successfully created in SAP (DocNum: {$result['doc_num']}).",
                 'data'    => $result,
+            ], 200);
+        } catch (\Throwable $e) {
+            $statusCode = ($e->getCode() >= 400 && $e->getCode() < 600) ? (int) $e->getCode() : 400;
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $statusCode);
+        }
+    }
+
+    /**
+     * Save inspection / handover signatures for a picklist.
+     */
+    public function saveSignatures(Request $request, int $id): JsonResponse
+    {
+        try {
+            $picklist = Picklist::find($id);
+            if (!$picklist) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Picklist with ID #{$id} not found.",
+                ], 404);
+            }
+
+            $user = $request->user();
+            $signatures = $this->picklistService->savePicklistSignatures($picklist, $request->all(), $user?->id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Signatures saved successfully.',
+                'data'    => $signatures,
             ], 200);
         } catch (\Throwable $e) {
             $statusCode = ($e->getCode() >= 400 && $e->getCode() < 600) ? (int) $e->getCode() : 400;

@@ -19207,6 +19207,41 @@ paths:
                         type: string
                         description: Kode departemen (Cost Center 3)
                         example: "MKT"
+                signatures:
+                  type: array
+                  description: Daftar tanda tangan pemeriksaan/serah terima (Checker dan Supir)
+                  items:
+                    type: object
+                    required:
+                      - signer_type
+                      - signer_name
+                      - signature
+                    properties:
+                      signer_type:
+                        type: string
+                        enum: [checker, driver, supervisor]
+                        description: Tipe penandatangan (checker atau driver)
+                        example: "checker"
+                      signer_role_title:
+                        type: string
+                        description: Label peran / judul jabatan (misal Checker 1, Checker 2, Supir)
+                        example: "Checker 1 (Gudang)"
+                      signer_name:
+                        type: string
+                        description: Nama penandatangan
+                        example: "Budi Santoso"
+                      signature:
+                        type: string
+                        description: Data gambar tanda tangan dalam format Base64 Data URL (data:image/png;base64,...) atau URL file
+                        example: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA..."
+                      notes:
+                        type: string
+                        description: Catatan pemeriksaan opsional
+                        example: "Barang lengkap dan sesuai fisik"
+                      signed_at:
+                        type: string
+                        format: date-time
+                        description: Waktu tanda tangan
             example:
               Series: 75
               NumAtCard: "PO-CUST-001"
@@ -19220,6 +19255,16 @@ paths:
               Sopir: "Budi Santoso"
               NamaChecker: "Andi"
               Noseal: "12345"
+              signatures:
+                - signer_type: "checker"
+                  signer_role_title: "Checker 1 (Gudang)"
+                  signer_name: "Andi"
+                  signature: "data:image/png;base64,iVBORw0KGgoAAA..."
+                  notes: "Barang siap muat"
+                - signer_type: "driver"
+                  signer_role_title: "Supir"
+                  signer_name: "Budi Santoso"
+                  signature: "data:image/png;base64,iVBORw0KGgoAAA..."
               Lines:
                 - BaseEntry: 1052
                   BaseLine: 0
@@ -19260,8 +19305,82 @@ paths:
                       doc_num:
                         type: string
                         example: "20260088"
+                      signatures:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            signer_type:
+                              type: string
+                              example: "checker"
+                            signer_role_title:
+                              type: string
+                              example: "Checker 1 (Gudang)"
+                            signer_name:
+                              type: string
+                              example: "Andi"
+                            signature_url:
+                              type: string
+                              example: "http://localhost:8000/storage/signatures/picklists/pkl_1_checker_1.png"
+                            signed_at:
+                              type: string
+                              example: "2026-10-08T10:30:00.000000Z"
         '400':
           description: Business error or SAP AddDO failure.
+        '404':
+          description: Picklist not found.
+
+  /v1/logistic/picklists/{id}/signatures:
+    post:
+      summary: Simpan Tanda Tangan Pemeriksaan / Serah Terima Picklist
+      description: |
+        Menyimpan bukti tanda tangan digital (Checker 1, Checker 2, Supir) untuk Picklist tertentu tanpa harus memanggil ulang Add DO SAP.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Picklist
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - signatures
+              properties:
+                signatures:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - signer_type
+                      - signer_name
+                      - signature
+                    properties:
+                      signer_type:
+                        type: string
+                        enum: [checker, driver, supervisor]
+                      signer_role_title:
+                        type: string
+                      signer_name:
+                        type: string
+                      signature:
+                        type: string
+                      notes:
+                        type: string
+      responses:
+        '200':
+          description: Signatures saved successfully.
         '404':
           description: Picklist not found.
 

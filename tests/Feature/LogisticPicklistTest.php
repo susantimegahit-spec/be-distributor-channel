@@ -6,6 +6,7 @@ use App\Models\Distributor;
 use App\Models\Item;
 use App\Models\Picklist;
 use App\Models\PicklistItem;
+use App\Models\PicklistSignature;
 use App\Models\SalesOrder;
 use App\Models\SalesOrderDetail;
 use App\Models\User;
@@ -706,6 +707,133 @@ class LogisticPicklistTest extends TestCase
         $this->assertEquals('SUCCESS', $so->sap_do_status);
         $this->assertEquals('DO', $so->sap_last_doc_type);
         $this->assertEquals('20260088', $so->sap_last_doc_num);
+    }
+
+    public function test_can_submit_add_do_with_multiple_checker_and_driver_signatures(): void
+    {
+        $soDo = SalesOrder::create([
+            'order_no'        => 'SO-PKL-SIG-001',
+            'sap_doc_entry'   => 6001,
+            'sap_doc_num'     => '99006001',
+            'distributor_id'  => $this->distributor->id,
+            'card_code'       => 'CUST-PL-001',
+            'customer_name'   => 'PT Mitra Logistik Jaya',
+            'doc_date'        => '2026-09-22',
+            'status'          => 'ORDER_APPROVED',
+            'logistic_status' => 'APPROVED',
+        ]);
+
+        $detailDo = SalesOrderDetail::create([
+            'sales_order_id' => $soDo->id,
+            'item_code'      => $this->item1->item_code,
+            'item_name'      => $this->item1->item_name,
+            'quantity'       => 10,
+            'open_qty'       => 10,
+            'whs_code'       => 'WH-SBY-01',
+            'unit_msr'       => 'KG',
+            'unit_price'     => 15000,
+            'line_total'     => 150000,
+            'baseline'       => 0,
+        ]);
+
+        Http::fake([
+            '*/api/addIT' => Http::response([
+                'ErrorCode' => 0,
+                'Message'   => 'Success DocNum: 8899 DocEntry: 7788',
+                'Result'    => [
+                    'DocEntry' => 7788,
+                    'DocNum'   => 8899,
+                ],
+            ], 200),
+            '*/api/AddDO' => Http::response([
+                'ErrorCode' => 0,
+                'Message'   => 'Success - [AddDeliveryOrder]. DocEntry: 1088, DocNum: 20260999',
+                'Result'    => [
+                    'DocEntry' => 1088,
+                    'DocNum'   => 20260999,
+                ],
+            ], 200),
+        ]);
+
+        // 1. Create Picklist
+        $createRes = $this->actingAs($this->user)
+            ->postJson('/api/distributor-channel/v1/logistic/picklists', [
+                'shipping_type' => 'internal',
+                'license_plate' => 'L 9988 AA',
+                'posting_date'  => '2026-09-22',
+                'due_date'      => '2026-09-22',
+                'items' => [
+                    [
+                        'sales_order_id'        => $soDo->id,
+                        'sales_order_detail_id' => $detailDo->id,
+                        'item_code'             => $this->item1->item_code,
+                        'pick_qty'              => 10,
+                    ],
+                ],
+            ]);
+        $createRes->assertStatus(201);
+        $picklistId = $createRes->json('data.id');
+
+        // Sample base64 1x1 transparent png
+        $samplePngBase64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+
+        // 2. Request Add DO with 2 Checkers and 1 Driver
+        $doRes = $this->actingAs($this->user)
+            ->postJson("/api/distributor-channel/v1/logistic/picklists/{$picklistId}/add-do", [
+                'NoPol' => 'L 9988 AA',
+                'signatures' => [
+                    [
+                        'signer_type'       => 'checker',
+                        'signer_role_title' => 'Checker 1 (Gudang)',
+                        'signer_name'       => 'Budi Checker Satu',
+                        'signature'         => $samplePngBase64,
+                        'notes'             => 'Kondisi barang sesuai dan rapi',
+                    ],
+                    [
+                        'signer_type'       => 'checker',
+                        'signer_role_title' => 'Checker 2 (Loading)',
+                        'signer_name'       => 'Santoso Checker Dua',
+                        'signature'         => $samplePngBase64,
+                        'notes'             => 'Pemuatan selesai aman',
+                    ],
+                    [
+                        'signer_type'       => 'driver',
+                        'signer_role_title' => 'Supir Armada',
+                        'signer_name'       => 'Supriadi Driver',
+                        'signature'         => $samplePngBase64,
+                    ],
+                ],
+            ]);
+
+        $doRes->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.delivery_order_no', '20260999');
+
+        // 3. Verify signatures in database
+        $signatures = PicklistSignature::where('picklist_id', $picklistId)->orderBy('sort_order')->get();
+        $this->assertCount(3, $signatures);
+
+        $this->assertEquals('checker', $signatures[0]->signer_type);
+        $this->assertEquals('Checker 1 (Gudang)', $signatures[0]->signer_role_title);
+        $this->assertEquals('Budi Checker Satu', $signatures[0]->signer_name);
+        $this->assertNotEmpty($signatures[0]->signature_url);
+        $this->assertEquals('Kondisi barang sesuai dan rapi', $signatures[0]->notes);
+
+        $this->assertEquals('checker', $signatures[1]->signer_type);
+        $this->assertEquals('Checker 2 (Loading)', $signatures[1]->signer_role_title);
+        $this->assertEquals('Santoso Checker Dua', $signatures[1]->signer_name);
+
+        $this->assertEquals('driver', $signatures[2]->signer_type);
+        $this->assertEquals('Supir Armada', $signatures[2]->signer_role_title);
+        $this->assertEquals('Supriadi Driver', $signatures[2]->signer_name);
+
+        // 4. Verify detail endpoint returns signatures eager-loaded
+        $detailRes = $this->actingAs($this->user)
+            ->getJson("/api/distributor-channel/v1/logistic/picklists/{$picklistId}");
+
+        $detailRes->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonCount(3, 'data.signatures');
     }
 
     public function test_add_delivery_order_fails_gracefully_when_sap_add_do_errors(): void

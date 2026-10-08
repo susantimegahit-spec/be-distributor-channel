@@ -5,6 +5,7 @@ namespace App\Modules\Ekspedisi\Services;
 use App\Models\Item;
 use App\Models\Picklist;
 use App\Models\PicklistItem;
+use App\Models\PicklistSignature;
 use App\Models\SalesOrder;
 use App\Models\SalesOrderDetail;
 use App\Models\SalesOrderLogisticLog;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class PicklistService
 {
@@ -102,6 +104,7 @@ class PicklistService
             'items.item:id,item_code,item_name,per_kg',
             'creator:id,name,username',
             'updater:id,name,username',
+            'signatures.creator:id,name',
         ])->find($id);
 
         if (!$picklist) {
@@ -1122,6 +1125,9 @@ class PicklistService
             'updated_by'        => $userId,
         ]);
 
+        // 5. Save inspection / handover signatures if provided
+        $savedSignatures = $this->savePicklistSignatures($picklist, $payload, $userId);
+
         return [
             'picklist_id'       => $picklist->id,
             'picklist_no'       => $picklist->picklist_no,
@@ -1129,7 +1135,8 @@ class PicklistService
             'doc_entry'         => (string) $latestDocEntry,
             'doc_num'           => (string) $latestDocNum,
             'results'           => $resultsPerOrder,
-            'picklist'          => $picklist->fresh(['items.salesOrder', 'creator', 'updater']),
+            'signatures'        => $savedSignatures,
+            'picklist'          => $picklist->fresh(['items.salesOrder', 'creator', 'updater', 'signatures']),
         ];
     }
 
@@ -1564,5 +1571,145 @@ class PicklistService
         }
 
         return 0.0;
+    }
+
+    /**
+     * Save dynamic inspection / handover signatures for a picklist.
+     *
+     * @param Picklist $picklist
+     * @param array $payload
+     * @param int|null $userId
+     * @return array
+     */
+    public function savePicklistSignatures(Picklist $picklist, array $payload, ?int $userId = null): array
+    {
+        $rawSignatures = [];
+
+        // 1. Check if 'signatures' array is provided in payload
+        if (!empty($payload['signatures']) && is_array($payload['signatures'])) {
+            $rawSignatures = $payload['signatures'];
+        } else {
+            // 2. Fallback: normalize direct keys (checker_signature, driver_signature, ttd_checker, ttd_driver)
+            if (!empty($payload['checker_signature']) || !empty($payload['ttd_checker'])) {
+                $rawSignatures[] = [
+                    'signer_type'       => PicklistSignature::TYPE_CHECKER,
+                    'signer_role_title' => $payload['checker_role_title'] ?? 'Checker',
+                    'signer_name'       => $payload['checker_name'] ?? $picklist->checker_name ?? 'Checker',
+                    'signature'         => $payload['checker_signature'] ?? $payload['ttd_checker'] ?? null,
+                    'notes'             => $payload['checker_notes'] ?? null,
+                ];
+            }
+
+            if (!empty($payload['driver_signature']) || !empty($payload['ttd_driver']) || !empty($payload['ttd_sopir'])) {
+                $rawSignatures[] = [
+                    'signer_type'       => PicklistSignature::TYPE_DRIVER,
+                    'signer_role_title' => $payload['driver_role_title'] ?? 'Supir',
+                    'signer_name'       => $payload['driver_name'] ?? $picklist->driver_name ?? 'Supir',
+                    'signature'         => $payload['driver_signature'] ?? $payload['ttd_driver'] ?? $payload['ttd_sopir'] ?? null,
+                    'notes'             => $payload['driver_notes'] ?? null,
+                ];
+            }
+        }
+
+        if (empty($rawSignatures)) {
+            return [];
+        }
+
+        $saved = [];
+        $order = 1;
+
+        foreach ($rawSignatures as $item) {
+            $signatureData = $item['signature'] ?? $item['signature_file'] ?? $item['ttd'] ?? null;
+            if (empty($signatureData)) {
+                continue;
+            }
+
+            $signerType  = strtolower(trim((string) ($item['signer_type'] ?? PicklistSignature::TYPE_CHECKER)));
+            $roleTitle   = !empty($item['signer_role_title']) ? trim((string) $item['signer_role_title']) : ucfirst($signerType);
+            $signerName  = !empty($item['signer_name']) ? trim((string) $item['signer_name']) : ($picklist->{"{$signerType}_name"} ?? ucfirst($signerType));
+            $notes       = !empty($item['notes']) ? trim((string) $item['notes']) : null;
+            $signedAt    = !empty($item['signed_at']) ? Carbon::parse($item['signed_at']) : now();
+
+            $storedPath = $this->storeSignatureImage($picklist->id, $signerType, $order, $signatureData);
+
+            if ($storedPath) {
+                $sig = PicklistSignature::create([
+                    'picklist_id'       => $picklist->id,
+                    'signer_type'       => $signerType,
+                    'signer_role_title' => $roleTitle,
+                    'signer_name'       => $signerName,
+                    'signature_path'    => $storedPath,
+                    'signed_at'         => $signedAt,
+                    'sort_order'        => (int) ($item['sort_order'] ?? $order),
+                    'notes'             => $notes,
+                    'created_by'        => $userId,
+                ]);
+
+                $saved[] = $sig;
+                $order++;
+            }
+        }
+
+        return $saved;
+    }
+
+    /**
+     * Store signature image (Base64 data URI, raw base64, or UploadedFile) to public disk.
+     *
+     * @param int $picklistId
+     * @param string $signerType
+     * @param int $index
+     * @param mixed $signatureData
+     * @return string|null
+     */
+    protected function storeSignatureImage(int $picklistId, string $signerType, int $index, mixed $signatureData): ?string
+    {
+        $dir = 'signatures/picklists';
+
+        if (!Storage::disk('public')->exists($dir)) {
+            Storage::disk('public')->makeDirectory($dir);
+        }
+
+        $timestamp = time() . '_' . substr(md5(uniqid()), 0, 6);
+
+        // Case A: UploadedFile instance
+        if ($signatureData instanceof \Illuminate\Http\UploadedFile) {
+            $ext = $signatureData->getClientOriginalExtension() ?: 'png';
+            $filename = "{$dir}/pkl_{$picklistId}_{$signerType}_{$index}_{$timestamp}.{$ext}";
+            Storage::disk('public')->putFileAs($dir, $signatureData, basename($filename));
+            return $filename;
+        }
+
+        // Case B: String (Data URL or base64)
+        if (is_string($signatureData)) {
+            $signatureStr = trim($signatureData);
+            if (empty($signatureStr)) {
+                return null;
+            }
+
+            // Check if already a path / URL
+            if (str_starts_with($signatureStr, 'signatures/picklists/') || str_starts_with($signatureStr, 'http://') || str_starts_with($signatureStr, 'https://')) {
+                return $signatureStr;
+            }
+
+            $ext = 'png';
+            if (preg_match('/^data:image\/(\w+);base64,/i', $signatureStr, $matches)) {
+                $ext = strtolower($matches[1]) === 'jpeg' ? 'jpg' : strtolower($matches[1]);
+                $base64 = substr($signatureStr, strpos($signatureStr, ',') + 1);
+                $binary = base64_decode($base64);
+            } else {
+                $binary = base64_decode($signatureStr);
+            }
+
+            if ($binary === false) {
+                return null;
+            }
+
+            $filename = "{$dir}/pkl_{$picklistId}_{$signerType}_{$index}_{$timestamp}.{$ext}";
+            Storage::disk('public')->put($filename, $binary);
+            return $filename;
+        }
+
+        return null;
     }
 }
