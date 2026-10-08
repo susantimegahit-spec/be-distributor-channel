@@ -19102,10 +19102,6 @@ paths:
             schema:
               type: object
               properties:
-                sales_order_id:
-                  type: integer
-                  description: Opsional jika picklist memiliki multiple Sales Orders dan hanya ingin membuat DO untuk salah satu Sales Order tertentu
-                  example: 1
                 Series:
                   type: integer
                   description: Nomor Series DO di SAP (misal 75). Default mengambil dari picklist->series atau SO->series
@@ -19179,6 +19175,14 @@ paths:
                       - BaseLine
                       - Quantity
                     properties:
+                      sales_order_id:
+                        type: integer
+                        description: ID Sales Order sumber untuk item baris ini
+                        example: 1
+                      sales_order_detail_id:
+                        type: integer
+                        description: Opsional. ID baris item Sales Order detail
+                        example: 10
                       BaseEntry:
                         type: integer
                         description: DocEntry dari Sales Order SAP
@@ -19266,7 +19270,8 @@ paths:
                   signer_name: "Budi Santoso"
                   signature: "data:image/png;base64,iVBORw0KGgoAAA..."
               Lines:
-                - BaseEntry: 1052
+                - sales_order_id: 1
+                  BaseEntry: 1052
                   BaseLine: 0
                   Quantity: 5.0
                   WhsCode: "01"
@@ -19484,6 +19489,14 @@ paths:
                         - BaseLine
                         - Quantity
                       properties:
+                        sales_order_id:
+                          type: integer
+                          description: ID Sales Order sumber untuk item baris ini
+                          example: 1
+                        sales_order_detail_id:
+                          type: integer
+                          description: Opsional. ID baris item Sales Order detail
+                          example: 10
                         BaseEntry:
                           type: integer
                           description: DocEntry dari Sales Order
@@ -19528,14 +19541,16 @@ paths:
                 UserId: "1"
                 Noseal: "12345"
                 Lines:
-                  - BaseEntry: 1052
+                  - sales_order_id: 1
+                    BaseEntry: 1052
                     BaseLine: 0
                     Quantity: 5.0
                     WhsCode: "01"
                     OcrCode: "SBY"
                     OcrCode2: "GRM"
                     OcrCode3: "MKT"
-                  - BaseEntry: 1052
+                  - sales_order_id: 1
+                    BaseEntry: 1052
                     BaseLine: 1
                     Quantity: 2.0
                     WhsCode: "01"
@@ -19556,7 +19571,8 @@ paths:
                 AddonId: 2
                 UserId: "1"
                 Lines:
-                  - BaseEntry: 1053
+                  - sales_order_id: 2
+                    BaseEntry: 1053
                     BaseLine: 0
                     Quantity: 10.0
                     WhsCode: "02"

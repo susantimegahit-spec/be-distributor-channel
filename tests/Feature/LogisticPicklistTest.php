@@ -42,21 +42,30 @@ class LogisticPicklistTest extends TestCase
             ], 200),
         ]);
 
-        $this->distributor = Distributor::create([
-            'code_customer' => 'CUST-PL-001',
-            'name'          => 'PT Mitra Logistik Jaya',
-            'depo'          => 'SURABAYA',
-        ]);
+        try {
+            PicklistItem::query()->delete();
+            Picklist::query()->delete();
+        } catch (\Throwable $e) {}
 
-        $this->user = User::create([
-            'name'          => 'Logistik Checker',
-            'username'      => 'pkl_checker',
-            'email'         => 'pkl_checker@example.com',
-            'password'      => bcrypt('password123'),
-            'role'          => 'logistic',
-            'code_customer' => 'CUST-PL-001',
-            'is_active'     => true,
-        ]);
+        $this->distributor = Distributor::firstOrCreate(
+            ['code_customer' => 'CUST-PL-001'],
+            [
+                'name' => 'PT Mitra Logistik Jaya',
+                'depo' => 'SURABAYA',
+            ]
+        );
+
+        $this->user = User::firstOrCreate(
+            ['username' => 'pkl_checker'],
+            [
+                'name'          => 'Logistik Checker',
+                'email'         => 'pkl_checker@example.com',
+                'password'      => bcrypt('password123'),
+                'role'          => 'logistic',
+                'code_customer' => 'CUST-PL-001',
+                'is_active'     => true,
+            ]
+        );
 
         $this->item1 = Item::firstOrCreate(
             ['item_code' => 'SKU-SALT-250'],
@@ -736,6 +745,7 @@ class LogisticPicklistTest extends TestCase
             'baseline'       => 0,
         ]);
 
+        Http::swap(new \Illuminate\Http\Client\Factory);
         Http::fake([
             '*/api/addIT' => Http::response([
                 'ErrorCode' => 0,
@@ -1251,6 +1261,141 @@ class LogisticPicklistTest extends TestCase
 
         $picklistExternal = Picklist::find($resExternal->json('data.id'));
         $this->assertSame('EXP-TIKI', $picklistExternal->expedition_id);
+    }
+
+    public function test_add_do_with_sales_order_id_per_line_in_custom_lines(): void
+    {
+        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::fake([
+            '*/api/addIT' => Http::response([
+                'ErrorCode' => 0,
+                'Message'   => 'Success DocNum: 8899 DocEntry: 7788',
+                'Result'    => [
+                    'DocEntry' => 7788,
+                    'DocNum'   => 8899,
+                ],
+            ], 200),
+            '*/api/AddDO' => function ($request) {
+                $payload = $request->data();
+                $this->assertEquals(75, $payload['Series']);
+                $this->assertCount(1, $payload['Lines']);
+                $this->assertEquals(1052, $payload['Lines'][0]['BaseEntry']);
+                $this->assertEquals(0, $payload['Lines'][0]['BaseLine']);
+                $this->assertEquals(5.0, $payload['Lines'][0]['Quantity']);
+
+                return Http::response([
+                    'ErrorCode' => 0,
+                    'Message'   => 'Success DocNum: 20261122 DocEntry: 1052',
+                    'Result'    => [
+                        'DocEntry' => 1052,
+                        'DocNum'   => 20261122,
+                    ],
+                ], 200);
+            },
+        ]);
+
+        $createRes = $this->actingAs($this->user)
+            ->postJson('/api/distributor-channel/v1/logistic/picklists', [
+                'shipping_type' => 'pickup',
+                'posting_date'  => '2026-09-24',
+                'due_date'      => '2026-09-24',
+                'items' => [
+                    [
+                        'sales_order_id'        => $this->order1->id,
+                        'sales_order_detail_id' => $this->detail1->id,
+                        'item_code'             => $this->item1->item_code,
+                        'pick_qty'              => 5,
+                    ],
+                ],
+            ]);
+        $picklistId = $createRes->json('data.id');
+
+        // Request add-do with sales_order_id per line in Lines
+        $res = $this->actingAs($this->user)
+            ->postJson("/api/distributor-channel/v1/logistic/picklists/{$picklistId}/add-do", [
+                'Series' => 75,
+                'NoPol'  => 'B 1234 ABC',
+                'Sopir'  => 'Budi Santoso',
+                'Lines'  => [
+                    [
+                        'sales_order_id'        => $this->order1->id,
+                        'sales_order_detail_id' => $this->detail1->id,
+                        'BaseEntry'             => 1052,
+                        'BaseLine'              => 0,
+                        'Quantity'              => 5.0,
+                        'WhsCode'               => '01',
+                        'OcrCode'               => 'SBY',
+                        'OcrCode2'              => 'GRM',
+                        'OcrCode3'              => 'MKT',
+                    ],
+                ],
+            ]);
+
+        $res->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.delivery_order_no', '20261122');
+
+        $this->assertEquals('20261122', SalesOrder::find($this->order1->id)->delivery_order_no);
+    }
+
+    public function test_direct_add_do_with_sales_order_id_per_line(): void
+    {
+        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::fake([
+            '*/api/AddDO' => function ($request) {
+                $payload = $request->data();
+                $this->assertEquals(75, $payload['Series']);
+                $this->assertEquals(1052, $payload['Lines'][0]['BaseEntry']);
+                $this->assertEquals(0, $payload['Lines'][0]['BaseLine']);
+                $this->assertEquals(5.0, $payload['Lines'][0]['Quantity']);
+
+                return Http::response([
+                    'ErrorCode' => 0,
+                    'Message'   => 'Success DocNum: DO-20260924 DocEntry: 1052',
+                    'Result'    => [
+                        'DocEntry' => 1052,
+                        'DocNum'   => 'DO-20260924',
+                    ],
+                ], 200);
+            },
+        ]);
+
+        $payload = [
+            'Series'        => 75,
+            'DocDate'       => '2026-09-24T00:00:00',
+            'DocDueDate'    => '2026-09-24T00:00:00',
+            'TaxDate'       => '2026-09-24T00:00:00',
+            'NumAtCard'     => 'PO-CUST-001',
+            'Comments'      => 'Pengiriman parsial SO tahap 1',
+            'NoPol'         => 'B 1234 ABC',
+            'KodeEkspedisi' => 'JNE',
+            'NamaEkspedisi' => 'JNE Trucking',
+            'Sopir'         => 'Budi Santoso',
+            'NamaChecker'   => 'Andi',
+            'Noseal'        => '12345',
+            'Lines'         => [
+                [
+                    'sales_order_id' => $this->order1->id,
+                    'BaseEntry'      => 1052,
+                    'BaseLine'       => 0,
+                    'Quantity'       => 5.0,
+                    'WhsCode'        => '01',
+                    'OcrCode'        => 'SBY',
+                    'OcrCode2'       => 'GRM',
+                    'OcrCode3'       => 'MKT',
+                ],
+            ],
+        ];
+
+        $res = $this->actingAs($this->user)
+            ->postJson('/api/distributor-channel/v1/logistic/picklists/add-do', $payload);
+
+        $res->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.delivery_order_no', 'DO-20260924')
+            ->assertJsonPath('data.doc_num', 'DO-20260924');
+
+        $this->assertEquals('DO-20260924', SalesOrder::find($this->order1->id)->delivery_order_no);
     }
 }
 

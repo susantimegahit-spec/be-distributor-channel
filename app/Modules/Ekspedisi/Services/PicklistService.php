@@ -732,16 +732,33 @@ class PicklistService
             throw new \Exception("Picklist #{$picklistId} has no item lines.", 400);
         }
 
-        // Filter by sales_order_id if specified in payload
+        // Filter by sales_order_id if specified in payload or in lines
         $filterSoId = !empty($payload['sales_order_id']) ? (int) $payload['sales_order_id'] : null;
 
+        $customLines = $payload['Lines'] ?? $payload['lines'] ?? null;
+        $lineSoIds = [];
+        if (is_array($customLines)) {
+            foreach ($customLines as $cLine) {
+                $cSoId = $cLine['sales_order_id'] ?? $cLine['sales_order_Id'] ?? null;
+                if (!empty($cSoId)) {
+                    $lineSoIds[] = (int) $cSoId;
+                }
+            }
+            $lineSoIds = array_unique($lineSoIds);
+        }
+
         // Group picklist items by sales_order_id
-        $groupedItems = $picklist->items->groupBy('sales_order_id');
+        $groupedItems = $picklist->items->toBase()->groupBy('sales_order_id');
         if ($filterSoId) {
             if (!$groupedItems->has($filterSoId)) {
                 throw new \Exception("Sales Order #{$filterSoId} is not part of picklist #{$picklistId}.", 400);
             }
-            $groupedItems = $groupedItems->only([$filterSoId]);
+            $groupedItems = $groupedItems->filter(fn($val, $k) => (int) $k === (int) $filterSoId);
+        } elseif (!empty($lineSoIds)) {
+            $filteredGroups = $groupedItems->filter(fn($val, $k) => in_array((int) $k, $lineSoIds, true));
+            if ($filteredGroups->isNotEmpty()) {
+                $groupedItems = $filteredGroups;
+            }
         }
 
         $sapUrl = rtrim(config('services.sap.url') ?: env('SAP_API_URL', 'http://103.18.133.187:3100'), '/');
@@ -791,10 +808,19 @@ class PicklistService
 
             // Build Lines for this SO
             $lines = [];
-            $customLines = $payload['Lines'] ?? $payload['lines'] ?? null;
-
+            $matchingCustomLines = null;
             if (is_array($customLines) && !empty($customLines)) {
-                foreach ($customLines as $lineIdx => $cLine) {
+                $matchingCustomLines = array_filter($customLines, function ($cLine) use ($soId, $lineSoIds) {
+                    $cSoId = $cLine['sales_order_id'] ?? $cLine['sales_order_Id'] ?? null;
+                    if (!empty($cSoId)) {
+                        return (int) $cSoId === (int) $soId;
+                    }
+                    return empty($lineSoIds);
+                });
+            }
+
+            if (is_array($matchingCustomLines) && !empty($matchingCustomLines)) {
+                foreach ($matchingCustomLines as $lineIdx => $cLine) {
                     $qty = floatval($cLine['Quantity'] ?? $cLine['quantity'] ?? 0);
                     if ($qty <= 0) {
                         continue;
@@ -876,7 +902,7 @@ class PicklistService
 
                     $lines[] = $lineObj;
                 }
-            } else {
+            } elseif (!empty($items)) {
                 foreach ($items as $lineIdx => $item) {
                     $itemCode = trim((string) $item->item_code);
                     $qty = floatval($item->pick_qty);
@@ -940,6 +966,10 @@ class PicklistService
 
                     $lines[] = $lineObj;
                 }
+            }
+
+            if (is_array($customLines) && empty($lines)) {
+                continue;
             }
 
             if (empty($lines)) {
@@ -1158,6 +1188,13 @@ class PicklistService
         $metaDocs = [];
 
         foreach ($rawDocs as $header) {
+            $linesKey = isset($header['Lines']) ? 'Lines' : (isset($header['lines']) ? 'lines' : 'Lines');
+            $headerLines = $header[$linesKey] ?? [];
+
+            if (empty($headerLines) || !is_array($headerLines)) {
+                throw new \Exception("Payload DO tidak memiliki baris item (Lines).", 400);
+            }
+
             // 1. Resolve Sales Order
             $so = null;
             if (!empty($header['sales_order_id'])) {
@@ -1166,6 +1203,17 @@ class PicklistService
                     $so = SalesOrder::with('details')->where('sap_doc_entry', (int) $header['sales_order_id'])
                         ->orWhere('docentry', (int) $header['sales_order_id'])
                         ->first();
+                }
+            }
+            if (!$so && !empty($headerLines[0])) {
+                $firstSoId = $headerLines[0]['sales_order_id'] ?? $headerLines[0]['sales_order_Id'] ?? null;
+                if ($firstSoId) {
+                    $so = SalesOrder::with('details')->find($firstSoId);
+                    if (!$so) {
+                        $so = SalesOrder::with('details')->where('sap_doc_entry', (int) $firstSoId)
+                            ->orWhere('docentry', (int) $firstSoId)
+                            ->first();
+                    }
                 }
             }
             if (!$so && !empty($header['order_no'])) {
@@ -1190,9 +1238,6 @@ class PicklistService
                 }
             }
 
-            $linesKey = isset($header['Lines']) ? 'Lines' : (isset($header['lines']) ? 'lines' : 'Lines');
-            $headerLines = $header[$linesKey] ?? [];
-
             if (!$so && !empty($headerLines[0])) {
                 $firstBe = $headerLines[0]['BaseEntry'] ?? $headerLines[0]['base_entry'] ?? null;
                 if ($firstBe) {
@@ -1200,10 +1245,6 @@ class PicklistService
                         ->orWhere('sap_doc_entry', (int) $firstBe)
                         ->first();
                 }
-            }
-
-            if (empty($headerLines) || !is_array($headerLines)) {
-                throw new \Exception("Payload DO tidak memiliki baris item (Lines).", 400);
             }
 
             // Resolve BaseEntry from SO or payload or lines
@@ -1219,7 +1260,8 @@ class PicklistService
             }
 
             if (empty($baseEntry)) {
-                $orderIdentifier = $so ? "#{$so->order_no}" : (!empty($header['sales_order_id']) ? "ID #{$header['sales_order_id']}" : '');
+                $firstLineSoId = $headerLines[0]['sales_order_id'] ?? $headerLines[0]['sales_order_Id'] ?? null;
+                $orderIdentifier = $so ? "#{$so->order_no}" : (!empty($header['sales_order_id']) ? "ID #{$header['sales_order_id']}" : (!empty($firstLineSoId) ? "ID #{$firstLineSoId}" : ''));
                 throw new \Exception("Sales Order {$orderIdentifier} belum memiliki DocEntry / BaseEntry (belum approved / terintegrasi ke SAP). Tidak bisa Add DO.", 400);
             }
 
@@ -1230,6 +1272,10 @@ class PicklistService
             }
 
             $soDetails = $so && $so->details ? $so->details->sortBy('id')->values() : collect();
+            $referencedSos = collect();
+            if ($so) {
+                $referencedSos->put($so->id, $so);
+            }
 
             $cleanLines = [];
             foreach ($headerLines as $lineIdx => $line) {
@@ -1239,23 +1285,36 @@ class PicklistService
                     continue;
                 }
 
+                $lineSoId = $line['sales_order_id'] ?? $line['sales_order_Id'] ?? null;
+                $lineSo = null;
+                if ($lineSoId) {
+                    $lineSo = ($so && (int) $so->id === (int) $lineSoId)
+                        ? $so
+                        : SalesOrder::with('details')->find($lineSoId);
+                    if ($lineSo && !$referencedSos->has($lineSo->id)) {
+                        $referencedSos->put($lineSo->id, $lineSo);
+                    }
+                }
+                $currentSo = $lineSo ?: $so;
+                $currentSoDetails = $currentSo && $currentSo->details ? $currentSo->details->sortBy('id')->values() : $soDetails;
+
                 $detail = null;
                 if (!empty($line['sales_order_detail_id'])) {
-                    $detail = $soDetails->firstWhere('id', (int) $line['sales_order_detail_id']);
+                    $detail = $currentSoDetails->firstWhere('id', (int) $line['sales_order_detail_id']);
                 }
                 if (!$detail && !empty($itemCode)) {
-                    $detail = $soDetails->first(function ($d) use ($itemCode) {
+                    $detail = $currentSoDetails->first(function ($d) use ($itemCode) {
                         return strtolower(trim((string)$d->item_code)) === strtolower(trim($itemCode));
                     });
                 }
                 if (!$detail && isset($line['BaseLine'])) {
-                    $detail = $soDetails->firstWhere('baseline', (int) $line['BaseLine']);
+                    $detail = $currentSoDetails->firstWhere('baseline', (int) $line['BaseLine']);
                 }
                 if (!$detail && isset($line['baseline'])) {
-                    $detail = $soDetails->firstWhere('baseline', (int) $line['baseline']);
+                    $detail = $currentSoDetails->firstWhere('baseline', (int) $line['baseline']);
                 }
-                if (!$detail && isset($soDetails[$lineIdx])) {
-                    $detail = $soDetails[$lineIdx];
+                if (!$detail && isset($currentSoDetails[$lineIdx])) {
+                    $detail = $currentSoDetails[$lineIdx];
                 }
 
                 // Resolve line BaseLine safely without throwing
@@ -1271,7 +1330,7 @@ class PicklistService
                 } elseif ($detail && $detail->line_num !== null) {
                     $lineBaseLine = (int) $detail->line_num;
                 } else {
-                    $dIndex = $detail ? $soDetails->search(fn($d) => $d->id === $detail->id) : false;
+                    $dIndex = $detail ? $currentSoDetails->search(fn($d) => $d->id === $detail->id) : false;
                     $lineBaseLine = ($dIndex !== false) ? (int) $dIndex : (int) $lineIdx;
                 }
 
@@ -1285,7 +1344,7 @@ class PicklistService
                     ? (int) $line['BaseEntry']
                     : ((isset($line['base_entry']) && $line['base_entry'] !== '' && $line['base_entry'] !== null)
                         ? (int) $line['base_entry']
-                        : (int) $baseEntry);
+                        : (int) ($currentSo ? ($currentSo->docentry ?: $currentSo->sap_doc_entry) : $baseEntry));
 
                 $finalItemCode = $itemCode ?: ($detail?->item_code ?: '');
                 $cleanLine = [
@@ -1359,65 +1418,71 @@ class PicklistService
 
             $batchPayload[] = $sapDoc;
             $metaDocs[] = [
-                'so'          => $so,
-                'picklist_id' => $header['picklist_id'] ?? null,
-                'raw'         => $header,
+                'so'             => $so,
+                'referenced_sos' => $referencedSos,
+                'picklist_id'    => $header['picklist_id'] ?? null,
+                'raw'            => $header,
             ];
         }
 
         $sapUrl = rtrim(config('services.sap.url') ?: env('SAP_API_URL', 'http://103.18.133.187:3100'), '/');
+
+        $outboundPayload = $isBatch ? $batchPayload : ($batchPayload[0] ?? []);
+
+        try {
+            $response = Http::timeout(60)->post("{$sapUrl}/api/AddDO", $outboundPayload);
+        } catch (\Throwable $e) {
+            Log::error("Failed to connect to SAP /api/AddDO: " . $e->getMessage(), ['payload' => $outboundPayload]);
+            throw new \Exception("Failed to connect to SAP API for Delivery Order: " . $e->getMessage(), 400);
+        }
+
+        if (!$response->successful()) {
+            $status = $response->status();
+            $body = $response->body();
+            Log::error("SAP /api/AddDO returned HTTP {$status}: {$body}");
+            throw new \Exception("Failed to process Delivery Order in SAP (HTTP {$status}): " . substr($body, 0, 250), 400);
+        }
+
+        $result = $response->json();
+        $lastResult = $result;
+
+        if (isset($result['ErrorCode']) && (int) $result['ErrorCode'] !== 0) {
+            $errMsg = $result['Message'] ?? 'Unknown SAP error during Delivery Order.';
+            Log::error("SAP /api/AddDO returned ErrorCode {$result['ErrorCode']}: {$errMsg}");
+            throw new \Exception("SAP Delivery Order Error [{$result['ErrorCode']}]: {$errMsg}", 400);
+        }
+
+        $rawResult = $result['Result'] ?? $result['result'] ?? null;
+        $msg = $result['Message'] ?? $result['message'] ?? '';
 
         $processedDocs = [];
         $latestDocNum = null;
         $latestDocEntry = null;
         $firstSo = null;
         $firstPicklist = null;
-        $lastResult = null;
 
-        // SAP B1 /api/AddDO expects a single document object model (not an array)
         foreach ($batchPayload as $index => $sapDoc) {
-            try {
-                $response = Http::timeout(60)->post("{$sapUrl}/api/AddDO", $sapDoc);
-            } catch (\Throwable $e) {
-                Log::error("Failed to connect to SAP /api/AddDO: " . $e->getMessage(), ['payload' => $sapDoc]);
-                throw new \Exception("Failed to connect to SAP API for Delivery Order: " . $e->getMessage(), 400);
-            }
-
-            if (!$response->successful()) {
-                $status = $response->status();
-                $body = $response->body();
-                Log::error("SAP /api/AddDO returned HTTP {$status}: {$body}");
-                throw new \Exception("Failed to process Delivery Order in SAP (HTTP {$status}): " . substr($body, 0, 250), 400);
-            }
-
-            $result = $response->json();
-            $lastResult = $result;
-
-            if (isset($result['ErrorCode']) && (int) $result['ErrorCode'] !== 0) {
-                $errMsg = $result['Message'] ?? 'Unknown SAP error during Delivery Order.';
-                Log::error("SAP /api/AddDO returned ErrorCode {$result['ErrorCode']}: {$errMsg}");
-                throw new \Exception("SAP Delivery Order Error [{$result['ErrorCode']}]: {$errMsg}", 400);
-            }
-
-            $rawResult = $result['Result'] ?? $result['result'] ?? null;
-            $msg = $result['Message'] ?? $result['message'] ?? '';
-
-            $docNum = null;
             $docEntry = null;
+            $docNum = null;
 
             if (is_array($rawResult)) {
-                $docEntry = $rawResult['DocEntry'] ?? $rawResult['doc_entry'] ?? null;
-                $docNum   = $rawResult['DocNum'] ?? $rawResult['doc_num'] ?? null;
+                if (isset($rawResult[$index]) && is_array($rawResult[$index])) {
+                    $docEntry = $rawResult[$index]['DocEntry'] ?? $rawResult[$index]['doc_entry'] ?? null;
+                    $docNum   = $rawResult[$index]['DocNum'] ?? $rawResult[$index]['doc_num'] ?? null;
+                } elseif (isset($rawResult['DocEntry']) || isset($rawResult['doc_entry'])) {
+                    $docEntry = $rawResult['DocEntry'] ?? $rawResult['doc_entry'] ?? null;
+                    $docNum   = $rawResult['DocNum'] ?? $rawResult['doc_num'] ?? null;
+                }
             } elseif (is_numeric($rawResult) || is_string($rawResult)) {
                 $docEntry = (string) $rawResult;
             }
 
             if (!empty($msg)) {
-                if (!$docNum && preg_match('/DocNum(?:s)?:\s*([A-Za-z0-9_-]+)/i', $msg, $mNum)) {
-                    $docNum = $mNum[1];
+                if (!$docNum && preg_match_all('/DocNum(?:s)?:\s*([A-Za-z0-9_-]+)/i', $msg, $mNums)) {
+                    $docNum = $mNums[1][$index] ?? $mNums[1][0] ?? null;
                 }
-                if (!$docEntry && preg_match('/DocEntr(?:y|ies):\s*([0-9]+)/i', $msg, $mEntry)) {
-                    $docEntry = $mEntry[1];
+                if (!$docEntry && preg_match_all('/DocEntr(?:y|ies):\s*([0-9]+)/i', $msg, $mEntries)) {
+                    $docEntry = $mEntries[1][$index] ?? $mEntries[1][0] ?? null;
                 }
             }
 
@@ -1427,22 +1492,28 @@ class PicklistService
             $latestDocNum = $docNum;
             $latestDocEntry = $docEntry;
 
-            // Find associated Sales Order from metadata or fallbacks
             $meta = $metaDocs[$index] ?? [];
             $so = $meta['so'] ?? null;
-            if (!$so && !empty($meta['raw']['sales_order_id'])) {
-                $so = SalesOrder::find($meta['raw']['sales_order_id']);
+            $referencedSos = $meta['referenced_sos'] ?? collect();
+            if ($so && !$referencedSos->has($so->id)) {
+                $referencedSos->put($so->id, $so);
             }
-            if (!$so && !empty($sapDoc['Lines'][0]['BaseEntry'])) {
-                $baseEntry = $sapDoc['Lines'][0]['BaseEntry'];
-                $so = SalesOrder::where('sap_doc_entry', is_numeric($baseEntry) ? (int)$baseEntry : 0)
-                    ->orWhere('docentry', is_numeric($baseEntry) ? (int)$baseEntry : 0)
-                    ->first();
+
+            // Fallback finding SO if not yet found
+            if ($referencedSos->isEmpty() && !empty($meta['raw']['sales_order_id'])) {
+                $foundSo = SalesOrder::find($meta['raw']['sales_order_id']);
+                if ($foundSo) {
+                    $referencedSos->put($foundSo->id, $foundSo);
+                }
             }
-            if (!$so && !empty($sapDoc['NumAtCard'])) {
-                $so = SalesOrder::where('po_number', $sapDoc['NumAtCard'])
-                    ->orWhere('order_no', $sapDoc['NumAtCard'])
+            if ($referencedSos->isEmpty() && !empty($sapDoc['Lines'][0]['BaseEntry'])) {
+                $bEntry = $sapDoc['Lines'][0]['BaseEntry'];
+                $foundSo = SalesOrder::where('sap_doc_entry', is_numeric($bEntry) ? (int)$bEntry : 0)
+                    ->orWhere('docentry', is_numeric($bEntry) ? (int)$bEntry : 0)
                     ->first();
+                if ($foundSo) {
+                    $referencedSos->put($foundSo->id, $foundSo);
+                }
             }
 
             $picklist = null;
@@ -1452,11 +1523,11 @@ class PicklistService
                 $picklist = Picklist::find($meta['raw']['picklist_id']);
             }
 
-            if ($so) {
+            foreach ($referencedSos as $rSo) {
                 if (!$firstSo) {
-                    $firstSo = $so;
+                    $firstSo = $rSo;
                 }
-                $so->update([
+                $rSo->update([
                     'delivery_order_no' => $docNum,
                     'sap_do_doc_entry'  => (string) $docEntry,
                     'sap_do_doc_num'    => (string) $docNum,
@@ -1467,7 +1538,7 @@ class PicklistService
                 ]);
 
                 if (!$picklist) {
-                    $pItem = PicklistItem::where('sales_order_id', $so->id)->orderBy('id', 'desc')->first();
+                    $pItem = PicklistItem::where('sales_order_id', $rSo->id)->orderBy('id', 'desc')->first();
                     if ($pItem) {
                         $picklist = Picklist::find($pItem->picklist_id);
                     }
@@ -1486,18 +1557,20 @@ class PicklistService
                     'updated_by'        => $userId,
                 ]);
 
-                if ($so) {
+                foreach ($referencedSos as $rSo) {
                     PicklistItem::where('picklist_id', $picklist->id)
-                        ->where('sales_order_id', $so->id)
+                        ->where('sales_order_id', $rSo->id)
                         ->update(['delivery_order_no' => $docNum]);
                 }
             }
 
+            $primarySo = $so ?: $referencedSos->first();
+
             $processedDocs[] = [
                 'doc_entry'       => (string) $docEntry,
                 'doc_num'         => (string) $docNum,
-                'sales_order_id'  => $so?->id,
-                'order_no'        => $so?->order_no,
+                'sales_order_id'  => $primarySo?->id,
+                'order_no'        => $primarySo?->order_no,
                 'picklist_id'     => $picklist?->id,
                 'picklist_no'     => $picklist?->picklist_no,
             ];
