@@ -1464,13 +1464,15 @@ class LogisticPicklistTest extends TestCase
                     'signature'         => 'data:image/svg+xml;utf8,<svg>SupoyoSig</svg>',
                 ],
             ],
-            'items' => [
+            'Lines' => [
                 [
-                    'id'                 => $itemSo1->id,
-                    'sales_order_id'     => $this->order1->id,
-                    'checked_qty'        => 100,
-                    'is_checked'         => true,
-                    'checked_by_checker' => 'ROCHIM',
+                    'BaseEntry' => $this->order1->sap_doc_entry,
+                    'BaseLine'  => 0,
+                    'Quantity'  => 100,
+                    'WhsCode'   => '01',
+                    'OcrCode'   => 'SBY',
+                    'OcrCode2'  => 'GRM',
+                    'OcrCode3'  => 'MKT',
                 ],
             ],
         ];
@@ -1502,13 +1504,15 @@ class LogisticPicklistTest extends TestCase
                     'signature'         => 'data:image/svg+xml;utf8,<svg>NanangSig</svg>',
                 ],
             ],
-            'items' => [
+            'Lines' => [
                 [
-                    'id'                 => $itemSo2->id,
-                    'sales_order_id'     => $this->order2->id,
-                    'checked_qty'        => 50,
-                    'is_checked'         => true,
-                    'checked_by_checker' => 'NANANG',
+                    'BaseEntry' => $this->order2->sap_doc_entry,
+                    'BaseLine'  => 0,
+                    'Quantity'  => 50,
+                    'WhsCode'   => '01',
+                    'OcrCode'   => 'SBY',
+                    'OcrCode2'  => 'GRM',
+                    'OcrCode3'  => 'MKT',
                 ],
             ],
         ];

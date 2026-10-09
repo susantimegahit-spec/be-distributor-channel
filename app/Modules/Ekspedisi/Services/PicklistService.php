@@ -1987,15 +1987,45 @@ class PicklistService
                 }
 
                 $targetItem = null;
-                // Match by picklist_item id
+                // 1. Match by picklist_item id
                 if (!empty($line['id'])) {
                     $targetItem = $picklistItems->firstWhere('id', (int) $line['id']);
                 }
-                // Match by sales_order_detail_id
+                // 2. Match by BaseEntry and BaseLine (standard SAP DO Lines)
+                if (!$targetItem && (isset($line['BaseEntry']) || isset($line['base_entry']))) {
+                    $be = (int) ($line['BaseEntry'] ?? $line['base_entry']);
+                    $bl = isset($line['BaseLine']) ? (int) $line['BaseLine'] : (isset($line['baseline']) ? (int) $line['baseline'] : null);
+
+                    $targetItem = $picklistItems->first(function ($pItem) use ($be, $bl) {
+                        $so = $pItem->salesOrder;
+                        $soMatches = $so && ((int)$so->docentry === $be || (int)$so->sap_doc_entry === $be || (int)$so->sap_doc_num === $be || (int)$so->id === $be);
+                        if (!$soMatches) {
+                            return false;
+                        }
+                        if ($bl === null) {
+                            return true;
+                        }
+                        $soDetail = $pItem->salesOrderDetail;
+                        return $soDetail && ((int)$soDetail->baseline === $bl || (int)$soDetail->line_num === $bl);
+                    });
+                }
+                // 3. Match by sales_order_id and BaseLine
+                if (!$targetItem && !empty($line['sales_order_id']) && (isset($line['BaseLine']) || isset($line['baseline']))) {
+                    $soId = (int) $line['sales_order_id'];
+                    $bl = (int) ($line['BaseLine'] ?? $line['baseline']);
+                    $targetItem = $picklistItems->first(function ($pItem) use ($soId, $bl) {
+                        if ((int) $pItem->sales_order_id !== $soId) {
+                            return false;
+                        }
+                        $soDetail = $pItem->salesOrderDetail;
+                        return $soDetail && ((int)$soDetail->baseline === $bl || (int)$soDetail->line_num === $bl);
+                    });
+                }
+                // 4. Match by sales_order_detail_id
                 if (!$targetItem && !empty($line['sales_order_detail_id'])) {
                     $targetItem = $picklistItems->firstWhere('sales_order_detail_id', (int) $line['sales_order_detail_id']);
                 }
-                // Match by sales_order_id + item_code
+                // 5. Match by sales_order_id + item_code
                 if (!$targetItem && !empty($line['sales_order_id']) && !empty($line['ItemCode'] ?? $line['item_code'])) {
                     $itemCode = trim((string) ($line['ItemCode'] ?? $line['item_code']));
                     $soId = (int) $line['sales_order_id'];
@@ -2003,7 +2033,7 @@ class PicklistService
                         return (int) $pItem->sales_order_id === $soId && strtolower(trim((string) $pItem->item_code)) === strtolower($itemCode);
                     });
                 }
-                // Match by item_code
+                // 6. Match by item_code
                 if (!$targetItem && !empty($line['ItemCode'] ?? $line['item_code'])) {
                     $itemCode = trim((string) ($line['ItemCode'] ?? $line['item_code']));
                     $targetItem = $picklistItems->first(function ($pItem) use ($itemCode) {

@@ -19169,34 +19169,9 @@ paths:
                   type: string
                   description: ID pengguna dari sesi login
                   example: "1"
-                items:
-                  type: array
-                  description: Alias list baris item checklist (dapat menggunakan items atau Lines)
-                  items:
-                    type: object
-                    properties:
-                      id:
-                        type: integer
-                        description: ID baris picklist item (picklist_items.id)
-                        example: 10
-                      sales_order_id:
-                        type: integer
-                        example: 1
-                      sales_order_detail_id:
-                        type: integer
-                        example: 5
-                      checked_qty:
-                        type: number
-                        example: 100.0
-                      is_checked:
-                        type: boolean
-                        example: true
-                      checked_by_checker:
-                        type: string
-                        example: "ROCHIM"
                 Lines:
                   type: array
-                  description: Minimal data baris pengiriman (opsional; jika dikosongkan otomatis membaca item picklist)
+                  description: Data baris pengiriman / checklist
                   items:
                     type: object
                     required:
@@ -19204,30 +19179,6 @@ paths:
                       - BaseLine
                       - Quantity
                     properties:
-                      id:
-                        type: integer
-                        description: Opsional. ID baris picklist item (picklist_items.id)
-                        example: 101
-                      sales_order_id:
-                        type: integer
-                        description: ID Sales Order sumber untuk item baris ini
-                        example: 1
-                      sales_order_detail_id:
-                        type: integer
-                        description: Opsional. ID baris item Sales Order detail
-                        example: 10
-                      checked_qty:
-                        type: number
-                        description: Jumlah kuantitas yang telah diperiksa oleh checker
-                        example: 5.0
-                      is_checked:
-                        type: boolean
-                        description: Status checklist verifikasi item baris
-                        example: true
-                      checked_by_checker:
-                        type: string
-                        description: Nama checker yang memverifikasi baris item ini
-                        example: "ROCHIM"
                       BaseEntry:
                         type: integer
                         description: DocEntry dari Sales Order SAP
@@ -19238,11 +19189,11 @@ paths:
                         example: 0
                       Quantity:
                         type: number
-                        description: Jumlah barang yang dikirim (tidak boleh melebihi sisa open quantity di SO)
+                        description: Jumlah barang yang dikirim / diverifikasi
                         example: 5.0
                       WhsCode:
                         type: string
-                        description: Opsional. Kode gudang jika ingin mengalihkan pengiriman
+                        description: Kode gudang
                         example: "01"
                       OcrCode:
                         type: string
@@ -19499,31 +19450,44 @@ paths:
                       signature:
                         type: string
                         example: "data:image/svg+xml;utf8,<svg>...</svg>"
-                items:
+                Lines:
                   type: array
-                  description: Baris item yang diverifikasi
+                  description: Data baris dokumen yang diverifikasi
                   items:
                     type: object
+                    required:
+                      - BaseEntry
+                      - BaseLine
+                      - Quantity
                     properties:
-                      id:
+                      BaseEntry:
                         type: integer
-                        description: ID baris picklist item (picklist_items.id)
-                        example: 10
-                      sales_order_id:
+                        description: DocEntry dari Sales Order SAP
+                        example: 1052
+                      BaseLine:
                         type: integer
-                        example: 1
-                      sales_order_detail_id:
-                        type: integer
-                        example: 5
-                      checked_qty:
+                        description: Nomor baris/LineNum dari Sales Order (indeks dimulai dari 0)
+                        example: 0
+                      Quantity:
                         type: number
-                        example: 100.0
-                      is_checked:
-                        type: boolean
-                        example: true
-                      checked_by_checker:
+                        description: Kuantitas barang yang diverifikasi
+                        example: 5.0
+                      WhsCode:
                         type: string
-                        example: "ROCHIM"
+                        description: Kode gudang
+                        example: "01"
+                      OcrCode:
+                        type: string
+                        description: Kode cabang (Cost Center 1)
+                        example: "SBY"
+                      OcrCode2:
+                        type: string
+                        description: Kode unit (Cost Center 2)
+                        example: "GRM"
+                      OcrCode3:
+                        type: string
+                        description: Kode departemen (Cost Center 3)
+                        example: "MKT"
       responses:
         '200':
           description: Draft picklist progress successfully saved.
@@ -19894,26 +19858,44 @@ paths:
                       signature:
                         type: string
                         example: "data:image/svg+xml;utf8,<svg>...</svg>"
-                items:
+                Lines:
                   type: array
+                  description: Data baris dokumen yang diverifikasi
                   items:
                     type: object
+                    required:
+                      - BaseEntry
+                      - BaseLine
+                      - Quantity
                     properties:
-                      id:
+                      BaseEntry:
                         type: integer
-                        example: 10
-                      sales_order_id:
+                        description: DocEntry dari Sales Order SAP
+                        example: 1052
+                      BaseLine:
                         type: integer
-                        example: 1
-                      checked_qty:
+                        description: Nomor baris/LineNum dari Sales Order (indeks dimulai dari 0)
+                        example: 0
+                      Quantity:
                         type: number
-                        example: 100.0
-                      is_checked:
-                        type: boolean
-                        example: true
-                      checked_by_checker:
+                        description: Kuantitas barang yang diverifikasi
+                        example: 5.0
+                      WhsCode:
                         type: string
-                        example: "ROCHIM"
+                        description: Kode gudang
+                        example: "01"
+                      OcrCode:
+                        type: string
+                        description: Kode cabang (Cost Center 1)
+                        example: "SBY"
+                      OcrCode2:
+                        type: string
+                        description: Kode unit (Cost Center 2)
+                        example: "GRM"
+                      OcrCode3:
+                        type: string
+                        description: Kode departemen (Cost Center 3)
+                        example: "MKT"
       responses:
         '200':
           description: Draft picklist progress successfully saved.
