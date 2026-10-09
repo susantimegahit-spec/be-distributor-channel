@@ -1397,6 +1397,262 @@ class LogisticPicklistTest extends TestCase
 
         $this->assertEquals('DO-20260924', SalesOrder::find($this->order1->id)->delivery_order_no);
     }
+
+    /**
+     * Test multi-checker and multi-warehouse draft checklist flow.
+     * Checker 1 checks SO 1 in Warehouse A and saves draft.
+     * Checker 2 checks SO 2 in Warehouse B and saves draft.
+     * Both signatures are preserved and checker names are merged.
+     */
+    public function test_multi_checker_draft_checklist_flow(): void
+    {
+        $picklist = Picklist::create([
+            'picklist_no'   => 'PKL-MULTI-001',
+            'shipping_type' => 'internal',
+            'status'        => Picklist::STATUS_OPEN,
+            'posting_date'  => '2026-10-09',
+            'due_date'      => '2026-10-10',
+            'driver_name'   => 'SUPOYO',
+            'license_plate' => 'L9870CE',
+            'checker_name'  => null,
+        ]);
+
+        $itemSo1 = PicklistItem::create([
+            'picklist_id'            => $picklist->id,
+            'sales_order_id'         => $this->order1->id,
+            'sales_order_detail_id'  => $this->detail1->id,
+            'item_code'              => $this->item1->item_code,
+            'item_name'              => $this->item1->item_name,
+            'whs_code'               => 'WHS-A',
+            'ordered_qty'            => 100,
+            'pick_qty'               => 100,
+            'checked_qty'            => 0,
+            'is_checked'             => false,
+        ]);
+
+        $itemSo2 = PicklistItem::create([
+            'picklist_id'            => $picklist->id,
+            'sales_order_id'         => $this->order2->id,
+            'sales_order_detail_id'  => $this->detail2->id,
+            'item_code'              => $this->item2->item_code,
+            'item_name'              => $this->item2->item_name,
+            'whs_code'               => 'WHS-B',
+            'ordered_qty'            => 50,
+            'pick_qty'               => 50,
+            'checked_qty'            => 0,
+            'is_checked'             => false,
+        ]);
+
+        // Step 1: Checker 1 (ROCHIM) checks SO 1 in Warehouse A and saves draft
+        $draftPayloadChecker1 = [
+            'picklist_id'  => $picklist->id,
+            'is_draft'     => true,
+            'NamaChecker'  => 'ROCHIM',
+            'Sopir'        => 'SUPOYO',
+            'NoPol'        => 'L9870CE',
+            'signatures'   => [
+                [
+                    'signer_type'       => 'checker',
+                    'signer_role_title' => 'Checker Gudang A',
+                    'signer_name'       => 'ROCHIM',
+                    'signature'         => 'data:image/svg+xml;utf8,<svg>RochimSig</svg>',
+                ],
+                [
+                    'signer_type'       => 'driver',
+                    'signer_role_title' => 'Driver',
+                    'signer_name'       => 'SUPOYO',
+                    'signature'         => 'data:image/svg+xml;utf8,<svg>SupoyoSig</svg>',
+                ],
+            ],
+            'items' => [
+                [
+                    'id'                 => $itemSo1->id,
+                    'sales_order_id'     => $this->order1->id,
+                    'checked_qty'        => 100,
+                    'is_checked'         => true,
+                    'checked_by_checker' => 'ROCHIM',
+                ],
+            ],
+        ];
+
+        // Call dedicated draft route: POST /save-draft
+        $res1 = $this->actingAs($this->user)
+            ->postJson('/api/distributor-channel/v1/logistic/picklists/save-draft', $draftPayloadChecker1);
+
+        $res1->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.status', Picklist::STATUS_IN_PROGRESS)
+            ->assertJsonPath('data.checker_name', 'ROCHIM')
+            ->assertJsonPath('data.checked_items', 1)
+            ->assertJsonPath('data.is_fully_checked', false);
+
+        $this->assertEquals(Picklist::STATUS_IN_PROGRESS, $picklist->fresh()->status);
+        $this->assertTrue((bool) $itemSo1->fresh()->is_checked);
+        $this->assertEquals('ROCHIM', $itemSo1->fresh()->checked_by_checker);
+        $this->assertFalse((bool) $itemSo2->fresh()->is_checked);
+
+        // Step 2: Checker 2 (NANANG) checks SO 2 in Warehouse B and saves draft via /{id}/save-draft
+        $draftPayloadChecker2 = [
+            'NamaChecker' => 'NANANG',
+            'signatures'  => [
+                [
+                    'signer_type'       => 'checker',
+                    'signer_role_title' => 'Checker Gudang B',
+                    'signer_name'       => 'NANANG',
+                    'signature'         => 'data:image/svg+xml;utf8,<svg>NanangSig</svg>',
+                ],
+            ],
+            'items' => [
+                [
+                    'id'                 => $itemSo2->id,
+                    'sales_order_id'     => $this->order2->id,
+                    'checked_qty'        => 50,
+                    'is_checked'         => true,
+                    'checked_by_checker' => 'NANANG',
+                ],
+            ],
+        ];
+
+        $res2 = $this->actingAs($this->user)
+            ->postJson("/api/distributor-channel/v1/logistic/picklists/{$picklist->id}/save-draft", $draftPayloadChecker2);
+
+        $res2->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.checker_name', 'ROCHIM/NANANG')
+            ->assertJsonPath('data.checked_items', 2)
+            ->assertJsonPath('data.is_fully_checked', true);
+
+        // Verify picklist checker name is combined
+        $this->assertEquals('ROCHIM/NANANG', $picklist->fresh()->checker_name);
+
+        // Verify signatures of both checkers are preserved
+        $signatures = $picklist->fresh()->signatures;
+        $this->assertEquals(3, $signatures->count()); // Driver SUPOYO, Checker ROCHIM, Checker NANANG
+        $this->assertTrue($signatures->pluck('signer_name')->contains('ROCHIM'));
+        $this->assertTrue($signatures->pluck('signer_name')->contains('NANANG'));
+        $this->assertTrue($signatures->pluck('signer_name')->contains('SUPOYO'));
+    }
+
+    /**
+     * Test resolving real DocEntry from SAP GetDataSO when local BaseEntry was mistakenly set to DocNum (260910011).
+     */
+    public function test_resolves_doc_entry_from_sap_when_base_entry_is_doc_num(): void
+    {
+        // Setup SO with DocNum as docentry (the user's issue condition)
+        $problemSo = SalesOrder::create([
+            'order_no'        => 'SO-BUG-001',
+            'sap_doc_num'     => '260910011',
+            'sap_doc_entry'   => 260910011, // Mistakenly DocNum
+            'docentry'        => 260910011, // Mistakenly DocNum
+            'distributor_id'  => $this->distributor->id,
+            'card_code'       => 'CUST-PL-001',
+            'customer_name'   => 'PT Mitra Logistik Jaya',
+            'doc_date'        => '2026-10-08',
+            'req_due_date'    => '2026-10-09',
+            'doc_due_date'    => '2026-10-09',
+            'status'          => 'ORDER_APPROVED',
+            'logistic_status' => 'APPROVED',
+        ]);
+
+        $problemDetail = SalesOrderDetail::create([
+            'sales_order_id' => $problemSo->id,
+            'item_code'      => $this->item1->item_code,
+            'quantity'       => 10,
+            'unit_msr'       => 'CTN',
+            'whs_code'       => 'WHS-SBY',
+            'unit_price'     => 50000,
+            'line_total'     => 500000,
+            'baseline'       => 0,
+        ]);
+
+        $picklist = Picklist::create([
+            'picklist_no'   => 'PKL-RESOLVE-001',
+            'shipping_type' => 'internal',
+            'status'        => Picklist::STATUS_OPEN,
+            'posting_date'  => '2026-10-09',
+            'due_date'      => '2026-10-10',
+            'checker_name'  => 'ROCHIM/NANANG',
+            'driver_name'   => 'SUPOYO',
+            'license_plate' => 'L9870CE',
+        ]);
+
+        PicklistItem::create([
+            'picklist_id'           => $picklist->id,
+            'sales_order_id'        => $problemSo->id,
+            'sales_order_detail_id' => $problemDetail->id,
+            'item_code'             => $this->item1->item_code,
+            'item_name'             => $this->item1->item_name,
+            'whs_code'              => 'WHS-SBY',
+            'ordered_qty'           => 10,
+            'pick_qty'              => 10,
+            'is_checked'            => true,
+            'checked_qty'           => 10,
+        ]);
+
+        // Mock SAP responses:
+        // 1. GetDataSO returns real sap_doc_entry: 7890 for sap_doc_num: 260910011
+        // 2. AddDO validates that BaseEntry sent is the real integer 7890
+        Http::fake([
+            '*/api/GetDataSO' => Http::response([
+                'ErrorCode' => 0,
+                'Message'   => 'Success',
+                'Result'    => [
+                    [
+                        'sap_doc_num'   => '260910011',
+                        'sap_doc_entry' => 7890,
+                        'card_code'     => 'CUST-PL-001',
+                        'num_at_card'   => 'PO-01',
+                    ],
+                ],
+            ], 200),
+            '*/api/AddDO' => function (\Illuminate\Http\Client\Request $request) {
+                $payload = $request->data();
+                $firstDoc = is_array($payload) && isset($payload[0]) ? $payload[0] : $payload;
+                $lines = $firstDoc['Lines'] ?? [];
+                $baseEntry = $lines[0]['BaseEntry'] ?? null;
+
+                // Validate that BaseEntry is the resolved real DocEntry (7890), NOT the DocNum 260910011!
+                if ((int) $baseEntry === 7890) {
+                    return Http::response([
+                        'ErrorCode' => 0,
+                        'Message'   => 'DO created successfully. DocNum: 4001 DocEntry: 3001',
+                        'Result'    => [
+                            'DocNum'   => 4001,
+                            'DocEntry' => 3001,
+                        ],
+                    ], 200);
+                }
+
+                return Http::response([
+                    'ErrorCode' => 2,
+                    'Message'   => "Query Header ORDR BaseEntry: {$baseEntry} | Pesan: Sales Order DocEntry {$baseEntry} tidak ditemukan",
+                ], 400);
+            },
+        ]);
+
+        $payload = [
+            'sales_order_id' => $problemSo->id,
+            'Series'         => 3905,
+            'DocDate'        => '2026-10-08',
+            'DocDueDate'     => '2026-10-08',
+            'TaxDate'        => '2026-10-08',
+            'NumAtCard'      => 'PO-01',
+            'NoPol'          => 'L9870CE',
+            'Sopir'          => 'SUPOYO',
+            'NamaChecker'    => 'ROCHIM/NANANG',
+        ];
+
+        $res = $this->actingAs($this->user)
+            ->postJson("/api/distributor-channel/v1/logistic/picklists/{$picklist->id}/add-do", $payload);
+
+        $res->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.doc_num', '4001');
+
+        // Check local DB was updated with real DocEntry
+        $this->assertEquals(7890, $problemSo->fresh()->docentry);
+        $this->assertEquals(Picklist::STATUS_COMPLETED, $picklist->fresh()->status);
+    }
 }
 
 

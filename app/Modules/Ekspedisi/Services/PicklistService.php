@@ -728,6 +728,12 @@ class PicklistService
             throw new \Exception("Cannot generate Delivery Order for a CANCELLED picklist.", 400);
         }
 
+        // Support draft mode for multi-checker / multi-warehouse workflow
+        $isDraft = (bool) ($payload['is_draft'] ?? $payload['draft'] ?? (($payload['action'] ?? '') === 'draft'));
+        if ($isDraft) {
+            return $this->saveDraftProgress($picklist, $payload, $userId);
+        }
+
         if ($picklist->items->isEmpty()) {
             throw new \Exception("Picklist #{$picklistId} has no item lines.", 400);
         }
@@ -780,28 +786,18 @@ class PicklistService
                 continue;
             }
 
-            // Validasi BaseEntry dari Sales Order
-            $baseEntry = $so->docentry ?: $so->sap_doc_entry;
-            if (empty($baseEntry)) {
-                $baseEntry = $payload['BaseEntry'] ?? $payload['base_entry'] ?? $payload['DocEntry'] ?? $payload['doc_entry'] ?? null;
+            // Validasi BaseEntry dari Sales Order (resolving integer DocEntry instead of DocNum)
+            $candidateBe = $payload['BaseEntry'] ?? $payload['base_entry'] ?? $payload['DocEntry'] ?? $payload['doc_entry'] ?? null;
+            if (empty($candidateBe) && !empty($payload['Lines'][0])) {
+                $candidateBe = $payload['Lines'][0]['BaseEntry'] ?? $payload['Lines'][0]['base_entry'] ?? null;
             }
-            if (empty($baseEntry) && !empty($payload['Lines'][0])) {
-                $baseEntry = $payload['Lines'][0]['BaseEntry'] ?? $payload['Lines'][0]['base_entry'] ?? null;
-            }
-            if (empty($baseEntry) && !empty($payload['lines'][0])) {
-                $baseEntry = $payload['lines'][0]['BaseEntry'] ?? $payload['lines'][0]['base_entry'] ?? null;
-            }
-            if (empty($baseEntry) && !empty($so->sap_doc_num)) {
-                $baseEntry = $so->sap_doc_num;
-            }
-            if (empty($baseEntry)) {
-                throw new \Exception("Sales Order #{$so->order_no} belum memiliki DocEntry (belum approved / terintegrasi ke SAP). Tidak bisa Add DO.", 400);
+            if (empty($candidateBe) && !empty($payload['lines'][0])) {
+                $candidateBe = $payload['lines'][0]['BaseEntry'] ?? $payload['lines'][0]['base_entry'] ?? null;
             }
 
-            if ($so && $so->docentry === null) {
-                try {
-                    $so->update(['docentry' => (int) $baseEntry, 'sap_doc_entry' => (string) $baseEntry]);
-                } catch (\Throwable $e) {}
+            $baseEntry = $this->resolveSalesOrderDocEntry($so, $candidateBe);
+            if (empty($baseEntry)) {
+                throw new \Exception("Sales Order #{$so->order_no} belum memiliki DocEntry (belum approved / terintegrasi ke SAP). Tidak bisa Add DO.", 400);
             }
 
             $soDetails = $so->details ? $so->details->sortBy('id')->values() : collect();
@@ -1148,6 +1144,7 @@ class PicklistService
         $combinedDocNum = !empty($picklistDocNums) ? implode(', ', array_unique($picklistDocNums)) : $latestDocNum;
 
         $picklist->update([
+            'status'            => Picklist::STATUS_COMPLETED,
             'delivery_order_no' => $combinedDocNum,
             'do_doc_entry'      => (string) $latestDocEntry,
             'do_doc_num'        => (string) $latestDocNum,
@@ -1183,6 +1180,32 @@ class PicklistService
         // Support either single document payload or array of documents
         $isBatch = isset($payload[0]) && is_array($payload[0]);
         $rawDocs = $isBatch ? $payload : [$payload];
+        $firstDoc = $rawDocs[0] ?? [];
+
+        // Check for draft action / flag
+        $isDraft = (bool) ($firstDoc['is_draft'] ?? $firstDoc['draft'] ?? (($firstDoc['action'] ?? '') === 'draft') ?? ($payload['is_draft'] ?? false));
+        if ($isDraft) {
+            $picklistId = $firstDoc['picklist_id'] ?? $firstDoc['picklistId'] ?? ($payload['picklist_id'] ?? null);
+            $picklist = null;
+            if ($picklistId) {
+                $picklist = Picklist::find($picklistId);
+            }
+            if (!$picklist && !empty($firstDoc['order_no'])) {
+                $so = SalesOrder::where('order_no', $firstDoc['order_no'])->first();
+                if ($so) {
+                    $pItem = PicklistItem::where('sales_order_id', $so->id)->first();
+                    $picklist = $pItem?->picklist;
+                }
+            }
+            if (!$picklist && !empty($firstDoc['sales_order_id'])) {
+                $pItem = PicklistItem::where('sales_order_id', $firstDoc['sales_order_id'])->first();
+                $picklist = $pItem?->picklist;
+            }
+            if ($picklist) {
+                return $this->saveDraftProgress($picklist, $isBatch ? $firstDoc : $payload, $userId);
+            }
+            throw new \Exception("Picklist ID required for saving draft progress.", 400);
+        }
 
         $batchPayload = [];
         $metaDocs = [];
@@ -1247,28 +1270,18 @@ class PicklistService
                 }
             }
 
-            // Resolve BaseEntry from SO or payload or lines
-            $baseEntry = $so ? ($so->docentry ?: $so->sap_doc_entry) : null;
-            if (empty($baseEntry)) {
-                $baseEntry = $header['BaseEntry'] ?? $header['base_entry'] ?? $header['DocEntry'] ?? $header['doc_entry'] ?? null;
+            // Resolve BaseEntry from candidate or SO (resolving integer DocEntry instead of DocNum)
+            $candidateBe = $header['BaseEntry'] ?? $header['base_entry'] ?? $header['DocEntry'] ?? $header['doc_entry'] ?? null;
+            if (empty($candidateBe) && !empty($headerLines[0])) {
+                $candidateBe = $headerLines[0]['BaseEntry'] ?? $headerLines[0]['base_entry'] ?? null;
             }
-            if (empty($baseEntry) && !empty($headerLines[0])) {
-                $baseEntry = $headerLines[0]['BaseEntry'] ?? $headerLines[0]['base_entry'] ?? null;
-            }
-            if (empty($baseEntry) && $so && !empty($so->sap_doc_num)) {
-                $baseEntry = $so->sap_doc_num;
-            }
+
+            $baseEntry = $this->resolveSalesOrderDocEntry($so, $candidateBe);
 
             if (empty($baseEntry)) {
                 $firstLineSoId = $headerLines[0]['sales_order_id'] ?? $headerLines[0]['sales_order_Id'] ?? null;
                 $orderIdentifier = $so ? "#{$so->order_no}" : (!empty($header['sales_order_id']) ? "ID #{$header['sales_order_id']}" : (!empty($firstLineSoId) ? "ID #{$firstLineSoId}" : ''));
                 throw new \Exception("Sales Order {$orderIdentifier} belum memiliki DocEntry / BaseEntry (belum approved / terintegrasi ke SAP). Tidak bisa Add DO.", 400);
-            }
-
-            if ($so && $so->docentry === null) {
-                try {
-                    $so->update(['docentry' => (int) $baseEntry, 'sap_doc_entry' => (string) $baseEntry]);
-                } catch (\Throwable $e) {}
             }
 
             $soDetails = $so && $so->details ? $so->details->sortBy('id')->values() : collect();
@@ -1550,6 +1563,7 @@ class PicklistService
                     $firstPicklist = $picklist;
                 }
                 $picklist->update([
+                    'status'            => Picklist::STATUS_COMPLETED,
                     'delivery_order_no' => $docNum,
                     'do_doc_entry'      => (string) $docEntry,
                     'do_doc_num'        => (string) $docNum,
@@ -1706,17 +1720,21 @@ class PicklistService
             $storedPath = $this->storeSignatureImage($picklist->id, $signerType, $order, $signatureData);
 
             if ($storedPath) {
-                $sig = PicklistSignature::create([
-                    'picklist_id'       => $picklist->id,
-                    'signer_type'       => $signerType,
-                    'signer_role_title' => $roleTitle,
-                    'signer_name'       => $signerName,
-                    'signature_path'    => $storedPath,
-                    'signed_at'         => $signedAt,
-                    'sort_order'        => (int) ($item['sort_order'] ?? $order),
-                    'notes'             => $notes,
-                    'created_by'        => $userId,
-                ]);
+                $sig = PicklistSignature::updateOrCreate(
+                    [
+                        'picklist_id' => $picklist->id,
+                        'signer_type' => $signerType,
+                        'signer_name' => $signerName,
+                    ],
+                    [
+                        'signer_role_title' => $roleTitle,
+                        'signature_path'    => $storedPath,
+                        'signed_at'         => $signedAt,
+                        'sort_order'        => (int) ($item['sort_order'] ?? $order),
+                        'notes'             => $notes,
+                        'created_by'        => $userId,
+                    ]
+                );
 
                 $saved[] = $sig;
                 $order++;
@@ -1784,5 +1802,257 @@ class PicklistService
         }
 
         return null;
+    }
+
+    /**
+     * Resolve valid SAP DocEntry for a given SalesOrder.
+     * Prevents using DocNum (e.g. 260910011) as DocEntry which causes SAP error:
+     * "Query Header ORDR BaseEntry: 260910011 | Pesan: Sales Order DocEntry 260910011 tidak ditemukan"
+     *
+     * @param SalesOrder|null $so
+     * @param mixed $candidateBaseEntry
+     * @return int|null
+     */
+    public function resolveSalesOrderDocEntry(?SalesOrder $so, mixed $candidateBaseEntry = null): ?int
+    {
+        if (!$so && empty($candidateBaseEntry)) {
+            return null;
+        }
+
+        $sapDocNum = $so?->sap_doc_num ? (string) $so->sap_doc_num : null;
+        $existingDocEntry = $so?->docentry ?: $so?->sap_doc_entry;
+
+        // Check if candidateBaseEntry or existingDocEntry is erroneously set to sap_doc_num
+        $isDocNum = false;
+        if (!empty($sapDocNum)) {
+            if ((string) $candidateBaseEntry === $sapDocNum) {
+                $isDocNum = true;
+            }
+            if ((string) $existingDocEntry === $sapDocNum) {
+                $isDocNum = true;
+            }
+        }
+
+        // 1. If we have a valid existingDocEntry that is distinct from DocNum, use it
+        if (!empty($existingDocEntry) && !$isDocNum) {
+            return (int) $existingDocEntry;
+        }
+
+        // 2. If candidateBaseEntry is provided and distinct from DocNum, use it
+        if (!empty($candidateBaseEntry) && !$isDocNum) {
+            if ($so && empty($so->docentry)) {
+                try {
+                    $so->update(['docentry' => (int) $candidateBaseEntry, 'sap_doc_entry' => (string) $candidateBaseEntry]);
+                } catch (\Throwable $e) {}
+            }
+            return (int) $candidateBaseEntry;
+        }
+
+        // 3. If docentry is missing or equals DocNum, try to lookup real DocEntry from SAP GetDataSO
+        if ($so) {
+            try {
+                $sapUrl = rtrim(config('services.sap.url') ?: env('SAP_API_URL', 'http://103.18.133.187:3100'), '/');
+                $cardCode = $so->card_code ?? $so->distributor?->code_customer;
+
+                $response = null;
+                if (!empty($cardCode)) {
+                    $response = \Illuminate\Support\Facades\Http::timeout(15)->post("{$sapUrl}/api/GetDataSO", [
+                        'CustomQuery' => "'{$cardCode}'",
+                    ]);
+                }
+
+                if (!$response || !$response->successful()) {
+                    if (!empty($sapDocNum)) {
+                        $response = \Illuminate\Support\Facades\Http::timeout(15)->post("{$sapUrl}/api/GetDataSO", [
+                            'CustomQuery' => "'{$sapDocNum}'",
+                        ]);
+                    }
+                }
+
+                if ($response && $response->successful()) {
+                    $body = $response->json();
+                    $items = $body['Result'] ?? $body['result'] ?? [];
+                    if (is_array($items)) {
+                        foreach ($items as $item) {
+                            $itemDocNum = (string) ($item['sap_doc_num'] ?? $item['DocNum'] ?? $item['doc_num'] ?? '');
+                            $itemPoNum  = (string) ($item['num_at_card'] ?? $item['NumAtCard'] ?? '');
+                            $itemDocEntry = $item['sap_doc_entry'] ?? $item['DocEntry'] ?? $item['doc_entry'] ?? null;
+
+                            $matches = false;
+                            if (!empty($sapDocNum) && $itemDocNum === $sapDocNum) {
+                                $matches = true;
+                            } elseif (!empty($so->order_no) && ($itemPoNum === (string) $so->order_no || $itemDocNum === (string) $so->order_no)) {
+                                $matches = true;
+                            } elseif (!empty($so->po_number) && $itemPoNum === (string) $so->po_number) {
+                                $matches = true;
+                            }
+
+                            if ($matches && !empty($itemDocEntry) && (string) $itemDocEntry !== (string) $sapDocNum) {
+                                $realDocEntry = (int) $itemDocEntry;
+                                $so->update([
+                                    'docentry'      => $realDocEntry,
+                                    'sap_doc_entry' => (string) $realDocEntry,
+                                ]);
+                                return $realDocEntry;
+                            }
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Failed to resolve SAP DocEntry for SO #{$so->order_no}: " . $e->getMessage());
+            }
+
+            // Fallback if SAP lookup fails or unavailable
+            if (!empty($so->docentry)) {
+                return (int) $so->docentry;
+            }
+            if (!empty($candidateBaseEntry)) {
+                return (int) $candidateBaseEntry;
+            }
+            if (!empty($so->sap_doc_num)) {
+                return (int) $so->sap_doc_num;
+            }
+        }
+
+        return !empty($candidateBaseEntry) ? (int) $candidateBaseEntry : null;
+    }
+
+    /**
+     * Save draft checklist progress and signatures for multi-checker / multi-warehouse workflow.
+     * Keeps picklist in IN_PROGRESS state without sending delivery order to SAP B1.
+     *
+     * @param int|Picklist $picklistOrId
+     * @param array $payload
+     * @param int|null $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function saveDraftProgress(int|Picklist $picklistOrId, array $payload = [], ?int $userId = null): array
+    {
+        $picklist = is_numeric($picklistOrId)
+            ? Picklist::with(['items.salesOrder', 'signatures'])->find($picklistOrId)
+            : $picklistOrId;
+
+        if (!$picklist) {
+            throw new \Exception("Picklist not found.", 404);
+        }
+
+        if ($picklist->status === Picklist::STATUS_CANCELLED) {
+            throw new \Exception("Cannot save draft progress for a CANCELLED picklist.", 400);
+        }
+
+        // 1. Merge checker names (e.g. ROCHIM + NANANG -> ROCHIM/NANANG)
+        $incomingChecker = $payload['NamaChecker'] ?? $payload['nama_checker'] ?? $payload['checker_name'] ?? null;
+        if (!empty($incomingChecker)) {
+            $existingCheckers = array_filter(array_map('trim', explode('/', (string) $picklist->checker_name)));
+            $newCheckers = array_filter(array_map('trim', explode('/', (string) $incomingChecker)));
+            $merged = array_unique(array_merge($existingCheckers, $newCheckers));
+            $picklist->checker_name = implode('/', $merged);
+        }
+
+        $incomingDriver = $payload['Sopir'] ?? $payload['driver_name'] ?? null;
+        if (!empty($incomingDriver)) {
+            $picklist->driver_name = trim((string) $incomingDriver);
+        }
+        $incomingNoPol = $payload['NoPol'] ?? $payload['license_plate'] ?? null;
+        if (!empty($incomingNoPol)) {
+            $picklist->license_plate = trim((string) $incomingNoPol);
+        }
+        $incomingComments = $payload['Comments'] ?? $payload['comments'] ?? null;
+        if ($incomingComments !== null) {
+            $picklist->comments = $incomingComments;
+        }
+
+        // Advance status from OPEN to IN_PROGRESS
+        if ($picklist->status === Picklist::STATUS_OPEN) {
+            $picklist->status = Picklist::STATUS_IN_PROGRESS;
+        }
+        $picklist->updated_by = $userId;
+        $picklist->save();
+
+        // 2. Save signatures if provided (uses updateOrCreate to accumulate multiple checkers)
+        $savedSignatures = $this->savePicklistSignatures($picklist, $payload, $userId);
+
+        // 3. Process item checklists
+        $lines = $payload['items'] ?? $payload['Lines'] ?? $payload['lines'] ?? [];
+        $activeCheckerName = $incomingChecker ?: ($picklist->checker_name ?: 'Checker');
+        $updatedItemIds = [];
+
+        if (is_array($lines) && !empty($lines)) {
+            $picklistItems = $picklist->items;
+
+            foreach ($lines as $line) {
+                if (!is_array($line)) {
+                    continue;
+                }
+
+                $targetItem = null;
+                // Match by picklist_item id
+                if (!empty($line['id'])) {
+                    $targetItem = $picklistItems->firstWhere('id', (int) $line['id']);
+                }
+                // Match by sales_order_detail_id
+                if (!$targetItem && !empty($line['sales_order_detail_id'])) {
+                    $targetItem = $picklistItems->firstWhere('sales_order_detail_id', (int) $line['sales_order_detail_id']);
+                }
+                // Match by sales_order_id + item_code
+                if (!$targetItem && !empty($line['sales_order_id']) && !empty($line['ItemCode'] ?? $line['item_code'])) {
+                    $itemCode = trim((string) ($line['ItemCode'] ?? $line['item_code']));
+                    $soId = (int) $line['sales_order_id'];
+                    $targetItem = $picklistItems->first(function ($pItem) use ($soId, $itemCode) {
+                        return (int) $pItem->sales_order_id === $soId && strtolower(trim((string) $pItem->item_code)) === strtolower($itemCode);
+                    });
+                }
+                // Match by item_code
+                if (!$targetItem && !empty($line['ItemCode'] ?? $line['item_code'])) {
+                    $itemCode = trim((string) ($line['ItemCode'] ?? $line['item_code']));
+                    $targetItem = $picklistItems->first(function ($pItem) use ($itemCode) {
+                        return strtolower(trim((string) $pItem->item_code)) === strtolower($itemCode);
+                    });
+                }
+
+                if ($targetItem) {
+                    $checkedQty = isset($line['checked_qty'])
+                        ? (float) $line['checked_qty']
+                        : (isset($line['Quantity']) ? (float) $line['Quantity'] : (isset($line['quantity']) ? (float) $line['quantity'] : $targetItem->pick_qty));
+
+                    $isChecked = isset($line['is_checked'])
+                        ? (bool) $line['is_checked']
+                        : true;
+
+                    $checkerForThisLine = !empty($line['checked_by_checker'])
+                        ? trim((string) $line['checked_by_checker'])
+                        : $activeCheckerName;
+
+                    $targetItem->update([
+                        'checked_qty'        => $checkedQty,
+                        'is_checked'         => $isChecked,
+                        'checked_by_checker' => $checkerForThisLine,
+                        'checked_at'         => now(),
+                    ]);
+
+                    $updatedItemIds[] = $targetItem->id;
+                }
+            }
+        }
+
+        $freshPicklist = $picklist->fresh(['items.salesOrder', 'creator', 'updater', 'signatures']);
+        $totalItems = $freshPicklist->items->count();
+        $checkedItemsCount = $freshPicklist->items->where('is_checked', true)->count();
+
+        return [
+            'picklist_id'       => $freshPicklist->id,
+            'picklist_no'       => $freshPicklist->picklist_no,
+            'status'            => $freshPicklist->status,
+            'checker_name'      => $freshPicklist->checker_name,
+            'driver_name'       => $freshPicklist->driver_name,
+            'total_items'       => $totalItems,
+            'checked_items'     => $checkedItemsCount,
+            'is_fully_checked'  => $totalItems > 0 && $checkedItemsCount >= $totalItems,
+            'updated_items'     => count($updatedItemIds),
+            'signatures'        => $savedSignatures,
+            'message'           => 'Draft picklist progress successfully saved.',
+            'picklist'          => $freshPicklist,
+        ];
     }
 }

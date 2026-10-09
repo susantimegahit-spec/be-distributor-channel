@@ -15,9 +15,10 @@ class Picklist extends Model
     public const SHIPPING_TYPE_EXTERNAL = 'external';
     public const SHIPPING_TYPE_PICKUP   = 'pickup';
 
-    public const STATUS_OPEN      = 'OPEN';
-    public const STATUS_COMPLETED = 'COMPLETED';
-    public const STATUS_CANCELLED = 'CANCELLED';
+    public const STATUS_OPEN        = 'OPEN';
+    public const STATUS_IN_PROGRESS = 'IN_PROGRESS';
+    public const STATUS_COMPLETED   = 'COMPLETED';
+    public const STATUS_CANCELLED   = 'CANCELLED';
 
     /**
      * The database connection that should be used by the model.

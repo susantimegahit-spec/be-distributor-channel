@@ -61,9 +61,11 @@ Route::prefix('v1/logistic/picklists')->middleware('auth:sanctum')->group(functi
     Route::get('/', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'index']);
     Route::post('/', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'store']);
     Route::post('/add-do', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'directAddDo']);
+    Route::post('/save-draft', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'saveDraft']);
     Route::get('/{id}', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'show']);
     Route::patch('/{id}/status', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'updateStatus']);
     Route::post('/{id}/add-do', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'addDo']);
+    Route::post('/{id}/save-draft', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'saveDraft']);
     Route::post('/{id}/signatures', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'saveSignatures']);
 });
 

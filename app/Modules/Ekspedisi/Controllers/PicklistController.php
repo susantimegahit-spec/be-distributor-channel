@@ -197,7 +197,7 @@ class PicklistController extends Controller
     }
 
     /**
-     * Add Delivery Order (DO) in SAP B1 for a picklist.
+     * Add Delivery Order (DO) in SAP B1 for a picklist, or save progress as draft.
      */
     public function addDo(Request $request, int $id): JsonResponse
     {
@@ -205,9 +205,57 @@ class PicklistController extends Controller
             $user = $request->user();
             $result = $this->picklistService->addDeliveryOrder($id, $request->all(), $user?->id);
 
+            $message = !empty($result['doc_num'])
+                ? "Delivery Order successfully created in SAP (DocNum: {$result['doc_num']})."
+                : ($result['message'] ?? "Draft picklist progress successfully saved.");
+
             return response()->json([
                 'success' => true,
-                'message' => "Delivery Order successfully created in SAP (DocNum: {$result['doc_num']}).",
+                'message' => $message,
+                'data'    => $result,
+            ], 200);
+        } catch (\Throwable $e) {
+            $statusCode = ($e->getCode() >= 400 && $e->getCode() < 600) ? (int) $e->getCode() : 400;
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $statusCode);
+        }
+    }
+
+    /**
+     * Save draft checklist progress for a picklist (multi-checker / multi-warehouse workflow).
+     */
+    public function saveDraft(Request $request, ?int $id = null): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $picklistId = $id ?? $request->input('picklist_id') ?? $request->input('picklistId');
+
+            if (!$picklistId && $request->isJson()) {
+                $firstDoc = $request->input(0);
+                if (is_array($firstDoc) && !empty($firstDoc['picklist_id'])) {
+                    $picklistId = $firstDoc['picklist_id'];
+                }
+            }
+
+            if (!$picklistId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Picklist ID is required to save draft progress.',
+                ], 422);
+            }
+
+            $payload = $request->all();
+            if (isset($payload[0]) && is_array($payload[0])) {
+                $payload = $payload[0];
+            }
+
+            $result = $this->picklistService->saveDraftProgress((int) $picklistId, $payload, $user?->id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Draft picklist progress successfully saved.',
                 'data'    => $result,
             ], 200);
         } catch (\Throwable $e) {
@@ -251,7 +299,7 @@ class PicklistController extends Controller
     }
 
     /**
-     * Direct Add Delivery Order (DO) in SAP B1 with raw payload or sales_order_id.
+     * Direct Add Delivery Order (DO) in SAP B1 with raw payload or sales_order_id, or save draft progress.
      */
     public function directAddDo(Request $request): JsonResponse
     {
@@ -259,9 +307,13 @@ class PicklistController extends Controller
             $user = $request->user();
             $result = $this->picklistService->directAddDeliveryOrder($request->all(), $user?->id);
 
+            $message = !empty($result['delivery_order_no']) || !empty($result['doc_num'])
+                ? "Delivery Order successfully created in SAP (DocNum: " . ($result['delivery_order_no'] ?? $result['doc_num'] ?? '') . ")."
+                : ($result['message'] ?? "Draft picklist progress successfully saved.");
+
             return response()->json([
                 'success' => true,
-                'message' => "Delivery Order successfully created in SAP (DocNum: {$result['doc_num']}).",
+                'message' => $message,
                 'data'    => $result,
             ], 200);
         } catch (\Throwable $e) {
