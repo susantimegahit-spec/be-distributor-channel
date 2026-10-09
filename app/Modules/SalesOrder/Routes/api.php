@@ -24,6 +24,8 @@ Route::prefix('v1/sales-orders')->middleware('auth:sanctum')->group(function () 
     Route::post('/{id}/sync-sap', [SalesOrderController::class, 'syncSapStatus']);
     Route::post('/{id}/arrive', [SalesOrderController::class, 'markArrived']);
     Route::post('/{id}/cancel', [SalesOrderController::class, 'cancel']);
+    Route::match(['post', 'put'], '/{id}/reject', [SalesOrderController::class, 'reject']);
+    Route::match(['post', 'put'], '/{id}/approve', [SalesOrderController::class, 'approve']);
 
     // Workflow Approval routes
     Route::post('/{id}/save-discounts', [SalesOrderController::class, 'saveDiscounts']);

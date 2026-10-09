@@ -716,6 +716,46 @@ class SalesOrderController extends Controller
     }
 
     /**
+     * Reject a Sales Order.
+     *
+     * @param  Request  $request
+     * @param  int  $id
+     * @return JsonResponse
+     */
+    public function reject(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $notes = $request->input('notes') ?? $request->input('reason') ?? $request->input('reject_reason');
+
+        try {
+            $salesOrder = $this->salesOrderService->rejectOrder($id, $user->id, $notes);
+            return $this->successResponse($salesOrder, 'Sales order berhasil ditolak.');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), [], 400);
+        }
+    }
+
+    /**
+     * Approve a Sales Order.
+     *
+     * @param  Request  $request
+     * @param  int  $id
+     * @return JsonResponse
+     */
+    public function approve(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $notes = $request->input('notes') ?? $request->input('reason');
+
+        try {
+            $salesOrder = $this->salesOrderService->approveOrder($id, $user->id, $notes, $request->all());
+            return $this->successResponse($salesOrder, 'Sales order berhasil disetujui.');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), [], 400);
+        }
+    }
+
+    /**
      * Get sales order dashboard summary metrics.
      *
      * @param  Request  $request

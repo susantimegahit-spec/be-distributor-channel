@@ -389,6 +389,55 @@ class SalesOrderApprovalWorkflowTest extends TestCase
     }
 
     /**
+     * Test direct POST /{id}/reject route at WAITING_ADMIN_SALES stage.
+     */
+    public function test_direct_post_reject_route_at_waiting_admin_sales(): void
+    {
+        // 1. Create CMO in POSTED status
+        $cmo = \App\Models\CustomerMonthlyOrder::create([
+            'order_no' => 'CMO-TEST-777',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'PT XYZ',
+            'doc_date' => now(),
+            'status' => 'POSTED',
+            'doc_total' => 75000,
+        ]);
+
+        // 2. Create linked SO in WAITING_ADMIN_SALES stage
+        $order = SalesOrder::create([
+            'order_no' => 'SO-TEST-777',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'PT XYZ',
+            'doc_date' => now(),
+            'status' => 'WAITING_ADMIN_SALES',
+            'approval_id' => SalesOrder::STAGE_WAITING_ADMIN_SALES,
+            'customer_monthly_order_id' => $cmo->id,
+            'doc_total' => 75000,
+        ]);
+
+        // 3. Direct POST /{id}/reject by Admin Sales with reason field
+        \Laravel\Sanctum\Sanctum::actingAs($this->adminSalesUser);
+        $response = $this->postJson("/api/distributor-channel/v1/sales-orders/{$order->id}/reject", [
+            'reason' => 'Ditolak via direct endpoint',
+        ]);
+
+        $response->assertStatus(200);
+
+        // 4. Verify Sales Order deleted & CMO reverted to DRAFT
+        $this->assertDatabaseMissing('sales_orders', [
+            'id' => $order->id,
+        ]);
+        $this->assertDatabaseHas('customer_monthly_orders', [
+            'id' => $cmo->id,
+            'status' => 'DRAFT',
+            'reject_reason' => 'Ditolak via direct endpoint',
+            'rejected_by' => $this->adminSalesUser->id,
+        ]);
+    }
+
+    /**
      * Test role unauthorized checks.
      */
     public function test_role_unauthorized_checks(): void
