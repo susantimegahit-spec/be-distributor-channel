@@ -263,6 +263,132 @@ class SalesOrderApprovalWorkflowTest extends TestCase
     }
 
     /**
+     * Test workflow reject at WAITING_ADMIN_SALES deletes SO and returns CMO to DRAFT.
+     */
+    public function test_workflow_reject_at_waiting_admin_sales_deletes_so_and_resets_cmo_to_draft(): void
+    {
+        // 1. Create CMO in POSTED status
+        $cmo = \App\Models\CustomerMonthlyOrder::create([
+            'order_no' => 'CMO-TEST-999',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'PT XYZ',
+            'doc_date' => now(),
+            'status' => 'POSTED',
+            'doc_total' => 100000,
+        ]);
+        $cmo->details()->create([
+            'item_code' => 'E65',
+            'quantity' => 10,
+            'unit_price' => 10000,
+            'line_total' => 100000,
+        ]);
+
+        // 2. Create linked SO in WAITING_ADMIN_SALES stage
+        $order = SalesOrder::create([
+            'order_no' => 'SO-TEST-999',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'PT XYZ',
+            'doc_date' => now(),
+            'status' => 'WAITING_ADMIN_SALES',
+            'approval_id' => SalesOrder::STAGE_WAITING_ADMIN_SALES,
+            'customer_monthly_order_id' => $cmo->id,
+            'doc_total' => 100000,
+        ]);
+        $order->details()->create([
+            'item_code' => 'E65',
+            'quantity' => 10,
+            'unit_price' => 10000,
+            'line_total' => 100000,
+        ]);
+
+        // 3. Reject by Admin Sales
+        \Laravel\Sanctum\Sanctum::actingAs($this->adminSalesUser);
+        $response = $this->putJson("/api/distributor-channel/v1/sales-orders/{$order->id}", [
+            'action' => 'reject',
+            'notes' => 'Alasan tolak Admin Sales',
+        ]);
+
+        $response->assertStatus(200);
+
+        // 4. Verify Sales Order is deleted from database
+        $this->assertDatabaseMissing('sales_orders', [
+            'id' => $order->id,
+        ]);
+        $this->assertDatabaseMissing('sales_order_details', [
+            'sales_order_id' => $order->id,
+        ]);
+
+        // 5. Verify CMO status is reverted back to DRAFT with reject notes
+        $this->assertDatabaseHas('customer_monthly_orders', [
+            'id' => $cmo->id,
+            'status' => 'DRAFT',
+            'reject_reason' => 'Alasan tolak Admin Sales',
+            'rejected_by' => $this->adminSalesUser->id,
+        ]);
+
+        // 6. Verify CMO can now be reposted by distributor
+        $cmoService = app(\App\Modules\CustomerMonthlyOrder\Services\CustomerMonthlyOrderService::class);
+        $newSo = $cmoService->postToSalesOrder($cmo->id, $this->distributorUser->id, $this->distributor->id);
+        $this->assertNotNull($newSo);
+        $this->assertEquals('WAITING_OM', $newSo->status);
+        $this->assertDatabaseHas('customer_monthly_orders', [
+            'id' => $cmo->id,
+            'status' => 'POSTED',
+        ]);
+    }
+
+    /**
+     * Test workflow cancel action at WAITING_ADMIN_SALES also deletes SO and returns CMO to DRAFT.
+     */
+    public function test_workflow_cancel_action_at_waiting_admin_sales_deletes_so_and_resets_cmo(): void
+    {
+        // 1. Create CMO in POSTED status
+        $cmo = \App\Models\CustomerMonthlyOrder::create([
+            'order_no' => 'CMO-TEST-888',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'PT XYZ',
+            'doc_date' => now(),
+            'status' => 'POSTED',
+            'doc_total' => 50000,
+        ]);
+
+        // 2. Create linked SO in WAITING_ADMIN_SALES stage
+        $order = SalesOrder::create([
+            'order_no' => 'SO-TEST-888',
+            'distributor_id' => $this->distributor->id,
+            'card_code' => 'C110003074',
+            'customer_name' => 'PT XYZ',
+            'doc_date' => now(),
+            'status' => 'WAITING_ADMIN_SALES',
+            'approval_id' => SalesOrder::STAGE_WAITING_ADMIN_SALES,
+            'customer_monthly_order_id' => $cmo->id,
+            'doc_total' => 50000,
+        ]);
+
+        // 3. Cancel action by Admin Sales
+        \Laravel\Sanctum\Sanctum::actingAs($this->adminSalesUser);
+        $response = $this->putJson("/api/distributor-channel/v1/sales-orders/{$order->id}", [
+            'action' => 'cancel',
+            'notes' => 'Alasan cancel Admin Sales',
+        ]);
+
+        $response->assertStatus(200);
+
+        // 4. Verify Sales Order deleted & CMO is DRAFT
+        $this->assertDatabaseMissing('sales_orders', [
+            'id' => $order->id,
+        ]);
+        $this->assertDatabaseHas('customer_monthly_orders', [
+            'id' => $cmo->id,
+            'status' => 'DRAFT',
+            'reject_reason' => 'Alasan cancel Admin Sales',
+        ]);
+    }
+
+    /**
      * Test role unauthorized checks.
      */
     public function test_role_unauthorized_checks(): void

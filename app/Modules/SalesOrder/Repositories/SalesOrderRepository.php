@@ -165,8 +165,8 @@ class SalesOrderRepository implements SalesOrderRepositoryInterface
     public function delete(SalesOrder $salesOrder): bool
     {
         return DB::transaction(function () use ($salesOrder) {
-            // cascading delete is handled by database foreign key cascade onDelete,
-            // but we can also trigger it explicitly just in case.
+            $salesOrder->details()->delete();
+            $salesOrder->approvalHistories()->delete();
             return $salesOrder->delete();
         });
     }

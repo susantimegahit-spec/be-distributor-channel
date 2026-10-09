@@ -173,7 +173,7 @@ class SalesOrderController extends Controller
                 } elseif ($action === 'approve') {
                     $salesOrder = $this->salesOrderService->approveOrder($id, $user->id, $notes, $request->all());
                     $message = 'Sales order berhasil disetujui.';
-                } elseif ($action === 'reject') {
+                } elseif ($action === 'reject' || $action === 'cancel') {
                     $salesOrder = $this->salesOrderService->rejectOrder($id, $user->id, $notes);
                     $message = 'Sales order berhasil ditolak.';
                 } else {

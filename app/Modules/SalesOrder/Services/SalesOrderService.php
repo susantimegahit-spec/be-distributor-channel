@@ -1208,6 +1208,102 @@ class SalesOrderService
 
         $currentStage = $salesOrder->approval_id;
 
+        // Specific handling for WAITING_ADMIN_SALES:
+        // Reject returns the order back to draft CMO, and deletes the draft sales order record.
+        if ($currentStage === SalesOrder::STAGE_WAITING_ADMIN_SALES || strtoupper((string)$salesOrder->status) === 'WAITING_ADMIN_SALES') {
+            return DB::transaction(function () use ($salesOrder, $userId, $notes) {
+                // 1. Locate associated CMO
+                $cmo = null;
+                if ($salesOrder->customer_monthly_order_id) {
+                    $cmo = \App\Models\CustomerMonthlyOrder::find($salesOrder->customer_monthly_order_id);
+                }
+                if (!$cmo && !empty($salesOrder->order_no)) {
+                    $cmo = \App\Models\CustomerMonthlyOrder::where('order_no', $salesOrder->order_no)->first();
+                }
+
+                // If CMO doesn't exist, create one so the order is restored as a draft CMO
+                if (!$cmo) {
+                    $cmoData = $salesOrder->getAttributes();
+                    unset(
+                        $cmoData['id'],
+                        $cmoData['use_balance'],
+                        $cmoData['approval_id'],
+                        $cmoData['sales_pic_id'],
+                        $cmoData['customer_monthly_order_id'],
+                        $cmoData['created_at'],
+                        $cmoData['updated_at']
+                    );
+                    $cmoData['status'] = 'DRAFT';
+                    $cmoData['reject_reason'] = $notes;
+                    $cmoData['rejected_by'] = $userId;
+                    $cmoData['rejected_at'] = now();
+                    $cmo = \App\Models\CustomerMonthlyOrder::create($cmoData);
+
+                    foreach ($salesOrder->details as $line) {
+                        $lineData = $line->getAttributes();
+                        unset($lineData['id'], $lineData['sales_order_id'], $lineData['created_at'], $lineData['updated_at']);
+                        $lineData['customer_monthly_order_id'] = $cmo->id;
+                        \App\Models\CustomerMonthlyOrderDetail::create($lineData);
+                    }
+                } else {
+                    $cmo->update([
+                        'status'        => 'DRAFT',
+                        'reject_reason' => $notes,
+                        'rejected_by'   => $userId,
+                        'rejected_at'   => now(),
+                    ]);
+                }
+
+                // 2. Ensure attachments are preserved on CMO and detached from SO before delete
+                \App\Models\SalesOrderAttachment::where('sales_order_id', $salesOrder->id)
+                    ->update([
+                        'customer_monthly_order_id' => $cmo->id,
+                        'sales_order_id' => null,
+                    ]);
+
+                // 3. Log audit before deletion
+                $orderNo = $salesOrder->order_no;
+                $this->auditLogService->log(
+                    $userId,
+                    'REJECT_SALES_ORDER',
+                    "Rejected Sales Order {$orderNo} at WAITING_ADMIN_SALES stage, deleted Sales Order and returned CMO #{$cmo->id} ({$cmo->order_no}) to DRAFT."
+                );
+
+                // 4. Notify creator if exists
+                $creator = \App\Models\User::find($salesOrder->created_by);
+                if ($creator) {
+                    try {
+                        $notificationService = app(\App\Modules\Notification\Services\NotificationService::class);
+                        $notificationService->sendToUsers(collect([$creator]), [
+                            'title' => 'Sales Order Ditolak ke Draft CMO',
+                            'message' => "Sales Order {$orderNo} telah ditolak oleh Admin Sales dan dikembalikan ke Draft CMO.",
+                            'type' => 'warning',
+                            'url' => "/cmo",
+                            'data' => [
+                                'cmo_id' => $cmo->id,
+                                'order_no' => $orderNo,
+                                'notes' => $notes,
+                            ],
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::error("Failed to send notification on SO reject to CMO: " . $e->getMessage());
+                    }
+                }
+
+                // 5. Delete details & histories & the Sales Order itself
+                $salesOrder->approvalHistories()->delete();
+                $this->salesOrderRepository->delete($salesOrder);
+
+                // Set attributes on in-memory object for response
+                $salesOrder->status = 'DRAFT';
+                $salesOrder->approval_id = SalesOrder::STAGE_DRAFT;
+                $salesOrder->reject_reason = $notes;
+                $salesOrder->customer_monthly_order_id = $cmo->id;
+
+                return $salesOrder;
+            });
+        }
+
         // Determine rollback destination
         if ($currentStage === SalesOrder::STAGE_WAITING_OM || $currentStage === SalesOrder::STAGE_WAITING_ASM) {
             $rollbackStage = SalesOrder::STAGE_DRAFT;
@@ -1754,6 +1850,9 @@ class SalesOrderService
 
         // Rule check: Must have sap_doc_num (integrated/approved)
         if (empty($salesOrder->sap_doc_num)) {
+            if ($salesOrder->approval_id === SalesOrder::STAGE_WAITING_ADMIN_SALES || strtoupper((string)$salesOrder->status) === 'WAITING_ADMIN_SALES') {
+                return $this->rejectOrder($id, $userId ?? 1, 'Cancelled by Admin Sales');
+            }
             throw new Exception('Sales Order belum di-approve oleh finance atau belum di-integrasikan dengan SAP B1.');
         }
 

@@ -43,13 +43,13 @@ class SaveSalesOrderRequest extends FormRequest
     {
         if ($this->has('action') && !$this->has('card_code')) {
             return [
-                'action' => 'required|string|in:approve,reject,submit',
+                'action' => 'required|string|in:approve,reject,submit,cancel',
                 'notes' => 'nullable|string',
             ];
         }
 
         return [
-            'action' => 'nullable|string|in:submit,approve,reject',
+            'action' => 'nullable|string|in:submit,approve,reject,cancel',
             'card_code' => 'required|string|max:50',
             'use_balance' => 'nullable|in:0,1',
             'po_number' => 'nullable|string|max:100',
