@@ -19102,6 +19102,10 @@ paths:
             schema:
               type: object
               properties:
+                is_draft:
+                  type: boolean
+                  description: Flag simpan draft alur multi-checker / multi-gudang. Jika bernilai true, sistem hanya menyimpan progres checklist dan tanda tangan tanpa mengirim DO ke SAP B1. Status picklist berubah menjadi IN_PROGRESS.
+                  example: false
                 Series:
                   type: integer
                   description: Nomor Series DO di SAP (misal 75). Default mengambil dari picklist->series atau SO->series
@@ -19147,8 +19151,8 @@ paths:
                   example: "Budi Santoso"
                 NamaChecker:
                   type: string
-                  description: Nama staf checker gudang
-                  example: "Andi"
+                  description: Nama staf checker gudang. Mendukung multi-checker dengan pemisah garis miring (misal "ROCHIM/NANANG")
+                  example: "ROCHIM/NANANG"
                 Noseal:
                   type: string
                   description: Nomor segel pengiriman (seal number)
@@ -19165,6 +19169,31 @@ paths:
                   type: string
                   description: ID pengguna dari sesi login
                   example: "1"
+                items:
+                  type: array
+                  description: Alias list baris item checklist (dapat menggunakan items atau Lines)
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        description: ID baris picklist item (picklist_items.id)
+                        example: 10
+                      sales_order_id:
+                        type: integer
+                        example: 1
+                      sales_order_detail_id:
+                        type: integer
+                        example: 5
+                      checked_qty:
+                        type: number
+                        example: 100.0
+                      is_checked:
+                        type: boolean
+                        example: true
+                      checked_by_checker:
+                        type: string
+                        example: "ROCHIM"
                 Lines:
                   type: array
                   description: Minimal data baris pengiriman (opsional; jika dikosongkan otomatis membaca item picklist)
@@ -19175,6 +19204,10 @@ paths:
                       - BaseLine
                       - Quantity
                     properties:
+                      id:
+                        type: integer
+                        description: Opsional. ID baris picklist item (picklist_items.id)
+                        example: 101
                       sales_order_id:
                         type: integer
                         description: ID Sales Order sumber untuk item baris ini
@@ -19183,6 +19216,18 @@ paths:
                         type: integer
                         description: Opsional. ID baris item Sales Order detail
                         example: 10
+                      checked_qty:
+                        type: number
+                        description: Jumlah kuantitas yang telah diperiksa oleh checker
+                        example: 5.0
+                      is_checked:
+                        type: boolean
+                        description: Status checklist verifikasi item baris
+                        example: true
+                      checked_by_checker:
+                        type: string
+                        description: Nama checker yang memverifikasi baris item ini
+                        example: "ROCHIM"
                       BaseEntry:
                         type: integer
                         description: DocEntry dari Sales Order SAP
@@ -19389,6 +19434,145 @@ paths:
         '404':
           description: Picklist not found.
 
+  /v1/logistic/picklists/{id}/save-draft:
+    post:
+      summary: Simpan Progres Draft Checklist & Tanda Tangan Picklist (Multi-Checker)
+      description: |
+        Menyimpan progres checklist fisik dan bukti tanda tangan untuk picklist tertentu dalam mode draft (misal untuk alur multi-checker di gudang berbeda).
+        Endpoint ini TIDAK mengirimkan transaksi Delivery Order (DO) ke SAP B1.
+        Status picklist otomatis diperbarui menjadi `IN_PROGRESS`.
+        Nama checker yang dikirimkan otomatis digabungkan dengan checker sebelumnya (misal "ROCHIM/NANANG"), dan tanda tangan dari masing-masing checker disimpan secara akumulatif.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Picklist
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                NamaChecker:
+                  type: string
+                  description: Nama checker yang sedang memeriksa barang
+                  example: "ROCHIM"
+                Sopir:
+                  type: string
+                  description: Nama supir armada
+                  example: "SUPOYO"
+                NoPol:
+                  type: string
+                  description: Nomor polisi kendaraan
+                  example: "L9870CE"
+                Comments:
+                  type: string
+                  description: Catatan pemeriksaan opsional
+                  example: "Pemeriksaan tahap 1 gudang A selesai"
+                signatures:
+                  type: array
+                  description: Tanda tangan digital checker dan/atau supir
+                  items:
+                    type: object
+                    required:
+                      - signer_type
+                      - signer_name
+                      - signature
+                    properties:
+                      signer_type:
+                        type: string
+                        enum: [checker, driver, supervisor]
+                        example: "checker"
+                      signer_role_title:
+                        type: string
+                        example: "Checker Gudang A"
+                      signer_name:
+                        type: string
+                        example: "ROCHIM"
+                      signature:
+                        type: string
+                        example: "data:image/svg+xml;utf8,<svg>...</svg>"
+                items:
+                  type: array
+                  description: Baris item yang diverifikasi
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        description: ID baris picklist item (picklist_items.id)
+                        example: 10
+                      sales_order_id:
+                        type: integer
+                        example: 1
+                      sales_order_detail_id:
+                        type: integer
+                        example: 5
+                      checked_qty:
+                        type: number
+                        example: 100.0
+                      is_checked:
+                        type: boolean
+                        example: true
+                      checked_by_checker:
+                        type: string
+                        example: "ROCHIM"
+      responses:
+        '200':
+          description: Draft picklist progress successfully saved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Draft picklist progress successfully saved."
+                  data:
+                    type: object
+                    properties:
+                      picklist_id:
+                        type: integer
+                        example: 1
+                      picklist_no:
+                        type: string
+                        example: "PKL-20261009-0001"
+                      status:
+                        type: string
+                        example: "IN_PROGRESS"
+                      checker_name:
+                        type: string
+                        example: "ROCHIM/NANANG"
+                      driver_name:
+                        type: string
+                        example: "SUPOYO"
+                      total_items:
+                        type: integer
+                        example: 2
+                      checked_items:
+                        type: integer
+                        example: 1
+                      is_fully_checked:
+                        type: boolean
+                        example: false
+                      updated_items:
+                        type: integer
+                        example: 1
+        '400':
+          description: Validation or business error.
+        '404':
+          description: Picklist not found.
+
   /v1/logistic/picklists/add-do:
     post:
       summary: Direct Add Delivery Order (DO) ke SAP B1 (Batch Atomic JSON Array)
@@ -19416,6 +19600,14 @@ paths:
                   - Series
                   - Lines
                 properties:
+                  picklist_id:
+                    type: integer
+                    description: Opsional. ID Picklist terkait jika membuat DO dari dokumen picklist
+                    example: 10
+                  is_draft:
+                    type: boolean
+                    description: Flag simpan draft alur multi-checker / multi-gudang. Jika true, checklist dan tanda tangan disimpan tanpa mengirim DO ke SAP B1.
+                    example: false
                   Series:
                     type: integer
                     description: Nomor Series DO di SAP
@@ -19461,8 +19653,8 @@ paths:
                     example: "Budi Santoso"
                   NamaChecker:
                     type: string
-                    description: Nama staf checker
-                    example: "Andi"
+                    description: Nama staf checker. Mendukung multi-checker dengan pemisah garis miring (misal "ROCHIM/NANANG")
+                    example: "ROCHIM/NANANG"
                   AddonId:
                     type: integer
                     description: Otomatis di-hardcode bernilai 2
@@ -19489,6 +19681,10 @@ paths:
                         - BaseLine
                         - Quantity
                       properties:
+                        id:
+                          type: integer
+                          description: Opsional. ID baris picklist item (picklist_items.id)
+                          example: 101
                         sales_order_id:
                           type: integer
                           description: ID Sales Order sumber untuk item baris ini
@@ -19497,6 +19693,18 @@ paths:
                           type: integer
                           description: Opsional. ID baris item Sales Order detail
                           example: 10
+                        checked_qty:
+                          type: number
+                          description: Jumlah kuantitas yang diverifikasi checker
+                          example: 5.0
+                        is_checked:
+                          type: boolean
+                          description: Status checklist verifikasi item
+                          example: true
+                        checked_by_checker:
+                          type: string
+                          description: Nama checker yang memeriksa item
+                          example: "ROCHIM"
                         BaseEntry:
                           type: integer
                           description: DocEntry dari Sales Order
@@ -19536,7 +19744,7 @@ paths:
                 KodeEkspedisi: "JNE"
                 NamaEkspedisi: "JNE Trucking"
                 Sopir: "Budi Santoso"
-                NamaChecker: "Andi"
+                NamaChecker: "ROCHIM/NANANG"
                 AddonId: 2
                 UserId: "1"
                 Noseal: "12345"
@@ -19630,6 +19838,125 @@ paths:
                               example: "PKL-202609-0001"
         '400':
           description: Business error or SAP AddDO failure.
+
+  /v1/logistic/picklists/save-draft:
+    post:
+      summary: Direct Simpan Progres Draft Checklist & Tanda Tangan Picklist
+      description: |
+        Menyimpan progres checklist dan tanda tangan serah terima picklist tanpa mengirim dokumen ke SAP B1.
+        Mengharuskan `picklist_id` pada request body.
+        Status picklist otomatis berubah menjadi `IN_PROGRESS`.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - picklist_id
+              properties:
+                picklist_id:
+                  type: integer
+                  description: ID Picklist yang akan disimpan draft progresnya
+                  example: 1
+                NamaChecker:
+                  type: string
+                  description: Nama checker
+                  example: "ROCHIM"
+                Sopir:
+                  type: string
+                  example: "SUPOYO"
+                NoPol:
+                  type: string
+                  example: "L9870CE"
+                Comments:
+                  type: string
+                  example: "Draft progres checker 1"
+                signatures:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      signer_type:
+                        type: string
+                        enum: [checker, driver, supervisor]
+                        example: "checker"
+                      signer_role_title:
+                        type: string
+                        example: "Checker Gudang A"
+                      signer_name:
+                        type: string
+                        example: "ROCHIM"
+                      signature:
+                        type: string
+                        example: "data:image/svg+xml;utf8,<svg>...</svg>"
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 10
+                      sales_order_id:
+                        type: integer
+                        example: 1
+                      checked_qty:
+                        type: number
+                        example: 100.0
+                      is_checked:
+                        type: boolean
+                        example: true
+                      checked_by_checker:
+                        type: string
+                        example: "ROCHIM"
+      responses:
+        '200':
+          description: Draft picklist progress successfully saved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Draft picklist progress successfully saved."
+                  data:
+                    type: object
+                    properties:
+                      picklist_id:
+                        type: integer
+                        example: 1
+                      picklist_no:
+                        type: string
+                        example: "PKL-20261009-0001"
+                      status:
+                        type: string
+                        example: "IN_PROGRESS"
+                      checker_name:
+                        type: string
+                        example: "ROCHIM"
+                      driver_name:
+                        type: string
+                        example: "SUPOYO"
+                      total_items:
+                        type: integer
+                        example: 2
+                      checked_items:
+                        type: integer
+                        example: 1
+                      is_fully_checked:
+                        type: boolean
+                        example: false
+        '400':
+          description: Validation or business error.
 
   /v1/dashboard-layouts/me:
     get:
