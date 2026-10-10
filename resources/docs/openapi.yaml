@@ -18879,6 +18879,11 @@ paths:
           schema:
             type: string
             format: date
+        - name: is_checked
+          in: query
+          description: Filter status pemeriksaan picklist (true jika semua item sudah dicek, false jika belum)
+          schema:
+            type: boolean
         - name: per_page
           in: query
           schema:
@@ -19306,6 +19311,10 @@ paths:
                       doc_num:
                         type: string
                         example: "20260088"
+                      is_checked:
+                        type: boolean
+                        description: Status verifikasi barang pada picklist
+                        example: true
                       signatures:
                         type: array
                         items:

@@ -48,6 +48,22 @@ class PicklistService
             $query->where('status', strtoupper(trim((string) $filters['status'])));
         }
 
+        // Filter by is_checked status
+        if (isset($filters['is_checked']) && $filters['is_checked'] !== '' && $filters['is_checked'] !== null) {
+            $isCheckedVal = filter_var($filters['is_checked'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($isCheckedVal !== null) {
+                if ($isCheckedVal) {
+                    $query->whereDoesntHave('items', function (Builder $iq) {
+                        $iq->where('is_checked', false);
+                    })->whereHas('items');
+                } else {
+                    $query->whereHas('items', function (Builder $iq) {
+                        $iq->where('is_checked', false);
+                    });
+                }
+            }
+        }
+
         // Filter by date range (posting_date)
         if (!empty($filters['date_from'])) {
             $query->whereDate('posting_date', '>=', $filters['date_from']);
@@ -1124,10 +1140,78 @@ class PicklistService
                 'sap_it_doc_num'   => (string) $docNum,
             ]);
 
-            // 3. Update picklist_items delivery_order_no
-            PicklistItem::where('picklist_id', $picklist->id)
+            // 3. Update picklist_items delivery_order_no and is_checked
+            $orderItems = PicklistItem::where('picklist_id', $picklist->id)
                 ->where('sales_order_id', $so->id)
-                ->update(['delivery_order_no' => $docNum]);
+                ->get();
+
+            $activeChecker = !empty($payload['checked_by_checker'])
+                ? trim((string) $payload['checked_by_checker'])
+                : (!empty($payload['checker_name'])
+                    ? trim((string) $payload['checker_name'])
+                    : ($picklist->checker_name ?: $userName));
+
+            $activeCheckedAt = !empty($payload['checked_at'])
+                ? \Carbon\Carbon::parse($payload['checked_at'])
+                : now();
+
+            foreach ($orderItems as $oItem) {
+                $itemUpdate = [
+                    'delivery_order_no' => $docNum,
+                ];
+
+                $matchingLine = null;
+                if (!empty($customLines) && is_array($customLines)) {
+                    foreach ($customLines as $cL) {
+                        $cItemCode = $cL['ItemCode'] ?? $cL['item_code'] ?? null;
+                        $cSoId = $cL['sales_order_id'] ?? $cL['sales_order_Id'] ?? null;
+                        if ($cItemCode && strtolower(trim((string)$cItemCode)) === strtolower(trim((string)$oItem->item_code))) {
+                            if (empty($cSoId) || (int) $cSoId === (int) $so->id) {
+                                $matchingLine = $cL;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if ($matchingLine) {
+                    $itemUpdate['is_checked'] = isset($matchingLine['is_checked'])
+                        ? (bool) $matchingLine['is_checked']
+                        : (isset($matchingLine['isChecked']) ? (bool) $matchingLine['isChecked'] : true);
+
+                    if (isset($matchingLine['checked_qty'])) {
+                        $itemUpdate['checked_qty'] = (float) $matchingLine['checked_qty'];
+                    } elseif (isset($matchingLine['quantity'])) {
+                        $itemUpdate['checked_qty'] = (float) $matchingLine['quantity'];
+                    } elseif (isset($matchingLine['Quantity'])) {
+                        $itemUpdate['checked_qty'] = (float) $matchingLine['Quantity'];
+                    }
+
+                    if (!empty($matchingLine['checked_by_checker'])) {
+                        $itemUpdate['checked_by_checker'] = trim((string) $matchingLine['checked_by_checker']);
+                    } else {
+                        $itemUpdate['checked_by_checker'] = $activeChecker;
+                    }
+
+                    if (!empty($matchingLine['checked_at'])) {
+                        $itemUpdate['checked_at'] = \Carbon\Carbon::parse($matchingLine['checked_at']);
+                    } else {
+                        $itemUpdate['checked_at'] = $activeCheckedAt;
+                    }
+                } else {
+                    $headerChecked = isset($payload['is_checked'])
+                        ? (bool) $payload['is_checked']
+                        : (isset($payload['isChecked']) ? (bool) $payload['isChecked'] : true);
+                    $itemUpdate['is_checked'] = $headerChecked;
+                    if ($headerChecked) {
+                        $itemUpdate['checked_qty'] = (float) ($oItem->checked_qty ?: $oItem->pick_qty);
+                        $itemUpdate['checked_by_checker'] = $activeChecker;
+                        $itemUpdate['checked_at'] = $activeCheckedAt;
+                    }
+                }
+
+                $oItem->update($itemUpdate);
+            }
 
             $resultsPerOrder[] = [
                 'sales_order_id'    => $so->id,
@@ -1154,6 +1238,7 @@ class PicklistService
 
         // 5. Save inspection / handover signatures if provided
         $savedSignatures = $this->savePicklistSignatures($picklist, $payload, $userId);
+        $freshPicklist = $picklist->fresh(['items.salesOrder', 'creator', 'updater', 'signatures']);
 
         return [
             'picklist_id'       => $picklist->id,
@@ -1161,9 +1246,10 @@ class PicklistService
             'delivery_order_no' => $combinedDocNum,
             'doc_entry'         => (string) $latestDocEntry,
             'doc_num'           => (string) $latestDocNum,
+            'is_checked'        => (bool) $freshPicklist->is_checked,
             'results'           => $resultsPerOrder,
             'signatures'        => $savedSignatures,
-            'picklist'          => $picklist->fresh(['items.salesOrder', 'creator', 'updater', 'signatures']),
+            'picklist'          => $freshPicklist,
         ];
     }
 
@@ -1571,10 +1657,78 @@ class PicklistService
                     'updated_by'        => $userId,
                 ]);
 
+                $activeChecker = !empty($header['checked_by_checker'])
+                    ? trim((string) $header['checked_by_checker'])
+                    : (!empty($header['checker_name'])
+                        ? trim((string) $header['checker_name'])
+                        : ($picklist->checker_name ?: $userName));
+
+                $activeCheckedAt = !empty($header['checked_at'])
+                    ? \Carbon\Carbon::parse($header['checked_at'])
+                    : now();
+
                 foreach ($referencedSos as $rSo) {
-                    PicklistItem::where('picklist_id', $picklist->id)
+                    $orderItems = PicklistItem::where('picklist_id', $picklist->id)
                         ->where('sales_order_id', $rSo->id)
-                        ->update(['delivery_order_no' => $docNum]);
+                        ->get();
+
+                    foreach ($orderItems as $oItem) {
+                        $itemUpdate = [
+                            'delivery_order_no' => $docNum,
+                        ];
+
+                        $matchingLine = null;
+                        if (!empty($headerLines) && is_array($headerLines)) {
+                            foreach ($headerLines as $cL) {
+                                $cItemCode = $cL['ItemCode'] ?? $cL['item_code'] ?? null;
+                                $cSoId = $cL['sales_order_id'] ?? $cL['sales_order_Id'] ?? null;
+                                if ($cItemCode && strtolower(trim((string)$cItemCode)) === strtolower(trim((string)$oItem->item_code))) {
+                                    if (empty($cSoId) || (int) $cSoId === (int) $rSo->id) {
+                                        $matchingLine = $cL;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        if ($matchingLine) {
+                            $itemUpdate['is_checked'] = isset($matchingLine['is_checked'])
+                                ? (bool) $matchingLine['is_checked']
+                                : (isset($matchingLine['isChecked']) ? (bool) $matchingLine['isChecked'] : true);
+
+                            if (isset($matchingLine['checked_qty'])) {
+                                $itemUpdate['checked_qty'] = (float) $matchingLine['checked_qty'];
+                            } elseif (isset($matchingLine['quantity'])) {
+                                $itemUpdate['checked_qty'] = (float) $matchingLine['quantity'];
+                            } elseif (isset($matchingLine['Quantity'])) {
+                                $itemUpdate['checked_qty'] = (float) $matchingLine['Quantity'];
+                            }
+
+                            if (!empty($matchingLine['checked_by_checker'])) {
+                                $itemUpdate['checked_by_checker'] = trim((string) $matchingLine['checked_by_checker']);
+                            } else {
+                                $itemUpdate['checked_by_checker'] = $activeChecker;
+                            }
+
+                            if (!empty($matchingLine['checked_at'])) {
+                                $itemUpdate['checked_at'] = \Carbon\Carbon::parse($matchingLine['checked_at']);
+                            } else {
+                                $itemUpdate['checked_at'] = $activeCheckedAt;
+                            }
+                        } else {
+                            $headerChecked = isset($header['is_checked'])
+                                ? (bool) $header['is_checked']
+                                : (isset($header['isChecked']) ? (bool) $header['isChecked'] : true);
+                            $itemUpdate['is_checked'] = $headerChecked;
+                            if ($headerChecked) {
+                                $itemUpdate['checked_qty'] = (float) ($oItem->checked_qty ?: $oItem->pick_qty);
+                                $itemUpdate['checked_by_checker'] = $activeChecker;
+                                $itemUpdate['checked_at'] = $activeCheckedAt;
+                            }
+                        }
+
+                        $oItem->update($itemUpdate);
+                    }
                 }
             }
 
@@ -1590,10 +1744,13 @@ class PicklistService
             ];
         }
 
+        $freshFirstPicklist = $firstPicklist?->fresh(['items']);
+
         return [
             'delivery_order_no' => (string) $latestDocNum,
             'doc_entry'         => (string) $latestDocEntry,
             'doc_num'           => (string) $latestDocNum,
+            'is_checked'        => $freshFirstPicklist ? (bool) $freshFirstPicklist->is_checked : true,
             'sales_order_id'    => $firstSo?->id,
             'picklist_id'       => $firstPicklist?->id,
             'documents'         => $processedDocs,
@@ -1756,17 +1913,27 @@ class PicklistService
     protected function storeSignatureImage(int $picklistId, string $signerType, int $index, mixed $signatureData): ?string
     {
         $dir = 'signatures/picklists';
-
-        if (!Storage::disk('public')->exists($dir)) {
-            Storage::disk('public')->makeDirectory($dir);
-        }
-
         $timestamp = time() . '_' . substr(md5(uniqid()), 0, 6);
+        $s3Bucket = config('filesystems.disks.s3.bucket');
+        $preferS3 = !empty($s3Bucket) && env('SIGNATURE_STORAGE_DISK', 's3') === 's3';
 
         // Case A: UploadedFile instance
         if ($signatureData instanceof \Illuminate\Http\UploadedFile) {
             $ext = $signatureData->getClientOriginalExtension() ?: 'png';
             $filename = "{$dir}/pkl_{$picklistId}_{$signerType}_{$index}_{$timestamp}.{$ext}";
+
+            if ($preferS3) {
+                try {
+                    Storage::disk('s3')->putFileAs($dir, $signatureData, basename($filename), 'public');
+                    return $filename;
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning("Failed to store signature #{$picklistId} to S3: " . $e->getMessage() . ". Falling back to public disk.");
+                }
+            }
+
+            if (!Storage::disk('public')->exists($dir)) {
+                Storage::disk('public')->makeDirectory($dir);
+            }
             Storage::disk('public')->putFileAs($dir, $signatureData, basename($filename));
             return $filename;
         }
@@ -1797,6 +1964,19 @@ class PicklistService
             }
 
             $filename = "{$dir}/pkl_{$picklistId}_{$signerType}_{$index}_{$timestamp}.{$ext}";
+
+            if ($preferS3) {
+                try {
+                    Storage::disk('s3')->put($filename, $binary, 'public');
+                    return $filename;
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning("Failed to store signature #{$picklistId} to S3: " . $e->getMessage() . ". Falling back to public disk.");
+                }
+            }
+
+            if (!Storage::disk('public')->exists($dir)) {
+                Storage::disk('public')->makeDirectory($dir);
+            }
             Storage::disk('public')->put($filename, $binary);
             return $filename;
         }

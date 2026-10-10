@@ -92,6 +92,24 @@ class Picklist extends Model
         'expedition_rate_id' => 'integer',
     ];
 
+    protected $appends = [
+        'is_checked',
+    ];
+
+    /**
+     * Determine whether all items in this picklist have been verified/checked.
+     */
+    public function getIsCheckedAttribute(): bool
+    {
+        if ($this->relationLoaded('items')) {
+            $total = $this->items->count();
+            return $total > 0 && $this->items->where('is_checked', true)->count() >= $total;
+        }
+
+        $total = $this->items()->count();
+        return $total > 0 && $this->items()->where('is_checked', true)->count() >= $total;
+    }
+
     /**
      * Get all items in this picklist.
      */

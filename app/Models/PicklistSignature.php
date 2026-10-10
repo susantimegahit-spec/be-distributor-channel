@@ -79,6 +79,17 @@ class PicklistSignature extends Model
             return $this->signature_path;
         }
 
+        $s3Bucket = config('filesystems.disks.s3.bucket');
+        if (!empty($s3Bucket)) {
+            try {
+                if (Storage::disk('s3')->exists($this->signature_path)) {
+                    return Storage::disk('s3')->url($this->signature_path);
+                }
+            } catch (\Throwable) {
+                // If S3 existence check fails, fall through to public disk
+            }
+        }
+
         return Storage::disk('public')->url($this->signature_path);
     }
 

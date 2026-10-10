@@ -26,6 +26,7 @@ class PicklistController extends Controller
         $filters = [
             'shipping_type' => $request->query('shipping_type'),
             'status'        => $request->query('status'),
+            'is_checked'    => $request->query('is_checked'),
             'search'        => $request->query('search'),
             'date_from'     => $request->query('date_from'),
             'date_to'       => $request->query('date_to'),

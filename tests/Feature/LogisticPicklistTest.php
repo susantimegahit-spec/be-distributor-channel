@@ -1657,6 +1657,113 @@ class LogisticPicklistTest extends TestCase
         $this->assertEquals(7890, $problemSo->fresh()->docentry);
         $this->assertEquals(Picklist::STATUS_COMPLETED, $picklist->fresh()->status);
     }
+
+    public function test_is_checked_parameter_on_get_and_add_do(): void
+    {
+        Http::fake([
+            '*/api/AddDO' => Http::response([
+                'ErrorCode' => 0,
+                'Message'   => 'DO created successfully. DocNum: 5001 DocEntry: 4001',
+                'Result'    => [
+                    'DocNum'   => 5001,
+                    'DocEntry' => 4001,
+                ],
+            ], 200),
+        ]);
+
+        $so = SalesOrder::create([
+            'order_no'        => 'SO-CHECKED-001',
+            'sap_doc_entry'   => 8801,
+            'sap_doc_num'     => '8801001',
+            'distributor_id'  => $this->distributor->id,
+            'card_code'       => 'CUST-CHK-001',
+            'customer_name'   => 'PT Customer Checked',
+            'doc_date'        => '2026-10-10',
+            'req_due_date'    => '2026-10-10',
+            'doc_due_date'    => '2026-10-10',
+            'status'          => 'ORDER_APPROVED',
+            'logistic_status' => 'APPROVED',
+            'grand_total'     => 1000000,
+        ]);
+
+        $soDetail = SalesOrderDetail::create([
+            'sales_order_id' => $so->id,
+            'item_code'      => 'ITEM-CHK-1',
+            'item_name'      => 'Barang Cek 1',
+            'unit_msr'       => 'KG',
+            'whs_code'       => '01',
+            'open_qty'       => 10,
+            'quantity'       => 10,
+            'unit_price'     => 100000,
+            'line_total'     => 1000000,
+            'line_num'       => 0,
+        ]);
+
+        $picklist = Picklist::create([
+            'picklist_no'   => 'PKL-CHK-001',
+            'shipping_type' => 'internal',
+            'status'        => Picklist::STATUS_OPEN,
+            'posting_date'  => '2026-10-10',
+            'due_date'      => '2026-10-10',
+            'license_plate' => 'L1111CHK',
+            'driver_name'   => 'Sopir Cek',
+            'checker_name'  => 'Checker Satu',
+            'created_by'    => $this->user->id,
+        ]);
+
+        $pItem = PicklistItem::create([
+            'picklist_id'           => $picklist->id,
+            'sales_order_id'        => $so->id,
+            'sales_order_detail_id' => $soDetail->id,
+            'item_code'             => 'ITEM-CHK-1',
+            'item_name'             => 'Barang Cek 1',
+            'whs_code'              => '01',
+            'unit_msr'              => 'KG',
+            'ordered_qty'           => 10,
+            'pick_qty'              => 10,
+            'checked_qty'           => 0,
+            'is_checked'            => false,
+        ]);
+
+        // 1. GET picklist detail: verify is_checked exists on header and items
+        $detailRes = $this->actingAs($this->user)
+            ->getJson("/api/distributor-channel/v1/logistic/picklists/{$picklist->id}");
+
+        $detailRes->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.is_checked', false)
+            ->assertJsonPath('data.items.0.is_checked', false);
+
+        // 2. GET index with is_checked filter
+        $listUncheckedRes = $this->actingAs($this->user)
+            ->getJson('/api/distributor-channel/v1/logistic/picklists?is_checked=false');
+        $listUncheckedRes->assertStatus(200);
+
+        // 3. POST add-do with is_checked: true
+        $addDoRes = $this->actingAs($this->user)
+            ->postJson("/api/distributor-channel/v1/logistic/picklists/{$picklist->id}/add-do", [
+                'is_checked'   => true,
+                'checker_name' => 'Checker Nanang',
+                'Lines' => [
+                    [
+                        'item_code'   => 'ITEM-CHK-1',
+                        'quantity'    => 10,
+                        'is_checked'  => true,
+                        'checked_qty' => 10,
+                    ]
+                ]
+            ]);
+
+        $addDoRes->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.is_checked', true)
+            ->assertJsonPath('data.doc_num', '5001');
+
+        // 4. Verify DB item updated
+        $this->assertTrue((bool) $pItem->fresh()->is_checked);
+        $this->assertEquals(10, (float) $pItem->fresh()->checked_qty);
+        $this->assertTrue((bool) $picklist->fresh()->is_checked);
+    }
 }
 
 
