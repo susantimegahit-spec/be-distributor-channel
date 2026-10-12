@@ -136,7 +136,7 @@ class PicklistService
         $picklist = Picklist::with([
             'items.salesOrder:id,order_no,sap_doc_num,customer_name,card_code,address,address2,distributor_id,docentry,sap_doc_entry',
             'items.salesOrder.distributor:id,name,code_customer,depo',
-            'items.salesOrderDetail:id,sales_order_id,item_code,item_name,line_num,baseline,whs_code,quantity',
+            'items.salesOrderDetail:id,sales_order_id,item_code,line_num,baseline,whs_code,quantity',
             'items.item:id,item_code,item_name,per_kg',
             'creator:id,name,username',
             'updater:id,name,username',
