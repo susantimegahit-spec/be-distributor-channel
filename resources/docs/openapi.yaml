@@ -19086,6 +19086,14 @@ paths:
         Payload dikirim ke SAP dalam format JSON Array berisi kumpulan dokumen DO berbasis Sales Order secara sekaligus (batch) dengan transaksi atomik SAP (StartTransaction dan EndTransaction). Jika salah satu dokumen gagal dibuat, seluruh dokumen dalam antrean otomatis dibatalkan (Rollback).
         Data barang (ItemCode, harga satuan, UoM/satuan, dan kode pajak) otomatis mewarisi Sales Order asal.
         Nomor DO (DocNum dan DocEntry) otomatis disimpan ke database Picklist dan Sales Order.
+
+        **Signature terintegrasi di endpoint ini.**
+        Tanda tangan Checker dan Supir dikirim bersamaan di request body yang sama — tidak perlu memanggil `POST /signatures` secara terpisah.
+        Signature dapat dikirim dalam dua format:
+        - **JSON (application/json)**: Field `signatures` berisi array objek dengan `signature` berformat Base64 Data URL (`data:image/png;base64,...`).
+        - **Multipart/form-data**: File gambar signature dikirim sebagai file upload. Sistem otomatis mendeteksi dan menyimpan file ke storage.
+
+        Jika `is_draft: true`, sistem hanya menyimpan checklist dan tanda tangan tanpa mengirim DO ke SAP. Status picklist menjadi `IN_PROGRESS`.
       tags:
         - Logistic - Picklist
       security:
@@ -19102,151 +19110,11 @@ paths:
         description: |
           Payload opsional. Jika request body dikosongkan (`{}`), sistem akan mengumpulkan data secara otomatis dari dokumen Picklist dan Sales Order terkait.
           Field-field override opsional dapat dikirimkan seperti Series, Noseal, NoPol, Sopir, atau Lines kustom.
+          Signature Checker/Supir dapat langsung disertakan di sini (tidak perlu endpoint /signatures terpisah).
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                is_draft:
-                  type: boolean
-                  description: Flag simpan draft alur multi-checker / multi-gudang. Jika bernilai true, sistem hanya menyimpan progres checklist dan tanda tangan tanpa mengirim DO ke SAP B1. Status picklist berubah menjadi IN_PROGRESS.
-                  example: false
-                Series:
-                  type: integer
-                  description: Nomor Series DO di SAP (misal 75). Default mengambil dari picklist->series atau SO->series
-                  example: 75
-                NumAtCard:
-                  type: string
-                  description: Nomor PO Customer / Order No
-                  example: "PO-CUST-001"
-                DocDate:
-                  type: string
-                  format: date-time
-                  description: Tanggal dokumen
-                  example: "2026-09-24T00:00:00"
-                DocDueDate:
-                  type: string
-                  format: date-time
-                  description: Tanggal jatuh tempo pengiriman
-                  example: "2026-09-24T00:00:00"
-                TaxDate:
-                  type: string
-                  format: date-time
-                  description: Tanggal pajak
-                  example: "2026-09-24T00:00:00"
-                Comments:
-                  type: string
-                  description: Catatan pengiriman
-                  example: "Pengiriman parsial SO tahap 1"
-                NoPol:
-                  type: string
-                  description: Nomor polisi armada kendaraan
-                  example: "B 1234 ABC"
-                KodeEkspedisi:
-                  type: string
-                  description: Kode ekspedisi
-                  example: "JNE"
-                NamaEkspedisi:
-                  type: string
-                  description: Nama vendor ekspedisi
-                  example: "JNE Trucking"
-                Sopir:
-                  type: string
-                  description: Nama supir / driver
-                  example: "Budi Santoso"
-                NamaChecker:
-                  type: string
-                  description: Nama staf checker gudang. Mendukung multi-checker dengan pemisah garis miring (misal "ROCHIM/NANANG")
-                  example: "ROCHIM/NANANG"
-                Noseal:
-                  type: string
-                  description: Nomor segel pengiriman (seal number)
-                  example: "12345"
-                CardCode:
-                  type: string
-                  description: Opsional. Sistem otomatis mewarisi CardCode dari Sales Order asal (BaseEntry)
-                  example: "C20000"
-                AddonId:
-                  type: integer
-                  description: Otomatis di-hardcode bernilai 2 di backend
-                  example: 2
-                UserId:
-                  type: string
-                  description: ID pengguna dari sesi login
-                  example: "1"
-                Lines:
-                  type: array
-                  description: Data baris pengiriman / checklist
-                  items:
-                    type: object
-                    required:
-                      - BaseEntry
-                      - BaseLine
-                      - Quantity
-                    properties:
-                      BaseEntry:
-                        type: integer
-                        description: DocEntry dari Sales Order SAP
-                        example: 1052
-                      BaseLine:
-                        type: integer
-                        description: Nomor baris/LineNum dari Sales Order (indeks dimulai dari 0)
-                        example: 0
-                      Quantity:
-                        type: number
-                        description: Jumlah barang yang dikirim / diverifikasi
-                        example: 5.0
-                      WhsCode:
-                        type: string
-                        description: Kode gudang
-                        example: "01"
-                      OcrCode:
-                        type: string
-                        description: Kode cabang (Cost Center 1)
-                        example: "SBY"
-                      OcrCode2:
-                        type: string
-                        description: Kode unit (Cost Center 2)
-                        example: "GRM"
-                      OcrCode3:
-                        type: string
-                        description: Kode departemen (Cost Center 3)
-                        example: "MKT"
-                signatures:
-                  type: array
-                  description: Daftar tanda tangan pemeriksaan/serah terima (Checker dan Supir)
-                  items:
-                    type: object
-                    required:
-                      - signer_type
-                      - signer_name
-                      - signature
-                    properties:
-                      signer_type:
-                        type: string
-                        enum: [checker, driver, supervisor]
-                        description: Tipe penandatangan (checker atau driver)
-                        example: "checker"
-                      signer_role_title:
-                        type: string
-                        description: Label peran / judul jabatan (misal Checker 1, Checker 2, Supir)
-                        example: "Checker 1 (Gudang)"
-                      signer_name:
-                        type: string
-                        description: Nama penandatangan
-                        example: "Budi Santoso"
-                      signature:
-                        type: string
-                        description: Data gambar tanda tangan dalam format Base64 Data URL (data:image/png;base64,...) atau URL file
-                        example: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA..."
-                      notes:
-                        type: string
-                        description: Catatan pemeriksaan opsional
-                        example: "Barang lengkap dan sesuai fisik"
-                      signed_at:
-                        type: string
-                        format: date-time
-                        description: Waktu tanda tangan
+              $ref: '#/components/schemas/AddDoPayload'
             example:
               Series: 75
               NumAtCard: "PO-CUST-001"
@@ -19258,27 +19126,59 @@ paths:
               KodeEkspedisi: "JNE"
               NamaEkspedisi: "JNE Trucking"
               Sopir: "Budi Santoso"
-              NamaChecker: "Andi"
+              NamaChecker: "ROCHIM/NANANG"
               Noseal: "12345"
               signatures:
                 - signer_type: "checker"
                   signer_role_title: "Checker 1 (Gudang)"
-                  signer_name: "Andi"
+                  signer_name: "ROCHIM"
                   signature: "data:image/png;base64,iVBORw0KGgoAAA..."
                   notes: "Barang siap muat"
+                - signer_type: "checker"
+                  signer_role_title: "Checker 2 (Gudang)"
+                  signer_name: "NANANG"
+                  signature: "data:image/png;base64,iVBORw0KGgoAAA..."
                 - signer_type: "driver"
                   signer_role_title: "Supir"
                   signer_name: "Budi Santoso"
                   signature: "data:image/png;base64,iVBORw0KGgoAAA..."
               Lines:
-                - sales_order_id: 1
-                  BaseEntry: 1052
+                - BaseEntry: 1052
                   BaseLine: 0
                   Quantity: 5.0
                   WhsCode: "01"
                   OcrCode: "SBY"
                   OcrCode2: "GRM"
                   OcrCode3: "MKT"
+          multipart/form-data:
+            schema:
+              type: object
+              description: |
+                Format alternatif untuk upload file gambar tanda tangan.
+                Field non-file (Series, NoPol, dll.) dikirim sebagai string form field.
+                Signature dikirim sebagai file upload dengan key seperti `checker_signature`, `driver_signature`, atau `signatures[0][signature]`.
+              properties:
+                is_draft:
+                  type: boolean
+                  description: Flag draft. Jika true, DO tidak dikirim ke SAP.
+                Series:
+                  type: string
+                NoPol:
+                  type: string
+                Sopir:
+                  type: string
+                NamaChecker:
+                  type: string
+                Noseal:
+                  type: string
+                checker_signature:
+                  type: string
+                  format: binary
+                  description: File gambar tanda tangan checker (alternatif dari field signatures[].signature)
+                driver_signature:
+                  type: string
+                  format: binary
+                  description: File gambar tanda tangan driver/supir (alternatif dari field signatures[].signature)
       responses:
         '200':
           description: Delivery Order successfully created in SAP and saved to database.
@@ -19317,6 +19217,7 @@ paths:
                         example: true
                       signatures:
                         type: array
+                        description: Daftar tanda tangan yang tersimpan setelah DO berhasil dibuat.
                         items:
                           type: object
                           properties:
@@ -19325,23 +19226,32 @@ paths:
                               example: 1
                             signer_type:
                               type: string
+                              enum: [checker, driver, supervisor]
                               example: "checker"
                             signer_role_title:
                               type: string
                               example: "Checker 1 (Gudang)"
                             signer_name:
                               type: string
-                              example: "Andi"
-                            signature_url:
+                              example: "ROCHIM"
+                            notes:
                               type: string
-                              example: "http://localhost:8000/storage/signatures/picklists/pkl_1_checker_1.png"
+                              nullable: true
+                              example: "Barang siap muat"
+                            preview_url:
+                              type: string
+                              description: URL untuk preview gambar tanda tangan. Dapat digunakan langsung di tag `<img>` tanpa Bearer token.
+                              example: "/api/distributor-channel/v1/logistic/picklists/1/signatures/1/preview"
                             signed_at:
                               type: string
+                              format: date-time
                               example: "2026-10-08T10:30:00.000000Z"
         '400':
-          description: Business error or SAP AddDO failure.
+          description: Business error atau SAP AddDO failure. Signature tidak tersimpan jika DO gagal.
+        '422':
+          description: Validasi payload gagal.
         '404':
-          description: Picklist not found.
+          description: Picklist tidak ditemukan.
 
   /v1/logistic/picklists/{id}/signatures:
     post:
@@ -20230,6 +20140,144 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    AddDoPayload:
+      type: object
+      description: Payload untuk Add Delivery Order. Semua field bersifat opsional kecuali disebutkan lain.
+      properties:
+        is_draft:
+          type: boolean
+          description: Jika true, sistem hanya menyimpan checklist & signature tanpa mengirim DO ke SAP. Status picklist menjadi IN_PROGRESS.
+          example: false
+        Series:
+          type: integer
+          description: Nomor Series DO di SAP. Default mengambil dari picklist atau SO.
+          example: 75
+        NumAtCard:
+          type: string
+          description: Nomor PO Customer / Order No
+          example: "PO-CUST-001"
+        DocDate:
+          type: string
+          format: date-time
+          description: Tanggal dokumen
+          example: "2026-09-24T00:00:00"
+        DocDueDate:
+          type: string
+          format: date-time
+          description: Tanggal jatuh tempo pengiriman
+          example: "2026-09-24T00:00:00"
+        TaxDate:
+          type: string
+          format: date-time
+          description: Tanggal pajak
+          example: "2026-09-24T00:00:00"
+        Comments:
+          type: string
+          description: Catatan pengiriman
+          example: "Pengiriman parsial SO tahap 1"
+        NoPol:
+          type: string
+          description: Nomor polisi kendaraan
+          example: "B 1234 ABC"
+        KodeEkspedisi:
+          type: string
+          description: Kode ekspedisi
+          example: "JNE"
+        NamaEkspedisi:
+          type: string
+          description: Nama vendor ekspedisi
+          example: "JNE Trucking"
+        Sopir:
+          type: string
+          description: Nama supir / driver
+          example: "Budi Santoso"
+        NamaChecker:
+          type: string
+          description: Nama staf checker gudang. Multi-checker dipisah garis miring (contoh "ROCHIM/NANANG").
+          example: "ROCHIM/NANANG"
+        Noseal:
+          type: string
+          description: Nomor segel pengiriman
+          example: "12345"
+        CardCode:
+          type: string
+          description: Opsional. Otomatis diambil dari Sales Order asal.
+          example: "C20000"
+        Lines:
+          type: array
+          description: Data baris pengiriman. Jika dikosongkan, sistem auto-generate dari picklist items.
+          items:
+            type: object
+            required:
+              - BaseEntry
+              - BaseLine
+              - Quantity
+            properties:
+              BaseEntry:
+                type: integer
+                description: DocEntry dari Sales Order SAP
+                example: 1052
+              BaseLine:
+                type: integer
+                description: LineNum dari Sales Order (index mulai dari 0)
+                example: 0
+              Quantity:
+                type: number
+                description: Jumlah barang dikirim
+                example: 5.0
+              WhsCode:
+                type: string
+                description: Kode gudang
+                example: "01"
+              OcrCode:
+                type: string
+                description: Kode cabang (Cost Center 1)
+                example: "SBY"
+              OcrCode2:
+                type: string
+                description: Kode unit (Cost Center 2)
+                example: "GRM"
+              OcrCode3:
+                type: string
+                description: Kode departemen (Cost Center 3)
+                example: "MKT"
+        signatures:
+          type: array
+          description: |
+            Tanda tangan Checker dan Supir. Dikirim bersamaan di endpoint add-do ini — tidak perlu endpoint POST /signatures terpisah.
+            Mendukung format Base64 Data URL (`data:image/png;base64,...`) maupun multipart/form-data file upload.
+          items:
+            type: object
+            required:
+              - signer_type
+              - signer_name
+              - signature
+            properties:
+              signer_type:
+                type: string
+                enum: [checker, driver, supervisor]
+                description: Tipe penandatangan
+                example: "checker"
+              signer_role_title:
+                type: string
+                description: Label jabatan (misal "Checker 1 (Gudang)", "Supir")
+                example: "Checker 1 (Gudang)"
+              signer_name:
+                type: string
+                description: Nama penandatangan
+                example: "ROCHIM"
+              signature:
+                type: string
+                description: Data gambar tanda tangan dalam format Base64 Data URL
+                example: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA..."
+              notes:
+                type: string
+                description: Catatan pemeriksaan opsional
+                example: "Barang lengkap dan sesuai fisik"
+              signed_at:
+                type: string
+                format: date-time
+                description: Waktu tanda tangan
     MasterApproval:
       type: object
       properties:
