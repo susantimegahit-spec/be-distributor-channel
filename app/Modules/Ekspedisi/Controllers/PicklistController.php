@@ -208,7 +208,12 @@ class PicklistController extends Controller
             if ($request->allFiles()) {
                 $payload = array_merge_recursive($payload, $request->allFiles());
             }
-            if (isset($payload[0]) && is_array($payload[0])) {
+            // Unwrap if wrapped in 'payload' key: { payload: [...], is_draft: true }
+            if (isset($payload['payload']) && is_array($payload['payload'])) {
+                $rootKeys = array_diff_key($payload, ['payload' => null]);
+                $inner = $payload['payload'];
+                $payload = array_merge(is_array($inner[0] ?? null) ? $inner[0] : $inner, $rootKeys);
+            } elseif (isset($payload[0]) && is_array($payload[0])) {
                 // Merge root-level keys (e.g. is_draft) into the unwrapped payload
                 $rootKeys = array_diff_key($payload, [0 => null]);
                 $payload = array_merge($payload[0], $rootKeys);
@@ -260,7 +265,12 @@ class PicklistController extends Controller
             if ($request->allFiles()) {
                 $payload = array_merge_recursive($payload, $request->allFiles());
             }
-            if (isset($payload[0]) && is_array($payload[0])) {
+            // Unwrap if wrapped in 'payload' key: { payload: [...], is_draft: true }
+            if (isset($payload['payload']) && is_array($payload['payload'])) {
+                $rootKeys = array_diff_key($payload, ['payload' => null]);
+                $inner = $payload['payload'];
+                $payload = array_merge(is_array($inner[0] ?? null) ? $inner[0] : $inner, $rootKeys);
+            } elseif (isset($payload[0]) && is_array($payload[0])) {
                 $rootKeys = array_diff_key($payload, [0 => null]);
                 $payload = array_merge($payload[0], $rootKeys);
             }
