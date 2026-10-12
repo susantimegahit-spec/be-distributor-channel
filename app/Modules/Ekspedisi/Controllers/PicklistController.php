@@ -209,7 +209,9 @@ class PicklistController extends Controller
                 $payload = array_merge_recursive($payload, $request->allFiles());
             }
             if (isset($payload[0]) && is_array($payload[0])) {
-                $payload = $payload[0];
+                // Merge root-level keys (e.g. is_draft) into the unwrapped payload
+                $rootKeys = array_diff_key($payload, [0 => null]);
+                $payload = array_merge($payload[0], $rootKeys);
             }
             $result = $this->picklistService->addDeliveryOrder($id, $payload, $user?->id);
 
@@ -259,7 +261,8 @@ class PicklistController extends Controller
                 $payload = array_merge_recursive($payload, $request->allFiles());
             }
             if (isset($payload[0]) && is_array($payload[0])) {
-                $payload = $payload[0];
+                $rootKeys = array_diff_key($payload, [0 => null]);
+                $payload = array_merge($payload[0], $rootKeys);
             }
 
             $result = $this->picklistService->saveDraftProgress((int) $picklistId, $payload, $user?->id);
