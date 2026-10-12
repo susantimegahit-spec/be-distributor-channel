@@ -67,5 +67,10 @@ Route::prefix('v1/logistic/picklists')->middleware('auth:sanctum')->group(functi
     Route::post('/{id}/add-do', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'addDo']);
     Route::post('/{id}/save-draft', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'saveDraft']);
     Route::post('/{id}/signatures', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'saveSignatures']);
+    Route::get('/{id}/signatures/{signatureId}/preview', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'previewSignature']);
 });
+
+// Direct public preview for picklist signatures (allows standard <img> tag rendering without Bearer token header)
+Route::get('v1/logistic/picklists/{id}/signatures/{signatureId}/preview', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'previewSignature']);
+
 

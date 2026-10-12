@@ -94,20 +94,87 @@ class Picklist extends Model
 
     protected $appends = [
         'is_checked',
+        'total_items',
+        'checked_items',
+        'is_fully_checked',
+        'checker_signatures',
+        'driver_signatures',
+        'checker_signature',
+        'driver_signature',
     ];
+
+    /**
+     * Total number of item lines in this picklist.
+     */
+    public function getTotalItemsAttribute(): int
+    {
+        return $this->relationLoaded('items') ? $this->items->count() : (int) $this->items()->count();
+    }
+
+    /**
+     * Number of item lines that have been verified/checked.
+     */
+    public function getCheckedItemsAttribute(): int
+    {
+        if ($this->relationLoaded('items')) {
+            return (int) $this->items->where('is_checked', true)->count();
+        }
+        return (int) $this->items()->where('is_checked', true)->count();
+    }
+
+    /**
+     * Determine whether all items in this picklist have been verified/checked.
+     */
+    public function getIsFullyCheckedAttribute(): bool
+    {
+        $total = $this->total_items;
+        return $total > 0 && $this->checked_items >= $total;
+    }
 
     /**
      * Determine whether all items in this picklist have been verified/checked.
      */
     public function getIsCheckedAttribute(): bool
     {
-        if ($this->relationLoaded('items')) {
-            $total = $this->items->count();
-            return $total > 0 && $this->items->where('is_checked', true)->count() >= $total;
-        }
+        return $this->is_fully_checked;
+    }
 
-        $total = $this->items()->count();
-        return $total > 0 && $this->items()->where('is_checked', true)->count() >= $total;
+    /**
+     * Filtered list of signatures belonging to warehouse checkers.
+     */
+    public function getCheckerSignaturesAttribute()
+    {
+        if ($this->relationLoaded('signatures')) {
+            return $this->signatures->where('signer_type', PicklistSignature::TYPE_CHECKER)->values();
+        }
+        return $this->signatures()->where('signer_type', PicklistSignature::TYPE_CHECKER)->get();
+    }
+
+    /**
+     * Filtered list of signatures belonging to vehicle drivers.
+     */
+    public function getDriverSignaturesAttribute()
+    {
+        if ($this->relationLoaded('signatures')) {
+            return $this->signatures->where('signer_type', PicklistSignature::TYPE_DRIVER)->values();
+        }
+        return $this->signatures()->where('signer_type', PicklistSignature::TYPE_DRIVER)->get();
+    }
+
+    /**
+     * Primary / latest checker signature.
+     */
+    public function getCheckerSignatureAttribute()
+    {
+        return $this->checker_signatures->last() ?? $this->checker_signatures->first();
+    }
+
+    /**
+     * Primary / latest driver signature.
+     */
+    public function getDriverSignatureAttribute()
+    {
+        return $this->driver_signatures->last() ?? $this->driver_signatures->first();
     }
 
     /**

@@ -1535,6 +1535,37 @@ class LogisticPicklistTest extends TestCase
         $this->assertTrue($signatures->pluck('signer_name')->contains('ROCHIM'));
         $this->assertTrue($signatures->pluck('signer_name')->contains('NANANG'));
         $this->assertTrue($signatures->pluck('signer_name')->contains('SUPOYO'));
+
+        // Step 3: Call GET detail picklist and verify checklist status + signature preview
+        $detailRes = $this->actingAs($this->user)
+            ->getJson("/api/distributor-channel/v1/logistic/picklists/{$picklist->id}");
+
+        $detailRes->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.id', $picklist->id)
+            ->assertJsonPath('data.total_items', 2)
+            ->assertJsonPath('data.checked_items', 2)
+            ->assertJsonPath('data.is_fully_checked', true)
+            ->assertJsonPath('data.is_checked', true);
+
+        $detailData = $detailRes->json('data');
+        $this->assertNotEmpty($detailData['signatures']);
+        $this->assertCount(3, $detailData['signatures']);
+        $this->assertNotNull($detailData['signatures'][0]['signature_url']);
+        $this->assertNotNull($detailData['signatures'][0]['signature_data']);
+        $this->assertNotEmpty($detailData['checker_signatures']);
+        $this->assertNotNull($detailData['driver_signature']);
+
+        // Verify item lines have checklist data and base_line
+        $this->assertTrue((bool) $detailData['items'][0]['is_checked']);
+        $this->assertEquals(100.0, (float) $detailData['items'][0]['checked_qty']);
+        $this->assertEquals('ROCHIM', $detailData['items'][0]['checked_by_checker']);
+        $this->assertNotNull($detailData['items'][0]['checked_at']);
+
+        // Verify preview signature endpoint streams the image
+        $sigId = $detailData['signatures'][0]['id'];
+        $previewRes = $this->get("/api/distributor-channel/v1/logistic/picklists/{$picklist->id}/signatures/{$sigId}/preview");
+        $previewRes->assertStatus(200);
     }
 
     /**

@@ -64,6 +64,8 @@ class PicklistSignature extends Model
 
     protected $appends = [
         'signature_url',
+        'signature_data',
+        'signature',
     ];
 
     /**
@@ -79,6 +81,10 @@ class PicklistSignature extends Model
             return $this->signature_path;
         }
 
+        if (str_starts_with($this->signature_path, 'data:')) {
+            return $this->signature_path;
+        }
+
         $s3Bucket = config('filesystems.disks.s3.bucket');
         if (!empty($s3Bucket)) {
             try {
@@ -86,11 +92,70 @@ class PicklistSignature extends Model
                     return Storage::disk('s3')->url($this->signature_path);
                 }
             } catch (\Throwable) {
-                // If S3 existence check fails, fall through to public disk
+                // If S3 existence check fails, fall through to preview route or public disk
             }
         }
 
+        if ($this->picklist_id && $this->id) {
+            return url("api/distributor-channel/v1/logistic/picklists/{$this->picklist_id}/signatures/{$this->id}/preview");
+        }
+
         return Storage::disk('public')->url($this->signature_path);
+    }
+
+    /**
+     * Base64 Data URI accessor for inline signature image preview.
+     */
+    public function getSignatureDataAttribute(): ?string
+    {
+        if (empty($this->signature_path)) {
+            return null;
+        }
+
+        if (str_starts_with($this->signature_path, 'data:') || str_starts_with($this->signature_path, '<svg')) {
+            return $this->signature_path;
+        }
+
+        if (str_starts_with($this->signature_path, 'http://') || str_starts_with($this->signature_path, 'https://')) {
+            return $this->signature_path;
+        }
+
+        try {
+            $binary = null;
+            $mime = 'image/png';
+
+            if (config('filesystems.disks.s3.bucket') && Storage::disk('s3')->exists($this->signature_path)) {
+                $binary = Storage::disk('s3')->get($this->signature_path);
+                $mime = Storage::disk('s3')->mimeType($this->signature_path) ?: 'image/png';
+            } elseif (Storage::disk('public')->exists($this->signature_path)) {
+                $binary = Storage::disk('public')->get($this->signature_path);
+                $mime = Storage::disk('public')->mimeType($this->signature_path) ?: 'image/png';
+            } elseif (file_exists(storage_path('app/public/' . $this->signature_path))) {
+                $full = storage_path('app/public/' . $this->signature_path);
+                $binary = file_get_contents($full);
+                $mime = mime_content_type($full) ?: 'image/png';
+            } elseif (file_exists(public_path('storage/' . $this->signature_path))) {
+                $full = public_path('storage/' . $this->signature_path);
+                $binary = file_get_contents($full);
+                $mime = mime_content_type($full) ?: 'image/png';
+            }
+
+            if ($binary !== null) {
+                return "data:{$mime};base64," . base64_encode($binary);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Failed to encode signature data for #{$this->id}: " . $e->getMessage());
+        }
+
+        return null;
+    }
+
+    /**
+     * Alias attribute for signature preview.
+     */
+    public function getSignatureAttribute(): ?string
+    {
+        return $this->signature_data ?: $this->signature_url;
     }
 
     /**

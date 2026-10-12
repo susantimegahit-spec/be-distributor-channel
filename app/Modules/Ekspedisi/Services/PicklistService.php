@@ -134,8 +134,9 @@ class PicklistService
     public function getPicklistDetail(int $id): Picklist
     {
         $picklist = Picklist::with([
-            'items.salesOrder:id,order_no,sap_doc_num,customer_name,card_code,address,address2,distributor_id',
+            'items.salesOrder:id,order_no,sap_doc_num,customer_name,card_code,address,address2,distributor_id,docentry,sap_doc_entry',
             'items.salesOrder.distributor:id,name,code_customer,depo',
+            'items.salesOrderDetail:id,sales_order_id,item_code,item_name,line_num,baseline,whs_code,quantity',
             'items.item:id,item_code,item_name,per_kg',
             'creator:id,name,username',
             'updater:id,name,username',
@@ -2024,15 +2025,27 @@ class PicklistService
             }
 
             $ext = 'png';
-            if (preg_match('/^data:image\/(\w+);base64,/i', $signatureStr, $matches)) {
-                $ext = strtolower($matches[1]) === 'jpeg' ? 'jpg' : strtolower($matches[1]);
-                $base64 = substr($signatureStr, strpos($signatureStr, ',') + 1);
-                $binary = base64_decode($base64);
+            $binary = false;
+
+            if (preg_match('/^data:image\/([a-zA-Z0-9\+\-\.]+);base64,(.+)$/is', $signatureStr, $matches)) {
+                $rawExt = strtolower($matches[1]);
+                $ext = match ($rawExt) {
+                    'jpeg' => 'jpg',
+                    'svg+xml' => 'svg',
+                    default => $rawExt,
+                };
+                $binary = base64_decode($matches[2]);
+            } elseif (preg_match('/^data:image\/svg\+xml;utf8,(.+)$/is', $signatureStr, $matches)) {
+                $ext = 'svg';
+                $binary = urldecode($matches[1]);
+            } elseif (str_starts_with($signatureStr, '<svg')) {
+                $ext = 'svg';
+                $binary = $signatureStr;
             } else {
                 $binary = base64_decode($signatureStr);
             }
 
-            if ($binary === false) {
+            if ($binary === false || empty($binary)) {
                 return null;
             }
 
@@ -2241,10 +2254,20 @@ class PicklistService
 
                 $targetItem = null;
                 // 1. Match by picklist_item id
-                if (!empty($line['id'])) {
+                if (!empty($line['picklist_item_id'])) {
+                    $targetItem = $picklistItems->firstWhere('id', (int) $line['picklist_item_id']);
+                }
+                if (!$targetItem && !empty($line['id'])) {
                     $targetItem = $picklistItems->firstWhere('id', (int) $line['id']);
                 }
-                // 2. Match by BaseEntry and BaseLine (standard SAP DO Lines)
+                // 2. Match by sales_order_detail_id or line['id'] as sales_order_detail_id
+                if (!$targetItem && !empty($line['sales_order_detail_id'])) {
+                    $targetItem = $picklistItems->firstWhere('sales_order_detail_id', (int) $line['sales_order_detail_id']);
+                }
+                if (!$targetItem && !empty($line['id'])) {
+                    $targetItem = $picklistItems->firstWhere('sales_order_detail_id', (int) $line['id']);
+                }
+                // 3. Match by BaseEntry and BaseLine (standard SAP DO Lines)
                 if (!$targetItem && (isset($line['BaseEntry']) || isset($line['base_entry']))) {
                     $be = (int) ($line['BaseEntry'] ?? $line['base_entry']);
                     $bl = isset($line['BaseLine']) ? (int) $line['BaseLine'] : (isset($line['baseline']) ? (int) $line['baseline'] : null);
@@ -2262,7 +2285,7 @@ class PicklistService
                         return $soDetail && ((int)$soDetail->baseline === $bl || (int)$soDetail->line_num === $bl);
                     });
                 }
-                // 3. Match by sales_order_id and BaseLine
+                // 4. Match by sales_order_id and BaseLine
                 if (!$targetItem && !empty($line['sales_order_id']) && (isset($line['BaseLine']) || isset($line['baseline']))) {
                     $soId = (int) $line['sales_order_id'];
                     $bl = (int) ($line['BaseLine'] ?? $line['baseline']);
@@ -2273,10 +2296,6 @@ class PicklistService
                         $soDetail = $pItem->salesOrderDetail;
                         return $soDetail && ((int)$soDetail->baseline === $bl || (int)$soDetail->line_num === $bl);
                     });
-                }
-                // 4. Match by sales_order_detail_id
-                if (!$targetItem && !empty($line['sales_order_detail_id'])) {
-                    $targetItem = $picklistItems->firstWhere('sales_order_detail_id', (int) $line['sales_order_detail_id']);
                 }
                 // 5. Match by sales_order_id + item_code
                 if (!$targetItem && !empty($line['sales_order_id']) && !empty($line['ItemCode'] ?? $line['item_code'])) {
@@ -2295,13 +2314,27 @@ class PicklistService
                 }
 
                 if ($targetItem) {
-                    $checkedQty = isset($line['checked_qty'])
-                        ? (float) $line['checked_qty']
-                        : (isset($line['Quantity']) ? (float) $line['Quantity'] : (isset($line['quantity']) ? (float) $line['quantity'] : $targetItem->pick_qty));
+                    $checkedQty = null;
+                    if (isset($line['checked_qty'])) {
+                        $checkedQty = (float) $line['checked_qty'];
+                    } elseif (isset($line['checkedQty'])) {
+                        $checkedQty = (float) $line['checkedQty'];
+                    } elseif (isset($line['Quantity'])) {
+                        $checkedQty = (float) $line['Quantity'];
+                    } elseif (isset($line['quantity'])) {
+                        $checkedQty = (float) $line['quantity'];
+                    } else {
+                        $checkedQty = (float) $targetItem->pick_qty;
+                    }
 
-                    $isChecked = isset($line['is_checked'])
-                        ? (bool) $line['is_checked']
-                        : true;
+                    $isChecked = null;
+                    if (isset($line['is_checked'])) {
+                        $isChecked = filter_var($line['is_checked'], FILTER_VALIDATE_BOOLEAN);
+                    } elseif (isset($line['isChecked'])) {
+                        $isChecked = filter_var($line['isChecked'], FILTER_VALIDATE_BOOLEAN);
+                    } else {
+                        $isChecked = $checkedQty > 0;
+                    }
 
                     $checkerForThisLine = !empty($line['checked_by_checker'])
                         ? trim((string) $line['checked_by_checker'])

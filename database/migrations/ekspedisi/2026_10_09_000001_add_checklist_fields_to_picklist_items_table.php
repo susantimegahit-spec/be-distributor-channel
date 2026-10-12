@@ -13,7 +13,14 @@ return new class extends Migration
 
     public function getConnection()
     {
-        return config('database.default') === 'sqlite' ? 'sqlite' : $this->connection;
+        $conn = $this->connection;
+        if (Schema::connection($conn)->hasTable('picklist_items')) {
+            return $conn;
+        }
+        if (config('database.default') === 'sqlite') {
+            return 'sqlite';
+        }
+        return $conn;
     }
 
     /**

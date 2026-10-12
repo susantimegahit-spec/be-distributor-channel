@@ -304,6 +304,74 @@ class PicklistController extends Controller
     }
 
     /**
+     * Preview / stream signature image directly.
+     */
+    public function previewSignature(int $id, int $signatureId)
+    {
+        $signature = \App\Models\PicklistSignature::where('picklist_id', $id)->find($signatureId);
+        if (!$signature) {
+            abort(404, 'Signature record not found.');
+        }
+
+        $path = $signature->signature_path;
+        if (empty($path)) {
+            abort(404, 'Signature image path is empty.');
+        }
+
+        // 1. If stored as Data URI directly
+        if (str_starts_with($path, 'data:image/')) {
+            $parts = explode(',', $path, 2);
+            $mime = 'image/png';
+            if (preg_match('/^data:(image\/[a-zA-Z0-9\+\-\.]+);/i', $parts[0], $m)) {
+                $mime = $m[1];
+            }
+            $binary = base64_decode($parts[1] ?? '');
+            return response($binary, 200, [
+                'Content-Type'  => $mime,
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+
+        // 2. Check S3
+        if (config('filesystems.disks.s3.bucket') && \Illuminate\Support\Facades\Storage::disk('s3')->exists($path)) {
+            $mime = \Illuminate\Support\Facades\Storage::disk('s3')->mimeType($path) ?: 'image/png';
+            return response(\Illuminate\Support\Facades\Storage::disk('s3')->get($path), 200, [
+                'Content-Type'  => $mime,
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+
+        // 3. Check public storage
+        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($path)) {
+            $mime = \Illuminate\Support\Facades\Storage::disk('public')->mimeType($path) ?: 'image/png';
+            return response(\Illuminate\Support\Facades\Storage::disk('public')->get($path), 200, [
+                'Content-Type'  => $mime,
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+
+        $localPath = storage_path('app/public/' . $path);
+        if (file_exists($localPath)) {
+            $mime = mime_content_type($localPath) ?: 'image/png';
+            return response(file_get_contents($localPath), 200, [
+                'Content-Type'  => $mime,
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+
+        $publicPath = public_path('storage/' . $path);
+        if (file_exists($publicPath)) {
+            $mime = mime_content_type($publicPath) ?: 'image/png';
+            return response(file_get_contents($publicPath), 200, [
+                'Content-Type'  => $mime,
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+
+        abort(404, 'Signature image file not found on disk.');
+    }
+
+    /**
      * Direct Add Delivery Order (DO) in SAP B1 with raw payload or sales_order_id, or save draft progress.
      */
     public function directAddDo(Request $request): JsonResponse

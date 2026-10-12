@@ -77,7 +77,32 @@ class PicklistItem extends Model
         'order_no',
         'sap_doc_num',
         'depo',
+        'base_entry',
+        'base_line',
     ];
+
+    /**
+     * Get BaseEntry from sales order.
+     */
+    public function getBaseEntryAttribute(): ?int
+    {
+        return $this->salesOrder?->docentry !== null
+            ? (int) $this->salesOrder->docentry
+            : ($this->salesOrder?->sap_doc_entry !== null ? (int) $this->salesOrder->sap_doc_entry : null);
+    }
+
+    /**
+     * Get BaseLine from sales order detail line.
+     */
+    public function getBaseLineAttribute(): ?int
+    {
+        if ($this->relationLoaded('salesOrderDetail') && $this->salesOrderDetail) {
+            return $this->salesOrderDetail->baseline !== null
+                ? (int) $this->salesOrderDetail->baseline
+                : ($this->salesOrderDetail->line_num !== null ? (int) $this->salesOrderDetail->line_num : 0);
+        }
+        return null;
+    }
 
     /**
      * Get SO number formatted from sales order's sap_doc_num with fallback to order_no.
