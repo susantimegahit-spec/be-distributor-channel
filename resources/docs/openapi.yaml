@@ -19150,6 +19150,15 @@ paths:
                   OcrCode: "SBY"
                   OcrCode2: "GRM"
                   OcrCode3: "MKT"
+                  is_checked: true
+                - BaseEntry: 1052
+                  BaseLine: 1
+                  Quantity: 3.0
+                  WhsCode: "01"
+                  OcrCode: "SBY"
+                  OcrCode2: "GRM"
+                  OcrCode3: "MKT"
+                  is_checked: false
           multipart/form-data:
             schema:
               type: object
@@ -19407,6 +19416,12 @@ paths:
                         type: string
                         description: Kode departemen (Cost Center 3)
                         example: "MKT"
+                      is_checked:
+                        type: boolean
+                        description: |
+                          Status centang item ini oleh checker. Digunakan saat `is_draft: true` untuk menandai item mana saja yang sudah diverifikasi.
+                          Jika tidak dikirim, default false. Item yang belum is_checked tidak dikirim ke SAP saat finalisasi DO.
+                        example: true
       responses:
         '200':
           description: Draft picklist progress successfully saved.
@@ -20241,6 +20256,12 @@ components:
                 type: string
                 description: Kode departemen (Cost Center 3)
                 example: "MKT"
+              is_checked:
+                type: boolean
+                description: |
+                  Status centang item ini oleh checker. Digunakan saat `is_draft: true` untuk menandai item mana saja yang sudah diverifikasi.
+                  Jika tidak dikirim, default false. Item yang belum is_checked tidak dikirim ke SAP saat finalisasi DO.
+                example: true
         signatures:
           type: array
           description: |

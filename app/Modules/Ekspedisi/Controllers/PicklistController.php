@@ -255,6 +255,9 @@ class PicklistController extends Controller
             }
 
             $payload = $request->all();
+            if ($request->allFiles()) {
+                $payload = array_merge_recursive($payload, $request->allFiles());
+            }
             if (isset($payload[0]) && is_array($payload[0])) {
                 $payload = $payload[0];
             }
