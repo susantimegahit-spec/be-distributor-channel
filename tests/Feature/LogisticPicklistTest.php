@@ -1953,6 +1953,99 @@ class LogisticPicklistTest extends TestCase
         $this->assertEquals('DO-3200', $so32->fresh()->delivery_order_no);
         $this->assertEquals('DO-900', $so9->fresh()->delivery_order_no);
     }
+
+    public function test_mobile_add_do_saves_signatures_and_returns_in_detail(): void
+    {
+        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::fake([
+            '*/api/AddDO' => Http::response([
+                'ErrorCode' => 0,
+                'Message'   => 'DO created successfully. DocNum: 7788 DocEntry: 6655',
+                'Result'    => [
+                    'DocNum'   => 7788,
+                    'DocEntry' => 6655,
+                ],
+            ], 200),
+        ]);
+
+        $picklist = Picklist::create([
+            'picklist_no'   => 'PKL-MOB-001',
+            'shipping_type' => 'internal',
+            'status'        => Picklist::STATUS_OPEN,
+            'posting_date'  => '2026-10-12',
+            'due_date'      => '2026-10-12',
+            'license_plate' => 'L 9988 MOB',
+            'driver_name'   => 'Driver Mob',
+            'checker_name'  => 'Checker Mob',
+            'created_by'    => $this->user->id,
+        ]);
+
+        $pItem = PicklistItem::create([
+            'picklist_id'           => $picklist->id,
+            'sales_order_id'        => $this->order1->id,
+            'sales_order_detail_id' => $this->detail1->id,
+            'item_code'             => $this->item1->item_code,
+            'item_name'             => $this->item1->item_name,
+            'whs_code'              => 'WHS-SBY',
+            'unit_msr'              => 'CTN',
+            'ordered_qty'           => 10,
+            'pick_qty'              => 10,
+            'checked_qty'           => 0,
+            'is_checked'            => false,
+        ]);
+
+        $samplePngBase64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+
+        // 1. Mobile payload with direct checker_signature and driver_signature keys
+        $mobilePayload = [
+            'NoPol'             => 'L 9988 MOB',
+            'Sopir'             => 'Supir Joko',
+            'NamaChecker'       => 'Checker Nanang',
+            'checker_signature' => $samplePngBase64,
+            'driver_signature'  => $samplePngBase64,
+            'Lines' => [
+                [
+                    'sales_order_id' => $this->order1->id,
+                    'ItemCode'       => $this->item1->item_code,
+                    'Quantity'       => 10,
+                    'is_checked'     => true,
+                    'checked_qty'    => 10,
+                ],
+            ],
+        ];
+
+        $res = $this->actingAs($this->user)
+            ->postJson("/api/distributor-channel/v1/logistic/picklists/{$picklist->id}/add-do", $mobilePayload);
+
+        $res->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.doc_num', '7788');
+
+        // 2. Verify signatures exist in database table
+        $signatures = PicklistSignature::where('picklist_id', $picklist->id)->get();
+        $this->assertCount(2, $signatures);
+        $this->assertTrue($signatures->pluck('signer_type')->contains('checker'));
+        $this->assertTrue($signatures->pluck('signer_type')->contains('driver'));
+
+        // 3. Verify GET detail returns signatures with preview URL and signature_data
+        $detailRes = $this->actingAs($this->user)
+            ->getJson("/api/distributor-channel/v1/logistic/picklists/{$picklist->id}");
+
+        $detailRes->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonCount(2, 'data.signatures');
+
+        $detailData = $detailRes->json('data');
+        $this->assertNotEmpty($detailData['signatures'][0]['signature_url']);
+        $this->assertNotEmpty($detailData['signatures'][0]['signature_data']);
+        $this->assertNotNull($detailData['checker_signature']);
+        $this->assertNotNull($detailData['driver_signature']);
+
+        // 4. Test preview endpoint streams signature
+        $sigId = $signatures->first()->id;
+        $prevRes = $this->get("/api/distributor-channel/v1/logistic/picklists/{$picklist->id}/signatures/{$sigId}/preview");
+        $prevRes->assertStatus(200);
+    }
 }
 
 

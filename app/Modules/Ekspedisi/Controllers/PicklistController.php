@@ -205,6 +205,9 @@ class PicklistController extends Controller
         try {
             $user = $request->user();
             $payload = $request->all();
+            if ($request->allFiles()) {
+                $payload = array_merge_recursive($payload, $request->allFiles());
+            }
             if (isset($payload[0]) && is_array($payload[0])) {
                 $payload = $payload[0];
             }
@@ -287,7 +290,11 @@ class PicklistController extends Controller
             }
 
             $user = $request->user();
-            $signatures = $this->picklistService->savePicklistSignatures($picklist, $request->all(), $user?->id);
+            $payload = $request->all();
+            if ($request->allFiles()) {
+                $payload = array_merge_recursive($payload, $request->allFiles());
+            }
+            $signatures = $this->picklistService->savePicklistSignatures($picklist, $payload, $user?->id);
 
             return response()->json([
                 'success' => true,
@@ -378,7 +385,11 @@ class PicklistController extends Controller
     {
         try {
             $user = $request->user();
-            $result = $this->picklistService->directAddDeliveryOrder($request->all(), $user?->id);
+            $payload = $request->all();
+            if ($request->allFiles()) {
+                $payload = array_merge_recursive($payload, $request->allFiles());
+            }
+            $result = $this->picklistService->directAddDeliveryOrder($payload, $user?->id);
 
             $message = !empty($result['delivery_order_no']) || !empty($result['doc_num'])
                 ? "Delivery Order successfully created in SAP (DocNum: " . ($result['delivery_order_no'] ?? $result['doc_num'] ?? '') . ")."
