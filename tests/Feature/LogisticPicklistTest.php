@@ -1764,6 +1764,164 @@ class LogisticPicklistTest extends TestCase
         $this->assertEquals(10, (float) $pItem->fresh()->checked_qty);
         $this->assertTrue((bool) $picklist->fresh()->is_checked);
     }
+
+    public function test_direct_add_do_handles_multi_so_payload_from_frontend_and_sends_to_sap(): void
+    {
+        Http::swap(new \Illuminate\Http\Client\Factory);
+
+        $so32 = SalesOrder::create([
+            'order_no'        => 'SO-USER-032',
+            'sap_doc_entry'   => 3200,
+            'docentry'        => 3200,
+            'sap_doc_num'     => '3200001',
+            'distributor_id'  => $this->distributor->id,
+            'card_code'       => 'CUST-32',
+            'customer_name'   => 'Customer 32',
+            'doc_date'        => '2026-10-08',
+            'req_due_date'    => '2026-10-08',
+            'doc_due_date'    => '2026-10-08',
+            'status'          => 'ORDER_APPROVED',
+            'logistic_status' => 'APPROVED',
+            'grand_total'     => 100000,
+        ]);
+
+        $detail32 = SalesOrderDetail::create([
+            'sales_order_id' => $so32->id,
+            'item_code'      => 'B26',
+            'item_name'      => 'Barang B26',
+            'unit_msr'       => 'KG',
+            'whs_code'       => 'FG01',
+            'open_qty'       => 10,
+            'quantity'       => 10,
+            'unit_price'     => 10000,
+            'line_total'     => 100000,
+            'line_num'       => 0,
+            'baseline'       => 0,
+        ]);
+
+        $so9 = SalesOrder::create([
+            'order_no'        => 'SO-USER-009',
+            'sap_doc_entry'   => 900,
+            'docentry'        => 900,
+            'sap_doc_num'     => '9000001',
+            'distributor_id'  => $this->distributor->id,
+            'card_code'       => 'CUST-09',
+            'customer_name'   => 'Customer 09',
+            'doc_date'        => '2026-10-08',
+            'req_due_date'    => '2026-10-08',
+            'doc_due_date'    => '2026-10-08',
+            'status'          => 'ORDER_APPROVED',
+            'logistic_status' => 'APPROVED',
+            'grand_total'     => 100000,
+        ]);
+
+        $detail9 = SalesOrderDetail::create([
+            'sales_order_id' => $so9->id,
+            'item_code'      => 'B26',
+            'item_name'      => 'Barang B26',
+            'unit_msr'       => 'KG',
+            'whs_code'       => 'FG02',
+            'open_qty'       => 10,
+            'quantity'       => 10,
+            'unit_price'     => 10000,
+            'line_total'     => 100000,
+            'line_num'       => 0,
+            'baseline'       => 0,
+        ]);
+
+        Http::fake([
+            '*/api/AddDO' => function ($request) {
+                $body = $request->data();
+                $this->assertIsArray($body);
+                $this->assertCount(2, $body);
+
+                // Document 1 (for SO 32)
+                $this->assertEquals(3905, $body[0]['Series']);
+                $this->assertEquals('PO12324234', $body[0]['NumAtCard']);
+                $this->assertEquals('L9870CE', $body[0]['NoPol']);
+                $this->assertEquals('01', $body[0]['KodeEkspedisi']);
+                $this->assertEquals('Internal', $body[0]['NamaEkspedisi']);
+                $this->assertEquals('SUPOYO', $body[0]['Sopir']);
+                $this->assertEquals('ROCHIM/NANANG', $body[0]['NamaChecker']);
+                $this->assertCount(1, $body[0]['Lines']);
+                $this->assertEquals(3200, $body[0]['Lines'][0]['BaseEntry']);
+                $this->assertEquals(0, $body[0]['Lines'][0]['BaseLine']);
+                $this->assertEquals(1.0, $body[0]['Lines'][0]['Quantity']);
+                $this->assertEquals('VPGMN01', $body[0]['Lines'][0]['WhsCode']);
+                $this->assertEquals('SBY', $body[0]['Lines'][0]['OcrCode']);
+                $this->assertEquals('GRM', $body[0]['Lines'][0]['OcrCode2']);
+                $this->assertEquals('MKT', $body[0]['Lines'][0]['OcrCode3']);
+
+                // Document 2 (for SO 9)
+                $this->assertEquals(3905, $body[1]['Series']);
+                $this->assertEquals('PO12324234', $body[1]['NumAtCard']);
+                $this->assertCount(1, $body[1]['Lines']);
+                $this->assertEquals(900, $body[1]['Lines'][0]['BaseEntry']);
+                $this->assertEquals(0, $body[1]['Lines'][0]['BaseLine']);
+                $this->assertEquals(1.0, $body[1]['Lines'][0]['Quantity']);
+                $this->assertEquals('VPGMN01', $body[1]['Lines'][0]['WhsCode']);
+                $this->assertEquals('SBY', $body[1]['Lines'][0]['OcrCode']);
+                $this->assertEquals('GRM', $body[1]['Lines'][0]['OcrCode2']);
+                $this->assertEquals('PRO', $body[1]['Lines'][0]['OcrCode3']);
+
+                return Http::response([
+                    'ErrorCode' => 0,
+                    'Message'   => 'Success - [AddDeliveryOrder]. DocEntry: 9320, DocNum: DO-3200; DocEntry: 9090, DocNum: DO-900',
+                    'Result'    => [
+                        ['DocEntry' => 9320, 'DocNum' => 'DO-3200'],
+                        ['DocEntry' => 9090, 'DocNum' => 'DO-900'],
+                    ],
+                ], 200);
+            },
+        ]);
+
+        $fePayload = [
+            [
+                'Series'        => 3905,
+                'DocDate'       => '2026-10-08T00:00:00',
+                'DocDueDate'    => '2026-10-08T00:00:00',
+                'TaxDate'       => '2026-10-08T00:00:00',
+                'NumAtCard'     => 'PO12324234',
+                'Comments'      => '',
+                'NoPol'         => 'L9870CE',
+                'KodeEkspedisi' => '01',
+                'NamaEkspedisi' => 'Internal',
+                'Sopir'         => 'SUPOYO',
+                'NamaChecker'   => 'ROCHIM/NANANG',
+                'Lines'         => [
+                    [
+                        'sales_order_id' => $so32->id,
+                        'ItemCode'       => 'B26',
+                        'Quantity'       => 1,
+                        'WhsCode'        => 'FG01',
+                        'OcrCode'        => 'SBY',
+                        'OcrCode2'       => 'GRM',
+                        'OcrCode3'       => 'MKT',
+                    ],
+                    [
+                        'sales_order_id' => $so9->id,
+                        'ItemCode'       => 'B26',
+                        'Quantity'       => 1,
+                        'WhsCode'        => 'FG02',
+                        'OcrCode'        => 'SBY',
+                        'OcrCode2'       => 'GRM',
+                        'OcrCode3'       => 'PRO',
+                    ],
+                ],
+            ],
+        ];
+
+        $res = $this->actingAs($this->user)
+            ->postJson('/api/distributor-channel/v1/logistic/picklists/add-do', $fePayload);
+
+        $res->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.documents.0.doc_num', 'DO-3200')
+            ->assertJsonPath('data.documents.1.doc_num', 'DO-900');
+
+        $this->assertEquals('DO-3200', $so32->fresh()->delivery_order_no);
+        $this->assertEquals('DO-900', $so9->fresh()->delivery_order_no);
+    }
 }
 
 

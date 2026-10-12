@@ -3,6 +3,7 @@
 namespace App\Modules\Ekspedisi\Services;
 
 use App\Models\Item;
+use App\Models\LogisticSetting;
 use App\Models\Picklist;
 use App\Models\PicklistItem;
 use App\Models\PicklistSignature;
@@ -23,6 +24,24 @@ class PicklistService
      * Hardcoded destination warehouse code for Picklist Inventory Transfer.
      */
     public const DEFAULT_IT_TO_WHS_CODE = 'VPGMN01';
+
+    /**
+     * Get the Inventory Transfer (IT) warehouse code for Delivery Order lines.
+     * Fills the WhsCode of Delivery Order lines from the destination warehouse of IT.
+     * Currently resolves from Picklist to_whs_code or DEFAULT_IT_TO_WHS_CODE ('VPGMN01').
+     * In the future, this can be retrieved from a database master setting table.
+     *
+     * @param Picklist|null $picklist
+     * @return string
+     */
+    public function getItWarehouseCode(?Picklist $picklist = null): string
+    {
+        if ($picklist && !empty($picklist->to_whs_code)) {
+            return (string) $picklist->to_whs_code;
+        }
+
+        return LogisticSetting::getVirtualWarehouseCode();
+    }
 
     /**
      * Get paginated list of picklists with filters.
@@ -412,6 +431,8 @@ class PicklistService
         // Hardcoded destination warehouse to VPGMN01. If IT fails, picklist creation aborts immediately.
         $itResult = $this->executeInventoryTransferToSapForPicklist($payload, $processedItems, $details, $userId);
 
+        $itToWhsCode = $this->getItWarehouseCode();
+
         // 2. Database transaction on ekspedisi connection to persist picklist and its items
         $ekspedisiConn = (new Picklist)->getConnection();
         return $ekspedisiConn->transaction(function () use (
@@ -428,7 +449,8 @@ class PicklistService
             $salesOrderIds,
             $orders,
             $itResult,
-            $userId
+            $userId,
+            $itToWhsCode
         ) {
             $picklistNo = $this->generatePicklistNumber();
 
@@ -453,7 +475,7 @@ class PicklistService
                 'it_doc_entry'       => (string) $itResult['doc_entry'],
                 'it_doc_num'         => (string) $itResult['doc_num'],
                 'it_status'          => 'SUCCESS',
-                'to_whs_code'        => self::DEFAULT_IT_TO_WHS_CODE,
+                'to_whs_code'        => $itToWhsCode,
                 'series'             => (isset($payload['series']) && $payload['series'] !== '' && $payload['series'] !== null) ? (int) $payload['series'] : ((isset($payload['Series']) && $payload['Series'] !== '' && $payload['Series'] !== null) ? (int) $payload['Series'] : null),
                 'series_name'        => !empty($payload['series_name']) ? trim((string) $payload['series_name']) : (!empty($payload['SeriesName']) ? trim((string) $payload['SeriesName']) : null),
                 'seal_number'        => !empty($payload['seal_number']) ? trim((string) $payload['seal_number']) : (!empty($payload['noseal']) ? trim((string) $payload['noseal']) : (!empty($payload['Noseal']) ? trim((string) $payload['Noseal']) : null)),
@@ -498,7 +520,7 @@ class PicklistService
                 $so = $orders->get($soId);
                 if ($so) {
                     $so->update([
-                        'to_whs_code'      => self::DEFAULT_IT_TO_WHS_CODE,
+                        'to_whs_code'      => $itToWhsCode,
                         'nopol'            => $licensePlate ?: $so->nopol,
                         'nama_supir'       => $driverName ?: $so->nama_supir,
                         'sap_it_doc_entry' => (string) $itResult['doc_entry'],
@@ -511,7 +533,7 @@ class PicklistService
                         'action'           => 'LOGISTIC_INVENTORY_TRANSFER',
                         'from_status'      => $so->logistic_status,
                         'to_status'        => $so->logistic_status,
-                        'notes'            => "Inventory Transfer (IT) processed to SAP via Picklist {$picklistNo} (DocNum: {$itResult['doc_num']}, Destination: " . self::DEFAULT_IT_TO_WHS_CODE . ").",
+                        'notes'            => "Inventory Transfer (IT) processed to SAP via Picklist {$picklistNo} (DocNum: {$itResult['doc_num']}, Destination: {$itToWhsCode}).",
                         'user_id'          => $userId,
                         'user_name'        => $userName,
                         'role_name'        => $roleName,
@@ -548,6 +570,7 @@ class PicklistService
         $details,
         ?int $userId = null
     ): array {
+        $toWhsCode = $this->getItWarehouseCode();
         $lines = [];
         $headerFiller = null;
 
@@ -594,7 +617,7 @@ class PicklistService
                 'Quantity'     => $qty,
                 'UomEntry'     => $uomEntry,
                 'Filler'       => $lineWhsCode,
-                'ToWhsCode'    => self::DEFAULT_IT_TO_WHS_CODE,
+                'ToWhsCode'    => $toWhsCode,
                 'UseBaseUn'    => 'Y',
                 'OcrCode'      => $ocrCode,
                 'OcrCode2'     => $ocrCode2,
@@ -623,8 +646,8 @@ class PicklistService
             'DocDate'    => $postingDate,
             'DocDueDate' => $dueDate,
             'Filler'     => $headerFiller ?: 'FG01',
-            'ToWhsCode'  => self::DEFAULT_IT_TO_WHS_CODE,
-            'Comments'   => "Picklist IT to " . self::DEFAULT_IT_TO_WHS_CODE . ($licensePlate ? " - Nopol: {$licensePlate}" : '') . (!empty($payload['comments']) ? " - {$payload['comments']}" : ''),
+            'ToWhsCode'  => $toWhsCode,
+            'Comments'   => "Picklist IT to {$toWhsCode}" . ($licensePlate ? " - Nopol: {$licensePlate}" : '') . (!empty($payload['comments']) ? " - {$payload['comments']}" : ''),
             'BeratBruto' => (string) ($payload['berat_bruto'] ?? $payload['total_weight'] ?? ''),
             'BeratTara'  => (string) ($payload['berat_tara'] ?? ''),
             'Nopol'      => $licensePlate,
@@ -891,12 +914,8 @@ class PicklistService
                         'BaseEntry' => $lineBaseEntry,
                         'BaseLine'  => $lineBaseLine,
                         'Quantity'  => $qty,
+                        'WhsCode'   => $this->getItWarehouseCode($picklist),
                     ];
-
-                    $whsCode = $cLine['WhsCode'] ?? $cLine['whs_code'] ?? ($matchedDetail?->whs_code ?: '01');
-                    if (!empty($whsCode)) {
-                        $lineObj['WhsCode'] = (string) $whsCode;
-                    }
 
                     $ocrCode  = $cLine['OcrCode'] ?? $cLine['ocr_code'] ?? ($matchedDetail?->ocr_code ?: null);
                     $ocrCode2 = $cLine['OcrCode2'] ?? $cLine['ocr_code2'] ?? ($matchedDetail?->ocr_code2 ?: null);
@@ -955,12 +974,8 @@ class PicklistService
                         'BaseEntry' => (int) $baseEntry,
                         'BaseLine'  => $lineBaseLine,
                         'Quantity'  => $qty,
+                        'WhsCode'   => $this->getItWarehouseCode($picklist),
                     ];
-
-                    $whsCode = $item->whs_code ?: ($detail?->whs_code ?: '01');
-                    if (!empty($whsCode)) {
-                        $lineObj['WhsCode'] = (string) $whsCode;
-                    }
 
                     $ocrCode  = $detail?->ocr_code;
                     $ocrCode2 = $detail?->ocr_code2;
@@ -1293,6 +1308,41 @@ class PicklistService
             throw new \Exception("Picklist ID required for saving draft progress.", 400);
         }
 
+        // Normalize rawDocs: if a doc has lines referencing multiple different sales_order_id,
+        // expand/group them so each Sales Order gets its own SAP Delivery Order document in batch mode!
+        $expandedDocs = [];
+        foreach ($rawDocs as $doc) {
+            $lKey = isset($doc['Lines']) ? 'Lines' : (isset($doc['lines']) ? 'lines' : 'Lines');
+            $docLines = $doc[$lKey] ?? [];
+            if (!is_array($docLines) || empty($docLines)) {
+                $expandedDocs[] = $doc;
+                continue;
+            }
+
+            // Group lines by sales_order_id
+            $linesBySo = [];
+            foreach ($docLines as $l) {
+                $lSoId = $l['sales_order_id'] ?? $l['sales_order_Id'] ?? null;
+                $key = $lSoId ? (string) $lSoId : 'default';
+                $linesBySo[$key][] = $l;
+            }
+
+            if (count($linesBySo) > 1) {
+                $isBatch = true;
+                foreach ($linesBySo as $soKey => $groupedLines) {
+                    $subDoc = $doc;
+                    if ($soKey !== 'default') {
+                        $subDoc['sales_order_id'] = (int) $soKey;
+                    }
+                    $subDoc[$lKey] = $groupedLines;
+                    $expandedDocs[] = $subDoc;
+                }
+            } else {
+                $expandedDocs[] = $doc;
+            }
+        }
+        $rawDocs = $expandedDocs;
+
         $batchPayload = [];
         $metaDocs = [];
 
@@ -1376,6 +1426,18 @@ class PicklistService
                 $referencedSos->put($so->id, $so);
             }
 
+            $picklist = null;
+            if (!empty($header['picklist_id'])) {
+                $picklist = Picklist::find($header['picklist_id']);
+            }
+            if (!$picklist && $so) {
+                $pItem = PicklistItem::where('sales_order_id', $so->id)->orderBy('id', 'desc')->first();
+                if ($pItem) {
+                    $picklist = Picklist::find($pItem->picklist_id);
+                }
+            }
+            $targetItWhsCode = $this->getItWarehouseCode($picklist);
+
             $cleanLines = [];
             foreach ($headerLines as $lineIdx => $line) {
                 $itemCode = trim((string) ($line['ItemCode'] ?? $line['item_code'] ?? ''));
@@ -1443,7 +1505,7 @@ class PicklistService
                     ? (int) $line['BaseEntry']
                     : ((isset($line['base_entry']) && $line['base_entry'] !== '' && $line['base_entry'] !== null)
                         ? (int) $line['base_entry']
-                        : (int) ($currentSo ? ($currentSo->docentry ?: $currentSo->sap_doc_entry) : $baseEntry));
+                        : (int) ($currentSo ? ($this->resolveSalesOrderDocEntry($currentSo) ?: ($currentSo->docentry ?: $currentSo->sap_doc_entry)) : $baseEntry));
 
                 $finalItemCode = $itemCode ?: ($detail?->item_code ?: '');
                 $cleanLine = [
@@ -1451,7 +1513,7 @@ class PicklistService
                     'BaseLine'  => $lineBaseLine,
                     'ItemCode'  => $finalItemCode,
                     'Quantity'  => $qty,
-                    'WhsCode'   => (string) ($line['WhsCode'] ?? $line['whs_code'] ?? ($detail?->whs_code ?: '01')),
+                    'WhsCode'   => (string) $targetItWhsCode,
                 ];
 
                 $ocrCode  = $line['OcrCode'] ?? $line['ocr_code'] ?? ($detail?->ocr_code ?: null);
@@ -1513,6 +1575,8 @@ class PicklistService
 
             if (!empty($header['CardCode']) || !empty($header['card_code'])) {
                 $sapDoc['CardCode'] = (string) ($header['CardCode'] ?? $header['card_code']);
+            } elseif (!empty($so?->card_code)) {
+                $sapDoc['CardCode'] = (string) $so->card_code;
             }
 
             $batchPayload[] = $sapDoc;
@@ -1657,6 +1721,14 @@ class PicklistService
                     'updated_by'        => $userId,
                 ]);
 
+                if (!empty($meta['raw']['signatures']) || !empty($header['signatures'])) {
+                    try {
+                        $this->savePicklistSignatures($picklist, !empty($header['signatures']) ? $header : ($meta['raw'] ?? []), $userId);
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::warning("Failed to save signatures for Picklist #{$picklist->id}: " . $e->getMessage());
+                    }
+                }
+
                 $activeChecker = !empty($header['checked_by_checker'])
                     ? trim((string) $header['checked_by_checker'])
                     : (!empty($header['checker_name'])
@@ -1744,7 +1816,7 @@ class PicklistService
             ];
         }
 
-        $freshFirstPicklist = $firstPicklist?->fresh(['items']);
+        $freshFirstPicklist = $firstPicklist?->fresh(['items', 'signatures']);
 
         return [
             'delivery_order_no' => (string) $latestDocNum,
@@ -1754,6 +1826,7 @@ class PicklistService
             'sales_order_id'    => $firstSo?->id,
             'picklist_id'       => $firstPicklist?->id,
             'documents'         => $processedDocs,
+            'signatures'        => $freshFirstPicklist?->signatures ?? [],
             'response'          => $lastResult,
         ];
     }

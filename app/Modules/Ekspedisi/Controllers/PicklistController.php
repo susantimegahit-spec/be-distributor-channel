@@ -204,7 +204,11 @@ class PicklistController extends Controller
     {
         try {
             $user = $request->user();
-            $result = $this->picklistService->addDeliveryOrder($id, $request->all(), $user?->id);
+            $payload = $request->all();
+            if (isset($payload[0]) && is_array($payload[0])) {
+                $payload = $payload[0];
+            }
+            $result = $this->picklistService->addDeliveryOrder($id, $payload, $user?->id);
 
             $message = !empty($result['doc_num'])
                 ? "Delivery Order successfully created in SAP (DocNum: {$result['doc_num']})."

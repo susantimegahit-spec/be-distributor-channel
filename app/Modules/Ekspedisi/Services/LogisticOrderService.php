@@ -2,6 +2,7 @@
 
 namespace App\Modules\Ekspedisi\Services;
 
+use App\Models\LogisticSetting;
 use App\Models\MasterLeadtime;
 use App\Models\SalesOrder;
 use App\Models\SalesOrderLogisticLog;
@@ -482,9 +483,10 @@ class LogisticOrderService
         $userName = $user ? $user->name : 'User #' . $userId;
         $roleName = $user && $user->role ? $user->role->name : 'Logistic';
 
-        $targetToWhsCode = trim((string) ($data['to_whs_code'] ?? $data['ToWhsCode'] ?? 'VPGMN01'));
+        $defaultVirtualWhs = LogisticSetting::getVirtualWarehouseCode();
+        $targetToWhsCode = trim((string) ($data['to_whs_code'] ?? $data['ToWhsCode'] ?? $defaultVirtualWhs));
         if (empty($targetToWhsCode)) {
-            $targetToWhsCode = 'VPGMN01';
+            $targetToWhsCode = $defaultVirtualWhs;
         }
         $nopol = trim((string) ($data['nopol'] ?? $data['Nopol'] ?? ''));
         $namaSupir = trim((string) ($data['nama_supir'] ?? $data['NamaSupir'] ?? $data['driver_name'] ?? ''));

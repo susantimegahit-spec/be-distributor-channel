@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             DocumentSchemaSeeder::class,
             DocumentApprovalDummySeeder::class,
             CorporateTaskManagementSeeder::class,
+            LogisticSettingSeeder::class,
         ]);
     }
 }
