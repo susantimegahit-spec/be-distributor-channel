@@ -1026,12 +1026,12 @@ class PicklistService
 
             $numAtCard = (string) ($payload['NumAtCard'] ?? $payload['num_at_card'] ?? $so->po_number ?: ($so->order_no ?? ''));
             $comments  = (string) ($payload['Comments'] ?? $payload['comments'] ?? $picklist->comments ?: ($so->comments ?? ''));
-            $noPol     = (string) ($payload['NoPol'] ?? $payload['nopol'] ?? $picklist->license_plate ?: ($so->nopol ?? ''));
+            $noPol     = (string) ($payload['license_plate'] ?? $payload['NoPol'] ?? $payload['nopol'] ?? $picklist->license_plate ?: ($so->nopol ?? ''));
             $kodeEksp  = (string) ($payload['KodeEkspedisi'] ?? $payload['kode_ekspedisi'] ?? ($picklist->expedition_id ?: ($picklist->expedition?->code ?? ($picklist->shipping_type === Picklist::SHIPPING_TYPE_INTERNAL ? '01' : ''))));
             $namaEksp  = (string) ($payload['NamaEkspedisi'] ?? $payload['nama_ekspedisi'] ?? ($picklist->expedition_name ?? ($picklist->shipping_type === Picklist::SHIPPING_TYPE_INTERNAL ? 'Internal' : '')));
-            $sopir     = (string) ($payload['Sopir'] ?? $payload['sopir'] ?? $picklist->driver_name ?: ($so->nama_supir ?? ''));
-            $checker   = (string) ($payload['NamaChecker'] ?? $payload['nama_checker'] ?? $picklist->checker_name ?? '');
-            $noseal    = (string) ($payload['Noseal'] ?? $payload['noseal'] ?? $picklist->seal_number ?? '');
+            $sopir     = (string) ($payload['driver_name'] ?? $payload['Sopir'] ?? $payload['sopir'] ?? $picklist->driver_name ?: ($so->nama_supir ?? ''));
+            $checker   = (string) ($payload['checker_name'] ?? $payload['NamaChecker'] ?? $payload['nama_checker'] ?? $picklist->checker_name ?? '');
+            $noseal    = (string) ($payload['Noseal'] ?? $payload['noseal'] ?? ($payload['seal_number'] ?? $picklist->seal_number ?? ''));
 
             $headerObj = [
                 'Series'        => $series,
@@ -1243,14 +1243,38 @@ class PicklistService
         $picklistDocNums = array_filter(array_map(fn($r) => $r['delivery_order_no'], $resultsPerOrder));
         $combinedDocNum = !empty($picklistDocNums) ? implode(', ', array_unique($picklistDocNums)) : $latestDocNum;
 
-        $picklist->update([
+        $picklistUpdate = [
             'status'            => Picklist::STATUS_COMPLETED,
             'delivery_order_no' => $combinedDocNum,
             'do_doc_entry'      => (string) $latestDocEntry,
             'do_doc_num'        => (string) $latestDocNum,
             'do_status'         => 'SUCCESS',
             'updated_by'        => $userId,
-        ]);
+        ];
+
+        if (!empty($noPol)) {
+            $picklistUpdate['license_plate'] = $noPol;
+        }
+        if (!empty($sopir)) {
+            $picklistUpdate['driver_name'] = $sopir;
+        }
+        if (!empty($checker)) {
+            $picklistUpdate['checker_name'] = $checker;
+        }
+        if (!empty($kodeEksp)) {
+            $picklistUpdate['expedition_id'] = $kodeEksp;
+        }
+        if (!empty($namaEksp)) {
+            $picklistUpdate['expedition_name'] = $namaEksp;
+        }
+        if (!empty($comments)) {
+            $picklistUpdate['comments'] = $comments;
+        }
+        if (!empty($noseal)) {
+            $picklistUpdate['seal_number'] = $noseal;
+        }
+
+        $picklist->update($picklistUpdate);
 
         // 5. Save inspection / handover signatures if provided
         $savedSignatures = $this->savePicklistSignatures($picklist, $payload, $userId);
@@ -1544,13 +1568,13 @@ class PicklistService
             $taxDate = !empty($header['TaxDate']) ? Carbon::parse($header['TaxDate'])->format('Y-m-d\TH:i:s') : $docDate;
 
             $numAtCard = (string) ($header['NumAtCard'] ?? $header['num_at_card'] ?? ($so?->po_number ?: ($so?->order_no ?? '')));
-            $comments  = (string) ($header['Comments'] ?? $header['comments'] ?? ($so?->comments ?? ''));
-            $noPol     = (string) ($header['NoPol'] ?? $header['nopol'] ?? ($so?->nopol ?? ''));
-            $kodeEksp  = (string) ($header['KodeEkspedisi'] ?? $header['kode_ekspedisi'] ?? ($so?->shipping_type === 'internal' ? '01' : ''));
-            $namaEksp  = (string) ($header['NamaEkspedisi'] ?? $header['nama_ekspedisi'] ?? ($so?->shipping_type === 'internal' ? 'Internal' : ''));
-            $sopir     = (string) ($header['Sopir'] ?? $header['sopir'] ?? ($so?->nama_supir ?? ''));
-            $checker   = (string) ($header['NamaChecker'] ?? $header['nama_checker'] ?? '');
-            $noseal    = (string) ($header['Noseal'] ?? $header['noseal'] ?? ($header['seal_number'] ?? ''));
+            $comments  = (string) ($header['Comments'] ?? $header['comments'] ?? ($picklist?->comments ?: ($so?->comments ?? '')));
+            $noPol     = (string) ($header['license_plate'] ?? $header['NoPol'] ?? $header['nopol'] ?? ($picklist?->license_plate ?: ($so?->nopol ?? '')));
+            $kodeEksp  = (string) ($header['KodeEkspedisi'] ?? $header['kode_ekspedisi'] ?? ($picklist?->expedition_id ?: ($picklist?->expedition?->code ?? ($so?->shipping_type === 'internal' ? '01' : ''))));
+            $namaEksp  = (string) ($header['NamaEkspedisi'] ?? $header['nama_ekspedisi'] ?? ($picklist?->expedition_name ?? ($so?->shipping_type === 'internal' ? 'Internal' : '')));
+            $sopir     = (string) ($header['driver_name'] ?? $header['Sopir'] ?? $header['sopir'] ?? ($picklist?->driver_name ?: ($so?->nama_supir ?? '')));
+            $checker   = (string) ($header['checker_name'] ?? $header['NamaChecker'] ?? $header['nama_checker'] ?? ($picklist?->checker_name ?? ''));
+            $noseal    = (string) ($header['Noseal'] ?? $header['noseal'] ?? ($header['seal_number'] ?? ($picklist?->seal_number ?? '')));
 
             $sapDoc = [
                 'Series'        => (int) ($header['Series'] ?? $header['series'] ?? 75),
@@ -1715,14 +1739,32 @@ class PicklistService
                 if (!$firstPicklist) {
                     $firstPicklist = $picklist;
                 }
-                $picklist->update([
+                $picklistUpdate = [
                     'status'            => Picklist::STATUS_COMPLETED,
                     'delivery_order_no' => $docNum,
                     'do_doc_entry'      => (string) $docEntry,
                     'do_doc_num'        => (string) $docNum,
                     'do_status'         => 'SUCCESS',
                     'updated_by'        => $userId,
-                ]);
+                ];
+
+                if (!empty($noPol)) {
+                    $picklistUpdate['license_plate'] = $noPol;
+                }
+                if (!empty($sopir)) {
+                    $picklistUpdate['driver_name'] = $sopir;
+                }
+                if (!empty($checker)) {
+                    $picklistUpdate['checker_name'] = $checker;
+                }
+                if (!empty($comments)) {
+                    $picklistUpdate['comments'] = $comments;
+                }
+                if (!empty($noseal)) {
+                    $picklistUpdate['seal_number'] = $noseal;
+                }
+
+                $picklist->update($picklistUpdate);
 
                 // Merge payload, meta raw, and header to capture signatures in any location
                 $sigPayload = array_merge(
@@ -2331,26 +2373,35 @@ class PicklistService
             throw new \Exception("Cannot save draft progress for a CANCELLED picklist.", 400);
         }
 
-        // 1. Merge checker names (e.g. ROCHIM + NANANG -> ROCHIM/NANANG)
-        $incomingChecker = $payload['NamaChecker'] ?? $payload['nama_checker'] ?? $payload['checker_name'] ?? null;
+        // 1. Merge checker names (e.g. ROCHIM + NANANG -> ROCHIM/NANANG) or set edited value
+        $incomingChecker = $payload['checker_name'] ?? $payload['NamaChecker'] ?? $payload['nama_checker'] ?? null;
         if (!empty($incomingChecker)) {
-            $existingCheckers = array_filter(array_map('trim', explode('/', (string) $picklist->checker_name)));
-            $newCheckers = array_filter(array_map('trim', explode('/', (string) $incomingChecker)));
-            $merged = array_unique(array_merge($existingCheckers, $newCheckers));
-            $picklist->checker_name = implode('/', $merged);
+            $overwriteChecker = (bool) ($payload['overwrite_checker'] ?? $payload['replace_checker'] ?? false);
+            if ($overwriteChecker || str_contains((string) $incomingChecker, '/')) {
+                $picklist->checker_name = trim((string) $incomingChecker);
+            } else {
+                $existingCheckers = array_filter(array_map('trim', explode('/', (string) $picklist->checker_name)));
+                $newCheckers = array_filter(array_map('trim', explode('/', (string) $incomingChecker)));
+                $merged = array_unique(array_merge($existingCheckers, $newCheckers));
+                $picklist->checker_name = implode('/', $merged);
+            }
         }
 
-        $incomingDriver = $payload['Sopir'] ?? $payload['driver_name'] ?? null;
+        $incomingDriver = $payload['driver_name'] ?? $payload['Sopir'] ?? $payload['sopir'] ?? null;
         if (!empty($incomingDriver)) {
             $picklist->driver_name = trim((string) $incomingDriver);
         }
-        $incomingNoPol = $payload['NoPol'] ?? $payload['license_plate'] ?? null;
+        $incomingNoPol = $payload['license_plate'] ?? $payload['NoPol'] ?? $payload['nopol'] ?? null;
         if (!empty($incomingNoPol)) {
             $picklist->license_plate = trim((string) $incomingNoPol);
         }
         $incomingComments = $payload['Comments'] ?? $payload['comments'] ?? null;
         if ($incomingComments !== null) {
             $picklist->comments = $incomingComments;
+        }
+        $incomingNoseal = $payload['Noseal'] ?? $payload['noseal'] ?? ($payload['seal_number'] ?? null);
+        if ($incomingNoseal !== null) {
+            $picklist->seal_number = $incomingNoseal;
         }
 
         // Advance status from OPEN to IN_PROGRESS
