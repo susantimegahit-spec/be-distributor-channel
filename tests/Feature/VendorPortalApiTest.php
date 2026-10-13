@@ -1,0 +1,949 @@
+<?php
+
+namespace Tests\Feature;
+
+use Tests\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Http;
+use App\Models\User;
+use App\Modules\VendorPortal\Models\Vendor;
+use App\Modules\VendorPortal\Models\VendorUser;
+use App\Modules\VendorPortal\Services\VendorLegalApprovalService;
+
+class VendorPortalApiTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Storage::fake('local');
+    }
+
+    public function test_can_check_email_availability()
+    {
+        $response = $this->getJson('/api/distributor-channel/vendor-portal/check-email?email=newvendor@example.com');
+        $response->assertStatus(200)
+            ->assertJson([
+                'available' => true,
+                'email' => 'newvendor@example.com',
+            ]);
+    }
+
+    public function test_can_register_new_vendor_with_documents()
+    {
+        $payload = [
+            'vendor_type' => 'expedition',
+            'company_name' => 'PT Cepat Aman Logistik',
+            'company_email' => 'contact@cepataman.com',
+            'company_phone' => '021-5551234',
+            'company_npwp' => '01.234.567.8-901.000',
+            'address' => 'Jl. Daan Mogot KM 12',
+            'village' => 'Cengkareng Barat',
+            'district' => 'Cengkareng',
+            'city' => 'Jakarta Barat',
+            'regencies' => 'Jakarta Barat',
+            'province' => 'DKI Jakarta',
+            'postal_code' => '11840',
+            'pic_name' => 'Hendro Wijaya',
+            'pic_phone' => '081298765432',
+            'terms_agreed' => true,
+            'akta' => UploadedFile::fake()->create('akta_perusahaan.pdf', 500, 'application/pdf'),
+            'nib' => UploadedFile::fake()->create('nib_usaha.pdf', 300, 'application/pdf'),
+            'npwp' => UploadedFile::fake()->create('npwp_perusahaan.png', 200, 'image/png'),
+            'support' => UploadedFile::fake()->create('surat_rekomendasi.pdf', 400, 'application/pdf'),
+        ];
+
+        $response = $this->postJson('/api/distributor-channel/vendor-portal/register', $payload);
+
+        $response->assertStatus(201)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'company_name' => 'PT Cepat Aman Logistik',
+                    'company_npwp' => '01.234.567.8-901.000',
+                    'vendor_type' => 'EXPEDITION',
+                    'registration_status' => 'PENDING_LEGAL_APPROVAL',
+                    'uploaded_documents_count' => 4,
+                ],
+            ]);
+
+        $conn = config('database.default') === 'sqlite' ? 'sqlite' : 'pgsql_vendor';
+        $this->assertDatabaseHas('vendors', [
+            'company_email' => 'contact@cepataman.com',
+            'company_npwp' => '01.234.567.8-901.000',
+            'village' => 'Cengkareng Barat',
+            'district' => 'Cengkareng',
+            'city' => 'Jakarta Barat',
+            'regencies' => 'Jakarta Barat',
+            'vendor_type' => 'EXPEDITION',
+            'registration_status' => 'PENDING_LEGAL_APPROVAL',
+        ], $conn);
+
+        $vendor = Vendor::where('company_email', 'contact@cepataman.com')->first();
+        $this->assertNotNull($vendor);
+        $this->assertEquals('Cengkareng Barat', $vendor->village);
+        $this->assertEquals('Cengkareng', $vendor->district);
+        $this->assertEquals('Jakarta Barat', $vendor->city);
+        $this->assertEquals('Jakarta Barat', $vendor->regencies);
+        $this->assertNull($vendor->nik);
+        $this->assertCount(4, $vendor->documents);
+    }
+
+    public function test_can_register_vendor_with_regency_and_indonesian_aliases()
+    {
+        $payload = [
+            'vendor_type' => 'distributor',
+            'company_name' => 'PT Mitra Daerah Sejahtera',
+            'company_email' => 'mitra.daerah@example.com',
+            'address' => 'Jl. Ahmad Yani No. 10',
+            'desa' => 'Kutisari',
+            'kecamatan' => 'Tenggilis Mejoyo',
+            'kota' => 'Surabaya',
+            'regency' => 'Surabaya',
+            'province' => 'Jawa Timur',
+            'postal_code' => '60291',
+            'pic_name' => 'Siti Rahma',
+            'pic_phone' => '081333444555',
+            'terms_agreed' => true,
+        ];
+
+        $response = $this->postJson('/api/distributor-channel/vendor-portal/register', $payload);
+
+        $response->assertStatus(201);
+
+        $vendor = Vendor::where('company_email', 'mitra.daerah@example.com')->first();
+        $this->assertNotNull($vendor);
+        $this->assertEquals('Kutisari', $vendor->village);
+        $this->assertEquals('Tenggilis Mejoyo', $vendor->district);
+        $this->assertEquals('Surabaya', $vendor->city);
+        $this->assertEquals('Surabaya', $vendor->regencies);
+        $this->assertCount(1, $vendor->approvalHistories);
+    }
+
+    public function test_can_register_new_vendor_with_dynamic_documents_array()
+    {
+        $payload = [
+            'vendor_type' => 'expedition',
+            'company_name' => 'PT Tukang Kirim',
+            'company_email' => 'ogaming.otong@gmail.com',
+            'company_npwp' => '24234535345',
+            'address' => 'Street',
+            'pic_name' => 'Bro Cahyo',
+            'pic_phone' => '08123424234',
+            'terms_agreed' => 1,
+            'documents' => [
+                ['document_type' => 'akta', 'file' => UploadedFile::fake()->create('akta.pdf', 100, 'application/pdf')],
+                ['document_type' => 'sk_akta_pendirian', 'file' => UploadedFile::fake()->create('sk_pendirian.pdf', 100, 'application/pdf')],
+                ['document_type' => 'akta_perubahan', 'file' => UploadedFile::fake()->create('akta_perubahan.pdf', 100, 'application/pdf')],
+                ['document_type' => 'sk_akta_perubahan', 'file' => UploadedFile::fake()->create('sk_perubahan.pdf', 100, 'application/pdf')],
+                ['document_type' => 'nib', 'file' => UploadedFile::fake()->create('nib.pdf', 100, 'application/pdf')],
+                ['document_type' => 'npwp', 'file' => UploadedFile::fake()->create('npwp.png', 100, 'image/png')],
+                ['document_type' => 'ktp_direktur', 'file' => UploadedFile::fake()->create('ktp.jpg', 100, 'image/jpeg')],
+                ['document_type' => 'sertifikat_halal', 'file' => UploadedFile::fake()->create('halal.pdf', 100, 'application/pdf')],
+                ['document_type' => 'pakta_integritas', 'file' => UploadedFile::fake()->create('pakta.docx', 100, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')],
+                ['document_type' => 'peraturan_kerjasama', 'file' => UploadedFile::fake()->create('pks.docx', 100, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')],
+            ],
+        ];
+
+        $response = $this->postJson('/api/distributor-channel/vendor-portal/register', $payload);
+
+        $response->assertStatus(201)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'company_name' => 'PT Tukang Kirim',
+                    'uploaded_documents_count' => 10,
+                ],
+            ]);
+
+        $vendor = Vendor::where('company_email', 'ogaming.otong@gmail.com')->first();
+        $this->assertNotNull($vendor);
+        $this->assertCount(10, $vendor->documents);
+
+        $uploadedTypes = $vendor->documents->pluck('document_type')->toArray();
+        $this->assertContains('AKTA', $uploadedTypes);
+        $this->assertContains('SK_AKTA_PENDIRIAN', $uploadedTypes);
+        $this->assertContains('AKTA_PERUBAHAN', $uploadedTypes);
+        $this->assertContains('SK_AKTA_PERUBAHAN', $uploadedTypes);
+        $this->assertContains('NIB', $uploadedTypes);
+        $this->assertContains('NPWP', $uploadedTypes);
+        $this->assertContains('KTP_DIREKTUR', $uploadedTypes);
+        $this->assertContains('SERTIFIKAT_HALAL', $uploadedTypes);
+        $this->assertContains('PAKTA_INTEGRITAS', $uploadedTypes);
+        $this->assertContains('PERATURAN_KERJASAMA', $uploadedTypes);
+    }
+
+    public function test_registration_fails_for_duplicate_active_email()
+    {
+        Vendor::create([
+            'vendor_code' => 'VND-202609-0099',
+            'vendor_type' => 'EXPEDITION',
+            'company_name' => 'PT Cepat Aman Logistik',
+            'company_email' => 'contact@cepataman.com',
+            'pic_name' => 'Hendro Wijaya',
+            'pic_phone' => '081298765432',
+            'terms_agreed' => true,
+            'registration_status' => 'APPROVED',
+            'legal_approval_status' => 'APPROVED',
+        ]);
+
+        $payload = [
+            'vendor_type' => 'expedition',
+            'company_name' => 'PT Cepat Aman Logistik Duplicate',
+            'company_email' => 'contact@cepataman.com',
+            'pic_name' => 'Bambang',
+            'pic_phone' => '0812999999',
+            'terms_agreed' => true,
+        ];
+
+        $response = $this->postJson('/api/distributor-channel/vendor-portal/register', $payload);
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['company_email']);
+    }
+
+    public function test_legal_team_can_approve_vendor_and_generate_credentials()
+    {
+        Mail::fake();
+
+        $vendor = Vendor::create([
+            'vendor_code' => 'VND-202609-0001',
+            'vendor_type' => 'EXPEDITION',
+            'company_name' => 'PT Samudera Logistik Nusantara',
+            'company_email' => 'legal@samuderalogistik.com',
+            'pic_name' => 'Iwan Fals',
+            'pic_phone' => '081122334455',
+            'terms_agreed' => true,
+            'registration_status' => 'PENDING_LEGAL_APPROVAL',
+            'legal_approval_status' => 'PENDING',
+        ]);
+
+        Http::fake([
+            '*/api/addvendor' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => 'Success - [AddVendor]. CardCode: VN10001',
+            ], 200),
+        ]);
+
+        $approvalService = new VendorLegalApprovalService();
+        $result = $approvalService->approve($vendor, null, [
+            'legal_notes' => 'Dokumen NIB dan Akta terverifikasi sah.',
+            'initial_password' => 'PassVendor123!',
+        ]);
+
+        $this->assertEquals('APPROVED', $result['vendor']->registration_status);
+        $this->assertEquals('APPROVED', $result['vendor']->legal_approval_status);
+        $this->assertEquals('VN10001', $result['vendor']->sap_vendor_code);
+        $this->assertTrue($result['sap_sync']['success']);
+        $this->assertEquals('VN10001', $result['sap_sync']['card_code']);
+        $this->assertNotNull($result['user']);
+        $this->assertEquals('legal@samuderalogistik.com', $result['user']->email);
+        $this->assertEquals('PassVendor123!', $result['generated_credentials']['initial_password']);
+
+        Http::assertSent(function ($request) {
+            return str_contains($request->url(), '/api/addvendor')
+                && !isset($request['CardCode'])
+                && $request['CardName'] === 'PT Samudera Logistik Nusantara'
+                && $request['AddonId'] === '02'
+                && $request['NIK'] === '0000000000000000'
+                && $request['Country'] === null;
+        });
+
+        Mail::assertSent(\App\Mail\VendorCredentialsMail::class, function ($mail) {
+            return $mail->hasTo('legal@samuderalogistik.com') && $mail->plainPassword === 'PassVendor123!';
+        });
+
+        // Test login with generated credentials
+        $loginResponse = $this->postJson('/api/distributor-channel/vendor-portal/login', [
+            'email' => 'legal@samuderalogistik.com',
+            'password' => 'PassVendor123!',
+            'vendor_type' => 'expedition',
+        ]);
+
+        $loginResponse->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'dashboard_url' => '/vendor-portal/dashboard/expedition',
+                    'user' => [
+                        'email' => 'legal@samuderalogistik.com',
+                        'role' => 'VENDOR_ADMIN',
+                    ],
+                ],
+            ]);
+    }
+
+    public function test_legal_approval_is_blocked_and_rolled_back_when_sap_sync_fails()
+    {
+        Mail::fake();
+
+        $vendor = Vendor::create([
+            'vendor_code' => 'VND-202609-0099',
+            'vendor_type' => 'EXPEDITION',
+            'company_name' => 'PT Gagal Sinkron SAP',
+            'company_email' => 'fail.sap@ekspedisi.com',
+            'company_phone' => '021777888',
+            'pic_name' => 'Doni',
+            'pic_phone' => '081333444555',
+            'terms_agreed' => true,
+            'registration_status' => 'PENDING_LEGAL_APPROVAL',
+            'legal_approval_status' => 'PENDING',
+        ]);
+
+        Http::fake([
+            '*/api/addvendor' => Http::response([
+                'ErrorCode' => 2,
+                'Message' => 'Failed - [AddVendor] 10 : Invalid field name',
+                'Result' => null,
+            ], 200),
+        ]);
+
+        $response = $this->postJson("/api/distributor-channel/vendor-management/registrations/{$vendor->id}/approve", [
+            'legal_notes' => 'Attempting approval with failing SAP',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+            ]);
+
+        $this->assertStringContainsString('Failed to sync vendor to SAP', $response->json('message'));
+
+        // Pastikan status vendor TIDAK berubah dan tidak ter-approve
+        $vendor->refresh();
+        $this->assertEquals('PENDING_LEGAL_APPROVAL', $vendor->registration_status);
+        $this->assertEquals('PENDING', $vendor->legal_approval_status);
+        $this->assertNull($vendor->sap_vendor_code);
+
+        // Pastikan akun user vendor TIDAK dibuat
+        $this->assertDatabaseMissing('vendor_users', [
+            'email' => 'fail.sap@ekspedisi.com',
+        ]);
+
+        // Pastikan email kredensial TIDAK dikirim
+        Mail::assertNotSent(\App\Mail\VendorCredentialsMail::class);
+    }
+
+    public function test_legal_approval_fails_when_sap_api_url_is_not_configured_in_env()
+    {
+        config(['services.sap.url' => null]);
+        putenv('SAP_API_URL');
+        unset($_ENV['SAP_API_URL'], $_SERVER['SAP_API_URL']);
+
+        $vendor = Vendor::create([
+            'vendor_code' => 'VND-202609-0098',
+            'vendor_type' => 'EXPEDITION',
+            'company_name' => 'PT Missing SAP Env',
+            'company_email' => 'no.env@ekspedisi.com',
+            'pic_name' => 'Budi',
+            'pic_phone' => '081234567890',
+            'terms_agreed' => true,
+            'registration_status' => 'PENDING_LEGAL_APPROVAL',
+            'legal_approval_status' => 'PENDING',
+        ]);
+
+        $response = $this->postJson("/api/distributor-channel/vendor-management/registrations/{$vendor->id}/approve", [
+            'legal_notes' => 'Attempting approval without SAP_API_URL configured',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+            ]);
+
+        $this->assertStringContainsString('SAP_API_URL', $response->json('message'));
+
+        $vendor->refresh();
+        $this->assertEquals('PENDING_LEGAL_APPROVAL', $vendor->registration_status);
+    }
+
+    public function test_vendor_login_fails_when_pending_approval()
+    {
+        $vendor = Vendor::create([
+            'vendor_code' => 'VND-202609-0002',
+            'vendor_type' => 'DISTRIBUTOR',
+            'company_name' => 'PT Distributor Pending',
+            'company_email' => 'pending@distributor.com',
+            'pic_name' => 'Agus',
+            'pic_phone' => '0819999888',
+            'terms_agreed' => true,
+            'registration_status' => 'PENDING_LEGAL_APPROVAL',
+            'legal_approval_status' => 'PENDING',
+        ]);
+
+        VendorUser::create([
+            'vendor_id' => $vendor->id,
+            'name' => 'Agus',
+            'email' => 'pending@distributor.com',
+            'password' => 'secret123',
+            'role' => 'VENDOR_ADMIN',
+            'status' => 'ACTIVE',
+        ]);
+
+        $response = $this->postJson('/api/distributor-channel/vendor-portal/login', [
+            'email' => 'pending@distributor.com',
+            'password' => 'secret123',
+            'vendor_type' => 'distributor',
+        ]);
+
+        $response->assertJson([
+            'success' => false,
+            'status_code' => 422,
+        ]);
+    }
+
+    public function test_legal_team_can_reject_vendor()
+    {
+        Mail::fake();
+
+        $vendor = Vendor::create([
+            'vendor_code' => 'VND-202609-0003',
+            'vendor_type' => 'EXPEDITION',
+            'company_name' => 'PT Ekspedisi Fiktif',
+            'company_email' => 'fake@ekspedisi.com',
+            'pic_name' => 'Doni',
+            'pic_phone' => '0813333333',
+            'terms_agreed' => true,
+            'registration_status' => 'PENDING_LEGAL_APPROVAL',
+            'legal_approval_status' => 'PENDING',
+        ]);
+
+        $approvalService = new VendorLegalApprovalService();
+        $rejectedVendor = $approvalService->reject($vendor, null, 'Perusahaan tidak memiliki NIB valid.');
+
+        $this->assertEquals('REJECTED', $rejectedVendor->registration_status);
+        $this->assertEquals('REJECTED', $rejectedVendor->legal_approval_status);
+        $this->assertEquals('Perusahaan tidak memiliki NIB valid.', $rejectedVendor->legal_notes);
+
+        Mail::assertSent(\App\Mail\VendorRegistrationRejectedMail::class, function ($mail) use ($vendor) {
+            return $mail->hasTo('fake@ekspedisi.com') &&
+                   $mail->vendor->id === $vendor->id &&
+                   $mail->rejectionReason === 'Perusahaan tidak memiliki NIB valid.';
+        });
+    }
+
+    public function test_legal_team_can_verify_individual_document()
+    {
+        $vendor = Vendor::create([
+            'vendor_code' => 'VND-202609-0004',
+            'vendor_type' => 'EXPEDITION',
+            'company_name' => 'PT Mitra Terverifikasi',
+            'company_email' => 'verified@ekspedisi.com',
+            'pic_name' => 'Bambang',
+            'pic_phone' => '081222222',
+            'terms_agreed' => true,
+            'registration_status' => 'PENDING_LEGAL_APPROVAL',
+            'legal_approval_status' => 'PENDING',
+        ]);
+
+        $doc = \App\Modules\VendorPortal\Models\VendorDocument::create([
+            'vendor_id' => $vendor->id,
+            'document_type' => 'NIB',
+            'document_number' => '1234567890',
+            'file_path' => 'vendor_documents/test.pdf',
+            'file_name' => 'test.pdf',
+            'verification_status' => 'PENDING',
+        ]);
+
+        $response = $this->postJson("/api/distributor-channel/v1/vendor-management/documents/{$doc->id}/verify", [
+            'status' => 'VALID',
+            'notes' => 'NIB document is verified and valid.',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'id' => $doc->id,
+                    'verification_status' => 'VALID',
+                    'verification_notes' => 'NIB document is verified and valid.',
+                    'notes' => 'NIB document is verified and valid.',
+                ],
+            ]);
+
+        $this->assertEquals('VALID', $doc->fresh()->verification_status);
+        $this->assertEquals('NIB document is verified and valid.', $doc->fresh()->notes);
+    }
+
+    public function test_vendor_can_reupload_revised_document()
+    {
+        Storage::fake('public');
+
+        $vendor = Vendor::create([
+            'vendor_code' => 'VND-202609-0005',
+            'vendor_type' => 'EXPEDITION',
+            'company_name' => 'PT Reupload Test',
+            'company_email' => 'reupload@ekspedisi.com',
+            'pic_name' => 'Candra',
+            'pic_phone' => '081555555',
+            'terms_agreed' => true,
+            'registration_status' => 'REVISION_REQUIRED',
+            'legal_approval_status' => 'REVISION',
+        ]);
+
+        $doc = \App\Modules\VendorPortal\Models\VendorDocument::create([
+            'vendor_id' => $vendor->id,
+            'document_type' => 'AKTA',
+            'document_number' => 'AKTA-001',
+            'file_path' => 'vendor_documents/old_akta.pdf',
+            'file_name' => 'old_akta.pdf',
+            'verification_status' => 'NEEDS_REVISION',
+            'notes' => 'Please upload the latest amendment page.',
+        ]);
+
+        $newFile = UploadedFile::fake()->create('akta_perubahan_2026.pdf', 500, 'application/pdf');
+
+        $response = $this->postJson("/api/distributor-channel/v1/vendor-portal/documents/{$doc->id}/reupload", [
+            'vendor_code' => 'VND-202609-0005',
+            'file' => $newFile,
+            'notes' => 'Uploaded the latest 2026 amendment page.',
+            'document_number' => 'AKTA-001-REV',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'id' => $doc->id,
+                    'verification_status' => 'PENDING',
+                    'notes' => 'Uploaded the latest 2026 amendment page.',
+                    'document_number' => 'AKTA-001-REV',
+                ],
+            ]);
+
+        $this->assertEquals('PENDING', $doc->fresh()->verification_status);
+        $this->assertEquals('PENDING_LEGAL_APPROVAL', $vendor->fresh()->registration_status);
+    }
+
+    public function test_authenticated_vendor_can_reupload_document_needing_revision()
+    {
+        Storage::fake('public');
+
+        $vendor = Vendor::create([
+            'vendor_code' => 'VND-202609-0007',
+            'vendor_type' => 'EXPEDITION',
+            'company_name' => 'PT Auth Reupload Test',
+            'company_email' => 'auth_reupload@ekspedisi.com',
+            'pic_name' => 'Dimas',
+            'pic_phone' => '081777777',
+            'terms_agreed' => true,
+            'registration_status' => 'APPROVED',
+            'legal_approval_status' => 'APPROVED',
+        ]);
+
+        $vendorUser = \App\Modules\VendorPortal\Models\VendorUser::create([
+            'vendor_id' => $vendor->id,
+            'name' => 'Dimas Vendor',
+            'email' => 'auth_reupload@ekspedisi.com',
+            'password' => \Illuminate\Support\Facades\Hash::make('password123'),
+            'role' => 'VENDOR_ADMIN',
+            'status' => 'ACTIVE',
+        ]);
+
+        $doc = \App\Modules\VendorPortal\Models\VendorDocument::create([
+            'vendor_id' => $vendor->id,
+            'document_type' => 'NIB',
+            'document_number' => 'NIB-888',
+            'file_path' => 'vendor_documents/old_nib.pdf',
+            'file_name' => 'old_nib.pdf',
+            'verification_status' => 'NEEDS_REVISION',
+            'notes' => 'Nomor NIB belum terdaftar di OSS.',
+        ]);
+
+        $newFile = UploadedFile::fake()->create('nib_revisi.pdf', 300, 'application/pdf');
+
+        // Authenticated vendor calls reupload without sending vendor_code
+        $response = $this->actingAs($vendorUser, 'sanctum')
+            ->postJson("/api/distributor-channel/v1/vendor-portal/documents/{$doc->id}/reupload", [
+                'file' => $newFile,
+                'notes' => 'Sudah diverifikasi dan diperbarui di OSS.',
+                'document_number' => 'NIB-888-REV',
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'id' => $doc->id,
+                    'verification_status' => 'PENDING',
+                    'notes' => 'Sudah diverifikasi dan diperbarui di OSS.',
+                    'document_number' => 'NIB-888-REV',
+                ],
+            ]);
+
+        $this->assertEquals('PENDING', $doc->fresh()->verification_status);
+    }
+
+    public function test_preview_document_endpoint_returns_file_stream()
+    {
+        $vendor = Vendor::create([
+            'vendor_code' => 'VND-202609-0006',
+            'vendor_type' => 'EXPEDITION',
+            'company_name' => 'PT Preview Test',
+            'company_email' => 'preview@ekspedisi.com',
+            'pic_name' => 'Eko',
+            'pic_phone' => '081666666',
+            'terms_agreed' => true,
+            'registration_status' => 'PENDING_LEGAL_APPROVAL',
+            'legal_approval_status' => 'PENDING',
+        ]);
+
+        // Create a real temporary test file in storage
+        $testDir = storage_path('app/public/vendor_documents/VND-202609-0006');
+        if (!file_exists($testDir)) {
+            mkdir($testDir, 0755, true);
+        }
+        $testFilePath = $testDir . '/sample.pdf';
+        file_put_contents($testFilePath, '%PDF-1.4 sample test content');
+
+        $doc = \App\Modules\VendorPortal\Models\VendorDocument::create([
+            'vendor_id' => $vendor->id,
+            'document_type' => 'NIB',
+            'document_number' => 'NIB-999',
+            'file_path' => 'vendor_documents/VND-202609-0006/sample.pdf',
+            'file_name' => 'sample.pdf',
+            'file_mime' => 'application/pdf',
+            'verification_status' => 'PENDING',
+        ]);
+
+        $response = $this->get("/api/distributor-channel/v1/vendor-management/documents/{$doc->id}/preview");
+
+        $response->assertStatus(200);
+        $response->assertHeader('Content-Type', 'application/pdf');
+
+        // Cleanup test file
+        @unlink($testFilePath);
+        @rmdir($testDir);
+    }
+
+    public function test_me_endpoint_returns_vendor_profile_with_uploaded_documents()
+    {
+        $vendor = Vendor::create([
+            'vendor_code'           => 'VND-202609-0010',
+            'vendor_type'           => 'EXPEDITION',
+            'company_name'          => 'PT Profil Test',
+            'company_email'         => 'profil@test.com',
+            'pic_name'              => 'Budi',
+            'pic_phone'             => '0812345678',
+            'terms_agreed'          => true,
+            'registration_status'   => 'APPROVED',
+            'legal_approval_status' => 'APPROVED',
+            'sap_vendor_code'       => 'V10010',
+        ]);
+
+        \App\Modules\VendorPortal\Models\VendorDocument::create([
+            'vendor_id'           => $vendor->id,
+            'document_type'       => 'AKTA',
+            'document_number'     => 'AKTA-001',
+            'file_path'           => 'vendor_documents/VND-202609-0010/akta.pdf',
+            'file_name'           => 'akta.pdf',
+            'file_mime'           => 'application/pdf',
+            'file_size'           => 1024,
+            'verification_status' => 'VALID',
+        ]);
+
+        \App\Modules\VendorPortal\Models\VendorDocument::create([
+            'vendor_id'           => $vendor->id,
+            'document_type'       => 'NIB',
+            'document_number'     => 'NIB-001',
+            'file_path'           => 'vendor_documents/VND-202609-0010/nib.pdf',
+            'file_name'           => 'nib.pdf',
+            'file_mime'           => 'application/pdf',
+            'file_size'           => 2048,
+            'verification_status' => 'VALID',
+        ]);
+
+        $user = VendorUser::create([
+            'vendor_id'            => $vendor->id,
+            'name'                 => 'Budi PIC',
+            'email'                => 'profil@test.com',
+            'password'             => \Illuminate\Support\Facades\Hash::make('OldPassword123!'),
+            'role'                 => 'VENDOR_ADMIN',
+            'status'               => 'ACTIVE',
+            'must_change_password' => true,
+        ]);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->getJson('/api/distributor-channel/vendor-portal/me');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'user' => [
+                        'id'                   => $user->id,
+                        'name'                 => 'Budi PIC',
+                        'email'                => 'profil@test.com',
+                        'must_change_password' => true,
+                    ],
+                    'sap_vendor_code' => 'V10010',
+                    'vendor' => [
+                        'vendor_code'     => 'VND-202609-0010',
+                        'sap_vendor_code' => 'V10010',
+                    ],
+                ],
+            ]);
+
+        $docs = $response->json('data.documents');
+        $this->assertIsArray($docs);
+        $this->assertCount(2, $docs);
+        $this->assertEquals('AKTA', $docs[0]['document_type']);
+        $this->assertEquals('NIB', $docs[1]['document_type']);
+    }
+
+    public function test_get_registrations_and_detail_returns_sap_vendor_code()
+    {
+        $internalUser = User::factory()->create([
+            'email' => 'legal.admin@test.com',
+        ]);
+
+        $approvedVendor = Vendor::create([
+            'vendor_code'           => 'VND-202609-0099',
+            'vendor_type'           => 'EXPEDITION',
+            'company_name'          => 'PT Ekspedisi SAP Sukses',
+            'company_email'         => 'sap.sukses@test.com',
+            'pic_name'              => 'Doni',
+            'pic_phone'             => '08123456789',
+            'terms_agreed'          => true,
+            'registration_status'   => 'APPROVED',
+            'legal_approval_status' => 'APPROVED',
+            'sap_vendor_code'       => 'V10099',
+        ]);
+
+        // 1. Test GET /vendor-management/registrations
+        $listResponse = $this->actingAs($internalUser, 'sanctum')
+            ->getJson('/api/distributor-channel/vendor-management/registrations?search=V10099');
+
+        $listResponse->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'meta' => [
+                    'total' => 1,
+                ],
+            ]);
+
+        $firstItem = $listResponse->json('data.0');
+        $this->assertEquals('V10099', $firstItem['sap_vendor_code']);
+        $this->assertEquals('PT Ekspedisi SAP Sukses', $firstItem['company_name']);
+
+        // 2. Test GET /vendor-management/registrations/{id}
+        $detailResponse = $this->actingAs($internalUser, 'sanctum')
+            ->getJson("/api/distributor-channel/vendor-management/registrations/{$approvedVendor->id}");
+
+        $detailResponse->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'id'              => $approvedVendor->id,
+                    'vendor_code'     => 'VND-202609-0099',
+                    'sap_vendor_code' => 'V10099',
+                ],
+            ]);
+    }
+
+    public function test_can_change_vendor_password()
+    {
+        $vendor = Vendor::create([
+            'vendor_code'           => 'VND-202609-0011',
+            'vendor_type'           => 'EXPEDITION',
+            'company_name'          => 'PT Password Test',
+            'company_email'         => 'pwd@test.com',
+            'pic_name'              => 'Andi',
+            'pic_phone'             => '0812345678',
+            'terms_agreed'          => true,
+            'registration_status'   => 'APPROVED',
+            'legal_approval_status' => 'APPROVED',
+        ]);
+
+        $user = VendorUser::create([
+            'vendor_id'            => $vendor->id,
+            'name'                 => 'Andi PIC',
+            'email'                => 'pwd@test.com',
+            'password'             => \Illuminate\Support\Facades\Hash::make('OldPassword123!'),
+            'role'                 => 'VENDOR_ADMIN',
+            'status'               => 'ACTIVE',
+            'must_change_password' => true,
+        ]);
+
+        // 1. Wrong current password -> fails
+        $failResponse = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/distributor-channel/vendor-portal/change-password', [
+                'current_password'          => 'WrongPass123!',
+                'new_password'              => 'NewPassword123!',
+                'new_password_confirmation' => 'NewPassword123!',
+            ]);
+        $failResponse->assertStatus(422);
+
+        // 2. Same password -> fails
+        $sameResponse = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/distributor-channel/vendor-portal/change-password', [
+                'current_password'          => 'OldPassword123!',
+                'new_password'              => 'OldPassword123!',
+                'new_password_confirmation' => 'OldPassword123!',
+            ]);
+        $sameResponse->assertStatus(422);
+
+        // 3. Valid password change -> success
+        $successResponse = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/distributor-channel/vendor-portal/change-password', [
+                'current_password'          => 'OldPassword123!',
+                'new_password'              => 'NewPassword123!',
+                'new_password_confirmation' => 'NewPassword123!',
+            ]);
+
+        $successResponse->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Password changed successfully.',
+                'data' => [
+                    'must_change_password' => false,
+                ],
+            ]);
+
+        $this->assertFalse((bool) $user->fresh()->must_change_password);
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('NewPassword123!', $user->fresh()->password));
+    }
+
+    public function test_get_vendor_detail_returns_region_names_and_region_info_from_master_codes()
+    {
+        $internalUser = User::factory()->create([
+            'email' => 'legal.officer@test.com',
+        ]);
+
+        \App\Models\Province::create(['id' => 31, 'name' => 'DKI JAKARTA']);
+        \App\Models\Regency::create(['id' => 3173, 'province_id' => 31, 'name' => 'KOTA ADM. JAKARTA BARAT']);
+        \App\Models\District::create(['id' => 317301, 'regency_id' => 3173, 'name' => 'CENGKARENG']);
+        \App\Models\Village::create(['id' => 3173011001, 'district_id' => 317301, 'name' => 'CENGKARENG BARAT']);
+
+        $vendor = Vendor::create([
+            'vendor_code'           => 'VND-202609-0088',
+            'vendor_type'           => 'EXPEDITION',
+            'company_name'          => 'PT Region Test',
+            'company_email'         => 'region.test@ekspedisi.com',
+            'pic_name'              => 'Surya',
+            'pic_phone'             => '081233445566',
+            'terms_agreed'          => true,
+            'registration_status'   => 'PENDING_LEGAL_APPROVAL',
+            'legal_approval_status' => 'PENDING',
+            'province'              => '31',
+            'city'                  => '3173',
+            'regencies'             => '3173',
+            'district'              => '317301',
+            'village'               => '3173011001',
+        ]);
+
+        $response = $this->actingAs($internalUser, 'sanctum')
+            ->getJson("/api/distributor-channel/vendor-management/registrations/{$vendor->id}");
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'id'            => $vendor->id,
+                    'province'      => '31',
+                    'province_name' => 'DKI JAKARTA',
+                    'regencies'     => '3173',
+                    'regency_name'  => 'KOTA ADM. JAKARTA BARAT',
+                    'district'      => '317301',
+                    'district_name' => 'CENGKARENG',
+                    'village'       => '3173011001',
+                    'village_name'  => 'CENGKARENG BARAT',
+                    'region_info'   => [
+                        'village' => [
+                            'id'   => '3173011001',
+                            'name' => 'CENGKARENG BARAT',
+                        ],
+                        'district' => [
+                            'id'   => '317301',
+                            'name' => 'CENGKARENG',
+                        ],
+                        'regency' => [
+                            'id'   => '3173',
+                            'name' => 'KOTA ADM. JAKARTA BARAT',
+                        ],
+                        'province' => [
+                            'id'   => '31',
+                            'name' => 'DKI JAKARTA',
+                        ],
+                    ],
+                ],
+            ]);
+    }
+
+    public function test_vendor_portal_me_endpoint_returns_region_names_and_region_info()
+    {
+        \App\Models\Province::create(['id' => 35, 'name' => 'JAWA TIMUR']);
+        \App\Models\Regency::create(['id' => 3578, 'province_id' => 35, 'name' => 'KOTA SURABAYA']);
+        \App\Models\District::create(['id' => 357801, 'regency_id' => 3578, 'name' => 'TENGGILIS MEJOYO']);
+        \App\Models\Village::create(['id' => 3578011001, 'district_id' => 357801, 'name' => 'KUTISARI']);
+
+        $vendor = Vendor::create([
+            'vendor_code'           => 'VND-202609-0089',
+            'vendor_type'           => 'EXPEDITION',
+            'company_name'          => 'PT Vendor Portal Region',
+            'company_email'         => 'me.region@ekspedisi.com',
+            'pic_name'              => 'Rudi',
+            'pic_phone'             => '081299887766',
+            'terms_agreed'          => true,
+            'registration_status'   => 'APPROVED',
+            'legal_approval_status' => 'APPROVED',
+            'province'              => '35',
+            'city'                  => '3578',
+            'regencies'             => '3578',
+            'district'              => '357801',
+            'village'               => '3578011001',
+        ]);
+
+        $user = VendorUser::create([
+            'vendor_id'            => $vendor->id,
+            'name'                 => 'Rudi PIC',
+            'email'                => 'me.region@ekspedisi.com',
+            'password'             => \Illuminate\Support\Facades\Hash::make('Secret123!'),
+            'role'                 => 'VENDOR_ADMIN',
+            'status'               => 'ACTIVE',
+            'must_change_password' => false,
+        ]);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->getJson('/api/distributor-channel/vendor-portal/me');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'vendor' => [
+                        'id'            => $vendor->id,
+                        'province'      => '35',
+                        'province_name' => 'JAWA TIMUR',
+                        'regencies'     => '3578',
+                        'regency_name'  => 'KOTA SURABAYA',
+                        'district'      => '357801',
+                        'district_name' => 'TENGGILIS MEJOYO',
+                        'village'       => '3578011001',
+                        'village_name'  => 'KUTISARI',
+                        'region_info'   => [
+                            'village' => [
+                                'id'   => '3578011001',
+                                'name' => 'KUTISARI',
+                            ],
+                            'district' => [
+                                'id'   => '357801',
+                                'name' => 'TENGGILIS MEJOYO',
+                            ],
+                            'regency' => [
+                                'id'   => '3578',
+                                'name' => 'KOTA SURABAYA',
+                            ],
+                            'province' => [
+                                'id'   => '35',
+                                'name' => 'JAWA TIMUR',
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
+    }
+}

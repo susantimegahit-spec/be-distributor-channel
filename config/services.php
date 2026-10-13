@@ -35,4 +35,33 @@ return [
         ],
     ],
 
+    'turnstile' => [
+        'secret' => env('TURNSTILE_SECRET_KEY', '1x00000000000000000000000000000000'),
+        'enabled' => env('TURNSTILE_ENABLED', true),
+    ],
+
+    'sap' => [
+        'url' => env('SAP_API_URL'),
+        'addon_id' => env('SAP_ADDON_ID', '02'),
+        'user_id' => env('SAP_USER_ID', 'USR101'),
+        'cache_ttl' => (int) env('SAP_CACHE_TTL', 60), // 1 minute default
+    ],
+
+    'firebase' => [
+        'project_id' => env('FIREBASE_PROJECT_ID'),
+        'credentials_path' => env('FIREBASE_CREDENTIALS_PATH', 'storage/app/firebase-service-account.json'),
+        'credentials_base64' => env('FIREBASE_CREDENTIALS_BASE64'),
+        'credentials_json' => env('FIREBASE_CREDENTIALS_JSON'),
+    ],
+
+    'reporting' => [
+        'api_key' => env('REPORTING_API_KEY'),
+        'allowed_ips' => env('REPORTING_ALLOWED_IPS'),
+    ],
+
+    'telegram' => [
+        'bot_token' => env('TELEGRAM_BOT_TOKEN'),
+        'chat_id'   => env('TELEGRAM_CHAT_ID'),
+    ],
+
 ];
