@@ -64,13 +64,17 @@ Route::prefix('v1/logistic/picklists')->middleware('auth:sanctum')->group(functi
     Route::post('/save-draft', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'saveDraft']);
     Route::get('/{id}', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'show']);
     Route::patch('/{id}/status', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'updateStatus']);
+    Route::post('/{id}/weigh-in', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'weighIn']);
+    Route::post('/{id}/weigh-out', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'weighOut']);
     Route::post('/{id}/add-do', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'addDo']);
     Route::post('/{id}/save-draft', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'saveDraft']);
     Route::post('/{id}/signatures', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'saveSignatures']);
     Route::get('/{id}/signatures/{signatureId}/preview', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'previewSignature']);
+    Route::get('/{id}/items/{itemId}/label-photos/{photoId}/preview', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'previewLabelPhoto']);
 });
 
-// Direct public preview for picklist signatures (allows standard <img> tag rendering without Bearer token header)
+// Direct public preview for picklist signatures and label photos (allows standard <img> tag rendering without Bearer token header)
 Route::get('v1/logistic/picklists/{id}/signatures/{signatureId}/preview', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'previewSignature']);
+Route::get('v1/logistic/picklists/{id}/items/{itemId}/label-photos/{photoId}/preview', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'previewLabelPhoto']);
 
 

@@ -170,7 +170,7 @@ class PicklistController extends Controller
     public function updateStatus(Request $request, int $id): JsonResponse
     {
         $request->validate([
-            'status' => 'required|string|in:COMPLETED,CANCELLED,completed,cancelled',
+            'status' => 'required|string|in:open,weigh_in,inprogress,weigh_out,complete,canceled,OPEN,COMPLETED,CANCELLED',
         ]);
 
         try {
@@ -467,5 +467,79 @@ class PicklistController extends Controller
                 'message' => 'Failed to retrieve series: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Submit Tare Weighing (Timbang Masuk / Kosong) for a picklist.
+     */
+    public function weighIn(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'weight'        => 'required|numeric|min:0.0001',
+            'ticket_no'     => 'nullable|string|max:50',
+            'operator_name' => 'nullable|string|max:150',
+            'weighed_at'    => 'nullable|date',
+            'notes'         => 'nullable|string|max:1000',
+            'license_plate' => 'nullable|string|max:50',
+            'driver_name'   => 'nullable|string|max:100',
+        ]);
+
+        try {
+            $user = $request->user();
+            $result = $this->picklistService->submitWeighIn($id, $request->all(), $user?->id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Timbang masuk (kosong) berhasil dicatat. Status picklist berubah menjadi weigh_in.',
+                'data'    => $result,
+            ], 200);
+        } catch (\Throwable $e) {
+            $statusCode = ($e->getCode() >= 400 && $e->getCode() < 600) ? (int) $e->getCode() : 400;
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $statusCode);
+        }
+    }
+
+    /**
+     * Submit Gross Weighing (Timbang Keluar / Isi) for a picklist.
+     */
+    public function weighOut(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'weight'        => 'required|numeric|min:0.0001',
+            'ticket_no'     => 'nullable|string|max:50',
+            'operator_name' => 'nullable|string|max:150',
+            'weighed_at'    => 'nullable|date',
+            'notes'         => 'nullable|string|max:1000',
+        ]);
+
+        try {
+            $user = $request->user();
+            $result = $this->picklistService->submitWeighOut($id, $request->all(), $user?->id);
+
+            $statusCode = empty($result['success']) ? 422 : 200;
+
+            return response()->json([
+                'success' => (bool) ($result['success'] ?? true),
+                'message' => $result['message'] ?? 'Timbang keluar berhasil diproses.',
+                'data'    => $result,
+            ], $statusCode);
+        } catch (\Throwable $e) {
+            $statusCode = ($e->getCode() >= 400 && $e->getCode() < 600) ? (int) $e->getCode() : 400;
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $statusCode);
+        }
+    }
+
+    /**
+     * Preview item label photo directly (allows standard <img> rendering).
+     */
+    public function previewLabelPhoto(int $id, int $itemId, int $photoId)
+    {
+        return $this->picklistService->previewLabelPhoto($id, $itemId, $photoId);
     }
 }

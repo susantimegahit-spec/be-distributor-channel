@@ -15,10 +15,16 @@ class Picklist extends Model
     public const SHIPPING_TYPE_EXTERNAL = 'external';
     public const SHIPPING_TYPE_PICKUP   = 'pickup';
 
-    public const STATUS_OPEN        = 'OPEN';
-    public const STATUS_IN_PROGRESS = 'IN_PROGRESS';
-    public const STATUS_COMPLETED   = 'COMPLETED';
-    public const STATUS_CANCELLED   = 'CANCELLED';
+    public const STATUS_OPEN        = 'open';
+    public const STATUS_WEIGH_IN    = 'weigh_in';
+    public const STATUS_IN_PROGRESS = 'inprogress';
+    public const STATUS_WEIGH_OUT   = 'weigh_out';
+    public const STATUS_COMPLETE    = 'complete';
+    public const STATUS_CANCELED    = 'canceled';
+
+    // Legacy uppercase aliases
+    public const STATUS_COMPLETED   = 'complete';
+    public const STATUS_CANCELLED   = 'canceled';
 
     /**
      * The database connection that should be used by the model.
@@ -56,6 +62,18 @@ class Picklist extends Model
         'delivery_order_no',
         'total_weight_limit',
         'total_weight',
+        'weigh_in_weight',
+        'weigh_in_ticket_no',
+        'weigh_in_by',
+        'weigh_in_at',
+        'weigh_in_notes',
+        'weigh_out_weight',
+        'weigh_out_net_weight',
+        'weigh_out_ticket_no',
+        'weigh_out_by',
+        'weigh_out_at',
+        'weigh_out_notes',
+        'weight_check_status',
         'comments',
         'license_plate',
         'driver_name',
@@ -80,16 +98,21 @@ class Picklist extends Model
     ];
 
     protected $casts = [
-        'posting_date'       => 'date',
-        'due_date'           => 'date',
-        'series'             => 'integer',
-        'total_weight_limit' => 'decimal:4',
-        'total_weight'       => 'decimal:4',
-        'estimated_cost'     => 'decimal:2',
-        'created_by'         => 'integer',
-        'updated_by'         => 'integer',
-        'expedition_id'      => 'string',
-        'expedition_rate_id' => 'integer',
+        'posting_date'         => 'date',
+        'due_date'             => 'date',
+        'series'               => 'integer',
+        'total_weight_limit'   => 'decimal:4',
+        'total_weight'         => 'decimal:4',
+        'weigh_in_weight'      => 'decimal:4',
+        'weigh_in_at'          => 'datetime',
+        'weigh_out_weight'     => 'decimal:4',
+        'weigh_out_net_weight' => 'decimal:4',
+        'weigh_out_at'         => 'datetime',
+        'estimated_cost'       => 'decimal:2',
+        'created_by'           => 'integer',
+        'updated_by'           => 'integer',
+        'expedition_id'        => 'string',
+        'expedition_rate_id'   => 'integer',
     ];
 
     protected $appends = [
@@ -194,6 +217,14 @@ class Picklist extends Model
     }
 
     /**
+     * Get all item label photos attached to this picklist.
+     */
+    public function labelPhotos(): HasMany
+    {
+        return $this->hasMany(PicklistItemLabelPhoto::class, 'picklist_id');
+    }
+
+    /**
      * Get the user who created this picklist.
      */
     public function creator(): BelongsTo
@@ -226,7 +257,7 @@ class Picklist extends Model
      */
     public function scopeOpen($query)
     {
-        return $query->where('status', self::STATUS_OPEN);
+        return $query->whereIn('status', [self::STATUS_OPEN, 'OPEN']);
     }
 
     /**

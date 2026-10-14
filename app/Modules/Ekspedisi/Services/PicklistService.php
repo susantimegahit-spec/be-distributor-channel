@@ -6,6 +6,7 @@ use App\Models\Item;
 use App\Models\LogisticSetting;
 use App\Models\Picklist;
 use App\Models\PicklistItem;
+use App\Models\PicklistItemLabelPhoto;
 use App\Models\PicklistSignature;
 use App\Models\SalesOrder;
 use App\Models\SalesOrderDetail;
@@ -62,9 +63,13 @@ class PicklistService
             $query->where('shipping_type', strtolower(trim((string) $filters['shipping_type'])));
         }
 
-        // Filter by status
+        // Filter by status (support both lowercase and uppercase)
         if (!empty($filters['status'])) {
-            $query->where('status', strtoupper(trim((string) $filters['status'])));
+            $st = trim((string) $filters['status']);
+            $query->where(function (Builder $q) use ($st) {
+                $q->where('status', strtolower($st))
+                    ->orWhere('status', strtoupper($st));
+            });
         }
 
         // Filter by is_checked status
@@ -138,6 +143,7 @@ class PicklistService
             'items.salesOrder.distributor:id,name,code_customer,depo',
             'items.salesOrderDetail:id,sales_order_id,item_code,line_num,baseline,whs_code,quantity',
             'items.item:id,item_code,item_name,per_kg',
+            'items.labelPhotos',
             'creator:id,name,username',
             'updater:id,name,username',
             'signatures.creator:id,name',
@@ -764,14 +770,23 @@ class PicklistService
             throw new \Exception("Picklist with ID #{$picklistId} not found.", 404);
         }
 
-        if ($picklist->status === Picklist::STATUS_CANCELLED) {
-            throw new \Exception("Cannot generate Delivery Order for a CANCELLED picklist.", 400);
+        $statusLower = strtolower(trim((string)$picklist->status));
+        if (in_array($statusLower, [Picklist::STATUS_CANCELED, 'cancelled', 'canceled'], true)) {
+            throw new \Exception("Cannot process a CANCELLED picklist.", 400);
         }
 
         // Support draft mode for multi-checker / multi-warehouse workflow
         $isDraft = (bool) ($payload['is_draft'] ?? $payload['draft'] ?? (($payload['action'] ?? '') === 'draft'));
         if ($isDraft) {
-            return $this->saveDraftProgress($picklist, $payload, $userId);
+            return $this->saveDraftProgress($picklist, $payload, $userId, isSubmit: false);
+        }
+
+        // Under new logistics workflow, checker submission via add-do (is_draft=false) saves verification,
+        // start_time, end_time, production_date, label_photos and advances status to weigh_out (if all items checked)
+        // or inprogress (if pending items), and DOES NOT directly call SAP AddDO.
+        $forceSapDo = (bool) ($payload['force_sap_do'] ?? $payload['create_do'] ?? false);
+        if (!$forceSapDo) {
+            return $this->saveDraftProgress($picklist, $payload, $userId, isSubmit: true);
         }
 
         if ($picklist->items->isEmpty()) {
@@ -2359,18 +2374,26 @@ class PicklistService
      * @return array
      * @throws \Exception
      */
-    public function saveDraftProgress(int|Picklist $picklistOrId, array $payload = [], ?int $userId = null): array
+    public function saveDraftProgress(int|Picklist $picklistOrId, array $payload = [], ?int $userId = null, bool $isSubmit = false): array
     {
         $picklist = is_numeric($picklistOrId)
-            ? Picklist::with(['items.salesOrder', 'signatures'])->find($picklistOrId)
+            ? Picklist::with(['items.salesOrder', 'items.labelPhotos', 'signatures'])->find($picklistOrId)
             : $picklistOrId;
 
         if (!$picklist) {
             throw new \Exception("Picklist not found.", 404);
         }
 
-        if ($picklist->status === Picklist::STATUS_CANCELLED) {
+        $statusLower = strtolower(trim((string)$picklist->status));
+        if (in_array($statusLower, [Picklist::STATUS_CANCELED, 'cancelled', 'canceled'], true)) {
             throw new \Exception("Cannot save draft progress for a CANCELLED picklist.", 400);
+        }
+
+        // If this is a submit action, ensure weigh-in has been performed
+        if ($isSubmit) {
+            if ($statusLower === Picklist::STATUS_OPEN && (empty($picklist->weigh_in_weight) || (float) $picklist->weigh_in_weight <= 0)) {
+                throw new \Exception("Truk belum melakukan timbang masuk (weigh_in). Harap lakukan proses timbang masuk terlebih dahulu.", 422);
+            }
         }
 
         // 1. Merge checker names (e.g. ROCHIM + NANANG -> ROCHIM/NANANG) or set edited value
@@ -2404,8 +2427,8 @@ class PicklistService
             $picklist->seal_number = $incomingNoseal;
         }
 
-        // Advance status from OPEN to IN_PROGRESS
-        if ($picklist->status === Picklist::STATUS_OPEN) {
+        // Advance status from OPEN or WEIGH_IN to IN_PROGRESS
+        if (in_array($statusLower, [Picklist::STATUS_OPEN, Picklist::STATUS_WEIGH_IN, 'open', 'weigh_in'], true)) {
             $picklist->status = Picklist::STATUS_IN_PROGRESS;
         }
         $picklist->updated_by = $userId;
@@ -2515,21 +2538,71 @@ class PicklistService
                         ? trim((string) $line['checked_by_checker'])
                         : $activeCheckerName;
 
-                    $targetItem->update([
+                    $itemUpdateData = [
                         'checked_qty'        => $checkedQty,
                         'is_checked'         => $isChecked,
                         'checked_by_checker' => $checkerForThisLine,
                         'checked_at'         => now(),
-                    ]);
+                    ];
+
+                    // KPI fields
+                    $startTime = $line['start_time'] ?? $line['startTime'] ?? $line['jam_mulai'] ?? null;
+                    if (!empty($startTime)) {
+                        $itemUpdateData['start_time'] = Carbon::parse($startTime);
+                    }
+                    $endTime = $line['end_time'] ?? $line['endTime'] ?? $line['jam_selesai'] ?? null;
+                    if (!empty($endTime)) {
+                        $itemUpdateData['end_time'] = Carbon::parse($endTime);
+                    }
+                    $prodDate = $line['production_date'] ?? $line['productionDate'] ?? $line['tanggal_produksi'] ?? $line['tgl_produksi'] ?? null;
+                    if (!empty($prodDate)) {
+                        $itemUpdateData['production_date'] = Carbon::parse($prodDate)->format('Y-m-d');
+                    }
+
+                    $targetItem->update($itemUpdateData);
+
+                    // Save label photos for this line if provided
+                    $linePhotos = $line['label_photos'] ?? $line['labelPhotos'] ?? $line['photos'] ?? $line['gambar_label'] ?? $line['foto_label'] ?? null;
+                    if (!empty($linePhotos)) {
+                        $this->savePicklistItemLabelPhotos($picklist->id, $targetItem->id, $linePhotos, $userId);
+                    }
 
                     $updatedItemIds[] = $targetItem->id;
                 }
             }
         }
 
-        $freshPicklist = $picklist->fresh(['items.salesOrder', 'creator', 'updater', 'signatures']);
+        // Support root-level photos indexed by picklist_item_id
+        $rootPhotos = $payload['label_photos'] ?? $payload['labelPhotos'] ?? $payload['item_photos'] ?? null;
+        if (is_array($rootPhotos) && !empty($rootPhotos)) {
+            foreach ($rootPhotos as $rItem) {
+                if (is_array($rItem) && !empty($rItem['picklist_item_id'])) {
+                    $pPhotos = $rItem['photos'] ?? $rItem['images'] ?? $rItem['photo'] ?? $rItem['image'] ?? null;
+                    if (!empty($pPhotos)) {
+                        $this->savePicklistItemLabelPhotos($picklist->id, (int)$rItem['picklist_item_id'], $pPhotos, $userId);
+                    }
+                }
+            }
+        }
+
+        $freshPicklist = $picklist->fresh(['items.salesOrder', 'items.labelPhotos', 'creator', 'updater', 'signatures']);
         $totalItems = $freshPicklist->items->count();
         $checkedItemsCount = $freshPicklist->items->where('is_checked', true)->count();
+        $isFullyChecked = $totalItems > 0 && $checkedItemsCount >= $totalItems;
+
+        $msg = 'Draft picklist progress successfully saved.';
+
+        if ($isSubmit) {
+            if ($isFullyChecked) {
+                $freshPicklist->status = Picklist::STATUS_WEIGH_OUT;
+                $freshPicklist->save();
+                $msg = 'Pemeriksaan selesai. Seluruh item telah diverifikasi checker. Status picklist berubah menjadi weigh_out.';
+            } else {
+                $freshPicklist->status = Picklist::STATUS_IN_PROGRESS;
+                $freshPicklist->save();
+                $msg = 'Pemeriksaan sebagian item berhasil disimpan. Menunggu checker lainnya untuk menyelesaikan sisa item.';
+            }
+        }
 
         return [
             'picklist_id'       => $freshPicklist->id,
@@ -2539,11 +2612,462 @@ class PicklistService
             'driver_name'       => $freshPicklist->driver_name,
             'total_items'       => $totalItems,
             'checked_items'     => $checkedItemsCount,
-            'is_fully_checked'  => $totalItems > 0 && $checkedItemsCount >= $totalItems,
+            'is_fully_checked'  => $isFullyChecked,
             'updated_items'     => count($updatedItemIds),
             'signatures'        => $savedSignatures,
-            'message'           => 'Draft picklist progress successfully saved.',
+            'message'           => $msg,
             'picklist'          => $freshPicklist,
         ];
+    }
+
+    /**
+     * Submit Tare Weighing (Timbang Masuk / Kosong) for a picklist.
+     * Transitions status from open to weigh_in.
+     *
+     * @param int $picklistId
+     * @param array $payload
+     * @param int|null $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function submitWeighIn(int $picklistId, array $payload = [], ?int $userId = null): array
+    {
+        $picklist = Picklist::with(['items'])->find($picklistId);
+        if (!$picklist) {
+            throw new \Exception("Picklist with ID #{$picklistId} not found.", 404);
+        }
+
+        $statusLower = strtolower(trim((string)$picklist->status));
+        if (in_array($statusLower, [Picklist::STATUS_CANCELED, 'cancelled', 'canceled'], true)) {
+            throw new \Exception("Cannot process weigh-in for a CANCELLED picklist.", 400);
+        }
+
+        if (in_array($statusLower, [Picklist::STATUS_IN_PROGRESS, Picklist::STATUS_WEIGH_OUT, Picklist::STATUS_COMPLETE, 'complete', 'completed'], true)) {
+            throw new \Exception("Picklist is already {$picklist->status}. Cannot re-execute weigh-in.", 400);
+        }
+
+        $weight = (float) ($payload['weight'] ?? $payload['weigh_in_weight'] ?? 0);
+        if ($weight <= 0) {
+            throw new \Exception("Berat timbang masuk (weight) harus lebih besar dari 0 KG.", 422);
+        }
+
+        $user = $userId ? User::find($userId) : null;
+        $operator = !empty($payload['operator_name'])
+            ? trim((string) $payload['operator_name'])
+            : (!empty($payload['weigh_in_by']) ? trim((string) $payload['weigh_in_by']) : ($user?->name ?? 'Petugas Timbangan Masuk'));
+
+        $weighedAt = !empty($payload['weighed_at'])
+            ? Carbon::parse($payload['weighed_at'])
+            : (!empty($payload['weigh_in_at']) ? Carbon::parse($payload['weigh_in_at']) : now());
+
+        $ticketNo = !empty($payload['ticket_no'])
+            ? trim((string) $payload['ticket_no'])
+            : (!empty($payload['weigh_in_ticket_no']) ? trim((string) $payload['weigh_in_ticket_no']) : null);
+
+        $notes = !empty($payload['notes'])
+            ? trim((string) $payload['notes'])
+            : (!empty($payload['weigh_in_notes']) ? trim((string) $payload['weigh_in_notes']) : null);
+
+        $updateData = [
+            'status'             => Picklist::STATUS_WEIGH_IN,
+            'weigh_in_weight'    => $weight,
+            'weigh_in_ticket_no' => $ticketNo,
+            'weigh_in_by'        => $operator,
+            'weigh_in_at'        => $weighedAt,
+            'weigh_in_notes'     => $notes,
+            'updated_by'         => $userId,
+        ];
+
+        if (!empty($payload['license_plate'])) {
+            $updateData['license_plate'] = trim((string) $payload['license_plate']);
+        }
+        if (!empty($payload['driver_name'])) {
+            $updateData['driver_name'] = trim((string) $payload['driver_name']);
+        }
+
+        $picklist->update($updateData);
+
+        return [
+            'id'                 => $picklist->id,
+            'picklist_no'        => $picklist->picklist_no,
+            'status'             => $picklist->status,
+            'weigh_in_weight'    => (float) $picklist->weigh_in_weight,
+            'weigh_in_ticket_no' => $picklist->weigh_in_ticket_no,
+            'weigh_in_by'        => $picklist->weigh_in_by,
+            'weigh_in_at'        => $picklist->weigh_in_at?->toDateTimeString(),
+            'weigh_in_notes'     => $picklist->weigh_in_notes,
+            'license_plate'      => $picklist->license_plate,
+            'driver_name'        => $picklist->driver_name,
+            'picklist'           => $picklist->fresh(['items']),
+        ];
+    }
+
+    /**
+     * Submit Gross Weighing (Timbang Keluar / Isi) for a picklist.
+     * Calculates net weight, validates overload against vehicle limit,
+     * and triggers SAP AddDO if weight is valid.
+     *
+     * @param int $picklistId
+     * @param array $payload
+     * @param int|null $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function submitWeighOut(int $picklistId, array $payload = [], ?int $userId = null): array
+    {
+        $picklist = Picklist::with(['items.salesOrder', 'expedition'])->find($picklistId);
+        if (!$picklist) {
+            throw new \Exception("Picklist with ID #{$picklistId} not found.", 404);
+        }
+
+        $statusLower = strtolower(trim((string)$picklist->status));
+        if (in_array($statusLower, [Picklist::STATUS_CANCELED, 'cancelled', 'canceled'], true)) {
+            throw new \Exception("Cannot process weigh-out for a CANCELLED picklist.", 400);
+        }
+
+        if ($statusLower === Picklist::STATUS_OPEN) {
+            throw new \Exception("Truk belum melakukan timbang masuk (weigh_in) dan pemeriksaan checker.", 400);
+        }
+
+        if ($statusLower === Picklist::STATUS_WEIGH_IN || $statusLower === Picklist::STATUS_IN_PROGRESS) {
+            throw new \Exception("Pemeriksaan oleh checker gudang belum selesai. Status saat ini: {$picklist->status}.", 400);
+        }
+
+        if (empty($picklist->weigh_in_weight) || (float) $picklist->weigh_in_weight <= 0) {
+            throw new \Exception("Data timbang masuk (weigh_in_weight) belum tercatat untuk picklist ini.", 400);
+        }
+
+        $grossWeight = (float) ($payload['weight'] ?? $payload['weigh_out_weight'] ?? 0);
+        if ($grossWeight <= 0) {
+            throw new \Exception("Berat timbang keluar (weight) harus lebih besar dari 0 KG.", 422);
+        }
+
+        $tareWeight = (float) $picklist->weigh_in_weight;
+        $netWeight = round($grossWeight - $tareWeight, 4);
+
+        if ($netWeight <= 0) {
+            throw new \Exception("Berat timbang keluar ({$grossWeight} KG) harus lebih besar dari berat timbang masuk ({$tareWeight} KG).", 422);
+        }
+
+        $user = $userId ? User::find($userId) : null;
+        $operator = !empty($payload['operator_name'])
+            ? trim((string) $payload['operator_name'])
+            : (!empty($payload['weigh_out_by']) ? trim((string) $payload['weigh_out_by']) : ($user?->name ?? 'Petugas Timbangan Keluar'));
+
+        $weighedAt = !empty($payload['weighed_at'])
+            ? Carbon::parse($payload['weighed_at'])
+            : (!empty($payload['weigh_out_at']) ? Carbon::parse($payload['weigh_out_at']) : now());
+
+        $ticketNo = !empty($payload['ticket_no'])
+            ? trim((string) $payload['ticket_no'])
+            : (!empty($payload['weigh_out_ticket_no']) ? trim((string) $payload['weigh_out_ticket_no']) : null);
+
+        $notes = !empty($payload['notes'])
+            ? trim((string) $payload['notes'])
+            : (!empty($payload['weigh_out_notes']) ? trim((string) $payload['weigh_out_notes']) : null);
+
+        $manifestWeight = (float) $picklist->total_weight;
+        $weightLimit = (float) $picklist->total_weight_limit;
+
+        // Check overload: if weight limit exists and net weight exceeds limit
+        $isOverload = false;
+        $overloadDiff = 0.0;
+
+        if ($weightLimit > 0 && $netWeight > $weightLimit) {
+            $isOverload = true;
+            $overloadDiff = round($netWeight - $weightLimit, 2);
+        }
+
+        $checkStatus = $isOverload ? 'overload' : 'sesuai';
+
+        $picklist->update([
+            'weigh_out_weight'     => $grossWeight,
+            'weigh_out_net_weight' => $netWeight,
+            'weigh_out_ticket_no'  => $ticketNo,
+            'weigh_out_by'         => $operator,
+            'weigh_out_at'         => $weighedAt,
+            'weigh_out_notes'      => $notes,
+            'weight_check_status'  => $checkStatus,
+            'updated_by'           => $userId,
+        ]);
+
+        $weightSummary = [
+            'gross_weight'        => $grossWeight,
+            'tare_weight'         => $tareWeight,
+            'net_weight'          => $netWeight,
+            'manifest_weight'     => $manifestWeight,
+            'weight_difference'   => round($netWeight - $manifestWeight, 2),
+            'weight_limit'        => $weightLimit,
+            'weight_check_status' => $checkStatus,
+        ];
+
+        if ($isOverload) {
+            return [
+                'success'         => false,
+                'is_overload'     => true,
+                'message'         => "Peringatan: Terjadi kelebihan muatan (Overload) sebesar " . number_format($overloadDiff, 2) . " KG melebihi kapasitas armada. Delivery Order belum dapat dibuat.",
+                'picklist_id'     => $picklist->id,
+                'picklist_no'     => $picklist->picklist_no,
+                'status'          => $picklist->status,
+                'weight_summary'  => $weightSummary,
+                'delivery_order'  => null,
+                'action_required' => 'Harap kurangi muatan di gudang atau lakukan penyesuaian muatan dengan Checker terlebih dahulu.',
+                'picklist'        => $picklist->fresh(['items']),
+            ];
+        }
+
+        // Muatan sesuai -> Trigger AddDO to SAP B1
+        $doResult = $this->addDeliveryOrder($picklistId, array_merge($payload, ['force_sap_do' => true]), $userId);
+
+        $freshPicklist = $picklist->fresh(['items.salesOrder', 'signatures']);
+
+        return [
+            'success'             => true,
+            'is_overload'         => false,
+            'message'             => "Timbang keluar berhasil dan muatan sesuai. Delivery Order berhasil dibuat di SAP B1.",
+            'picklist_id'         => $freshPicklist->id,
+            'picklist_no'         => $freshPicklist->picklist_no,
+            'status'              => $freshPicklist->status,
+            'weight_summary'      => $weightSummary,
+            'delivery_order'      => [
+                'do_doc_num'        => $freshPicklist->do_doc_num,
+                'do_doc_entry'      => $freshPicklist->do_doc_entry,
+                'delivery_order_no' => $freshPicklist->delivery_order_no,
+                'do_status'         => $freshPicklist->do_status,
+            ],
+            'weigh_out_ticket_no' => $freshPicklist->weigh_out_ticket_no,
+            'weigh_out_by'        => $freshPicklist->weigh_out_by,
+            'weigh_out_at'        => $freshPicklist->weigh_out_at?->toDateTimeString(),
+            'sap_results'         => $doResult['results'] ?? [],
+            'picklist'            => $freshPicklist,
+        ];
+    }
+
+    /**
+     * Save label photos for a specific picklist item.
+     *
+     * @param int $picklistId
+     * @param int $itemId
+     * @param mixed $photos
+     * @param int|null $userId
+     * @return array
+     */
+    public function savePicklistItemLabelPhotos(int $picklistId, int $itemId, mixed $photos, ?int $userId = null): array
+    {
+        if (empty($photos)) {
+            return [];
+        }
+        if (!is_array($photos)) {
+            $photos = [$photos];
+        }
+
+        $saved = [];
+        $index = 1;
+
+        foreach ($photos as $photoItem) {
+            $photoData = is_array($photoItem) ? ($photoItem['photo'] ?? $photoItem['image'] ?? $photoItem['file'] ?? $photoItem['data'] ?? null) : $photoItem;
+            $caption = is_array($photoItem) ? ($photoItem['caption'] ?? $photoItem['notes'] ?? null) : null;
+
+            if (empty($photoData)) {
+                continue;
+            }
+
+            $storedPath = $this->storeLabelPhotoImage($picklistId, $itemId, $index, $photoData);
+            if ($storedPath) {
+                $fileName = basename($storedPath);
+                $fileSize = null;
+                $mimeType = 'image/jpeg';
+
+                if (str_ends_with(strtolower($fileName), '.png')) {
+                    $mimeType = 'image/png';
+                } elseif (str_ends_with(strtolower($fileName), '.webp')) {
+                    $mimeType = 'image/webp';
+                }
+
+                try {
+                    if (Storage::disk('public')->exists($storedPath)) {
+                        $fileSize = Storage::disk('public')->size($storedPath);
+                    }
+                } catch (\Throwable $e) {}
+
+                $photoModel = PicklistItemLabelPhoto::create([
+                    'picklist_id'      => $picklistId,
+                    'picklist_item_id' => $itemId,
+                    'photo_path'       => $storedPath,
+                    'file_name'        => $fileName,
+                    'file_size'        => $fileSize,
+                    'mime_type'        => $mimeType,
+                    'caption'          => $caption,
+                    'created_by'       => $userId,
+                ]);
+
+                $saved[] = $photoModel;
+                $index++;
+            }
+        }
+
+        return $saved;
+    }
+
+    /**
+     * Store label photo image to public storage and sync to S3.
+     *
+     * @param int $picklistId
+     * @param int $itemId
+     * @param int $index
+     * @param mixed $photoData
+     * @return string|null
+     */
+    protected function storeLabelPhotoImage(int $picklistId, int $itemId, int $index, mixed $photoData): ?string
+    {
+        $dir = "label_photos/picklists/{$picklistId}/item_{$itemId}";
+        $timestamp = time() . '_' . substr(md5(uniqid()), 0, 6);
+        $s3Bucket = config('filesystems.disks.s3.bucket');
+        $preferS3 = !empty($s3Bucket) && env('SIGNATURE_STORAGE_DISK', 's3') === 's3';
+
+        if ($photoData instanceof \Illuminate\Http\UploadedFile) {
+            $ext = $photoData->getClientOriginalExtension() ?: 'jpg';
+            $filename = "{$dir}/lbl_{$picklistId}_{$itemId}_{$index}_{$timestamp}.{$ext}";
+
+            try {
+                if (!Storage::disk('public')->exists($dir)) {
+                    Storage::disk('public')->makeDirectory($dir);
+                }
+                Storage::disk('public')->putFileAs($dir, $photoData, basename($filename));
+            } catch (\Throwable $e) {
+                Log::warning("Failed to store label photo locally: " . $e->getMessage());
+            }
+
+            if ($preferS3) {
+                try {
+                    Storage::disk('s3')->putFileAs($dir, $photoData, basename($filename), 'public');
+                } catch (\Throwable $e) {
+                    Log::warning("Failed to store label photo to S3: " . $e->getMessage());
+                }
+            }
+
+            return $filename;
+        }
+
+        if (is_string($photoData)) {
+            $photoStr = trim($photoData);
+            if (empty($photoStr)) {
+                return null;
+            }
+
+            if (str_starts_with($photoStr, 'label_photos/') || str_starts_with($photoStr, 'http://') || str_starts_with($photoStr, 'https://')) {
+                return $photoStr;
+            }
+
+            if (str_starts_with($photoStr, 'data%3A') || str_contains($photoStr, '%2C')) {
+                $photoStr = urldecode($photoStr);
+            }
+
+            $ext = 'jpg';
+            $binary = false;
+
+            if (preg_match('/^data:image\/([a-zA-Z0-9\+\-\.]+);base64,(.+)$/is', $photoStr, $matches)) {
+                $rawExt = strtolower($matches[1]);
+                $ext = match ($rawExt) {
+                    'jpeg' => 'jpg',
+                    'svg+xml' => 'svg',
+                    default => $rawExt,
+                };
+                $cleanB64 = str_replace([' ', "\r", "\n", "\t"], ['+', '', '', ''], trim($matches[2]));
+                $binary = base64_decode($cleanB64);
+            } else {
+                $cleanB64 = str_replace([' ', "\r", "\n", "\t"], ['+', '', '', ''], $photoStr);
+                $binary = base64_decode($cleanB64);
+            }
+
+            if ($binary === false || empty($binary)) {
+                return null;
+            }
+
+            $filename = "{$dir}/lbl_{$picklistId}_{$itemId}_{$index}_{$timestamp}.{$ext}";
+
+            try {
+                if (!Storage::disk('public')->exists($dir)) {
+                    Storage::disk('public')->makeDirectory($dir);
+                }
+                Storage::disk('public')->put($filename, $binary);
+            } catch (\Throwable $e) {
+                Log::warning("Failed to store label photo locally: " . $e->getMessage());
+            }
+
+            if ($preferS3) {
+                try {
+                    Storage::disk('s3')->put($filename, $binary, 'public');
+                } catch (\Throwable $e) {
+                    Log::warning("Failed to store label photo to S3: " . $e->getMessage());
+                }
+            }
+
+            return $filename;
+        }
+
+        return null;
+    }
+
+    /**
+     * Preview label photo directly (allows standard <img> rendering).
+     *
+     * @param int $picklistId
+     * @param int $itemId
+     * @param int $photoId
+     * @return \Illuminate\Http\Response
+     */
+    public function previewLabelPhoto(int $picklistId, int $itemId, int $photoId)
+    {
+        $photo = PicklistItemLabelPhoto::where('picklist_id', $picklistId)
+            ->where('picklist_item_id', $itemId)
+            ->where('id', $photoId)
+            ->first();
+
+        if (!$photo || empty($photo->photo_path)) {
+            abort(404, 'Label photo not found.');
+        }
+
+        $path = $photo->photo_path;
+
+        if (str_starts_with($path, 'data:image/')) {
+            $parts = explode(',', $path, 2);
+            $mime = 'image/jpeg';
+            if (preg_match('/^data:(image\/[a-zA-Z0-9\+\-\.]+);/i', $parts[0], $m)) {
+                $mime = $m[1];
+            }
+            $binary = base64_decode($parts[1] ?? '');
+            return response($binary, 200, [
+                'Content-Type'  => $mime,
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+
+        if (config('filesystems.disks.s3.bucket') && Storage::disk('s3')->exists($path)) {
+            $mime = Storage::disk('s3')->mimeType($path) ?: ($photo->mime_type ?: 'image/jpeg');
+            return response(Storage::disk('s3')->get($path), 200, [
+                'Content-Type'  => $mime,
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+
+        if (Storage::disk('public')->exists($path)) {
+            $mime = Storage::disk('public')->mimeType($path) ?: ($photo->mime_type ?: 'image/jpeg');
+            return response(Storage::disk('public')->get($path), 200, [
+                'Content-Type'  => $mime,
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+
+        $localPath = storage_path('app/public/' . $path);
+        if (file_exists($localPath)) {
+            $mime = mime_content_type($localPath) ?: ($photo->mime_type ?: 'image/jpeg');
+            return response(file_get_contents($localPath), 200, [
+                'Content-Type'  => $mime,
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+
+        abort(404, 'Label photo file not found on disk.');
     }
 }
