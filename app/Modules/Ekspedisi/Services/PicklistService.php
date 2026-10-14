@@ -917,7 +917,8 @@ class PicklistService
                     if ($matchedDetail && $matchedDetail->baseline === null) {
                         try {
                             $matchedDetail->update(['baseline' => $lineBaseLine, 'line_num' => $lineBaseLine]);
-                        } catch (\Throwable $e) {}
+                        } catch (\Throwable $e) {
+                        }
                     }
 
                     $lineBaseEntry = (isset($cLine['BaseEntry']) && $cLine['BaseEntry'] !== '' && $cLine['BaseEntry'] !== null)
@@ -983,7 +984,8 @@ class PicklistService
                     if ($detail && $detail->baseline === null) {
                         try {
                             $detail->update(['baseline' => $lineBaseLine, 'line_num' => $lineBaseLine]);
-                        } catch (\Throwable $e) {}
+                        } catch (\Throwable $e) {
+                        }
                     }
 
                     $lineObj = [
@@ -1538,7 +1540,8 @@ class PicklistService
                 if ($detail && $detail->baseline === null) {
                     try {
                         $detail->update(['baseline' => $lineBaseLine, 'line_num' => $lineBaseLine]);
-                    } catch (\Throwable $e) {}
+                    } catch (\Throwable $e) {
+                    }
                 }
 
                 $lineBaseEntry = (isset($line['BaseEntry']) && $line['BaseEntry'] !== '' && $line['BaseEntry'] !== null)
@@ -2290,7 +2293,8 @@ class PicklistService
             if ($so && empty($so->docentry)) {
                 try {
                     $so->update(['docentry' => (int) $candidateBaseEntry, 'sap_doc_entry' => (string) $candidateBaseEntry]);
-                } catch (\Throwable $e) {}
+                } catch (\Throwable $e) {
+                }
             }
             return (int) $candidateBaseEntry;
         }
@@ -2572,15 +2576,17 @@ class PicklistService
             }
         }
 
-        // Support root-level photos indexed by picklist_item_id
+        // Support root-level photos indexed by picklist_item_id or keyed by item id
         $rootPhotos = $payload['label_photos'] ?? $payload['labelPhotos'] ?? $payload['item_photos'] ?? null;
         if (is_array($rootPhotos) && !empty($rootPhotos)) {
-            foreach ($rootPhotos as $rItem) {
+            foreach ($rootPhotos as $rKey => $rItem) {
                 if (is_array($rItem) && !empty($rItem['picklist_item_id'])) {
-                    $pPhotos = $rItem['photos'] ?? $rItem['images'] ?? $rItem['photo'] ?? $rItem['image'] ?? null;
+                    $pPhotos = $rItem['photos'] ?? $rItem['images'] ?? $rItem['photo'] ?? $rItem['image'] ?? $rItem['label_photos'] ?? null;
                     if (!empty($pPhotos)) {
                         $this->savePicklistItemLabelPhotos($picklist->id, (int)$rItem['picklist_item_id'], $pPhotos, $userId);
                     }
+                } elseif (is_numeric($rKey) && !empty($rItem)) {
+                    $this->savePicklistItemLabelPhotos($picklist->id, (int)$rKey, $rItem, $userId);
                 }
             }
         }
@@ -2857,6 +2863,15 @@ class PicklistService
         if (empty($photos)) {
             return [];
         }
+
+        // Decode JSON-encoded string if provided (e.g. from FormData)
+        if (is_string($photos) && (str_starts_with(trim($photos), '[') || str_starts_with(trim($photos), '{'))) {
+            $decoded = json_decode($photos, true);
+            if (is_array($decoded)) {
+                $photos = $decoded;
+            }
+        }
+
         if (!is_array($photos)) {
             $photos = [$photos];
         }
@@ -2888,7 +2903,8 @@ class PicklistService
                     if (Storage::disk('public')->exists($storedPath)) {
                         $fileSize = Storage::disk('public')->size($storedPath);
                     }
-                } catch (\Throwable $e) {}
+                } catch (\Throwable $e) {
+                }
 
                 $photoModel = PicklistItemLabelPhoto::create([
                     'picklist_id'      => $picklistId,

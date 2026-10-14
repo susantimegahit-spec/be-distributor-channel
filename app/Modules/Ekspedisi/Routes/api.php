@@ -76,5 +76,3 @@ Route::prefix('v1/logistic/picklists')->middleware('auth:sanctum')->group(functi
 // Direct public preview for picklist signatures and label photos (allows standard <img> tag rendering without Bearer token header)
 Route::get('v1/logistic/picklists/{id}/signatures/{signatureId}/preview', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'previewSignature']);
 Route::get('v1/logistic/picklists/{id}/items/{itemId}/label-photos/{photoId}/preview', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'previewLabelPhoto']);
-
-

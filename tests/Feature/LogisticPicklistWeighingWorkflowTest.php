@@ -188,7 +188,11 @@ class LogisticPicklistWeighingWorkflowTest extends TestCase
         // Sample Base64 image
         $sampleBase64Photo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
-        // 3. Multi-checker test: Checker 1 verifies item 1 only -> Picklist stays inprogress
+        $samplePhoto1 = $sampleBase64Photo;
+        $samplePhoto2 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+        $samplePhoto3 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
+
+        // 3. Multi-checker test: Checker 1 verifies item 1 only with MULTIPLE label photos -> Picklist stays inprogress
         $checker1Res = $this->actingAs($this->user)->postJson("/api/distributor-channel/v1/logistic/picklists/{$picklistId}/add-do", [
             'checker_name' => 'Checker Nanang',
             'items' => [
@@ -199,7 +203,7 @@ class LogisticPicklistWeighingWorkflowTest extends TestCase
                     'start_time'       => '2026-10-14 09:00:00',
                     'end_time'         => '2026-10-14 09:30:00',
                     'production_date'  => '2026-10-10',
-                    'label_photos'     => [$sampleBase64Photo],
+                    'label_photos'     => [$samplePhoto1, $samplePhoto2], // MULTIPLE PHOTOS
                 ],
             ],
             'signatures' => [
@@ -219,9 +223,9 @@ class LogisticPicklistWeighingWorkflowTest extends TestCase
         $this->assertEquals('2026-10-10', $item1Model->production_date->format('Y-m-d'));
         $this->assertNotNull($item1Model->start_time);
         $this->assertNotNull($item1Model->end_time);
-        $this->assertCount(1, $item1Model->labelPhotos);
+        $this->assertCount(2, $item1Model->labelPhotos); // MULTIPLE VERIFIED (2 PHOTOS)
 
-        // 4. Multi-checker test: Checker 2 verifies item 2 -> All items checked -> Status becomes weigh_out (DO not created yet!)
+        // 4. Multi-checker test: Checker 2 verifies item 2 with 3 label photos -> All items checked -> Status becomes weigh_out
         $checker2Res = $this->actingAs($this->user)->postJson("/api/distributor-channel/v1/logistic/picklists/{$picklistId}/add-do", [
             'checker_name' => 'Checker Rochim',
             'items' => [
@@ -232,7 +236,7 @@ class LogisticPicklistWeighingWorkflowTest extends TestCase
                     'start_time'       => '2026-10-14 09:35:00',
                     'end_time'         => '2026-10-14 10:15:00',
                     'production_date'  => '2026-10-11',
-                    'label_photos'     => [$sampleBase64Photo],
+                    'label_photos'     => [$samplePhoto1, $samplePhoto2, $samplePhoto3], // MULTIPLE PHOTOS (3)
                 ],
             ],
         ]);
@@ -245,13 +249,18 @@ class LogisticPicklistWeighingWorkflowTest extends TestCase
         $this->assertEquals('weigh_out', $picklist->status);
         $this->assertNull($picklist->delivery_order_no); // DO is NOT created yet!
 
-        // 5. Test preview label photo
-        $labelPhoto = $item1Model->labelPhotos->first();
-        $this->assertNotNull($labelPhoto);
+        $item2Model->refresh();
+        $this->assertCount(3, $item2Model->labelPhotos); // MULTIPLE VERIFIED (3 PHOTOS)
 
-        $previewRes = $this->get("/api/distributor-channel/v1/logistic/picklists/{$picklistId}/items/{$item1Model->id}/label-photos/{$labelPhoto->id}/preview");
-        $previewRes->assertStatus(200)
-            ->assertHeader('Content-Type', 'image/png');
+        // 5. Test preview label photo for both photos of item 1
+        $labelPhotos = $item1Model->labelPhotos;
+        $this->assertCount(2, $labelPhotos);
+
+        foreach ($labelPhotos as $photo) {
+            $previewRes = $this->get("/api/distributor-channel/v1/logistic/picklists/{$picklistId}/items/{$item1Model->id}/label-photos/{$photo->id}/preview");
+            $previewRes->assertStatus(200)
+                ->assertHeader('Content-Type', 'image/png');
+        }
 
         // 6. Test Weigh-out Overload: Limit is 12000 kg, Tare is 8500 kg. If Gross is 22000 kg -> Net is 13500 kg (> 12000 kg!)
         $overloadRes = $this->actingAs($this->user)->postJson("/api/distributor-channel/v1/logistic/picklists/{$picklistId}/weigh-out", [

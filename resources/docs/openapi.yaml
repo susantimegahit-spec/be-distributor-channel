@@ -19286,6 +19286,7 @@ paths:
                   production_date: "2026-10-10"
                   label_photos:
                     - "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
+                    - "data:image/png;base64,iVBORw0KGgoAAA..."
                 - id: 11
                   BaseEntry: 1052
                   BaseLine: 1
