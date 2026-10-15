@@ -2558,7 +2558,26 @@ class PicklistService
                     if (!empty($endTime)) {
                         $itemUpdateData['end_time'] = Carbon::parse($endTime);
                     }
+
+                    // Extract labels array (each containing production_date and label_photos)
+                    $lineLabels = $line['labels'] ?? $line['label'] ?? null;
                     $prodDate = $line['production_date'] ?? $line['productionDate'] ?? $line['tanggal_produksi'] ?? $line['tgl_produksi'] ?? null;
+
+                    if (is_array($lineLabels) && !empty($lineLabels)) {
+                        // If line-level production_date is empty, get from the first label in the array
+                        if (empty($prodDate)) {
+                            foreach ($lineLabels as $lbl) {
+                                if (is_array($lbl)) {
+                                    $pDateCandidate = $lbl['production_date'] ?? $lbl['productionDate'] ?? $lbl['tanggal_produksi'] ?? $lbl['tgl_produksi'] ?? null;
+                                    if (!empty($pDateCandidate)) {
+                                        $prodDate = $pDateCandidate;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     if (!empty($prodDate)) {
                         $itemUpdateData['production_date'] = Carbon::parse($prodDate)->format('Y-m-d');
                     }
@@ -2566,9 +2585,22 @@ class PicklistService
                     $targetItem->update($itemUpdateData);
 
                     // Save label photos for this line if provided
-                    $linePhotos = $line['label_photos'] ?? $line['labelPhotos'] ?? $line['photos'] ?? $line['gambar_label'] ?? $line['foto_label'] ?? null;
-                    if (!empty($linePhotos)) {
-                        $this->savePicklistItemLabelPhotos($picklist->id, $targetItem->id, $linePhotos, $userId);
+                    if (is_array($lineLabels) && !empty($lineLabels)) {
+                        foreach ($lineLabels as $lbl) {
+                            if (is_array($lbl)) {
+                                $lblProdDate = $lbl['production_date'] ?? $lbl['productionDate'] ?? $lbl['tanggal_produksi'] ?? $lbl['tgl_produksi'] ?? null;
+                                $lblPhotos = $lbl['label_photos'] ?? $lbl['labelPhotos'] ?? $lbl['photos'] ?? $lbl['gambar_label'] ?? $lbl['foto_label'] ?? null;
+                                if (!empty($lblPhotos)) {
+                                    $this->savePicklistItemLabelPhotos($picklist->id, $targetItem->id, $lblPhotos, $userId, $lblProdDate);
+                                }
+                            }
+                        }
+                    } else {
+                        // Legacy flat label_photos on line
+                        $linePhotos = $line['label_photos'] ?? $line['labelPhotos'] ?? $line['photos'] ?? $line['gambar_label'] ?? $line['foto_label'] ?? null;
+                        if (!empty($linePhotos)) {
+                            $this->savePicklistItemLabelPhotos($picklist->id, $targetItem->id, $linePhotos, $userId, $prodDate);
+                        }
                     }
 
                     $updatedItemIds[] = $targetItem->id;
@@ -2858,7 +2890,7 @@ class PicklistService
      * @param int|null $userId
      * @return array
      */
-    public function savePicklistItemLabelPhotos(int $picklistId, int $itemId, mixed $photos, ?int $userId = null): array
+    public function savePicklistItemLabelPhotos(int $picklistId, int $itemId, mixed $photos, ?int $userId = null, ?string $productionDate = null): array
     {
         if (empty($photos)) {
             return [];
@@ -2882,6 +2914,15 @@ class PicklistService
         foreach ($photos as $photoItem) {
             $photoData = is_array($photoItem) ? ($photoItem['photo'] ?? $photoItem['image'] ?? $photoItem['file'] ?? $photoItem['data'] ?? null) : $photoItem;
             $caption = is_array($photoItem) ? ($photoItem['caption'] ?? $photoItem['notes'] ?? null) : null;
+            $itemProdDate = is_array($photoItem) ? ($photoItem['production_date'] ?? $photoItem['productionDate'] ?? null) : null;
+            $effProdDate = $itemProdDate ?: $productionDate;
+            $formattedProdDate = null;
+            if (!empty($effProdDate)) {
+                try {
+                    $formattedProdDate = Carbon::parse($effProdDate)->format('Y-m-d');
+                } catch (\Throwable $e) {
+                }
+            }
 
             if (empty($photoData)) {
                 continue;
@@ -2914,6 +2955,7 @@ class PicklistService
                     'file_size'        => $fileSize,
                     'mime_type'        => $mimeType,
                     'caption'          => $caption,
+                    'production_date'  => $formattedProdDate,
                     'created_by'       => $userId,
                 ]);
 

@@ -47,6 +47,7 @@ class PicklistItemLabelPhoto extends Model
         'file_size',
         'mime_type',
         'caption',
+        'production_date',
         'created_by',
     ];
 
@@ -54,6 +55,7 @@ class PicklistItemLabelPhoto extends Model
         'picklist_id'      => 'integer',
         'picklist_item_id' => 'integer',
         'file_size'        => 'integer',
+        'production_date'  => 'date',
         'created_by'       => 'integer',
     ];
 

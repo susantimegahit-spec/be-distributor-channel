@@ -41,6 +41,7 @@ return new class extends Migration
                 $table->integer('file_size')->nullable()->comment('File size in bytes');
                 $table->string('mime_type', 50)->nullable()->comment('Mime type of image');
                 $table->text('caption')->nullable()->comment('Optional caption or notes on the label');
+                $table->date('production_date')->nullable()->comment('Production date for this label/photo');
                 $table->unsignedBigInteger('created_by')->nullable()->index();
                 $table->timestamps();
 

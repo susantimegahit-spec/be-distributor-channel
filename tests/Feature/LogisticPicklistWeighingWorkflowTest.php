@@ -298,4 +298,101 @@ class LogisticPicklistWeighingWorkflowTest extends TestCase
         $this->assertEquals('SUCCESS', $picklist->do_status);
         $this->assertEquals(10000.0, (float) $picklist->weigh_out_net_weight);
     }
+
+    /**
+     * Test checker submission with nested labels array where each label has its own production_date and label_photos.
+     */
+    public function test_add_do_with_labels_array_containing_multiple_production_dates_and_photos(): void
+    {
+        $so = SalesOrder::create([
+            'order_no'         => 'SO-TEST-LBL-001',
+            'order_date'       => now(),
+            'code_customer'    => $this->distributor->code_customer,
+            'depo'             => 'SURABAYA',
+            'status'           => 'APPROVED',
+            'sap_doc_num'      => 'SO-SAP-9901',
+            'sap_doc_entry'    => 1088,
+            'total_order'      => 500000,
+        ]);
+
+        $detail = SalesOrderDetail::create([
+            'sales_order_id' => $so->id,
+            'item_code'      => $this->item1->item_code,
+            'item_name'      => $this->item1->item_name,
+            'order_qty'      => 50,
+            'open_qty'       => 50,
+            'price'          => 10000,
+            'uom'            => 'KG',
+            'baseline'       => 0,
+        ]);
+
+        $picklist = Picklist::create([
+            'picklist_no'   => 'PKL-TEST-LBL-001',
+            'status'        => Picklist::STATUS_IN_PROGRESS,
+            'shipping_type' => 'pickup',
+            'tare_weight'   => 5000,
+            'created_by'    => $this->user->id,
+        ]);
+
+        $itemModel = PicklistItem::create([
+            'picklist_id'            => $picklist->id,
+            'sales_order_id'         => $so->id,
+            'sales_order_detail_id'  => $detail->id,
+            'item_code'              => $this->item1->item_code,
+            'item_name'              => $this->item1->item_name,
+            'ordered_qty'            => 50,
+            'pick_qty'               => 50,
+            'uom'                    => 'KG',
+            'unit_weight'            => 1.0,
+            'total_weight'           => 50.0,
+        ]);
+
+        $samplePhoto1 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+        $samplePhoto2 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR42mNk+M9QzwAEjAw/GBgYAAyOAgdG5oVfAAAAAElFTkSuQmCC';
+        $samplePhoto3 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+        $response = $this->actingAs($this->user)->postJson("/api/distributor-channel/v1/logistic/picklists/{$picklist->id}/add-do", [
+            'checker_name' => 'Checker Nanang',
+            'Lines' => [
+                [
+                    'id'                 => $itemModel->id,
+                    'BaseEntry'          => 1088,
+                    'BaseLine'           => 0,
+                    'Quantity'           => 50,
+                    'checked_qty'        => 50,
+                    'is_checked'         => true,
+                    'start_time'         => '2026-10-15 08:00:00',
+                    'end_time'           => '2026-10-15 08:30:00',
+                    'labels'             => [
+                        [
+                            'production_date' => '2026-10-10',
+                            'label_photos'    => [$samplePhoto1, $samplePhoto2],
+                        ],
+                        [
+                            'production_date' => '2026-10-12',
+                            'label_photos'    => [$samplePhoto3],
+                        ],
+                    ],
+                ],
+            ],
+            'signatures' => [
+                'checker' => $samplePhoto1,
+            ],
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true);
+
+        $itemModel->refresh();
+        $this->assertTrue((bool) $itemModel->is_checked);
+        $this->assertEquals('2026-10-10', $itemModel->production_date->format('Y-m-d'));
+        $this->assertCount(3, $itemModel->labelPhotos);
+
+        // Verify each photo has the correct production_date
+        $photos = $itemModel->labelPhotos->sortBy('id')->values();
+        $this->assertEquals('2026-10-10', $photos[0]->production_date->format('Y-m-d'));
+        $this->assertEquals('2026-10-10', $photos[1]->production_date->format('Y-m-d'));
+        $this->assertEquals('2026-10-12', $photos[2]->production_date->format('Y-m-d'));
+    }
 }
+

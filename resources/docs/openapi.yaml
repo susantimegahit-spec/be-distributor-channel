@@ -19210,7 +19210,7 @@ paths:
         Endpoint ini digunakan oleh checker gudang untuk mengirimkan hasil pemeriksaan fisik barang, KPI durasi pemeriksaan, tanggal produksi, dan upload foto label kemasan per item.
 
         **Alur Baru Logistik (Weighing & Multi-Checker Workflow):**
-        1. Checker memeriksa fisik barang dan mengirimkan array `Lines` berisi `id` (item ID), `start_time` & `end_time` (KPI), `production_date`, dan `label_photos` (foto label kemasan produk).
+        1. Checker memeriksa fisik barang dan mengirimkan array `Lines` berisi `id` (item ID), `start_time` & `end_time` (KPI), dan array `labels` (berisi `production_date` & `label_photos` kemasan per batch/tanggal produksi).
         2. Pada alur baru ini, pemanggilan endpoint oleh checker **TIDAK langsung membentuk Delivery Order (DO) ke SAP B1**.
         3. **Multi-Checker**: Jika baru sebagian item yang diperiksa (misal checker 1 dari gudang A selesai), status picklist tetap `inprogress`.
         4. Ketika seluruh item pada picklist telah selesai diverifikasi oleh semua checker, status picklist otomatis berubah menjadi `weigh_out`.
@@ -19283,10 +19283,14 @@ paths:
                   checked_by_checker: "ROCHIM"
                   start_time: "2026-10-14T09:00:00"
                   end_time: "2026-10-14T09:25:00"
-                  production_date: "2026-10-10"
-                  label_photos:
-                    - "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
-                    - "data:image/png;base64,iVBORw0KGgoAAA..."
+                  labels:
+                    - production_date: "2026-10-10"
+                      label_photos:
+                        - "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
+                        - "data:image/png;base64,iVBORw0KGgoAAA..."
+                    - production_date: "2026-10-11"
+                      label_photos:
+                        - "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
                 - id: 11
                   BaseEntry: 1052
                   BaseLine: 1
@@ -19617,17 +19621,25 @@ paths:
                         format: date-time
                         description: Waktu selesai pemeriksaan oleh checker (KPI)
                         example: "2026-10-14T09:25:00"
-                      production_date:
-                        type: string
-                        format: date
-                        description: Tanggal produksi barang fisik yang tertera pada kemasan/label produk
-                        example: "2026-10-10"
-                      label_photos:
+                      labels:
                         type: array
-                        description: Daftar foto label produk / kemasan untuk item ini. Mendukung Base64 Data URI (`data:image/jpeg;base64,...`) atau upload file.
+                        description: |
+                          Daftar label kemasan produk beserta tanggal produksi untuk item ini.
+                          Satu baris item dapat memiliki lebih dari satu batch/tanggal produksi dan foto label.
                         items:
-                          type: string
-                          example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
+                          type: object
+                          properties:
+                            production_date:
+                              type: string
+                              format: date
+                              description: Tanggal produksi barang fisik pada label kemasan produk
+                              example: "2026-10-10"
+                            label_photos:
+                              type: array
+                              description: Daftar foto label kemasan untuk tanggal produksi ini. Mendukung Base64 Data URI atau URL.
+                              items:
+                                type: string
+                                example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
                       WhsCode:
                         type: string
                         description: Kode gudang
@@ -19841,17 +19853,25 @@ paths:
                           format: date-time
                           description: Waktu selesai pemeriksaan checker (KPI)
                           example: "2026-10-14T09:25:00"
-                        production_date:
-                          type: string
-                          format: date
-                          description: Tanggal produksi barang fisik
-                          example: "2026-10-10"
-                        label_photos:
+                        labels:
                           type: array
-                          description: Foto label kemasan produk
+                          description: |
+                            Daftar label kemasan produk beserta tanggal produksi untuk item ini.
+                            Satu baris item dapat memiliki lebih dari satu batch/tanggal produksi dan foto label.
                           items:
-                            type: string
-                            example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
+                            type: object
+                            properties:
+                              production_date:
+                                type: string
+                                format: date
+                                description: Tanggal produksi barang fisik pada label kemasan produk
+                                example: "2026-10-10"
+                              label_photos:
+                                type: array
+                                description: Daftar foto label kemasan untuk tanggal produksi ini. Mendukung Base64 Data URI atau URL.
+                                items:
+                                  type: string
+                                  example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
                         BaseEntry:
                           type: integer
                           description: DocEntry dari Sales Order
@@ -20085,17 +20105,25 @@ paths:
                         format: date-time
                         description: Waktu selesai pemeriksaan checker (KPI)
                         example: "2026-10-14T09:25:00"
-                      production_date:
-                        type: string
-                        format: date
-                        description: Tanggal produksi barang fisik
-                        example: "2026-10-10"
-                      label_photos:
+                      labels:
                         type: array
-                        description: Foto label kemasan produk
+                        description: |
+                          Daftar label kemasan produk beserta tanggal produksi untuk item ini.
+                          Satu baris item dapat memiliki lebih dari satu batch/tanggal produksi dan foto label.
                         items:
-                          type: string
-                          example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
+                          type: object
+                          properties:
+                            production_date:
+                              type: string
+                              format: date
+                              description: Tanggal produksi barang fisik pada label kemasan produk
+                              example: "2026-10-10"
+                            label_photos:
+                              type: array
+                              description: Daftar foto label kemasan untuk tanggal produksi ini. Mendukung Base64 Data URI atau URL.
+                              items:
+                                type: string
+                                example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
                       WhsCode:
                         type: string
                         description: Kode gudang
@@ -20544,17 +20572,25 @@ components:
                 format: date-time
                 description: Waktu selesai pemeriksaan oleh checker (KPI)
                 example: "2026-10-14T09:25:00"
-              production_date:
-                type: string
-                format: date
-                description: Tanggal produksi barang fisik yang tertera pada kemasan/label produk
-                example: "2026-10-10"
-              label_photos:
+              labels:
                 type: array
-                description: Daftar foto label produk / kemasan untuk item ini. Mendukung Base64 Data URI (`data:image/jpeg;base64,...`) atau upload file.
+                description: |
+                  Daftar label kemasan produk beserta tanggal produksi untuk item ini.
+                  Satu baris item dapat memiliki lebih dari satu batch/tanggal produksi dan lebih dari satu foto label.
                 items:
-                  type: string
-                  example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
+                  type: object
+                  properties:
+                    production_date:
+                      type: string
+                      format: date
+                      description: Tanggal produksi barang fisik yang tertera pada kemasan/label produk
+                      example: "2026-10-10"
+                    label_photos:
+                      type: array
+                      description: Daftar foto label produk / kemasan untuk tanggal produksi ini. Mendukung Base64 Data URI (`data:image/jpeg;base64,...`) atau upload file.
+                      items:
+                        type: string
+                        example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
               WhsCode:
                 type: string
                 description: Kode gudang
@@ -24253,6 +24289,12 @@ components:
           type: string
           nullable: true
           example: "Foto label karung batch 001"
+        production_date:
+          type: string
+          format: date
+          nullable: true
+          description: Tanggal produksi barang fisik yang tertera pada kemasan/label ini
+          example: "2026-10-10"
         photo_url:
           type: string
           example: "http://localhost:8000/storage/label_photos/pkl_1_item_10_670ca123.jpg"
