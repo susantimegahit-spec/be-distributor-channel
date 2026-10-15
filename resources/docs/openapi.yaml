@@ -19041,6 +19041,19 @@ paths:
       responses:
         '200':
           description: Picklist detail retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Picklist detail retrieved successfully."
+                  data:
+                    $ref: '#/components/schemas/Picklist'
         '404':
           description: Picklist not found.
 
@@ -24381,9 +24394,26 @@ components:
           nullable: true
           description: Tanggal produksi barang fisik
           example: "2026-10-10"
+        labels:
+          type: array
+          description: Daftar label kemasan produk yang dikelompokkan per tanggal produksi beserta foto labelnya
+          items:
+            type: object
+            properties:
+              production_date:
+                type: string
+                format: date
+                nullable: true
+                description: Tanggal produksi untuk label ini
+                example: "2026-10-10"
+              label_photos:
+                type: array
+                description: Daftar foto label kemasan untuk tanggal produksi ini
+                items:
+                  $ref: '#/components/schemas/PicklistItemLabelPhoto'
         label_photos:
           type: array
-          description: Daftar foto label kemasan yang diunggah checker
+          description: Daftar seluruh foto label kemasan yang diunggah checker untuk item ini
           items:
             $ref: '#/components/schemas/PicklistItemLabelPhoto'
 

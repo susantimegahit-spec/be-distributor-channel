@@ -86,6 +86,7 @@ class PicklistItem extends Model
         'depo',
         'base_entry',
         'base_line',
+        'labels',
     ];
 
     /**
@@ -205,5 +206,58 @@ class PicklistItem extends Model
     public function labelPhotos(): HasMany
     {
         return $this->hasMany(PicklistItemLabelPhoto::class, 'picklist_item_id');
+    }
+
+    /**
+     * Get labels grouped by production_date with associated label photos.
+     *
+     * @return array
+     */
+    public function getLabelsAttribute(): array
+    {
+        $photos = $this->relationLoaded('labelPhotos')
+            ? $this->labelPhotos
+            : $this->labelPhotos()->get();
+
+        if ($photos->isEmpty()) {
+            if (!empty($this->production_date)) {
+                $pDate = $this->production_date instanceof \DateTimeInterface
+                    ? $this->production_date->format('Y-m-d')
+                    : (string) $this->production_date;
+
+                return [
+                    [
+                        'production_date' => $pDate,
+                        'label_photos'    => [],
+                    ],
+                ];
+            }
+            return [];
+        }
+
+        $grouped = [];
+        foreach ($photos as $photo) {
+            $pDate = null;
+            if (!empty($photo->production_date)) {
+                $pDate = $photo->production_date instanceof \DateTimeInterface
+                    ? $photo->production_date->format('Y-m-d')
+                    : (string) $photo->production_date;
+            } elseif (!empty($this->production_date)) {
+                $pDate = $this->production_date instanceof \DateTimeInterface
+                    ? $this->production_date->format('Y-m-d')
+                    : (string) $this->production_date;
+            }
+
+            $key = $pDate ?: '_default';
+            if (!isset($grouped[$key])) {
+                $grouped[$key] = [
+                    'production_date' => $pDate,
+                    'label_photos'    => [],
+                ];
+            }
+            $grouped[$key]['label_photos'][] = $photo;
+        }
+
+        return array_values($grouped);
     }
 }

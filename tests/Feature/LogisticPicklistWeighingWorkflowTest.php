@@ -393,6 +393,17 @@ class LogisticPicklistWeighingWorkflowTest extends TestCase
         $this->assertEquals('2026-10-10', $photos[0]->production_date->format('Y-m-d'));
         $this->assertEquals('2026-10-10', $photos[1]->production_date->format('Y-m-d'));
         $this->assertEquals('2026-10-12', $photos[2]->production_date->format('Y-m-d'));
+
+        // Test GET picklist detail endpoint returns items with labels array properly grouped
+        $detailRes = $this->actingAs($this->user)->getJson("/api/distributor-channel/v1/logistic/picklists/{$picklist->id}");
+        $detailRes->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.items.0.id', $itemModel->id)
+            ->assertJsonCount(2, 'data.items.0.labels')
+            ->assertJsonPath('data.items.0.labels.0.production_date', '2026-10-10')
+            ->assertJsonCount(2, 'data.items.0.labels.0.label_photos')
+            ->assertJsonPath('data.items.0.labels.1.production_date', '2026-10-12')
+            ->assertJsonCount(1, 'data.items.0.labels.1.label_photos');
     }
 }
 
