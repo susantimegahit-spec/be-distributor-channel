@@ -3360,6 +3360,414 @@ paths:
           description: Akses ditolak karena card_code di luar mapingan API Key.
         '422':
           description: Parameter card_code wajib disertakan.
+
+  /v1/external/claims:
+    post:
+      summary: Submit Claim Transactions via External B2B API
+      description: Endpoint terproteksi API Key untuk sistem distributor (ERP/DMS) menambahkan data transaksi klaim (sell out) distributor baik melalui payload JSON lines maupun unggahan file Excel. Sistem secara otomatis memvalidasi keabsahan distributor, memeriksa idempotency (distributor_ref_no), dan memicu mesin kalkulasi diskon program reward secara real-time.
+      tags:
+        - External B2B Integration
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - card_code
+                - distributor_ref_no
+                - lines
+              properties:
+                card_code:
+                  type: string
+                  example: "C110003074"
+                  description: Kode Customer/Distributor terdaftar yang berhak pada API Key ini
+                distributor_ref_no:
+                  type: string
+                  example: "CLM-DIST-202610-001"
+                  description: Nomor Referensi Unik Klaim Distributor (Idempotency Key)
+                lines:
+                  type: array
+                  description: Daftar baris transaksi sell-out klaim distributor
+                  items:
+                    type: object
+                    required:
+                      - item_code
+                      - qty_kg
+                      - customer_type
+                      - transaction_date
+                    properties:
+                      item_code:
+                        type: string
+                        example: "E65"
+                        description: Kode SKU item terdaftar di PT Susanti Megah
+                      qty_kg:
+                        type: number
+                        example: 100.5
+                        description: Kuantitas transaksi dalam satuan Kilogram (harus > 0)
+                      customer_type:
+                        type: string
+                        enum: [GT, MT]
+                        example: "GT"
+                        description: Tipe customer penjualan distributor (GT = General Trade, MT = Modern Trade)
+                      transaction_date:
+                        type: string
+                        format: date
+                        example: "2026-10-15"
+                        description: Tanggal transaksi penjualan (Format YYYY-MM-DD)
+                      sell_price_per_kg:
+                        type: number
+                        example: 7500.00
+                        description: Harga jual distributor per kilogram (opsional)
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - card_code
+                - distributor_ref_no
+              properties:
+                card_code:
+                  type: string
+                  example: "C110003074"
+                distributor_ref_no:
+                  type: string
+                  example: "CLM-DIST-202610-001"
+                file:
+                  type: string
+                  format: binary
+                  description: File template spreadsheet transaksi Excel (.xlsx atau .xls, maks 10MB)
+                lines:
+                  type: string
+                  description: Array item klaim dalam format JSON string (opsional jika mengunggah file)
+                  example: '[{"item_code":"E65","qty_kg":100,"customer_type":"GT","transaction_date":"2026-10-15"}]'
+      responses:
+        '201':
+          description: Data transaksi klaim distributor berhasil dikirim dan dikalkulasi secara otomatis.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data transaksi klaim distributor berhasil dikirim dan dikalkulasi secara otomatis.
+                  data:
+                    type: object
+                    properties:
+                      batch_id:
+                        type: integer
+                        example: 15
+                      batch_no:
+                        type: string
+                        example: "UPLOAD-20261016-001"
+                      distributor_ref_no:
+                        type: string
+                        example: "CLM-DIST-202610-001"
+                      card_code:
+                        type: string
+                        example: "C110003074"
+                      customer_name:
+                        type: string
+                        example: "PT SUSANTI DISTRIBUSI MAKMUR"
+                      total_rows:
+                        type: integer
+                        example: 10
+                      processed_rows:
+                        type: integer
+                        example: 10
+                      invalid_rows:
+                        type: integer
+                        example: 0
+                      total_diskon:
+                        type: number
+                        example: 250000.00
+        '200':
+          description: Response Idempotent (Klaim dengan distributor_ref_no ini sudah pernah dibuat sebelumnya).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  is_duplicate:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Klaim dengan distributor_ref_no ini sudah pernah dibuat sebelumnya (Idempotent Response).
+                  data:
+                    type: object
+        '401':
+          description: API Key / Bearer token tidak ditemukan atau tidak valid.
+        '403':
+          description: card_code tidak terdaftar untuk API Key ini.
+        '422':
+          description: Validasi input data klaim gagal.
+
+  /v1/external/claims/batches:
+    get:
+      summary: Get list of claim batches for distributor
+      description: Mendapatkan daftar riwayat batch klaim yang diajukan oleh distributor yang terhubung dengan API Key pengirim.
+      tags:
+        - External B2B Integration
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: card_code
+          in: query
+          required: false
+          description: Filter khusus untuk satu kode customer tertentu (harus dalam izin API Key)
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          required: false
+          description: Jumlah baris data per halaman (default 15)
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Daftar batch klaim berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar batch klaim berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                        example: 1
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            batch_id:
+                              type: integer
+                              example: 15
+                            batch_no:
+                              type: string
+                              example: "UPLOAD-20261016-001"
+                            distributor_ref_no:
+                              type: string
+                              example: "CLM-DIST-202610-001"
+                            code_customer:
+                              type: string
+                              example: "C110003074"
+                            customer_name:
+                              type: string
+                              example: "PT SUSANTI DISTRIBUSI MAKMUR"
+                            total_rows:
+                              type: integer
+                              example: 10
+                            valid_rows:
+                              type: integer
+                              example: 10
+                            invalid_rows:
+                              type: integer
+                              example: 0
+                            total_diskon:
+                              type: number
+                              example: 250000.00
+                            total_diskon_verified:
+                              type: number
+                              example: 250000.00
+                            available_balance:
+                              type: number
+                              example: 250000.00
+        '401':
+          description: API Key tidak valid.
+
+  /v1/external/claims/batches/{identifier}:
+    get:
+      summary: Get claim batch detail and results
+      description: Mendapatkan detail performa batch klaim dan rincian baris hasil kalkulasi diskon berdasarkan ID batch, nomor batch (batch_no), atau nomor referensi distributor (distributor_ref_no).
+      tags:
+        - External B2B Integration
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: identifier
+          in: path
+          required: true
+          description: ID batch, batch_no (misal UPLOAD-20261016-001), atau distributor_ref_no (misal CLM-DIST-202610-001)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Detail batch klaim berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Detail batch klaim berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      batch_id:
+                        type: integer
+                        example: 15
+                      batch_no:
+                        type: string
+                        example: "UPLOAD-20261016-001"
+                      distributor_ref_no:
+                        type: string
+                        example: "CLM-DIST-202610-001"
+                      total_rows:
+                        type: integer
+                        example: 1
+                      valid_rows:
+                        type: integer
+                        example: 1
+                      total_diskon:
+                        type: number
+                        example: 25000.00
+                      results:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 101
+                            item_code:
+                              type: string
+                              example: "E65"
+                            item_name:
+                              type: string
+                              example: "TOP 250 M @ 10 KG / BAL"
+                            qty_kg:
+                              type: number
+                              example: 100.00
+                            customer_type:
+                              type: string
+                              example: "GT"
+                            harga_program_per_kg:
+                              type: number
+                              example: 7500.00
+                            diskon_per_kg:
+                              type: number
+                              example: 250.00
+                            total_diskon:
+                              type: number
+                              example: 25000.00
+                            transaction_date:
+                              type: string
+                              example: "2026-10-15"
+                            status:
+                              type: string
+                              example: "VALID_PROGRAM"
+                            is_verified:
+                              type: boolean
+                              example: false
+        '404':
+          description: Batch klaim tidak ditemukan atau tidak memiliki akses.
+
+  /v1/external/claims/programs:
+    get:
+      summary: Get active claim promotion programs
+      description: Mendapatkan daftar program promosi klaim yang sedang aktif beserta strata kuantiti dan nilai diskon per kg yang berlaku untuk distributor terautentikasi.
+      tags:
+        - External B2B Integration
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar program promosi klaim aktif berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar program promosi klaim aktif berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 5
+                        program_code:
+                          type: string
+                          example: "PRG-2026-OCT"
+                        program_name:
+                          type: string
+                          example: "Program Promo Garam Top Oktober 2026"
+                        start_date:
+                          type: string
+                          example: "2026-10-01"
+                        end_date:
+                          type: string
+                          example: "2026-10-31"
+                        status:
+                          type: string
+                          example: "ACTIVE"
+                        items:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                                example: 10
+                              item_code:
+                                type: string
+                                example: "E65"
+                              item_name:
+                                type: string
+                                example: "TOP 250 M @ 10 KG / BAL"
+                        strata:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                                example: 12
+                              customer_type:
+                                type: string
+                                example: "GT"
+                              min_qty_kg:
+                                type: number
+                                example: 10.00
+                              max_qty_kg:
+                                type: number
+                                example: 500.00
+                              harga_program_per_kg:
+                                type: number
+                                example: 7500.00
+                              diskon_per_kg:
+                                type: number
+                                example: 250.00
+
   /v1/sales-dashboard/upload:
     post:
       summary: Upload Target or CMO Excel/CSV file

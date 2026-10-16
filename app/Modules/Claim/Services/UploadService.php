@@ -297,6 +297,194 @@ class UploadService
     }
 
     /**
+     * Process validated transaction rows directly (e.g. from JSON payload),
+     * store batch, store rows, and execute claim calculation.
+     *
+     * @param array $validatedData
+     * @param string $uploadedBy
+     * @param string|null $fileName
+     * @param string|null $distributorRefNo
+     * @return array
+     */
+    public function processTransactions(array $validatedData, string $uploadedBy, ?string $fileName = null, ?string $distributorRefNo = null): array
+    {
+        return DB::transaction(function () use ($validatedData, $uploadedBy, $fileName, $distributorRefNo) {
+            $batchNo = $this->generateBatchNo();
+            $batch = $this->uploadRepository->createBatch([
+                'batch_no'           => $batchNo,
+                'file_name'          => $fileName ?: ('API_CLAIM_' . ($distributorRefNo ?: date('YmdHis'))),
+                'uploaded_by'        => $uploadedBy,
+                'distributor_ref_no' => $distributorRefNo,
+            ]);
+
+            $rowsToInsert = array_map(function ($row) use ($batch) {
+                $row['batch_id'] = $batch->id;
+                $row['uploaded_at'] = Carbon::now();
+                return $row;
+            }, $validatedData);
+
+            $this->uploadRepository->insertUploadRows($rowsToInsert);
+
+            // Trigger Claim Calculation
+            $summary = $this->calculationService->calculateBatch($batch->id);
+
+            return array_merge([
+                'batch_id'           => $batch->id,
+                'batch_no'           => $batch->batch_no,
+                'distributor_ref_no' => $batch->distributor_ref_no,
+            ], $summary);
+        });
+    }
+
+    /**
+     * Parse excel file specifically for a given distributor, verifying that
+     * customer code matches the authenticated distributor.
+     *
+     * @param \Illuminate\Http\UploadedFile $file
+     * @param string $expectedCustomerCode
+     * @return array
+     * @throws ValidationException
+     */
+    public function parseExcelForDistributor($file, string $expectedCustomerCode): array
+    {
+        $spreadsheet = IOFactory::load($file->getRealPath());
+        $worksheet = $spreadsheet->getActiveSheet();
+        $rows = $worksheet->toArray();
+
+        $headerRowIndex = null;
+        $headersMap = [];
+
+        foreach ($rows as $index => $row) {
+            $trimmedRow = array_map(function($val) {
+                return $val !== null ? trim($val) : '';
+            }, $row);
+
+            $hasCustomer = false;
+            $hasItem = false;
+            foreach ($trimmedRow as $colName) {
+                if (in_array($colName, ['Kode Customer', 'Kode Distributor'])) {
+                    $hasCustomer = true;
+                }
+                if (in_array($colName, ['Item', 'Kode Item'])) {
+                    $hasItem = true;
+                }
+            }
+
+            if ($hasCustomer && $hasItem) {
+                $headerRowIndex = $index;
+                foreach ($trimmedRow as $colIndex => $colName) {
+                    $headersMap[$colName] = $colIndex;
+                }
+                break;
+            }
+        }
+
+        $colCustomerCode = $headersMap['Kode Distributor'] ?? $headersMap['Kode Customer'] ?? null;
+        $colCustomerName = $headersMap['Nama Distributor'] ?? $headersMap['Nama Customer'] ?? null;
+        $colItemCode     = $headersMap['Item'] ?? $headersMap['Kode Item'] ?? null;
+        $colItemName     = $headersMap['Nama Item'] ?? null;
+        $colSellPrice    = $headersMap['Harga Jual @ Kg'] ?? $headersMap['Harga Jual'] ?? $headersMap['Harga Jual (kg)'] ?? $headersMap['Harga Jual@Kg'] ?? null;
+        $colQty          = $headersMap['Qty @ Kg'] ?? $headersMap['Qty'] ?? $headersMap['Qty@Kg'] ?? $headersMap['Qty (kg)'] ?? null;
+        $colCustomerType = $headersMap['Type Customer'] ?? $headersMap['Tipe Customer'] ?? null;
+        $colDate         = $headersMap['Transaction Date'] ?? $headersMap['Transcation Date'] ?? null;
+
+        if ($colCustomerCode === null || $colItemCode === null || $colQty === null || $colCustomerType === null || $colDate === null) {
+            throw ValidationException::withMessages([
+                'file' => ['Struktur header Excel tidak valid. Kolom wajib (Kode Distributor, Item/Kode Item, Qty, Type/Tipe Customer, Transaction Date) harus tersedia.']
+            ]);
+        }
+
+        $errors = [];
+        $validatedData = [];
+
+        for ($i = $headerRowIndex + 1; $i < count($rows); $i++) {
+            $row = $rows[$i];
+
+            $isEmpty = true;
+            $isInstruction = false;
+            foreach ($row as $cell) {
+                if ($cell !== null && trim($cell) !== '') {
+                    $isEmpty = false;
+                    if (str_starts_with(trim($cell), '*')) {
+                        $isInstruction = true;
+                        break;
+                    }
+                }
+            }
+            if ($isEmpty || $isInstruction) {
+                continue;
+            }
+
+            $rowNum = $i + 1;
+            $rowErrors = [];
+
+            $customerCode = isset($row[$colCustomerCode]) ? trim($row[$colCustomerCode]) : '';
+            $customerName = isset($row[$colCustomerName]) ? trim($row[$colCustomerName]) : '';
+            $itemCode     = isset($row[$colItemCode]) ? trim($row[$colItemCode]) : '';
+            $itemName     = isset($row[$colItemName]) ? trim($row[$colItemName]) : '';
+
+            $rawSellPrice = isset($row[$colSellPrice]) ? $row[$colSellPrice] : 0.0;
+            $sellPrice    = floatval(str_replace(',', '', (string)$rawSellPrice));
+
+            $rawQty       = isset($row[$colQty]) ? $row[$colQty] : 0.0;
+            $qty          = floatval(str_replace(',', '', (string)$rawQty));
+
+            $customerType = isset($row[$colCustomerType]) ? strtoupper(trim($row[$colCustomerType])) : '';
+            $rawDate      = isset($row[$colDate]) ? $row[$colDate] : '';
+            $date         = $this->parseExcelDate($rawDate);
+
+            if (empty($customerCode)) {
+                $rowErrors[] = "Kode Distributor tidak boleh kosong.";
+            } elseif ($customerCode !== $expectedCustomerCode) {
+                $rowErrors[] = "Kode Distributor '{$customerCode}' tidak sesuai dengan distributor yang terautentikasi ('{$expectedCustomerCode}').";
+            }
+
+            if (empty($itemCode)) {
+                $rowErrors[] = "Kode Item tidak boleh kosong.";
+            }
+            if ($qty <= 0) {
+                $rowErrors[] = "Qty harus lebih besar dari 0.";
+            }
+            if (empty($customerType) || !in_array($customerType, ['GT', 'MT'])) {
+                $rowErrors[] = "Type Customer harus GT atau MT.";
+            }
+            if (!$date) {
+                $rowErrors[] = "Transaction Date tidak valid (Nilai: '{$rawDate}').";
+            }
+
+            if (!empty($rowErrors)) {
+                $errors[$rowNum] = $rowErrors;
+            } else {
+                $validatedData[] = [
+                    'customer_code'     => $customerCode,
+                    'customer_name'     => $customerName,
+                    'item_code'         => $itemCode,
+                    'item_name'         => $itemName,
+                    'sell_price_per_kg' => $sellPrice,
+                    'qty_kg'            => $qty,
+                    'customer_type'     => $customerType,
+                    'transaction_date'  => $date,
+                ];
+            }
+        }
+
+        if (!empty($errors)) {
+            $formattedErrors = [];
+            foreach ($errors as $rowNum => $msgs) {
+                $formattedErrors["Baris {$rowNum}"] = $msgs;
+            }
+            $firstKey = array_key_first($errors);
+            $firstErrorMsg = $errors[$firstKey][0];
+            throw ValidationException::withMessages([
+                'file' => ["File Excel berisi data tidak valid. Baris {$firstKey}: {$firstErrorMsg}"],
+                'details' => [$formattedErrors]
+            ]);
+        }
+
+        return $validatedData;
+    }
+
+    /**
      * Delete a batch and its associated details.
      *
      * @param int $id
