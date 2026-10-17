@@ -18,6 +18,7 @@ class UploadRepository implements UploadRepositoryInterface
             'file_name' => $data['file_name'],
             'uploaded_by' => $data['uploaded_by'] ?? null,
             'distributor_ref_no' => $data['distributor_ref_no'] ?? null,
+            'depo' => $data['depo'] ?? null,
         ]);
     }
 
@@ -263,6 +264,7 @@ class UploadRepository implements UploadRepositoryInterface
             'batch_id' => $batch->id,
             'batch_no' => $batch->batch_no,
             'distributor_ref_no' => $batch->distributor_ref_no ?? null,
+            'depo' => $batch->depo ?? null,
             'file_name' => $batch->file_name,
             'uploaded_by' => $batch->uploaded_by,
             'uploaded_at' => $batch->uploaded_at,

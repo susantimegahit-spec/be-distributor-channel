@@ -81,6 +81,7 @@ Menambahkan data transaksi klaim distributor dan menjalankan kalkulasi diskon ot
 | :--- | :--- | :--- | :--- |
 | `card_code` | String | **Ya** | Kode Customer/Distributor terdaftar yang berhak pada API Key ini (misal `C110003074`) |
 | `distributor_ref_no` | String | **Ya** | Nomor Referensi / Nomor Dokumen Klaim Distributor (**Idempotency Key**) |
+| `depo` | String | Tidak | Nama atau kode Depo / Cabang Distributor (dapat diisi di root atau per baris) |
 | `lines` | Array / JSON String | **Kondisional** | Wajib diisi jika tidak mengunggah file Excel. Berisi daftar baris transaksi klaim. |
 | `file` | File (Binary) | **Kondisional** | Wajib diisi jika `lines` kosong. File spreadsheet Excel (.xlsx / .xls, maks. 10 MB). |
 
@@ -92,6 +93,25 @@ Menambahkan data transaksi klaim distributor dan menjalankan kalkulasi diskon ot
 | `customer_type` | String | **Ya** | Tipe customer penjualan distributor: `GT` atau `MT` |
 | `transaction_date` | Date | **Ya** | Tanggal transaksi penjualan distributor (`YYYY-MM-DD`) |
 | `sell_price_per_kg` | Numeric | Tidak | Harga jual distributor per kilogram (default `0`) |
+| `depo` | String | Tidak | Nama / Kode Depo cabang distributor (misal `DEPO SURABAYA UTARA`) |
+| `distributor_customer_code` | String | Tidak | Kode Customer / Toko / Outlet dari distributor (alias: `customer_code`, `kode_customer`) |
+| `distributor_customer_name` | String | Tidak | Nama Customer / Toko / Outlet dari distributor (alias: `customer_name`, `nama_customer`) |
+| `address` | String | Tidak | Alamat Customer / Outlet distributor (alias: `alamat`) |
+| `city` | String | Tidak | Kota / Kabupaten customer distributor (alias: `kota`, `kota_kabupaten`) |
+| `district` | String | Tidak | Kecamatan customer distributor (alias: `kecamatan`) |
+| `salesman_name` | String | Tidak | Nama Salesman distributor (alias: `salesman`, `salesman_distributor`) |
+| `item_category` | String | Tidak | Jenis / Kategori Barang (alias: `jenis_barang`) |
+| `transaction_type` | String | Tidak | Jenis Transaksi penjualan distributor (alias: `jenis_transaksi`, misal `Kredit 30 Hari`) |
+| `channel` | String | Tidak | Channel distribusi (misal `GT`, `MT`, `Horeka`) |
+| `invoice_no` | String | Tidak | Nomor Invoice / Faktur penjualan distributor (alias: `invoice`, `no_invoice`) |
+| `dpp` | Numeric | Tidak | Nilai Dasar Pengenaan Pajak (DPP) |
+| `diskon_1` | Numeric | Tidak | Nilai Diskon 1 (alias: `discount_1`, `diskon1`) |
+| `diskon_2` | Numeric | Tidak | Nilai Diskon 2 (alias: `discount_2`, `diskon2`) |
+| `diskon_3` | Numeric | Tidak | Nilai Diskon 3 (alias: `discount_3`, `diskon3`) |
+| `diskon_4` | Numeric | Tidak | Nilai Diskon 4 (alias: `discount_4`, `diskon4`) |
+| `diskon_5` | Numeric | Tidak | Nilai Diskon 5 (alias: `discount_5`, `diskon5`) |
+| `ppn` | Numeric | Tidak | Nilai PPN faktur (alias: `vat`) |
+| `net` | Numeric | Tidak | Nilai total NET invoice setelah diskon & pajak (alias: `total_net`) |
 
 ---
 
@@ -107,7 +127,7 @@ Mendapatkan daftar riwayat batch upload klaim distributor beserta metrik ringkas
 ---
 
 ### **C. `GET /api/distributor-channel/v1/external/claims/batches/{identifier}`**
-Mendapatkan detail batch dan rincian baris hasil kalkulasi diskon program.
+Mendapatkan detail batch dan rincian baris hasil kalkulasi diskon program beserta data faktur penjualan distributor (`depo`, `distributor_customer_code`, `distributor_customer_name`, `address`, `city`, `district`, `salesman_name`, `item_category`, `transaction_type`, `channel`, `invoice_no`, `dpp`, `diskon_1`..`5`, `ppn`, `net`).
 
 #### Path Parameter
 | Parameter | Tipe | Wajib | Keterangan |
@@ -132,13 +152,33 @@ curl -X POST "https://api-dev.susantimegah.com/api/distributor-channel/v1/extern
   -d '{
     "card_code": "C110003074",
     "distributor_ref_no": "CLM-DIST-202610-001",
+    "depo": "DEPO SURABAYA UTARA",
     "lines": [
       {
+        "depo": "DEPO SURABAYA UTARA",
+        "distributor_customer_code": "OUTLET-SBY-001",
+        "distributor_customer_name": "Toko Barokah Jaya",
+        "address": "Jl. Kembang Jepun No. 45",
+        "city": "Surabaya",
+        "district": "Pabean Cantian",
+        "salesman_name": "Ahmad Santoso",
         "item_code": "E65",
-        "qty_kg": 150.00,
+        "item_category": "Garam Konsumsi",
+        "transaction_type": "Kredit 30 Hari",
+        "channel": "GT",
+        "invoice_no": "INV/2026/10/00888",
+        "qty_kg": 100.50,
+        "sell_price_per_kg": 7500.00,
+        "dpp": 753750.00,
+        "diskon_1": 15000.00,
+        "diskon_2": 5000.00,
+        "diskon_3": 0.00,
+        "diskon_4": 0.00,
+        "diskon_5": 0.00,
+        "ppn": 80702.50,
+        "net": 814452.50,
         "customer_type": "GT",
-        "transaction_date": "2026-10-15",
-        "sell_price_per_kg": 7500.00
+        "transaction_date": "2026-10-15"
       }
     ]
   }'
@@ -151,6 +191,7 @@ curl -X POST "https://api-dev.susantimegah.com/api/distributor-channel/v1/extern
   -H "Accept: application/json" \
   -F "card_code=C110003074" \
   -F "distributor_ref_no=CLM-DIST-202610-002" \
+  -F "depo=DEPO SURABAYA UTARA" \
   -F "file=@/path/to/template_upload_klaim.xlsx"
 ```
 
@@ -161,14 +202,15 @@ curl -X POST "https://api-dev.susantimegah.com/api/distributor-channel/v1/extern
   "message": "Data transaksi klaim distributor berhasil dikirim dan dikalkulasi secara otomatis.",
   "data": {
     "batch_id": 15,
-    "batch_no": "UPLOAD-20261016-001",
+    "batch_no": "UPLOAD-20261017-001",
     "distributor_ref_no": "CLM-DIST-202610-001",
+    "depo": "DEPO SURABAYA UTARA",
     "card_code": "C110003074",
     "customer_name": "PT SUSANTI DISTRIBUSI MAKMUR",
     "total_rows": 1,
     "processed_rows": 1,
     "invalid_rows": 0,
-    "total_diskon": 37500.00
+    "total_diskon": 25125.00
   }
 }
 ```

@@ -304,22 +304,27 @@ class UploadService
      * @param string $uploadedBy
      * @param string|null $fileName
      * @param string|null $distributorRefNo
+     * @param string|null $depo
      * @return array
      */
-    public function processTransactions(array $validatedData, string $uploadedBy, ?string $fileName = null, ?string $distributorRefNo = null): array
+    public function processTransactions(array $validatedData, string $uploadedBy, ?string $fileName = null, ?string $distributorRefNo = null, ?string $depo = null): array
     {
-        return DB::transaction(function () use ($validatedData, $uploadedBy, $fileName, $distributorRefNo) {
+        return DB::transaction(function () use ($validatedData, $uploadedBy, $fileName, $distributorRefNo, $depo) {
             $batchNo = $this->generateBatchNo();
             $batch = $this->uploadRepository->createBatch([
                 'batch_no'           => $batchNo,
                 'file_name'          => $fileName ?: ('API_CLAIM_' . ($distributorRefNo ?: date('YmdHis'))),
                 'uploaded_by'        => $uploadedBy,
                 'distributor_ref_no' => $distributorRefNo,
+                'depo'               => $depo,
             ]);
 
-            $rowsToInsert = array_map(function ($row) use ($batch) {
+            $rowsToInsert = array_map(function ($row) use ($batch, $depo) {
                 $row['batch_id'] = $batch->id;
                 $row['uploaded_at'] = Carbon::now();
+                if (!isset($row['depo']) && $depo !== null) {
+                    $row['depo'] = $depo;
+                }
                 return $row;
             }, $validatedData);
 
@@ -332,6 +337,7 @@ class UploadService
                 'batch_id'           => $batch->id,
                 'batch_no'           => $batch->batch_no,
                 'distributor_ref_no' => $batch->distributor_ref_no,
+                'depo'               => $batch->depo,
             ], $summary);
         });
     }

@@ -400,6 +400,103 @@ class ExternalClaimApiTest extends TestCase
             ]);
     }
 
+    /**
+     * Test successful claim creation with all extended B2B fields (depo, customer outlet, salesman, diskon 1-5, invoice, etc.).
+     */
+    public function test_store_claim_success_with_all_extended_b2b_fields(): void
+    {
+        $payload = [
+            'card_code'          => $this->distributor->code_customer,
+            'distributor_ref_no' => 'CLM-TEST-EXTENDED-001',
+            'depo'               => 'DEPO SURABAYA UTARA',
+            'lines'              => [
+                [
+                    'depo'                      => 'DEPO SURABAYA UTARA',
+                    'distributor_customer_code' => 'OUTLET-SBY-001',
+                    'distributor_customer_name' => 'Toko Barokah Jaya',
+                    'address'                   => 'Jl. Kembang Jepun No. 45',
+                    'city'                      => 'Surabaya',
+                    'district'                  => 'Pabean Cantian',
+                    'salesman_name'             => 'Ahmad Santoso',
+                    'item_code'                 => 'E65',
+                    'item_category'             => 'Garam Konsumsi',
+                    'transaction_type'          => 'Kredit 30 Hari',
+                    'channel'                   => 'GT',
+                    'invoice_no'                => 'INV/2026/10/00888',
+                    'qty_kg'                    => 100,
+                    'sell_price_per_kg'         => 7500,
+                    'dpp'                       => 750000,
+                    'diskon_1'                  => 15000,
+                    'diskon_2'                  => 5000,
+                    'diskon_3'                  => 0,
+                    'diskon_4'                  => 0,
+                    'diskon_5'                  => 0,
+                    'ppn'                       => 80300,
+                    'net'                       => 810300,
+                    'customer_type'             => 'GT',
+                    'transaction_date'          => '2026-10-15',
+                ],
+            ],
+        ];
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $this->rawApiKey,
+        ])->postJson('/api/distributor-channel/v1/external/claims', $payload);
+
+        $response->assertStatus(201)
+            ->assertJson([
+                'success' => true,
+                'data'    => [
+                    'card_code'          => $this->distributor->code_customer,
+                    'distributor_ref_no' => 'CLM-TEST-EXTENDED-001',
+                    'depo'               => 'DEPO SURABAYA UTARA',
+                    'total_rows'         => 1,
+                    'processed_rows'     => 1,
+                    'total_diskon'       => 25000,
+                ],
+            ]);
+
+        // Assert database has extended fields
+        $this->assertDatabaseHas('trx_program_upload_batch', [
+            'distributor_ref_no' => 'CLM-TEST-EXTENDED-001',
+            'depo'               => 'DEPO SURABAYA UTARA',
+        ]);
+
+        $this->assertDatabaseHas('trx_program_upload', [
+            'customer_code'             => $this->distributor->code_customer,
+            'depo'                      => 'DEPO SURABAYA UTARA',
+            'distributor_customer_code' => 'OUTLET-SBY-001',
+            'distributor_customer_name' => 'Toko Barokah Jaya',
+            'address'                   => 'Jl. Kembang Jepun No. 45',
+            'city'                      => 'Surabaya',
+            'district'                  => 'Pabean Cantian',
+            'salesman_name'             => 'Ahmad Santoso',
+            'item_code'                 => 'E65',
+            'item_category'             => 'Garam Konsumsi',
+            'transaction_type'          => 'Kredit 30 Hari',
+            'channel'                   => 'GT',
+            'invoice_no'                => 'INV/2026/10/00888',
+            'dpp'                       => 750000,
+            'diskon_1'                  => 15000,
+            'diskon_2'                  => 5000,
+            'ppn'                       => 80300,
+            'net'                       => 810300,
+        ]);
+
+        // Assert showBatch returns extended fields
+        $showResponse = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $this->rawApiKey,
+        ])->getJson('/api/distributor-channel/v1/external/claims/batches/CLM-TEST-EXTENDED-001');
+
+        $showResponse->assertStatus(200)
+            ->assertJsonPath('data.depo', 'DEPO SURABAYA UTARA')
+            ->assertJsonPath('data.results.0.depo', 'DEPO SURABAYA UTARA')
+            ->assertJsonPath('data.results.0.distributor_customer_code', 'OUTLET-SBY-001')
+            ->assertJsonPath('data.results.0.distributor_customer_name', 'Toko Barokah Jaya')
+            ->assertJsonPath('data.results.0.invoice_no', 'INV/2026/10/00888')
+            ->assertJsonPath('data.results.0.salesman_name', 'Ahmad Santoso');
+    }
+
     private function createTestExcel(array $rows): \Illuminate\Http\UploadedFile
     {
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();

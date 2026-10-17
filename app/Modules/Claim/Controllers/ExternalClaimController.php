@@ -60,6 +60,7 @@ class ExternalClaimController extends Controller
         }
 
         $distributorRefNo = $request->input('distributor_ref_no');
+        $depo = $request->input('depo');
 
         // 3. Idempotency Check — check if a batch with distributor_ref_no already exists for this distributor
         $existingBatch = DB::table('trx_program_upload_batch as b')
@@ -90,18 +91,38 @@ class ExternalClaimController extends Controller
             } else {
                 $validatedRows = [];
                 $lines = $request->input('lines', []);
+                $rootDepo = $depo;
 
                 foreach ($lines as $line) {
                     $item = Item::where('item_code', $line['item_code'])->first();
                     $validatedRows[] = [
-                        'customer_code'     => $distributor->code_customer,
-                        'customer_name'     => $distributor->name,
-                        'item_code'         => $line['item_code'],
-                        'item_name'         => $item ? $item->item_name : ($line['item_name'] ?? null),
-                        'sell_price_per_kg' => isset($line['sell_price_per_kg']) ? (float)$line['sell_price_per_kg'] : 0.0,
-                        'qty_kg'            => (float)$line['qty_kg'],
-                        'customer_type'     => strtoupper(trim($line['customer_type'])),
-                        'transaction_date'  => $line['transaction_date'],
+                        'customer_code'             => $distributor->code_customer,
+                        'customer_name'             => $distributor->name,
+                        'depo'                      => $line['depo'] ?? $rootDepo,
+                        'distributor_customer_code' => $line['distributor_customer_code'] ?? null,
+                        'distributor_customer_name' => $line['distributor_customer_name'] ?? null,
+                        'address'                   => $line['address'] ?? null,
+                        'city'                      => $line['city'] ?? null,
+                        'district'                  => $line['district'] ?? null,
+                        'salesman_name'             => $line['salesman_name'] ?? null,
+                        'item_code'                 => $line['item_code'],
+                        'item_name'                 => $item ? $item->item_name : ($line['item_name'] ?? null),
+                        'item_category'             => $line['item_category'] ?? null,
+                        'sell_price_per_kg'         => isset($line['sell_price_per_kg']) ? (float)$line['sell_price_per_kg'] : 0.0,
+                        'qty_kg'                    => (float)$line['qty_kg'],
+                        'customer_type'             => strtoupper(trim($line['customer_type'])),
+                        'transaction_type'          => $line['transaction_type'] ?? null,
+                        'channel'                   => $line['channel'] ?? null,
+                        'invoice_no'                => $line['invoice_no'] ?? null,
+                        'dpp'                       => isset($line['dpp']) && $line['dpp'] !== '' && $line['dpp'] !== null ? (float)$line['dpp'] : null,
+                        'diskon_1'                  => isset($line['diskon_1']) && $line['diskon_1'] !== '' && $line['diskon_1'] !== null ? (float)$line['diskon_1'] : null,
+                        'diskon_2'                  => isset($line['diskon_2']) && $line['diskon_2'] !== '' && $line['diskon_2'] !== null ? (float)$line['diskon_2'] : null,
+                        'diskon_3'                  => isset($line['diskon_3']) && $line['diskon_3'] !== '' && $line['diskon_3'] !== null ? (float)$line['diskon_3'] : null,
+                        'diskon_4'                  => isset($line['diskon_4']) && $line['diskon_4'] !== '' && $line['diskon_4'] !== null ? (float)$line['diskon_4'] : null,
+                        'diskon_5'                  => isset($line['diskon_5']) && $line['diskon_5'] !== '' && $line['diskon_5'] !== null ? (float)$line['diskon_5'] : null,
+                        'ppn'                       => isset($line['ppn']) && $line['ppn'] !== '' && $line['ppn'] !== null ? (float)$line['ppn'] : null,
+                        'net'                       => isset($line['net']) && $line['net'] !== '' && $line['net'] !== null ? (float)$line['net'] : null,
+                        'transaction_date'          => $line['transaction_date'],
                     ];
                 }
 
@@ -126,13 +147,15 @@ class ExternalClaimController extends Controller
             $validatedRows,
             $distributor->code_customer,
             $fileName,
-            $distributorRefNo
+            $distributorRefNo,
+            $depo
         );
 
         $responseData = [
             'batch_id'           => $result['batch_id'],
             'batch_no'           => $result['batch_no'],
             'distributor_ref_no' => $distributorRefNo,
+            'depo'               => $result['depo'] ?? $depo,
             'card_code'          => $distributor->code_customer,
             'customer_name'      => $distributor->name,
             'total_rows'         => $result['total_rows'],
@@ -227,11 +250,30 @@ class ExternalClaimController extends Controller
             ->whereIn('r.customer_code', $allowedCodes)
             ->select([
                 'r.id',
+                'u.depo',
+                'u.distributor_customer_code',
+                'u.distributor_customer_name',
+                'u.address',
+                'u.city',
+                'u.district',
+                'u.salesman_name',
                 'r.item_code',
                 'r.item_name',
+                'u.item_category',
                 'r.qty_kg',
                 'u.customer_type',
+                'u.transaction_type',
+                'u.channel',
+                'u.invoice_no',
                 'r.sell_price_per_kg',
+                'u.dpp',
+                'u.diskon_1',
+                'u.diskon_2',
+                'u.diskon_3',
+                'u.diskon_4',
+                'u.diskon_5',
+                'u.ppn',
+                'u.net',
                 'r.harga_program_per_kg',
                 'r.diskon_per_kg',
                 'r.total_diskon',

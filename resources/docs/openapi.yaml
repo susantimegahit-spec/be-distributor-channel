@@ -3388,6 +3388,10 @@ paths:
                   type: string
                   example: "CLM-DIST-202610-001"
                   description: Nomor Referensi Unik Klaim Distributor (Idempotency Key)
+                depo:
+                  type: string
+                  example: "DEPO SURABAYA UTARA"
+                  description: Nama atau kode Depo / Cabang Distributor (Opsional di root level)
                 lines:
                   type: array
                   description: Daftar baris transaksi sell-out klaim distributor
@@ -3399,10 +3403,46 @@ paths:
                       - customer_type
                       - transaction_date
                     properties:
+                      depo:
+                        type: string
+                        example: "DEPO SURABAYA UTARA"
+                        description: Nama atau kode Depo cabang distributor
+                      distributor_customer_code:
+                        type: string
+                        example: "OUTLET-SBY-001"
+                        description: Kode Customer / Toko / Outlet dari sistem distributor
+                      distributor_customer_name:
+                        type: string
+                        example: "Toko Barokah Jaya"
+                        description: Nama Customer / Toko / Outlet dari distributor
+                      address:
+                        type: string
+                        example: "Jl. Kembang Jepun No. 45"
+                        description: Alamat Toko / Outlet customer
+                      city:
+                        type: string
+                        example: "Surabaya"
+                        description: Kota / Kabupaten outlet
+                      district:
+                        type: string
+                        example: "Pabean Cantian"
+                        description: Kecamatan outlet
+                      salesman_name:
+                        type: string
+                        example: "Ahmad Santoso"
+                        description: Nama Salesman distributor
                       item_code:
                         type: string
                         example: "E65"
                         description: Kode SKU item terdaftar di PT Susanti Megah
+                      item_category:
+                        type: string
+                        example: "Garam Konsumsi"
+                        description: Jenis / Kategori Barang
+                      sell_price_per_kg:
+                        type: number
+                        example: 7500.00
+                        description: Harga jual distributor per kilogram (opsional)
                       qty_kg:
                         type: number
                         example: 100.5
@@ -3412,15 +3452,55 @@ paths:
                         enum: [GT, MT]
                         example: "GT"
                         description: Tipe customer penjualan distributor (GT = General Trade, MT = Modern Trade)
+                      transaction_type:
+                        type: string
+                        example: "Kredit 30 Hari"
+                        description: Jenis transaksi penjualan distributor
+                      channel:
+                        type: string
+                        example: "GT"
+                        description: Saluran distribusi / Channel
+                      invoice_no:
+                        type: string
+                        example: "INV/2026/10/00888"
+                        description: Nomor faktur / invoice penjualan distributor
+                      dpp:
+                        type: number
+                        example: 750000.00
+                        description: Dasar Pengenaan Pajak (DPP)
+                      diskon_1:
+                        type: number
+                        example: 15000.00
+                        description: Nilai Diskon 1
+                      diskon_2:
+                        type: number
+                        example: 5000.00
+                        description: Nilai Diskon 2
+                      diskon_3:
+                        type: number
+                        example: 0.00
+                        description: Nilai Diskon 3
+                      diskon_4:
+                        type: number
+                        example: 0.00
+                        description: Nilai Diskon 4
+                      diskon_5:
+                        type: number
+                        example: 0.00
+                        description: Nilai Diskon 5
+                      ppn:
+                        type: number
+                        example: 80300.00
+                        description: Nilai PPN
+                      net:
+                        type: number
+                        example: 810300.00
+                        description: Nilai NET faktur / total setelah pajak & diskon
                       transaction_date:
                         type: string
                         format: date
                         example: "2026-10-15"
                         description: Tanggal transaksi penjualan (Format YYYY-MM-DD)
-                      sell_price_per_kg:
-                        type: number
-                        example: 7500.00
-                        description: Harga jual distributor per kilogram (opsional)
           multipart/form-data:
             schema:
               type: object
@@ -3434,6 +3514,9 @@ paths:
                 distributor_ref_no:
                   type: string
                   example: "CLM-DIST-202610-001"
+                depo:
+                  type: string
+                  example: "DEPO SURABAYA UTARA"
                 file:
                   type: string
                   format: binary
@@ -3441,7 +3524,7 @@ paths:
                 lines:
                   type: string
                   description: Array item klaim dalam format JSON string (opsional jika mengunggah file)
-                  example: '[{"item_code":"E65","qty_kg":100,"customer_type":"GT","transaction_date":"2026-10-15"}]'
+                  example: '[{"item_code":"E65","qty_kg":100,"customer_type":"GT","transaction_date":"2026-10-15","depo":"DEPO SBY","distributor_customer_code":"OUT-01","distributor_customer_name":"Toko Barokah","invoice_no":"INV-001","dpp":750000,"net":810000}]'
       responses:
         '201':
           description: Data transaksi klaim distributor berhasil dikirim dan dikalkulasi secara otomatis.
@@ -3468,6 +3551,9 @@ paths:
                       distributor_ref_no:
                         type: string
                         example: "CLM-DIST-202610-001"
+                      depo:
+                        type: string
+                        example: "DEPO SURABAYA UTARA"
                       card_code:
                         type: string
                         example: "C110003074"
@@ -3567,6 +3653,9 @@ paths:
                             distributor_ref_no:
                               type: string
                               example: "CLM-DIST-202610-001"
+                            depo:
+                              type: string
+                              example: "DEPO SURABAYA UTARA"
                             code_customer:
                               type: string
                               example: "C110003074"
@@ -3635,6 +3724,9 @@ paths:
                       distributor_ref_no:
                         type: string
                         example: "CLM-DIST-202610-001"
+                      depo:
+                        type: string
+                        example: "DEPO SURABAYA UTARA"
                       total_rows:
                         type: integer
                         example: 1
@@ -3652,18 +3744,78 @@ paths:
                             id:
                               type: integer
                               example: 101
+                            depo:
+                              type: string
+                              example: "DEPO SURABAYA UTARA"
+                            distributor_customer_code:
+                              type: string
+                              example: "OUTLET-SBY-001"
+                            distributor_customer_name:
+                              type: string
+                              example: "Toko Barokah Jaya"
+                            address:
+                              type: string
+                              example: "Jl. Kembang Jepun No. 45"
+                            city:
+                              type: string
+                              example: "Surabaya"
+                            district:
+                              type: string
+                              example: "Pabean Cantian"
+                            salesman_name:
+                              type: string
+                              example: "Ahmad Santoso"
                             item_code:
                               type: string
                               example: "E65"
                             item_name:
                               type: string
                               example: "TOP 250 M @ 10 KG / BAL"
+                            item_category:
+                              type: string
+                              example: "Garam Konsumsi"
                             qty_kg:
                               type: number
                               example: 100.00
                             customer_type:
                               type: string
                               example: "GT"
+                            transaction_type:
+                              type: string
+                              example: "Kredit 30 Hari"
+                            channel:
+                              type: string
+                              example: "GT"
+                            invoice_no:
+                              type: string
+                              example: "INV/2026/10/00888"
+                            sell_price_per_kg:
+                              type: number
+                              example: 7500.00
+                            dpp:
+                              type: number
+                              example: 750000.00
+                            diskon_1:
+                              type: number
+                              example: 15000.00
+                            diskon_2:
+                              type: number
+                              example: 5000.00
+                            diskon_3:
+                              type: number
+                              example: 0.00
+                            diskon_4:
+                              type: number
+                              example: 0.00
+                            diskon_5:
+                              type: number
+                              example: 0.00
+                            ppn:
+                              type: number
+                              example: 80300.00
+                            net:
+                              type: number
+                              example: 810300.00
                             harga_program_per_kg:
                               type: number
                               example: 7500.00
