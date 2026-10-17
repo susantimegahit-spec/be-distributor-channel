@@ -9638,7 +9638,7 @@ paths:
   /v1/claims/template-excel:
     get:
       summary: Download claims template Excel
-      description: Mengunduh template Excel untuk upload data klaim distributor. Template ini berisi dua sheet, yaitu "template upload klaim" dan "master data item".
+      description: Mengunduh template Excel untuk upload data klaim distributor. Template ini berisi dua sheet, yaitu "template upload klaim" (27 kolom lengkap mencakup Kode/Nama Distributor, Depo, Kode/Nama Customer, Alamat, Kota, Kecamatan, Salesman, Item, Jenis Barang, Qty, Harga, Type Customer, Jenis Transaksi, Channel, Invoice, DPP, Diskon 1-5, PPN, NET, Tanggal) dan "master data item".
       tags:
         - Claims
       security:
@@ -22803,6 +22803,14 @@ components:
           type: string
           format: date-time
           example: "2026-06-13T11:32:00.000000Z"
+        distributor_ref_no:
+          type: string
+          nullable: true
+          example: CLM-DIST-202610-001
+        depo:
+          type: string
+          nullable: true
+          example: DEPO SURABAYA
         total_rows:
           type: integer
           example: 105
@@ -22843,18 +22851,97 @@ components:
         customer_name:
           type: string
           example: DUA JAYA, CV
+        depo:
+          type: string
+          nullable: true
+          example: DEPO SURABAYA
+        distributor_customer_code:
+          type: string
+          nullable: true
+          example: CUST-SM-001
+        distributor_customer_name:
+          type: string
+          nullable: true
+          example: TOKO MAKMUR JAYA
+        address:
+          type: string
+          nullable: true
+          example: JL. RAYA RUNGKUT INDUSTRI NO. 10
+        city:
+          type: string
+          nullable: true
+          example: SURABAYA
+        district:
+          type: string
+          nullable: true
+          example: RUNGKUT
+        salesman_name:
+          type: string
+          nullable: true
+          example: BUDI SANTOSO
         item_code:
           type: string
           example: A26
         item_name:
           type: string
           example: TOP 250 M @ 10 KG / BAL
+        item_category:
+          type: string
+          nullable: true
+          example: REGULER
         qty_kg:
           type: number
           example: 100.00
         sell_price_per_kg:
           type: number
           example: 6400.00
+        customer_type:
+          type: string
+          example: GT
+        transaction_type:
+          type: string
+          nullable: true
+          example: KREDIT
+        channel:
+          type: string
+          nullable: true
+          example: RETAIL
+        invoice_no:
+          type: string
+          nullable: true
+          example: INV-2026-001
+        dpp:
+          type: number
+          nullable: true
+          example: 18675000.00
+        diskon_1:
+          type: number
+          nullable: true
+          example: 100000.00
+        diskon_2:
+          type: number
+          nullable: true
+          example: 0.00
+        diskon_3:
+          type: number
+          nullable: true
+          example: 0.00
+        diskon_4:
+          type: number
+          nullable: true
+          example: 0.00
+        diskon_5:
+          type: number
+          nullable: true
+          example: 0.00
+        ppn:
+          type: number
+          nullable: true
+          example: 2043250.00
+        net:
+          type: number
+          nullable: true
+          example: 20618250.00
         harga_program_per_kg:
           type: number
           example: 7700.00
@@ -22871,9 +22958,6 @@ components:
         status:
           type: string
           example: VALID_PROGRAM
-        customer_type:
-          type: string
-          example: GT
         desc_status:
           type: string
           example: VALID
