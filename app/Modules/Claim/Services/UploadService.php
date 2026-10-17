@@ -103,14 +103,52 @@ class UploadService
             }
         }
 
-        $colCustomerCode = $headersMap['Kode Distributor'] ?? $headersMap['Kode Customer'] ?? null;
-        $colCustomerName = $headersMap['Nama Distributor'] ?? $headersMap['Nama Customer'] ?? null;
-        $colItemCode = $headersMap['Item'] ?? $headersMap['Kode Item'] ?? null;
-        $colItemName = $headersMap['Nama Item'] ?? null;
-        $colSellPrice = $headersMap['Harga Jual @ Kg'] ?? $headersMap['Harga Jual'] ?? $headersMap['Harga Jual (kg)'] ?? $headersMap['Harga Jual@Kg'] ?? null;
-        $colQty = $headersMap['Qty @ Kg'] ?? $headersMap['Qty'] ?? $headersMap['Qty@Kg'] ?? $headersMap['Qty (kg)'] ?? null;
-        $colCustomerType = $headersMap['Type Customer'] ?? $headersMap['Tipe Customer'] ?? null;
-        $colDate = $headersMap['Transaction Date'] ?? $headersMap['Transcation Date'] ?? null;
+        // 1. Distributor code & name
+        $colDistributorCode = $headersMap['Kode Distributor'] ?? $headersMap['Distributor Code'] ?? null;
+        $colCustomerCode    = $colDistributorCode ?? $headersMap['Kode Customer'] ?? $headersMap['Customer Code'] ?? null;
+        $colCustomerName    = $headersMap['Nama Distributor'] ?? $headersMap['Distributor Name'] ?? null;
+
+        // 2. Downstream customer (Outlet)
+        if ($colDistributorCode !== null) {
+            $colDistCustomerCode = $headersMap['Kode Customer'] ?? $headersMap['Customer Code'] ?? $headersMap['Kode Outlet'] ?? $headersMap['Kode Customer (Distributor)'] ?? null;
+            $colDistCustomerName = $headersMap['Nama Customer'] ?? $headersMap['Customer Name'] ?? $headersMap['Nama Outlet'] ?? $headersMap['Nama Customer (Distributor)'] ?? null;
+        } else {
+            $colDistCustomerCode = $headersMap['Kode Outlet'] ?? $headersMap['Kode Customer (Distributor)'] ?? null;
+            $colDistCustomerName = $headersMap['Nama Outlet'] ?? $headersMap['Nama Customer (Distributor)'] ?? null;
+        }
+
+        // 3. Extended location & salesman
+        $colDepo         = $headersMap['Depo'] ?? $headersMap['depo'] ?? $headersMap['Cabang'] ?? null;
+        $colAddress      = $headersMap['Alamat'] ?? $headersMap['alamat'] ?? $headersMap['Address'] ?? null;
+        $colCity         = $headersMap['Kota / Kabupaten'] ?? $headersMap['Kota/Kabupaten'] ?? $headersMap['Kota'] ?? $headersMap['Kabupaten'] ?? $headersMap['City'] ?? null;
+        $colDistrict     = $headersMap['Kecamatan'] ?? $headersMap['kecamatan'] ?? $headersMap['District'] ?? null;
+        $colSalesmanName = $headersMap['Salesman Distributor'] ?? $headersMap['Salesman'] ?? $headersMap['Nama Salesman'] ?? $headersMap['Salesman Name'] ?? null;
+
+        // 4. Item columns
+        $colItemCode     = $headersMap['Item'] ?? $headersMap['Kode Item'] ?? $headersMap['Item Code'] ?? null;
+        $colItemName     = $headersMap['Nama Item'] ?? $headersMap['Item Name'] ?? null;
+        $colItemCategory = $headersMap['Jenis Barang'] ?? $headersMap['Kategori Barang'] ?? $headersMap['Item Category'] ?? null;
+
+        // 5. Price, Qty, Customer Type, Transaction Date
+        $colSellPrice    = $headersMap['Harga Jual @ Kg'] ?? $headersMap['Harga Jual @Kg'] ?? $headersMap['Harga Jual@Kg'] ?? $headersMap['Harga Jual'] ?? $headersMap['Harga Jual (kg)'] ?? $headersMap['Selling Price'] ?? null;
+        $colQty          = $headersMap['Qty @ Kg'] ?? $headersMap['Qty @Kg'] ?? $headersMap['Qty@Kg'] ?? $headersMap['Qty'] ?? $headersMap['Qty (kg)'] ?? $headersMap['Quantity'] ?? null;
+        $colCustomerType = $headersMap['Type Customer'] ?? $headersMap['Tipe Customer'] ?? $headersMap['Customer Type'] ?? null;
+        $colDate         = $headersMap['Transaction Date'] ?? $headersMap['Transcation Date'] ?? $headersMap['Tanggal Transaksi'] ?? null;
+
+        // 6. Transaction classification & invoice
+        $colTransactionType = $headersMap['Jenis Transaksi'] ?? $headersMap['Tipe Transaksi'] ?? $headersMap['Transaction Type'] ?? null;
+        $colChannel         = $headersMap['Channel'] ?? $headersMap['channel'] ?? null;
+        $colInvoiceNo       = $headersMap['Invoice'] ?? $headersMap['No Invoice'] ?? $headersMap['No. Invoice'] ?? $headersMap['Nomor Invoice'] ?? $headersMap['Invoice No'] ?? null;
+
+        // 7. Amounts & Discounts
+        $colDpp     = $headersMap['DPP'] ?? $headersMap['dpp'] ?? null;
+        $colDiskon1 = $headersMap['Diskon 1'] ?? $headersMap['diskon_1'] ?? $headersMap['Diskon1'] ?? null;
+        $colDiskon2 = $headersMap['Diskon 2'] ?? $headersMap['diskon_2'] ?? $headersMap['Diskon2'] ?? null;
+        $colDiskon3 = $headersMap['Diskon 3'] ?? $headersMap['diskon_3'] ?? $headersMap['Diskon3'] ?? null;
+        $colDiskon4 = $headersMap['Diskon 4'] ?? $headersMap['diskon_4'] ?? $headersMap['Diskon4'] ?? null;
+        $colDiskon5 = $headersMap['Diskon 5'] ?? $headersMap['diskon_5'] ?? $headersMap['Diskon5'] ?? null;
+        $colPpn     = $headersMap['PPN'] ?? $headersMap['ppn'] ?? null;
+        $colNet     = $headersMap['NET'] ?? $headersMap['Net'] ?? $headersMap['net'] ?? null;
 
         if ($colCustomerCode === null || $colItemCode === null || $colQty === null || $colCustomerType === null || $colDate === null) {
             throw ValidationException::withMessages([
@@ -121,6 +159,20 @@ class UploadService
         // 3. Process & Validate Rows
         $errors = [];
         $validatedData = [];
+
+        $parseAmount = function ($idx, $row) {
+            if ($idx === null || !isset($row[$idx])) return null;
+            $val = trim((string)$row[$idx]);
+            if ($val === '') return null;
+            $cleaned = str_replace([',', ' '], '', $val);
+            return is_numeric($cleaned) ? (float)$cleaned : null;
+        };
+
+        $parseStr = function ($idx, $row) {
+            if ($idx === null || !isset($row[$idx])) return null;
+            $val = trim((string)$row[$idx]);
+            return $val !== '' ? $val : null;
+        };
 
         for ($i = $headerRowIndex + 1; $i < count($rows); $i++) {
             $row = $rows[$i];
@@ -145,19 +197,19 @@ class UploadService
             $rowErrors = [];
 
             $customerCode = isset($row[$colCustomerCode]) ? trim($row[$colCustomerCode]) : '';
-            $customerName = isset($row[$colCustomerName]) ? trim($row[$colCustomerName]) : '';
-            $itemCode = isset($row[$colItemCode]) ? trim($row[$colItemCode]) : '';
-            $itemName = isset($row[$colItemName]) ? trim($row[$colItemName]) : '';
+            $customerName = ($colCustomerName !== null && isset($row[$colCustomerName])) ? trim($row[$colCustomerName]) : '';
+            $itemCode     = isset($row[$colItemCode]) ? trim($row[$colItemCode]) : '';
+            $itemName     = ($colItemName !== null && isset($row[$colItemName])) ? trim($row[$colItemName]) : '';
             
             $rawSellPrice = isset($row[$colSellPrice]) ? $row[$colSellPrice] : 0.0;
-            $sellPrice = floatval(str_replace(',', '', $rawSellPrice));
+            $sellPrice    = floatval(str_replace(',', '', (string)$rawSellPrice));
 
-            $rawQty = isset($row[$colQty]) ? $row[$colQty] : 0.0;
-            $qty = floatval(str_replace(',', '', $rawQty));
+            $rawQty       = isset($row[$colQty]) ? $row[$colQty] : 0.0;
+            $qty          = floatval(str_replace(',', '', (string)$rawQty));
 
             $customerType = isset($row[$colCustomerType]) ? strtoupper(trim($row[$colCustomerType])) : '';
-            $rawDate = isset($row[$colDate]) ? $row[$colDate] : '';
-            $date = $this->parseExcelDate($rawDate);
+            $rawDate      = isset($row[$colDate]) ? $row[$colDate] : '';
+            $date         = $this->parseExcelDate($rawDate);
 
             if (empty($customerCode)) {
                 $rowErrors[] = "Kode Distributor tidak boleh kosong.";
@@ -179,14 +231,33 @@ class UploadService
                 $errors[$rowNum] = $rowErrors;
             } else {
                 $validatedData[] = [
-                    'customer_code' => $customerCode,
-                    'customer_name' => $customerName,
-                    'item_code' => $itemCode,
-                    'item_name' => $itemName,
-                    'sell_price_per_kg' => $sellPrice,
-                    'qty_kg' => $qty,
-                    'customer_type' => $customerType,
-                    'transaction_date' => $date,
+                    'customer_code'             => $customerCode,
+                    'customer_name'             => $customerName,
+                    'depo'                      => $parseStr($colDepo, $row),
+                    'distributor_customer_code' => $parseStr($colDistCustomerCode, $row),
+                    'distributor_customer_name' => $parseStr($colDistCustomerName, $row),
+                    'address'                   => $parseStr($colAddress, $row),
+                    'city'                      => $parseStr($colCity, $row),
+                    'district'                  => $parseStr($colDistrict, $row),
+                    'salesman_name'             => $parseStr($colSalesmanName, $row),
+                    'item_code'                 => $itemCode,
+                    'item_name'                 => $itemName,
+                    'item_category'             => $parseStr($colItemCategory, $row),
+                    'sell_price_per_kg'         => $sellPrice,
+                    'qty_kg'                    => $qty,
+                    'customer_type'             => $customerType,
+                    'transaction_type'          => $parseStr($colTransactionType, $row),
+                    'channel'                   => $parseStr($colChannel, $row),
+                    'invoice_no'                => $parseStr($colInvoiceNo, $row),
+                    'dpp'                       => $parseAmount($colDpp, $row),
+                    'diskon_1'                  => $parseAmount($colDiskon1, $row),
+                    'diskon_2'                  => $parseAmount($colDiskon2, $row),
+                    'diskon_3'                  => $parseAmount($colDiskon3, $row),
+                    'diskon_4'                  => $parseAmount($colDiskon4, $row),
+                    'diskon_5'                  => $parseAmount($colDiskon5, $row),
+                    'ppn'                       => $parseAmount($colPpn, $row),
+                    'net'                       => $parseAmount($colNet, $row),
+                    'transaction_date'          => $date,
                 ];
             }
         }
@@ -210,10 +281,20 @@ class UploadService
         // 4. Save Batch and Rows in Database transaction
         return DB::transaction(function () use ($validatedData, $file, $uploadedBy) {
             $batchNo = $this->generateBatchNo();
+
+            $firstDepo = null;
+            foreach ($validatedData as $vRow) {
+                if (!empty($vRow['depo'])) {
+                    $firstDepo = $vRow['depo'];
+                    break;
+                }
+            }
+
             $batch = $this->uploadRepository->createBatch([
-                'batch_no' => $batchNo,
-                'file_name' => $file->getClientOriginalName(),
+                'batch_no'    => $batchNo,
+                'file_name'   => $file->getClientOriginalName(),
                 'uploaded_by' => $uploadedBy,
+                'depo'        => $firstDepo,
             ]);
 
             $rowsToInsert = array_map(function ($row) use ($batch) {
@@ -230,6 +311,7 @@ class UploadService
             return array_merge([
                 'batch_id' => $batch->id,
                 'batch_no' => $batch->batch_no,
+                'depo'     => $batch->depo,
             ], $summary);
         });
     }
@@ -385,14 +467,52 @@ class UploadService
             }
         }
 
-        $colCustomerCode = $headersMap['Kode Distributor'] ?? $headersMap['Kode Customer'] ?? null;
-        $colCustomerName = $headersMap['Nama Distributor'] ?? $headersMap['Nama Customer'] ?? null;
-        $colItemCode     = $headersMap['Item'] ?? $headersMap['Kode Item'] ?? null;
-        $colItemName     = $headersMap['Nama Item'] ?? null;
-        $colSellPrice    = $headersMap['Harga Jual @ Kg'] ?? $headersMap['Harga Jual'] ?? $headersMap['Harga Jual (kg)'] ?? $headersMap['Harga Jual@Kg'] ?? null;
-        $colQty          = $headersMap['Qty @ Kg'] ?? $headersMap['Qty'] ?? $headersMap['Qty@Kg'] ?? $headersMap['Qty (kg)'] ?? null;
-        $colCustomerType = $headersMap['Type Customer'] ?? $headersMap['Tipe Customer'] ?? null;
-        $colDate         = $headersMap['Transaction Date'] ?? $headersMap['Transcation Date'] ?? null;
+        // 1. Distributor code & name
+        $colDistributorCode = $headersMap['Kode Distributor'] ?? $headersMap['Distributor Code'] ?? null;
+        $colCustomerCode    = $colDistributorCode ?? $headersMap['Kode Customer'] ?? $headersMap['Customer Code'] ?? null;
+        $colCustomerName    = $headersMap['Nama Distributor'] ?? $headersMap['Distributor Name'] ?? null;
+
+        // 2. Downstream customer (Outlet)
+        if ($colDistributorCode !== null) {
+            $colDistCustomerCode = $headersMap['Kode Customer'] ?? $headersMap['Customer Code'] ?? $headersMap['Kode Outlet'] ?? $headersMap['Kode Customer (Distributor)'] ?? null;
+            $colDistCustomerName = $headersMap['Nama Customer'] ?? $headersMap['Customer Name'] ?? $headersMap['Nama Outlet'] ?? $headersMap['Nama Customer (Distributor)'] ?? null;
+        } else {
+            $colDistCustomerCode = $headersMap['Kode Outlet'] ?? $headersMap['Kode Customer (Distributor)'] ?? null;
+            $colDistCustomerName = $headersMap['Nama Outlet'] ?? $headersMap['Nama Customer (Distributor)'] ?? null;
+        }
+
+        // 3. Extended location & salesman
+        $colDepo         = $headersMap['Depo'] ?? $headersMap['depo'] ?? $headersMap['Cabang'] ?? null;
+        $colAddress      = $headersMap['Alamat'] ?? $headersMap['alamat'] ?? $headersMap['Address'] ?? null;
+        $colCity         = $headersMap['Kota / Kabupaten'] ?? $headersMap['Kota/Kabupaten'] ?? $headersMap['Kota'] ?? $headersMap['Kabupaten'] ?? $headersMap['City'] ?? null;
+        $colDistrict     = $headersMap['Kecamatan'] ?? $headersMap['kecamatan'] ?? $headersMap['District'] ?? null;
+        $colSalesmanName = $headersMap['Salesman Distributor'] ?? $headersMap['Salesman'] ?? $headersMap['Nama Salesman'] ?? $headersMap['Salesman Name'] ?? null;
+
+        // 4. Item columns
+        $colItemCode     = $headersMap['Item'] ?? $headersMap['Kode Item'] ?? $headersMap['Item Code'] ?? null;
+        $colItemName     = $headersMap['Nama Item'] ?? $headersMap['Item Name'] ?? null;
+        $colItemCategory = $headersMap['Jenis Barang'] ?? $headersMap['Kategori Barang'] ?? $headersMap['Item Category'] ?? null;
+
+        // 5. Price, Qty, Customer Type, Transaction Date
+        $colSellPrice    = $headersMap['Harga Jual @ Kg'] ?? $headersMap['Harga Jual @Kg'] ?? $headersMap['Harga Jual@Kg'] ?? $headersMap['Harga Jual'] ?? $headersMap['Harga Jual (kg)'] ?? $headersMap['Selling Price'] ?? null;
+        $colQty          = $headersMap['Qty @ Kg'] ?? $headersMap['Qty @Kg'] ?? $headersMap['Qty@Kg'] ?? $headersMap['Qty'] ?? $headersMap['Qty (kg)'] ?? $headersMap['Quantity'] ?? null;
+        $colCustomerType = $headersMap['Type Customer'] ?? $headersMap['Tipe Customer'] ?? $headersMap['Customer Type'] ?? null;
+        $colDate         = $headersMap['Transaction Date'] ?? $headersMap['Transcation Date'] ?? $headersMap['Tanggal Transaksi'] ?? null;
+
+        // 6. Transaction classification & invoice
+        $colTransactionType = $headersMap['Jenis Transaksi'] ?? $headersMap['Tipe Transaksi'] ?? $headersMap['Transaction Type'] ?? null;
+        $colChannel         = $headersMap['Channel'] ?? $headersMap['channel'] ?? null;
+        $colInvoiceNo       = $headersMap['Invoice'] ?? $headersMap['No Invoice'] ?? $headersMap['No. Invoice'] ?? $headersMap['Nomor Invoice'] ?? $headersMap['Invoice No'] ?? null;
+
+        // 7. Amounts & Discounts
+        $colDpp     = $headersMap['DPP'] ?? $headersMap['dpp'] ?? null;
+        $colDiskon1 = $headersMap['Diskon 1'] ?? $headersMap['diskon_1'] ?? $headersMap['Diskon1'] ?? null;
+        $colDiskon2 = $headersMap['Diskon 2'] ?? $headersMap['diskon_2'] ?? $headersMap['Diskon2'] ?? null;
+        $colDiskon3 = $headersMap['Diskon 3'] ?? $headersMap['diskon_3'] ?? $headersMap['Diskon3'] ?? null;
+        $colDiskon4 = $headersMap['Diskon 4'] ?? $headersMap['diskon_4'] ?? $headersMap['Diskon4'] ?? null;
+        $colDiskon5 = $headersMap['Diskon 5'] ?? $headersMap['diskon_5'] ?? $headersMap['Diskon5'] ?? null;
+        $colPpn     = $headersMap['PPN'] ?? $headersMap['ppn'] ?? null;
+        $colNet     = $headersMap['NET'] ?? $headersMap['Net'] ?? $headersMap['net'] ?? null;
 
         if ($colCustomerCode === null || $colItemCode === null || $colQty === null || $colCustomerType === null || $colDate === null) {
             throw ValidationException::withMessages([
@@ -402,6 +522,20 @@ class UploadService
 
         $errors = [];
         $validatedData = [];
+
+        $parseAmount = function ($idx, $row) {
+            if ($idx === null || !isset($row[$idx])) return null;
+            $val = trim((string)$row[$idx]);
+            if ($val === '') return null;
+            $cleaned = str_replace([',', ' '], '', $val);
+            return is_numeric($cleaned) ? (float)$cleaned : null;
+        };
+
+        $parseStr = function ($idx, $row) {
+            if ($idx === null || !isset($row[$idx])) return null;
+            $val = trim((string)$row[$idx]);
+            return $val !== '' ? $val : null;
+        };
 
         for ($i = $headerRowIndex + 1; $i < count($rows); $i++) {
             $row = $rows[$i];
@@ -425,9 +559,9 @@ class UploadService
             $rowErrors = [];
 
             $customerCode = isset($row[$colCustomerCode]) ? trim($row[$colCustomerCode]) : '';
-            $customerName = isset($row[$colCustomerName]) ? trim($row[$colCustomerName]) : '';
+            $customerName = ($colCustomerName !== null && isset($row[$colCustomerName])) ? trim($row[$colCustomerName]) : '';
             $itemCode     = isset($row[$colItemCode]) ? trim($row[$colItemCode]) : '';
-            $itemName     = isset($row[$colItemName]) ? trim($row[$colItemName]) : '';
+            $itemName     = ($colItemName !== null && isset($row[$colItemName])) ? trim($row[$colItemName]) : '';
 
             $rawSellPrice = isset($row[$colSellPrice]) ? $row[$colSellPrice] : 0.0;
             $sellPrice    = floatval(str_replace(',', '', (string)$rawSellPrice));
@@ -462,14 +596,33 @@ class UploadService
                 $errors[$rowNum] = $rowErrors;
             } else {
                 $validatedData[] = [
-                    'customer_code'     => $customerCode,
-                    'customer_name'     => $customerName,
-                    'item_code'         => $itemCode,
-                    'item_name'         => $itemName,
-                    'sell_price_per_kg' => $sellPrice,
-                    'qty_kg'            => $qty,
-                    'customer_type'     => $customerType,
-                    'transaction_date'  => $date,
+                    'customer_code'             => $customerCode,
+                    'customer_name'             => $customerName,
+                    'depo'                      => $parseStr($colDepo, $row),
+                    'distributor_customer_code' => $parseStr($colDistCustomerCode, $row),
+                    'distributor_customer_name' => $parseStr($colDistCustomerName, $row),
+                    'address'                   => $parseStr($colAddress, $row),
+                    'city'                      => $parseStr($colCity, $row),
+                    'district'                  => $parseStr($colDistrict, $row),
+                    'salesman_name'             => $parseStr($colSalesmanName, $row),
+                    'item_code'                 => $itemCode,
+                    'item_name'                 => $itemName,
+                    'item_category'             => $parseStr($colItemCategory, $row),
+                    'sell_price_per_kg'         => $sellPrice,
+                    'qty_kg'                    => $qty,
+                    'customer_type'             => $customerType,
+                    'transaction_type'          => $parseStr($colTransactionType, $row),
+                    'channel'                   => $parseStr($colChannel, $row),
+                    'invoice_no'                => $parseStr($colInvoiceNo, $row),
+                    'dpp'                       => $parseAmount($colDpp, $row),
+                    'diskon_1'                  => $parseAmount($colDiskon1, $row),
+                    'diskon_2'                  => $parseAmount($colDiskon2, $row),
+                    'diskon_3'                  => $parseAmount($colDiskon3, $row),
+                    'diskon_4'                  => $parseAmount($colDiskon4, $row),
+                    'diskon_5'                  => $parseAmount($colDiskon5, $row),
+                    'ppn'                       => $parseAmount($colPpn, $row),
+                    'net'                       => $parseAmount($colNet, $row),
+                    'transaction_date'          => $date,
                 ];
             }
         }

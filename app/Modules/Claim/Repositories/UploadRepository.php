@@ -130,7 +130,7 @@ class UploadRepository implements UploadRepositoryInterface
                 'd.code_customer as code_customer',
                 'd.name as customer_name',
                 'd.name as name_customer',
-                'd.depo as depo'
+                DB::raw('COALESCE(b.depo, d.depo) as depo')
             ])
             ->selectSub($totalRowsQuery->selectRaw('COUNT(*)'), 'total_rows')
             ->selectSub($validRowsQuery->selectRaw('COUNT(*)'), 'valid_rows')
