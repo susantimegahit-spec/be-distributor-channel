@@ -14226,7 +14226,7 @@ paths:
                         example: "Pcs"
                       FreeTxt:
                         type: string
-                        example: "untuk upgrade"
+                        example: ""
                       OcrCode:
                         type: string
                         example: "BLR"

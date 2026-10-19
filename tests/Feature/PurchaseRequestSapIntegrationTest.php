@@ -49,7 +49,7 @@ class PurchaseRequestSapIntegrationTest extends TestCase
                     'UomCode' => '-1',
                     'WhsCode' => '01',
                     'UnitMsr' => 'Pcs',
-                    'FreeTxt' => 'untuk upgrade',
+                    'FreeTxt' => '',
                     'OcrCode' => 'BLR',
                     'OcrCode2' => 'GRM',
                     'OcrCode3' => 'PCG',
@@ -104,7 +104,7 @@ class PurchaseRequestSapIntegrationTest extends TestCase
                     'UomCode' => '-1',
                     'WhsCode' => '01',
                     'UnitMsr' => 'Pcs',
-                    'FreeTxt' => 'untuk upgrade',
+                    'FreeTxt' => '',
                     'OcrCode' => 'BLR',
                     'OcrCode2' => 'GRM',
                     'OcrCode3' => 'PCG',
@@ -132,7 +132,7 @@ class PurchaseRequestSapIntegrationTest extends TestCase
                 $request['Lines'][0]['UomCode'] === '-1' &&
                 $request['Lines'][0]['WhsCode'] === '01' &&
                 $request['Lines'][0]['UnitMsr'] === 'Pcs' &&
-                $request['Lines'][0]['FreeTxt'] === 'untuk upgrade' &&
+                $request['Lines'][0]['FreeTxt'] === '' &&
                 $request['Lines'][0]['OcrCode'] === 'BLR' &&
                 $request['Lines'][0]['OcrCode2'] === 'GRM' &&
                 $request['Lines'][0]['OcrCode3'] === 'PCG';
@@ -158,7 +158,7 @@ class PurchaseRequestSapIntegrationTest extends TestCase
             'uom_code' => '-1',
             'whs_code' => '01',
             'unit_msr' => 'Pcs',
-            'free_txt' => 'untuk upgrade',
+            'free_txt' => '',
             'ocr_code' => 'BLR',
             'ocr_code2' => 'GRM',
             'ocr_code3' => 'PCG',
@@ -256,7 +256,7 @@ class PurchaseRequestSapIntegrationTest extends TestCase
                     'UomCode' => '-1',
                     'WhsCode' => '01',
                     'UnitMsr' => 'Pcs',
-                    'FreeTxt' => 'untuk upgrade',
+                    'FreeTxt' => '',
                     'OcrCode' => 'BLR',
                     'OcrCode2' => 'GRM',
                     'OcrCode3' => 'PCG',
@@ -490,5 +490,34 @@ class PurchaseRequestSapIntegrationTest extends TestCase
         $pr = \App\Models\PurchaseRequest::where('series', '6123')->first();
         $this->assertNotNull($pr->req_date);
         $this->assertEquals('2026-10-19', $pr->req_date->format('Y-m-d'));
+    }
+
+    public function test_free_txt_defaults_to_empty_string_when_omitted()
+    {
+        Http::fake([
+            '*/api/addpr' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => 'Success',
+                'Result' => 77777,
+            ], 200)
+        ]);
+
+        $payload = [
+            'Series' => '6123',
+            'ReqType' => '12',
+            'Lines' => [
+                [
+                    'ItemCode' => 'ISP000723',
+                    'Quantity' => 1,
+                ]
+            ]
+        ];
+
+        $response = $this->actingAs($this->user)->postJson('/api/distributor-channel/v1/purchasing-request/requests', $payload);
+        $response->assertStatus(201);
+
+        Http::assertSent(function (\Illuminate\Http\Client\Request $request) {
+            return $request['Lines'][0]['FreeTxt'] === '';
+        });
     }
 }

@@ -242,11 +242,7 @@ class PurchaseRequestService
                         ? (string)$item['uom']
                         : (\App\Models\Item::where('item_code', $itemCode)->value('sal_unit_msr') ?: 'Pcs')));
 
-            $freeTxt = (isset($item['FreeTxt']) && $item['FreeTxt'] !== '')
-                ? (string)$item['FreeTxt']
-                : ((isset($item['free_txt']) && $item['free_txt'] !== '')
-                    ? (string)$item['free_txt']
-                    : ((isset($item['remarks']) && $item['remarks'] !== '') ? (string)$item['remarks'] : 'untuk upgrade'));
+            $freeTxt = (string) ($item['FreeTxt'] ?? $item['free_txt'] ?? $item['remarks'] ?? '');
 
             $ocrCode = (string) ($item['OcrCode'] ?? $item['ocr_code'] ?? $payload['cost_center'] ?? 'BLR');
             $ocrCode2 = (string) ($item['OcrCode2'] ?? $item['ocr_code2'] ?? $item['ocr_code_2'] ?? 'GRM');
