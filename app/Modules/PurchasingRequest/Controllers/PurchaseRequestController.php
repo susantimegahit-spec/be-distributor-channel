@@ -41,11 +41,15 @@ class PurchaseRequestController extends Controller
         $search = $request->query('search') ?? $request->query('q') ?? $request->input('search');
         $departments = $this->service->getDepartments($search);
 
-        return response()->json([
-            'ErrorCode' => 0,
-            'Message' => '',
-            'Result' => $departments,
-        ]);
+        if ($request->is('api/GetDepartment') || $request->is('GetDepartment') || $request->query('format') === 'sap' || $request->input('format') === 'sap') {
+            return response()->json([
+                'ErrorCode' => 0,
+                'Message' => '',
+                'Result' => $departments,
+            ]);
+        }
+
+        return $this->successResponse($departments, 'Daftar department berhasil diambil.');
     }
 
     public function index(Request $request): JsonResponse

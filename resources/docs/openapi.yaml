@@ -14021,6 +14021,51 @@ paths:
         '200':
           description: Daftar department berhasil diambil dari SAP.
 
+  /v1/purchasing-request/departments:
+    get:
+      summary: Get Daftar Department SAP B1
+      description: Mengambil daftar department dari SAP Business One (/api/GetDepartment).
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Pencarian nama atau kode departemen
+          schema:
+            type: string
+            example: "PRO"
+      responses:
+        '200':
+          description: Daftar department berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar department berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Code:
+                          type: string
+                          example: "1"
+                        Remarks:
+                          type: string
+                          example: "Production"
+                        Name:
+                          type: string
+                          example: "PRO"
+
   /v1/purchasing-request/items:
     get:
       summary: Get Daftar Item untuk Purchase Request (Beserta default UoM)

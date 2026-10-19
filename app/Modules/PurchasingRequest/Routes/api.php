@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1/purchasing-request')->group(function () {
     Route::get('/series', [PurchaseRequestController::class, 'getSeries']);
     Route::get('/items', [PurchaseRequestController::class, 'getItems']);
+    Route::match(['get', 'post'], '/departments', [PurchaseRequestController::class, 'getDepartments']);
     Route::get('/requests', [PurchaseRequestController::class, 'index']);
     Route::post('/requests', [PurchaseRequestController::class, 'store']);
     Route::post('/add-pr', [PurchaseRequestController::class, 'store']);
@@ -19,3 +20,4 @@ Route::prefix('v1/purchasing-request')->group(function () {
 });
 
 Route::get('v1/document-types', [DocumentTypeController::class, 'index']);
+Route::match(['get', 'post'], 'v1/departments', [PurchaseRequestController::class, 'getDepartments']);

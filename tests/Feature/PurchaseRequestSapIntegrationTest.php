@@ -365,4 +365,42 @@ class PurchaseRequestSapIntegrationTest extends TestCase
         ]);
         $this->assertNotEmpty($response->json('Result'));
     }
+
+    public function test_get_departments_v1_endpoints_return_standard_response()
+    {
+        Http::fake([
+            '*/api/GetDepartment' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => '',
+                'Result' => [
+                    ['Code' => '-2', 'Remarks' => 'General Department', 'Name' => 'General'],
+                    ['Code' => '1', 'Remarks' => 'Production', 'Name' => 'PRO'],
+                ],
+            ], 200)
+        ]);
+
+        // 1. v1 purchasing-request
+        $response1 = $this->actingAs($this->user)->getJson('/api/distributor-channel/v1/purchasing-request/departments');
+        $response1->assertStatus(200);
+        $response1->assertJson([
+            'success' => true,
+            'message' => 'Daftar department berhasil diambil.',
+            'data' => [
+                ['Code' => '-2', 'Remarks' => 'General Department', 'Name' => 'General'],
+                ['Code' => '1', 'Remarks' => 'Production', 'Name' => 'PRO'],
+            ]
+        ]);
+
+        // 2. v1 general departments
+        $response2 = $this->actingAs($this->user)->getJson('/api/distributor-channel/v1/departments');
+        $response2->assertStatus(200);
+        $response2->assertJson([
+            'success' => true,
+            'message' => 'Daftar department berhasil diambil.',
+            'data' => [
+                ['Code' => '-2', 'Remarks' => 'General Department', 'Name' => 'General'],
+                ['Code' => '1', 'Remarks' => 'Production', 'Name' => 'PRO'],
+            ]
+        ]);
+    }
 }
