@@ -14167,6 +14167,10 @@ paths:
                 ReqType:
                   type: string
                   example: "12"
+                ReqDate:
+                  type: string
+                  format: date
+                  example: "2026-10-19"
                 Requester:
                   type: string
                   example: "IND01"

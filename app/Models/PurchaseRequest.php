@@ -15,6 +15,7 @@ class PurchaseRequest extends Model
         'pr_number',
         'series',
         'req_type',
+        'req_date',
         'requester',
         'department',
         'cost_center',
@@ -39,6 +40,7 @@ class PurchaseRequest extends Model
         'total_amount' => 'float',
         'doc_date' => 'date',
         'doc_due_date' => 'date',
+        'req_date' => 'date',
         'required_date' => 'date',
         'sap_doc_entry' => 'integer',
     ];

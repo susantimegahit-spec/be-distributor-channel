@@ -179,6 +179,9 @@ class PurchaseRequestService
         $docDateInput = $payload['DocDate'] ?? $payload['doc_date'] ?? date('Y-m-d');
         $docDate = date('Y-m-d', strtotime($docDateInput));
 
+        $reqDateInput = $payload['ReqDate'] ?? $payload['req_date'] ?? $payload['required_date'] ?? $docDate;
+        $reqDate = date('Y-m-d', strtotime($reqDateInput));
+
         $docDueDateInput = $payload['DocDueDate'] ?? $payload['doc_due_date'] ?? $payload['required_date'] ?? $docDate;
         $docDueDate = date('Y-m-d', strtotime($docDueDateInput));
 
@@ -267,6 +270,7 @@ class PurchaseRequestService
         return [
             'Series' => $series,
             'ReqType' => $reqType,
+            'ReqDate' => $reqDate,
             'Requester' => $requester,
             'RequesterName' => $requesterName,
             'Department' => $department,
@@ -333,6 +337,12 @@ class PurchaseRequestService
         if (empty($payload['doc_date'])) {
             $payload['doc_date'] = $sapPayload['DocDate'];
         }
+        if (empty($payload['req_date'])) {
+            $payload['req_date'] = $sapPayload['ReqDate'];
+        }
+        if (empty($payload['required_date'])) {
+            $payload['required_date'] = $sapPayload['ReqDate'];
+        }
         if (empty($payload['doc_due_date'])) {
             $payload['doc_due_date'] = $sapPayload['DocDueDate'];
         }
@@ -341,6 +351,7 @@ class PurchaseRequestService
         }
         $payload['series'] = $sapPayload['Series'];
         $payload['req_type'] = $sapPayload['ReqType'];
+        $payload['req_date'] = $sapPayload['ReqDate'];
         $payload['requester'] = $sapPayload['Requester'];
         $payload['requester_name'] = $sapPayload['RequesterName'];
         $payload['comments'] = $sapPayload['Comments'];

@@ -124,6 +124,7 @@ class PurchaseRequestSapIntegrationTest extends TestCase
             return str_ends_with($request->url(), '/api/addpr') &&
                 $request['Series'] === '4876' &&
                 $request['ReqType'] === '12' &&
+                $request['ReqDate'] === '2025-10-22' &&
                 $request['AddonId'] === '2' &&
                 $request['Lines'][0]['ItemCode'] === 'JS000009' &&
                 $request['Lines'][0]['Quantity'] == 2.00 &&
@@ -146,6 +147,9 @@ class PurchaseRequestSapIntegrationTest extends TestCase
             'department' => '9',
             'sap_doc_entry' => 54321,
         ]);
+        $pr = \App\Models\PurchaseRequest::first();
+        $this->assertNotNull($pr->req_date);
+        $this->assertEquals('2025-10-22', $pr->req_date->format('Y-m-d'));
 
         $this->assertDatabaseHas('purchase_request_details', [
             'item_code' => 'JS000009',
@@ -402,5 +406,89 @@ class PurchaseRequestSapIntegrationTest extends TestCase
                 ['Code' => '1', 'Remarks' => 'Production', 'Name' => 'PRO'],
             ]
         ]);
+    }
+
+    public function test_create_purchasing_request_with_explicit_req_date_matches_expected_sap_payload()
+    {
+        Http::fake([
+            '*/api/addpr' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => 'Success',
+                'Result' => 61230,
+            ], 200)
+        ]);
+
+        $payload = [
+            'Series' => '6123',
+            'ReqType' => '12',
+            'ReqDate' => '2026-10-19',
+            'Requester' => 'API',
+            'RequesterName' => 'Administrator PT Susanti Megah',
+            'Department' => '4',
+            'DocDate' => '2026-10-19',
+            'DocDueDate' => '2026-10-19',
+            'Comments' => 'tes',
+            'UserId' => '1',
+            'AddonId' => '2',
+            'Lines' => [
+                [
+                    'ItemCode' => 'ISP000723',
+                    'PQTReqDate' => '2026-10-19',
+                    'Quantity' => 1,
+                    'UomEntry' => '-1',
+                    'WhsCode' => 'FG01',
+                    'UnitMsr' => 'Pcs',
+                    'FreeTxt' => 'coba PR',
+                    'OcrCode' => 'SBY',
+                    'OcrCode2' => 'GRM',
+                    'OcrCode3' => 'MKT',
+                ]
+            ]
+        ];
+
+        $response = $this->actingAs($this->user)->postJson('/api/distributor-channel/v1/purchasing-request/requests', $payload);
+
+        $response->assertStatus(201);
+        $response->assertJson([
+            'success' => true,
+            'message' => 'Purchasing Request berhasil dibuat.',
+        ]);
+
+        Http::assertSent(function (\Illuminate\Http\Client\Request $request) {
+            return str_ends_with($request->url(), '/api/addpr') &&
+                $request['Series'] === '6123' &&
+                $request['ReqType'] === '12' &&
+                $request['ReqDate'] === '2026-10-19' &&
+                $request['Requester'] === 'API' &&
+                $request['RequesterName'] === 'Administrator PT Susanti Megah' &&
+                $request['Department'] === '4' &&
+                $request['DocDate'] === '2026-10-19' &&
+                $request['DocDueDate'] === '2026-10-19' &&
+                $request['Comments'] === 'tes' &&
+                $request['UserId'] === '1' &&
+                $request['AddonId'] === '2' &&
+                $request['Lines'][0]['ItemCode'] === 'ISP000723' &&
+                $request['Lines'][0]['PQTReqDate'] === '2026-10-19' &&
+                $request['Lines'][0]['Quantity'] == 1 &&
+                $request['Lines'][0]['UomEntry'] === '-1' &&
+                $request['Lines'][0]['WhsCode'] === 'FG01' &&
+                $request['Lines'][0]['UnitMsr'] === 'Pcs' &&
+                $request['Lines'][0]['FreeTxt'] === 'coba PR' &&
+                $request['Lines'][0]['OcrCode'] === 'SBY' &&
+                $request['Lines'][0]['OcrCode2'] === 'GRM' &&
+                $request['Lines'][0]['OcrCode3'] === 'MKT';
+        });
+
+        $this->assertDatabaseHas('purchase_requests', [
+            'series' => '6123',
+            'req_type' => '12',
+            'requester' => 'API',
+            'requester_name' => 'Administrator PT Susanti Megah',
+            'department' => '4',
+            'sap_doc_entry' => 61230,
+        ]);
+        $pr = \App\Models\PurchaseRequest::where('series', '6123')->first();
+        $this->assertNotNull($pr->req_date);
+        $this->assertEquals('2026-10-19', $pr->req_date->format('Y-m-d'));
     }
 }
