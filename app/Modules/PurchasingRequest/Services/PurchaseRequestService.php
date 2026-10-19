@@ -184,7 +184,13 @@ class PurchaseRequestService
 
         $comments = (string) ($payload['Comments'] ?? $payload['comments'] ?? $payload['remarks'] ?? '');
         $userIdVal = (string) ($payload['UserId'] ?? $payload['user_id'] ?? ($userId ? (string)$userId : ($user?->id ? (string)$user->id : '19')));
-        $addonId = (string) ($payload['AddonId'] ?? $payload['AddOnId'] ?? $payload['addon_id'] ?? '2'); // hardcode 2
+        $addonId = (isset($payload['AddonId']) && $payload['AddonId'] !== '')
+            ? (string)$payload['AddonId']
+            : ((isset($payload['AddOnId']) && $payload['AddOnId'] !== '')
+                ? (string)$payload['AddOnId']
+                : ((isset($payload['addon_id']) && $payload['addon_id'] !== '')
+                    ? (string)$payload['addon_id']
+                    : '2')); // default 2
 
         $details = $payload['Lines'] ?? $payload['lines'] ?? $payload['details'] ?? [];
         $lines = [];
@@ -211,11 +217,34 @@ class PurchaseRequestService
             $pqtReqDate = date('Y-m-d', strtotime($pqtReqDateInput));
 
             $quantity = floatval($item['Quantity'] ?? $item['quantity'] ?? 1.0);
-            $uomEntry = (string) ($item['UomEntry'] ?? $item['uom_entry'] ?? '-1');
-            $uomCode = (string) ($item['UomCode'] ?? $item['uom_code'] ?? '-1');
-            $whsCode = (string) ($item['WhsCode'] ?? $item['whs_code'] ?? $item['warehouse_code'] ?? '01');
-            $unitMsr = (string) ($item['UnitMsr'] ?? $item['unit_msr'] ?? $item['uom'] ?? 'Pcs');
-            $freeTxt = (string) ($item['FreeTxt'] ?? $item['free_txt'] ?? $item['remarks'] ?? 'untuk upgrade');
+            $uomEntry = (isset($item['UomEntry']) && $item['UomEntry'] !== '')
+                ? (string)$item['UomEntry']
+                : ((isset($item['uom_entry']) && $item['uom_entry'] !== '') ? (string)$item['uom_entry'] : '-1');
+
+            $uomCode = (isset($item['UomCode']) && $item['UomCode'] !== '')
+                ? (string)$item['UomCode']
+                : ((isset($item['uom_code']) && $item['uom_code'] !== '') ? (string)$item['uom_code'] : '-1');
+
+            $whsCode = (isset($item['WhsCode']) && $item['WhsCode'] !== '')
+                ? (string)$item['WhsCode']
+                : ((isset($item['whs_code']) && $item['whs_code'] !== '')
+                    ? (string)$item['whs_code']
+                    : ((isset($item['warehouse_code']) && $item['warehouse_code'] !== '') ? (string)$item['warehouse_code'] : '01'));
+
+            $unitMsr = (isset($item['UnitMsr']) && $item['UnitMsr'] !== '')
+                ? (string)$item['UnitMsr']
+                : ((isset($item['unit_msr']) && $item['unit_msr'] !== '')
+                    ? (string)$item['unit_msr']
+                    : ((isset($item['uom']) && $item['uom'] !== '')
+                        ? (string)$item['uom']
+                        : (\App\Models\Item::where('item_code', $itemCode)->value('sal_unit_msr') ?: 'Pcs')));
+
+            $freeTxt = (isset($item['FreeTxt']) && $item['FreeTxt'] !== '')
+                ? (string)$item['FreeTxt']
+                : ((isset($item['free_txt']) && $item['free_txt'] !== '')
+                    ? (string)$item['free_txt']
+                    : ((isset($item['remarks']) && $item['remarks'] !== '') ? (string)$item['remarks'] : 'untuk upgrade'));
+
             $ocrCode = (string) ($item['OcrCode'] ?? $item['ocr_code'] ?? $payload['cost_center'] ?? 'BLR');
             $ocrCode2 = (string) ($item['OcrCode2'] ?? $item['ocr_code2'] ?? $item['ocr_code_2'] ?? 'GRM');
             $ocrCode3 = (string) ($item['OcrCode3'] ?? $item['ocr_code3'] ?? $item['ocr_code_3'] ?? 'PCG');
@@ -246,7 +275,6 @@ class PurchaseRequestService
             'Comments' => $comments,
             'UserId' => $userIdVal,
             'AddonId' => $addonId,
-            'AddOnId' => $addonId,
             'Lines' => $lines,
         ];
     }
