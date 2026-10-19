@@ -36,6 +36,18 @@ class PurchaseRequestController extends Controller
         return $this->successResponse($items, 'Daftar item untuk Purchasing Request berhasil diambil.');
     }
 
+    public function getDepartments(Request $request): JsonResponse
+    {
+        $search = $request->query('search') ?? $request->query('q') ?? $request->input('search');
+        $departments = $this->service->getDepartments($search);
+
+        return response()->json([
+            'ErrorCode' => 0,
+            'Message' => '',
+            'Result' => $departments,
+        ]);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $filters = $request->only([

@@ -55,6 +55,59 @@ class PurchaseRequestService
     }
 
     /**
+     * Get department list from SAP B1 (/api/GetDepartment).
+     */
+    public function getDepartments(?string $search = null): array
+    {
+        $sapUrl = rtrim(config('services.sap.url') ?: env('SAP_API_URL', 'http://103.18.133.187:3100'), '/');
+
+        $departments = [];
+
+        try {
+            $response = Http::timeout(15)->post("{$sapUrl}/api/GetDepartment");
+
+            if ($response->successful()) {
+                $body = $response->json();
+                if (isset($body['Result']) && is_array($body['Result'])) {
+                    $departments = $body['Result'];
+                }
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to fetch departments from SAP: ' . $e->getMessage());
+        }
+
+        if (empty($departments)) {
+            $departments = [
+                ['Code' => '-2', 'Remarks' => 'General Department', 'Name' => 'General'],
+                ['Code' => '1', 'Remarks' => 'Production', 'Name' => 'PRO'],
+                ['Code' => '2', 'Remarks' => 'Quality Control', 'Name' => 'QC'],
+                ['Code' => '3', 'Remarks' => 'Warehouse', 'Name' => 'WRH'],
+                ['Code' => '4', 'Remarks' => 'Marketing', 'Name' => 'MKT'],
+                ['Code' => '5', 'Remarks' => 'Pengiriman (Delivery)', 'Name' => 'PRM'],
+                ['Code' => '6', 'Remarks' => 'Management', 'Name' => 'MGM'],
+                ['Code' => '7', 'Remarks' => 'Financial & Accounting', 'Name' => 'FAT'],
+                ['Code' => '8', 'Remarks' => 'Information Technology', 'Name' => 'IT'],
+                ['Code' => '9', 'Remarks' => 'Purchasing', 'Name' => 'PCG'],
+                ['Code' => '10', 'Remarks' => 'GA & HRD', 'Name' => 'HRD'],
+                ['Code' => '11', 'Remarks' => 'SECURITY', 'Name' => 'SECURITY'],
+                ['Code' => '12', 'Remarks' => 'MTC', 'Name' => 'MAINTANANCE'],
+                ['Code' => '13', 'Remarks' => 'LGC', 'Name' => 'LOGISTIC'],
+            ];
+        }
+
+        if ($search !== null && $search !== '') {
+            $term = strtolower(trim($search));
+            $departments = array_values(array_filter($departments, function ($dept) use ($term) {
+                return str_contains(strtolower($dept['Name'] ?? ''), $term)
+                    || str_contains(strtolower($dept['Remarks'] ?? ''), $term)
+                    || str_contains(strtolower((string)($dept['Code'] ?? '')), $term);
+            }));
+        }
+
+        return $departments;
+    }
+
+    /**
      * Get item list for Purchase Request with default UoM parameters.
      */
     public function getItems(array $filters = []): array

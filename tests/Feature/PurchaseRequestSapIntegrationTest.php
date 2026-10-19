@@ -268,4 +268,101 @@ class PurchaseRequestSapIntegrationTest extends TestCase
             'message' => 'Purchasing Request berhasil dibuat.',
         ]);
     }
+
+    public function test_get_departments_returns_sap_department_list()
+    {
+        Http::fake([
+            '*/api/GetDepartment' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => '',
+                'Result' => [
+                    ['Code' => '-2', 'Remarks' => 'General Department', 'Name' => 'General'],
+                    ['Code' => '1', 'Remarks' => 'Production', 'Name' => 'PRO'],
+                    ['Code' => '2', 'Remarks' => 'Quality Control', 'Name' => 'QC'],
+                ],
+            ], 200)
+        ]);
+
+        $response = $this->getJson('/api/GetDepartment');
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'ErrorCode' => 0,
+            'Message' => '',
+            'Result' => [
+                ['Code' => '-2', 'Remarks' => 'General Department', 'Name' => 'General'],
+                ['Code' => '1', 'Remarks' => 'Production', 'Name' => 'PRO'],
+                ['Code' => '2', 'Remarks' => 'Quality Control', 'Name' => 'QC'],
+            ]
+        ]);
+    }
+
+    public function test_get_departments_post_method_supported()
+    {
+        Http::fake([
+            '*/api/GetDepartment' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => '',
+                'Result' => [
+                    ['Code' => '-2', 'Remarks' => 'General Department', 'Name' => 'General'],
+                    ['Code' => '1', 'Remarks' => 'Production', 'Name' => 'PRO'],
+                ],
+            ], 200)
+        ]);
+
+        $response = $this->postJson('/api/GetDepartment');
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'ErrorCode' => 0,
+            'Message' => '',
+            'Result' => [
+                ['Code' => '-2', 'Remarks' => 'General Department', 'Name' => 'General'],
+                ['Code' => '1', 'Remarks' => 'Production', 'Name' => 'PRO'],
+            ]
+        ]);
+    }
+
+    public function test_get_departments_filters_by_search_term()
+    {
+        Http::fake([
+            '*/api/GetDepartment' => Http::response([
+                'ErrorCode' => 0,
+                'Message' => '',
+                'Result' => [
+                    ['Code' => '-2', 'Remarks' => 'General Department', 'Name' => 'General'],
+                    ['Code' => '1', 'Remarks' => 'Production', 'Name' => 'PRO'],
+                    ['Code' => '2', 'Remarks' => 'Quality Control', 'Name' => 'QC'],
+                ],
+            ], 200)
+        ]);
+
+        $response = $this->getJson('/api/GetDepartment?search=PRO');
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'ErrorCode' => 0,
+            'Message' => '',
+            'Result' => [
+                ['Code' => '1', 'Remarks' => 'Production', 'Name' => 'PRO'],
+            ]
+        ]);
+        $response->assertJsonMissing(['Name' => 'General']);
+    }
+
+    public function test_get_departments_graceful_fallback_when_sap_fails()
+    {
+        Http::fake([
+            '*/api/GetDepartment' => Http::response(['ErrorCode' => -1, 'Message' => 'Error'], 500)
+        ]);
+
+        $response = $this->getJson('/api/GetDepartment');
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'ErrorCode' => 0,
+            'Message' => '',
+        ]);
+        $this->assertNotEmpty($response->json('Result'));
+    }
 }
