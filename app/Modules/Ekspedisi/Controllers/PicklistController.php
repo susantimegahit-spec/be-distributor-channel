@@ -542,4 +542,74 @@ class PicklistController extends Controller
     {
         return $this->picklistService->previewLabelPhoto($id, $itemId, $photoId);
     }
+
+    /**
+     * Record start time for a picklist item checklist (KPI).
+     */
+    public function startItemTime(Request $request, ?int $id = null, ?int $itemId = null): JsonResponse
+    {
+        $request->validate([
+            'start_time'         => 'nullable|date',
+            'startTime'          => 'nullable|date',
+            'jam_mulai'          => 'nullable|date',
+            'checker_name'       => 'nullable|string|max:100',
+            'checkerName'        => 'nullable|string|max:100',
+            'NamaChecker'        => 'nullable|string|max:100',
+            'nama_checker'       => 'nullable|string|max:100',
+            'checked_by_checker' => 'nullable|string|max:100',
+            'overwrite'          => 'nullable|boolean',
+            'item_id'            => 'nullable|integer',
+            'itemId'             => 'nullable|integer',
+            'picklist_item_id'   => 'nullable|integer',
+        ]);
+
+        try {
+            $user = $request->user();
+
+            $routeItemId = $request->route('itemId') ?? $request->route('item_id');
+            $routeId = $request->route('id');
+
+            if ($routeId !== null && $routeItemId !== null) {
+                $resolvedPicklistId = (int) $routeId;
+                $resolvedItemId = (int) $routeItemId;
+            } elseif ($routeItemId !== null && $routeId === null) {
+                $resolvedPicklistId = $request->input('picklist_id') ? (int) $request->input('picklist_id') : null;
+                $resolvedItemId = (int) $routeItemId;
+            } else {
+                $resolvedPicklistId = $routeId !== null ? (int) $routeId : ($request->input('picklist_id') ? (int) $request->input('picklist_id') : null);
+                $resolvedItemId = $itemId 
+                    ?? $request->input('item_id') 
+                    ?? $request->input('itemId') 
+                    ?? $request->input('picklist_item_id') 
+                    ?? $request->input('id');
+            }
+
+            if (!$resolvedItemId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Item ID is required to record start time.',
+                ], 422);
+            }
+
+            $result = $this->picklistService->startItemTime(
+                $resolvedPicklistId,
+                (int) $resolvedItemId,
+                $request->all(),
+                $user?->id
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Start time recorded successfully.',
+                'data'    => $result,
+            ], 200);
+        } catch (\Throwable $e) {
+            $statusCode = ($e->getCode() >= 400 && $e->getCode() < 600) ? (int) $e->getCode() : 400;
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $statusCode);
+        }
+    }
 }
+

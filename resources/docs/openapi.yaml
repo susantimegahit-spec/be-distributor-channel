@@ -20185,6 +20185,111 @@ paths:
         '404':
           description: Foto label tidak ditemukan.
 
+  /v1/logistic/picklists/{id}/items/{itemId}/start-time:
+    post:
+      summary: Catat Waktu Mulai Pemeriksaan Item (Start Time KPI)
+      description: |
+        Mencatat timestamp waktu mulai (`start_time`) pemeriksaan barang oleh checker pada item picklist tertentu secara instan.
+        Endpoint ini dibuat khusus agar checker dapat langsung mencatat waktu awal saat tombol "Start" diklik pada aplikasi, sehingga jika aplikasi di-minimize, ditutup sementara, atau koneksi terputus, waktu mulai pemeriksaan tidak hilang dan tercatat akurat di server.
+        - Jika field `start_time` tidak dikirim di request body, sistem otomatis menggunakan waktu server saat ini (`now()`).
+        - Jika item sudah memiliki `start_time` dan parameter `overwrite` tidak bernilai `true`, server mempertahankan `start_time` pertama agar durasi KPI tidak ter-reset saat aplikasi dibuka kembali.
+        - Status picklist yang sebelumnya `open` atau `weigh_in` otomatis berubah menjadi `inprogress`.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Picklist
+          schema:
+            type: integer
+        - name: itemId
+          in: path
+          required: true
+          description: ID Picklist Item (picklist_items.id) atau Sales Order Detail ID
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                start_time:
+                  type: string
+                  format: date-time
+                  description: Timestamp waktu mulai pemeriksaan (opsional, default waktu server saat ini)
+                  example: "2026-10-21T08:45:00"
+                checker_name:
+                  type: string
+                  description: Nama checker yang melakukan pemeriksaan (opsional)
+                  example: "NANANG"
+                overwrite:
+                  type: boolean
+                  description: Paksa update waktu mulai jika item sudah memiliki start_time sebelumnya (default false)
+                  example: false
+      responses:
+        '200':
+          description: Start time berhasil dicatat.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Start time recorded successfully."
+                  data:
+                    type: object
+                    properties:
+                      picklist_id:
+                        type: integer
+                        example: 10
+                      picklist_no:
+                        type: string
+                        example: "PKL-202610-001"
+                      picklist_status:
+                        type: string
+                        example: "inprogress"
+                      item_id:
+                        type: integer
+                        example: 25
+                      sales_order_id:
+                        type: integer
+                        example: 101
+                      item_code:
+                        type: string
+                        example: "FG-001"
+                      item_name:
+                        type: string
+                        example: "Garam Halus 250gr"
+                      whs_code:
+                        type: string
+                        example: "WHS-FG"
+                      uom:
+                        type: string
+                        example: "SAK"
+                      start_time:
+                        type: string
+                        format: date-time
+                        example: "2026-10-21 08:45:00"
+                      checked_by_checker:
+                        type: string
+                        example: "NANANG"
+                      is_checked:
+                        type: boolean
+                        example: false
+        '400':
+          description: Picklist sudah berstatus COMPLETED atau CANCELLED.
+        '404':
+          description: Picklist atau item tidak ditemukan.
+
   /v1/logistic/picklists/{id}/save-draft:
     post:
       summary: Simpan Progres Draft Checklist & Tanda Tangan Picklist (Multi-Checker)

@@ -3128,4 +3128,133 @@ class PicklistService
 
         abort(404, 'Label photo file not found on disk.');
     }
+
+    /**
+     * Record start time for a picklist item checklist (KPI).
+     *
+     * @param int|Picklist|null $picklistOrId
+     * @param int $itemId
+     * @param array $payload
+     * @param int|null $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function startItemTime(int|Picklist|null $picklistOrId, int $itemId, array $payload = [], ?int $userId = null): array
+    {
+        $picklist = null;
+        if ($picklistOrId instanceof Picklist) {
+            $picklist = $picklistOrId;
+        } elseif (is_numeric($picklistOrId) && (int) $picklistOrId > 0) {
+            $picklist = Picklist::find($picklistOrId);
+            if (!$picklist) {
+                throw new \Exception("Picklist with ID #{$picklistOrId} not found.", 404);
+            }
+        }
+
+        // Match target PicklistItem
+        $targetItem = null;
+        if ($picklist) {
+            $targetItem = PicklistItem::where('picklist_id', $picklist->id)
+                ->where(function ($q) use ($itemId) {
+                    $q->where('id', $itemId)
+                      ->orWhere('sales_order_detail_id', $itemId);
+                })
+                ->first();
+        }
+
+        if (!$targetItem) {
+            $targetItem = PicklistItem::find($itemId);
+            if ($targetItem && $picklist && (int) $targetItem->picklist_id !== (int) $picklist->id) {
+                throw new \Exception("Item #{$itemId} does not belong to Picklist #{$picklist->id}.", 400);
+            }
+        }
+
+        if (!$targetItem) {
+            throw new \Exception("Picklist item with ID #{$itemId} not found.", 404);
+        }
+
+        if (!$picklist) {
+            $picklist = Picklist::find($targetItem->picklist_id);
+            if (!$picklist) {
+                throw new \Exception("Picklist associated with item #{$itemId} not found.", 404);
+            }
+        }
+
+        $statusLower = strtolower(trim((string) $picklist->status));
+        if (in_array($statusLower, [Picklist::STATUS_CANCELED, 'cancelled', 'canceled'], true)) {
+            throw new \Exception("Cannot start item for a CANCELLED picklist.", 400);
+        }
+
+        if (in_array($statusLower, [Picklist::STATUS_COMPLETE, 'complete', 'completed'], true)) {
+            throw new \Exception("Cannot start item for an already COMPLETED picklist.", 400);
+        }
+
+        // Advance status from OPEN or WEIGH_IN to IN_PROGRESS
+        if (in_array($statusLower, [Picklist::STATUS_OPEN, Picklist::STATUS_WEIGH_IN, 'open', 'weigh_in'], true)) {
+            $picklist->status = Picklist::STATUS_IN_PROGRESS;
+            $picklist->updated_by = $userId;
+            $picklist->save();
+        }
+
+        // Determine start_time
+        $rawStartTime = $payload['start_time'] ?? $payload['startTime'] ?? $payload['jam_mulai'] ?? null;
+        $overwrite = filter_var($payload['overwrite'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+        if (!empty($rawStartTime)) {
+            $startTime = Carbon::parse($rawStartTime);
+        } elseif ($targetItem->start_time && !$overwrite) {
+            // Keep existing start_time so app minimizing / reopening does not reset the initial start timestamp
+            $startTime = $targetItem->start_time;
+        } else {
+            $startTime = now();
+        }
+
+        $targetItem->start_time = $startTime;
+
+        // Determine checker name
+        $incomingChecker = $payload['checker_name'] ?? $payload['checkerName'] ?? $payload['NamaChecker'] ?? $payload['nama_checker'] ?? ($payload['checked_by_checker'] ?? null);
+        if (!empty($incomingChecker)) {
+            $checkerStr = trim((string) $incomingChecker);
+            $targetItem->checked_by_checker = $checkerStr;
+
+            if (empty($picklist->checker_name)) {
+                $picklist->checker_name = $checkerStr;
+                $picklist->save();
+            } else {
+                $existingCheckers = array_filter(array_map('trim', explode('/', (string) $picklist->checker_name)));
+                if (!in_array($checkerStr, $existingCheckers, true)) {
+                    $existingCheckers[] = $checkerStr;
+                    $picklist->checker_name = implode('/', $existingCheckers);
+                    $picklist->save();
+                }
+            }
+        } elseif (empty($targetItem->checked_by_checker)) {
+            $user = $userId ? User::find($userId) : null;
+            if ($user?->name) {
+                $targetItem->checked_by_checker = $user->name;
+            }
+        }
+
+        $targetItem->save();
+
+        $freshItem = $targetItem->fresh();
+        $freshItem->makeHidden(['order_number', 'order_no']);
+
+        return [
+            'picklist_id'        => (int) $picklist->id,
+            'picklist_no'        => (string) $picklist->picklist_no,
+            'picklist_status'    => (string) $picklist->status,
+            'item_id'            => (int) $targetItem->id,
+            'sales_order_id'     => (int) $targetItem->sales_order_id,
+            'item_code'          => (string) $targetItem->item_code,
+            'item_name'          => (string) $targetItem->item_name,
+            'whs_code'           => (string) $targetItem->whs_code,
+            'uom'                => (string) ($targetItem->unit_msr ?? ''),
+            'start_time'         => $targetItem->start_time?->toDateTimeString(),
+            'checked_by_checker' => (string) ($targetItem->checked_by_checker ?? ''),
+            'is_checked'         => (bool) $targetItem->is_checked,
+            'item'               => $freshItem,
+        ];
+    }
 }
+
