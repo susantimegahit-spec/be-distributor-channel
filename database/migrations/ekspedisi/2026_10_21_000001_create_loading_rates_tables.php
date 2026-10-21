@@ -45,6 +45,8 @@ return new class extends Migration
                 $table->string('code', 50)->unique()->comment('Calculation type code: REGULAR, OVERTIME');
                 $table->string('name', 100)->comment('Display name: Regular, Overtime / Lembur');
                 $table->text('description')->nullable();
+                $table->time('start_time')->nullable()->comment('Jam mulai berlaku (misal 16:30:00)');
+                $table->time('end_time')->nullable()->comment('Jam selesai berlaku (misal 02:00:00)');
                 $table->boolean('is_active')->default(true);
                 $table->timestamps();
             });
@@ -55,6 +57,8 @@ return new class extends Migration
                     'code'        => 'REGULAR',
                     'name'        => 'Regular',
                     'description' => 'Ongkos angkut kuli jam kerja reguler',
+                    'start_time'  => '08:00:00',
+                    'end_time'    => '16:30:00',
                     'is_active'   => true,
                     'created_at'  => now(),
                     'updated_at'  => now(),
@@ -63,11 +67,30 @@ return new class extends Migration
                     'code'        => 'OVERTIME',
                     'name'        => 'Overtime',
                     'description' => 'Ongkos angkut kuli lembur',
+                    'start_time'  => '16:30:00',
+                    'end_time'    => '02:00:00',
                     'is_active'   => true,
                     'created_at'  => now(),
                     'updated_at'  => now(),
                 ],
             ]);
+        } else {
+            if (!Schema::connection($conn)->hasColumn('loading_rate_types', 'start_time')) {
+                Schema::connection($conn)->table('loading_rate_types', function (Blueprint $table) {
+                    $table->time('start_time')->nullable()->after('description')->comment('Jam mulai berlaku (misal 16:30:00)');
+                    $table->time('end_time')->nullable()->after('start_time')->comment('Jam selesai berlaku (misal 02:00:00)');
+                });
+
+                // Update default seed times if present
+                DB::connection($conn)->table('loading_rate_types')->where('code', 'REGULAR')->update([
+                    'start_time' => '08:00:00',
+                    'end_time'   => '16:30:00',
+                ]);
+                DB::connection($conn)->table('loading_rate_types')->where('code', 'OVERTIME')->update([
+                    'start_time' => '16:30:00',
+                    'end_time'   => '02:00:00',
+                ]);
+            }
         }
 
         // 3. Table: loading_rates (Master data tarif ongkos angkut)

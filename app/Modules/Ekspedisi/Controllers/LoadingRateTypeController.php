@@ -47,6 +47,8 @@ class LoadingRateTypeController extends Controller
             'code'        => 'required|string|max:50',
             'name'        => 'required|string|max:100',
             'description' => 'nullable|string|max:500',
+            'start_time'  => 'nullable|string|max:20',
+            'end_time'    => 'nullable|string|max:20',
             'is_active'   => 'nullable|boolean',
         ]);
 
@@ -65,6 +67,8 @@ class LoadingRateTypeController extends Controller
             'code'        => $code,
             'name'        => trim((string) $request->input('name')),
             'description' => $request->input('description'),
+            'start_time'  => $this->formatTimeInput($request->input('start_time')),
+            'end_time'    => $this->formatTimeInput($request->input('end_time')),
             'is_active'   => $request->boolean('is_active', true),
         ]);
 
@@ -100,6 +104,8 @@ class LoadingRateTypeController extends Controller
             'code'        => 'nullable|string|max:50',
             'name'        => 'nullable|string|max:100',
             'description' => 'nullable|string|max:500',
+            'start_time'  => 'nullable|string|max:20',
+            'end_time'    => 'nullable|string|max:20',
             'is_active'   => 'nullable|boolean',
         ]);
 
@@ -124,6 +130,14 @@ class LoadingRateTypeController extends Controller
             $type->description = $request->input('description');
         }
 
+        if ($request->has('start_time')) {
+            $type->start_time = $this->formatTimeInput($request->input('start_time'));
+        }
+
+        if ($request->has('end_time')) {
+            $type->end_time = $this->formatTimeInput($request->input('end_time'));
+        }
+
         if ($request->has('is_active')) {
             $type->is_active = $request->boolean('is_active');
         }
@@ -131,6 +145,25 @@ class LoadingRateTypeController extends Controller
         $type->save();
 
         return $this->successResponse($type, 'Jenis perhitungan tarif angkut berhasil diperbarui.');
+    }
+
+    /**
+     * Format time input (support HH:MM, HH.MM, HH:MM:SS) to standard HH:MM:SS.
+     */
+    protected function formatTimeInput(?string $time): ?string
+    {
+        if (empty($time)) {
+            return null;
+        }
+        $clean = trim(str_replace('.', ':', $time));
+        $parts = explode(':', $clean);
+        if (count($parts) === 2) {
+            return sprintf('%02d:%02d:00', (int) $parts[0], (int) $parts[1]);
+        }
+        if (count($parts) >= 3) {
+            return sprintf('%02d:%02d:%02d', (int) $parts[0], (int) $parts[1], (int) $parts[2]);
+        }
+        return $clean;
     }
 
     /**

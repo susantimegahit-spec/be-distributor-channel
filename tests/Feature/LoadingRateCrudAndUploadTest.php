@@ -56,37 +56,53 @@ class LoadingRateCrudAndUploadTest extends TestCase
 
     public function test_can_list_and_create_loading_rate_types(): void
     {
-        // 1. List default types (REGULAR, OVERTIME seeded by migration)
+        // 1. List default types (REGULAR, OVERTIME seeded by migration with start_time & end_time)
         $listRes = $this->actingAs($this->user)->getJson('/api/distributor-channel/v1/ekspedisi/loading-rate-types');
         $listRes->assertStatus(200)
             ->assertJsonPath('success', true);
 
-        // 2. Create custom rate type
+        // 2. Create custom rate type with start_time and end_time (e.g. 16.30 to 02.00)
         $uniqueCode = strtoupper('SPECIAL_' . uniqid());
         $createRes = $this->actingAs($this->user)->postJson('/api/distributor-channel/v1/ekspedisi/loading-rate-types', [
             'code'        => $uniqueCode,
-            'name'        => 'Tarif Khusus Hari Libur',
-            'description' => 'Tarif untuk hari libur nasional',
+            'name'        => 'Tarif Khusus Malam / Lembur',
+            'description' => 'Tarif untuk jam kerja lembur malam',
+            'start_time'  => '16.30',
+            'end_time'    => '02.00',
             'is_active'   => true,
         ]);
 
         $createRes->assertStatus(201)
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.code', $uniqueCode);
+            ->assertJsonPath('data.code', $uniqueCode)
+            ->assertJsonPath('data.start_time', '16:30:00')
+            ->assertJsonPath('data.end_time', '02:00:00');
 
         $typeId = $createRes->json('data.id');
 
         // 3. Show
         $showRes = $this->actingAs($this->user)->getJson("/api/distributor-channel/v1/ekspedisi/loading-rate-types/{$typeId}");
         $showRes->assertStatus(200)
-            ->assertJsonPath('data.code', $uniqueCode);
+            ->assertJsonPath('data.code', $uniqueCode)
+            ->assertJsonPath('data.start_time', '16:30:00')
+            ->assertJsonPath('data.end_time', '02:00:00');
 
-        // 4. Update
+        // Verify helper method handles crossing midnight
+        $typeModel = LoadingRateType::find($typeId);
+        $this->assertTrue($typeModel->isTimeInRange('20:00:00'));
+        $this->assertTrue($typeModel->isTimeInRange('01:30:00'));
+        $this->assertFalse($typeModel->isTimeInRange('12:00:00'));
+
+        // 4. Update start_time and end_time
         $updateRes = $this->actingAs($this->user)->putJson("/api/distributor-channel/v1/ekspedisi/loading-rate-types/{$typeId}", [
-            'name' => 'Tarif Khusus Holiday Updated',
+            'name'       => 'Tarif Khusus Shift 3',
+            'start_time' => '17:00:00',
+            'end_time'   => '03:00:00',
         ]);
         $updateRes->assertStatus(200)
-            ->assertJsonPath('data.name', 'Tarif Khusus Holiday Updated');
+            ->assertJsonPath('data.name', 'Tarif Khusus Shift 3')
+            ->assertJsonPath('data.start_time', '17:00:00')
+            ->assertJsonPath('data.end_time', '03:00:00');
 
         // 5. Delete
         $delRes = $this->actingAs($this->user)->deleteJson("/api/distributor-channel/v1/ekspedisi/loading-rate-types/{$typeId}");

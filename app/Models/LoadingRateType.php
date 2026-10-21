@@ -31,6 +31,8 @@ class LoadingRateType extends Model
         'code',
         'name',
         'description',
+        'start_time',
+        'end_time',
         'is_active',
     ];
 
@@ -49,6 +51,40 @@ class LoadingRateType extends Model
             return end($parts);
         }
         return $table;
+    }
+
+    /**
+     * Check if a given time (format H:i or H:i:s, default now) falls within this rate type's active window.
+     * Handles intervals that cross midnight (e.g. 16:30:00 to 02:00:00).
+     */
+    public function isTimeInRange(?string $time = null): bool
+    {
+        if (empty($this->start_time) || empty($this->end_time)) {
+            return false;
+        }
+
+        $checkTime = $time ? substr($time, 0, 8) : now()->format('H:i:s');
+        $start = substr((string) $this->start_time, 0, 8);
+        $end = substr((string) $this->end_time, 0, 8);
+
+        // Normalize string comparison length
+        if (strlen($checkTime) === 5) {
+            $checkTime .= ':00';
+        }
+        if (strlen($start) === 5) {
+            $start .= ':00';
+        }
+        if (strlen($end) === 5) {
+            $end .= ':00';
+        }
+
+        if ($start <= $end) {
+            // Standard daytime interval, e.g. 08:00:00 to 16:30:00
+            return $checkTime >= $start && $checkTime <= $end;
+        }
+
+        // Interval crosses midnight, e.g. 16:30:00 to 02:00:00
+        return $checkTime >= $start || $checkTime <= $end;
     }
 
     /**

@@ -21284,6 +21284,14 @@ paths:
                 description:
                   type: string
                   example: "Ongkos angkut jam kerja reguler"
+                start_time:
+                  type: string
+                  description: Jam mulai berlaku (format HH:mm atau HH:mm:ss)
+                  example: "08:00:00"
+                end_time:
+                  type: string
+                  description: Jam selesai berlaku (format HH:mm atau HH:mm:ss, misal lembur sampai 02:00)
+                  example: "16:30:00"
                 is_active:
                   type: boolean
                   example: true
@@ -21333,6 +21341,12 @@ paths:
                   type: string
                 description:
                   type: string
+                start_time:
+                  type: string
+                  example: "16:30:00"
+                end_time:
+                  type: string
+                  example: "02:00:00"
                 is_active:
                   type: boolean
       responses:
