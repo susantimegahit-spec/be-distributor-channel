@@ -6,6 +6,8 @@ use App\Modules\Ekspedisi\Controllers\WilayahController;
 use App\Modules\Ekspedisi\Controllers\MasterLeadtimeController;
 use App\Modules\Ekspedisi\Controllers\WarehouseOriginController;
 use App\Modules\Ekspedisi\Controllers\SapEkspedisiController;
+use App\Modules\Ekspedisi\Controllers\LoadingRateController;
+use App\Modules\Ekspedisi\Controllers\LoadingRateTypeController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/ekspedisi')->middleware('auth:sanctum')->group(function () {
@@ -42,6 +44,22 @@ Route::prefix('v1/ekspedisi')->middleware('auth:sanctum')->group(function () {
 
     // Master Leadtime (Logistics Route Benchmark Lead Time)
     Route::apiResource('leadtimes', MasterLeadtimeController::class);
+
+    // Upload & Template Master Ongkos Angkut Kuli (harus dideklarasikan sebelum apiResource agar tidak bentrok dengan {id})
+    Route::post('loading-rates/upload', [LoadingRateController::class, 'upload']);
+    Route::get('loading-rates/template', [LoadingRateController::class, 'template']);
+
+    // Master Ongkos Angkut Kuli (Loading Rates) & Jenis Perhitungan (Loading Rate Types: REGULAR / OVERTIME)
+    Route::apiResource('loading-rate-types', LoadingRateTypeController::class);
+    Route::apiResource('loading-rates', LoadingRateController::class);
+});
+
+// Logistic Alias Routes for Loading Rates & Rate Types
+Route::prefix('v1/logistic')->middleware('auth:sanctum')->group(function () {
+    Route::post('loading-rates/upload', [LoadingRateController::class, 'upload']);
+    Route::get('loading-rates/template', [LoadingRateController::class, 'template']);
+    Route::apiResource('loading-rate-types', LoadingRateTypeController::class);
+    Route::apiResource('loading-rates', LoadingRateController::class);
 });
 
 // Logistic & Sales Order Delivery Monitoring Routes
