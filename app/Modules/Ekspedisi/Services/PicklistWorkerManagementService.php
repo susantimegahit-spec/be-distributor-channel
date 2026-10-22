@@ -67,23 +67,33 @@ class PicklistWorkerManagementService
         // Search filter
         if (!empty($filters['search'])) {
             $search = trim((string) $filters['search']);
-            $query->where(function (Builder $q) use ($search) {
-                $q->where('picklist_no', 'ilike', "%{$search}%")
-                    ->orWhere('delivery_order_no', 'ilike', "%{$search}%")
-                    ->orWhere('license_plate', 'ilike', "%{$search}%")
-                    ->orWhere('driver_name', 'ilike', "%{$search}%")
-                    ->orWhere('checker_name', 'ilike', "%{$search}%")
-                    ->orWhere('comments', 'ilike', "%{$search}%")
-                    ->orWhereHas('workers', function (Builder $wq) use ($search) {
-                        $wq->where('worker_name', 'ilike', "%{$search}%")
-                            ->orWhere('item_code', 'ilike', "%{$search}%")
-                            ->orWhere('item_name', 'ilike', "%{$search}%");
-                    })
-                    ->orWhereHas('items.salesOrder', function (Builder $sq) use ($search) {
-                        $sq->where('order_no', 'ilike', "%{$search}%")
-                            ->orWhere('sap_doc_num', 'ilike', "%{$search}%")
-                            ->orWhere('customer_name', 'ilike', "%{$search}%");
+            $isPgsql = (new Picklist())->getConnection()->getDriverName() === 'pgsql';
+            $likeOp = $isPgsql ? 'ilike' : 'like';
+
+            $matchingSoIds = \App\Models\SalesOrder::where('order_no', $likeOp, "%{$search}%")
+                ->orWhere('sap_doc_num', $likeOp, "%{$search}%")
+                ->orWhere('customer_name', $likeOp, "%{$search}%")
+                ->pluck('id')
+                ->toArray();
+
+            $query->where(function (Builder $q) use ($search, $likeOp, $matchingSoIds) {
+                $q->where('picklist_no', $likeOp, "%{$search}%")
+                    ->orWhere('delivery_order_no', $likeOp, "%{$search}%")
+                    ->orWhere('license_plate', $likeOp, "%{$search}%")
+                    ->orWhere('driver_name', $likeOp, "%{$search}%")
+                    ->orWhere('checker_name', $likeOp, "%{$search}%")
+                    ->orWhere('comments', $likeOp, "%{$search}%")
+                    ->orWhereHas('workers', function (Builder $wq) use ($search, $likeOp) {
+                        $wq->where('worker_name', $likeOp, "%{$search}%")
+                            ->orWhere('item_code', $likeOp, "%{$search}%")
+                            ->orWhere('item_name', $likeOp, "%{$search}%");
                     });
+
+                if (!empty($matchingSoIds)) {
+                    $q->orWhereHas('items', function (Builder $iq) use ($matchingSoIds) {
+                        $iq->whereIn('sales_order_id', $matchingSoIds);
+                    });
+                }
             });
         }
 
@@ -307,10 +317,16 @@ class PicklistWorkerManagementService
         $refDateTime = null;
         $sourceDesc = 'waktu pembaruan picklist';
 
-        // Priority 1: Picklist items' latest end_time or checked_at
+        // Priority 1: Picklist items' start_time, end_time, or checked_at
         $latestItemTime = null;
         foreach ($picklist->items as $item) {
-            if (!empty($item->end_time)) {
+            if (!empty($item->start_time)) {
+                $parsed = Carbon::parse($item->start_time);
+                if (!$latestItemTime || $parsed->gt($latestItemTime)) {
+                    $latestItemTime = $parsed;
+                    $sourceDesc = 'jam mulai muat item (start_time)';
+                }
+            } elseif (!empty($item->end_time)) {
                 $parsed = Carbon::parse($item->end_time);
                 if (!$latestItemTime || $parsed->gt($latestItemTime)) {
                     $latestItemTime = $parsed;
@@ -346,47 +362,69 @@ class PicklistWorkerManagementService
         }
 
         $timeStr = $refDateTime->format('H:i:s');
+        $timeEvaluation = $this->determineTimeRateType($timeStr, $rateTypes);
+
+        return [
+            'rate_type'           => $timeEvaluation['rate_type'],
+            'is_overtime'         => $timeEvaluation['is_overtime'],
+            'reference_time'      => $timeStr,
+            'reference_timestamp' => $refDateTime->toIso8601String(),
+            'source_description'  => $sourceDesc,
+            'reason'              => "Waktu operasional {$timeStr} ({$sourceDesc}) " . ($timeEvaluation['is_overtime'] ? "masuk jam lembur." : "masuk jam kerja reguler."),
+        ];
+    }
+
+    /**
+     * Determine rate type (REGULAR or OVERTIME) for a specific time string (H:i:s).
+     *
+     * @param string|null $timeStr
+     * @param \Illuminate\Support\Collection|null $rateTypes
+     * @return array
+     */
+    public function determineTimeRateType(?string $timeStr, $rateTypes = null): array
+    {
+        $rateTypes = $rateTypes ?: LoadingRateType::where('is_active', true)->get();
 
         $otType = $rateTypes->first(fn($t) => strtoupper($t->code) === LoadingRateType::TYPE_OVERTIME || strtoupper($t->code) === 'LEMBUR');
         $regType = $rateTypes->first(fn($t) => strtoupper($t->code) === LoadingRateType::TYPE_REGULAR || strtoupper($t->code) === 'REGULER');
 
-        $isOt = false;
-        $rateTypeCode = LoadingRateType::TYPE_REGULAR;
-        $reason = '';
+        $timeStr = $timeStr ? substr($timeStr, 0, 8) : now()->format('H:i:s');
 
         if ($otType && $otType->isTimeInRange($timeStr)) {
-            $isOt = true;
-            $rateTypeCode = LoadingRateType::TYPE_OVERTIME;
-            $reason = "Waktu operasional {$timeStr} ({$sourceDesc}) berada dalam jam lembur ({$otType->start_time} - {$otType->end_time}).";
-        } elseif ($regType && $regType->isTimeInRange($timeStr)) {
-            $isOt = false;
-            $rateTypeCode = LoadingRateType::TYPE_REGULAR;
-            $reason = "Waktu operasional {$timeStr} ({$sourceDesc}) berada dalam jam kerja reguler ({$regType->start_time} - {$regType->end_time}).";
-        } else {
-            // Standard fallback comparison: 16:30 - 08:00 is overtime
-            if ($timeStr >= '16:30:00' || $timeStr < '08:00:00') {
-                $isOt = true;
-                $rateTypeCode = LoadingRateType::TYPE_OVERTIME;
-                $reason = "Waktu operasional {$timeStr} ({$sourceDesc}) berada di luar jam kerja reguler (masuk lembur).";
-            } else {
-                $isOt = false;
-                $rateTypeCode = LoadingRateType::TYPE_REGULAR;
-                $reason = "Waktu operasional {$timeStr} ({$sourceDesc}) berada dalam jam kerja reguler.";
-            }
+            return [
+                'rate_type'   => LoadingRateType::TYPE_OVERTIME,
+                'is_overtime' => true,
+                'reason'      => "Waktu {$timeStr} berada dalam jam lembur ({$otType->start_time} - {$otType->end_time}).",
+            ];
+        }
+
+        if ($regType && $regType->isTimeInRange($timeStr)) {
+            return [
+                'rate_type'   => LoadingRateType::TYPE_REGULAR,
+                'is_overtime' => false,
+                'reason'      => "Waktu {$timeStr} berada dalam jam kerja reguler ({$regType->start_time} - {$regType->end_time}).",
+            ];
+        }
+
+        // Standard fallback comparison: 16:30 - 08:00 is overtime
+        if ($timeStr >= '16:30:00' || $timeStr < '08:00:00') {
+            return [
+                'rate_type'   => LoadingRateType::TYPE_OVERTIME,
+                'is_overtime' => true,
+                'reason'      => "Waktu {$timeStr} berada di luar jam kerja reguler (masuk lembur).",
+            ];
         }
 
         return [
-            'rate_type'           => $rateTypeCode,
-            'is_overtime'         => $isOt,
-            'reference_time'      => $timeStr,
-            'reference_timestamp' => $refDateTime->toIso8601String(),
-            'source_description'  => $sourceDesc,
-            'reason'              => $reason,
+            'rate_type'   => LoadingRateType::TYPE_REGULAR,
+            'is_overtime' => false,
+            'reason'      => "Waktu {$timeStr} berada dalam jam kerja reguler.",
         ];
     }
 
     /**
      * Calculate worker calculation breakdown and comparison between regular and overtime.
+     * When worker records are empty, automatically calculates loading fees from picklist items and their start_time.
      *
      * @param Picklist $picklist
      * @param \Illuminate\Support\Collection $masterRates
@@ -415,44 +453,170 @@ class PicklistWorkerManagementService
         $byWorkerGroup = [];
         $byItemGroup = [];
 
-        foreach ($workers as $w) {
-            $itemCode = (string) $w->item_code;
-            $qty = (float) $w->qty;
-            $totalQty += $qty;
-            $wName = !empty($w->worker_name) ? trim((string) $w->worker_name) : 'Tanpa Nama';
-            $workerNames[$wName] = true;
+        $hasExplicitWorkers = $workers->isNotEmpty();
 
-            // Lookup regular master rate
-            $regModel = $masterRates->first(function ($r) use ($itemCode) {
-                return $r->item_code === $itemCode &&
-                    (strtoupper($r->rate_type) === LoadingRateType::TYPE_REGULAR || strtoupper($r->rate_type) === 'REGULER');
-            });
-            $regularRate = $regModel ? (float) $regModel->rate : 0.0;
+        if ($hasExplicitWorkers) {
+            // Case A: Explicit worker records saved on picklist
+            foreach ($workers as $w) {
+                $itemCode = (string) $w->item_code;
+                $qty = (float) $w->qty;
+                $totalQty += $qty;
+                $wName = !empty($w->worker_name) ? trim((string) $w->worker_name) : 'Tanpa Nama';
+                $workerNames[$wName] = true;
 
-            // Lookup overtime master rate
-            $otModel = $masterRates->first(function ($r) use ($itemCode) {
-                return $r->item_code === $itemCode &&
-                    (strtoupper($r->rate_type) === LoadingRateType::TYPE_OVERTIME || strtoupper($r->rate_type) === 'LEMBUR');
-            });
-            $overtimeRate = $otModel ? (float) $otModel->rate : 0.0;
+                // Lookup regular master rate
+                $regModel = $masterRates->first(function ($r) use ($itemCode) {
+                    return $r->item_code === $itemCode &&
+                        (strtoupper($r->rate_type) === LoadingRateType::TYPE_REGULAR || strtoupper($r->rate_type) === 'REGULER');
+                });
+                $regularRate = $regModel ? (float) $regModel->rate : 0.0;
 
-            // Calculate fees for both tiers
-            $regularFee = round($qty * $regularRate, 2);
-            $lemburFee = round($qty * $overtimeRate, 2);
+                // Lookup overtime master rate
+                $otModel = $masterRates->first(function ($r) use ($itemCode) {
+                    return $r->item_code === $itemCode &&
+                        (strtoupper($r->rate_type) === LoadingRateType::TYPE_OVERTIME || strtoupper($r->rate_type) === 'LEMBUR');
+                });
+                $overtimeRate = $otModel ? (float) $otModel->rate : 0.0;
 
-            $totalRegularAmount += $regularFee;
-            $totalOvertimeAmount += $lemburFee;
+                // Calculate fees for both tiers
+                $regularFee = round($qty * $regularRate, 2);
+                $lemburFee = round($qty * $overtimeRate, 2);
 
-            // Determine active applied rate and type
-            $savedRate = (float) $w->rate;
-            $savedRateType = !empty($w->rate_type) ? strtoupper((string) $w->rate_type) : null;
+                $totalRegularAmount += $regularFee;
+                $totalOvertimeAmount += $lemburFee;
 
-            if ($savedRate > 0) {
-                $appliedRate = $savedRate;
-                $appliedType = $savedRateType ?: $determinedType;
-                $activeFee = (float) $w->lembur_fee > 0 ? (float) $w->lembur_fee : round($qty * $appliedRate, 2);
-            } else {
-                if ($isOvertime) {
+                // Determine active applied rate and type
+                $savedRate = (float) $w->rate;
+                $savedRateType = !empty($w->rate_type) ? strtoupper((string) $w->rate_type) : null;
+
+                if ($savedRate > 0) {
+                    $appliedRate = $savedRate;
+                    $appliedType = $savedRateType ?: $determinedType;
+                    $activeFee = (float) $w->lembur_fee > 0 ? (float) $w->lembur_fee : round($qty * $appliedRate, 2);
+                } else {
+                    if ($isOvertime) {
+                        $appliedRate = $overtimeRate > 0 ? $overtimeRate : $regularRate;
+                        $appliedType = LoadingRateType::TYPE_OVERTIME;
+                        $activeFee = $lemburFee;
+                    } else {
+                        $appliedRate = $regularRate > 0 ? $regularRate : $overtimeRate;
+                        $appliedType = LoadingRateType::TYPE_REGULAR;
+                        $activeFee = $regularFee;
+                    }
+                }
+
+                $totalFee += $activeFee;
+
+                $workerRow = [
+                    'id'                     => $w->id,
+                    'item_code'              => $itemCode,
+                    'item_name'              => $w->item_name,
+                    'worker_name'            => $w->worker_name,
+                    'qty'                    => $qty,
+                    'uom'                    => $w->uom ?: 'SAK',
+                    'rate_type'              => $appliedType,
+                    'rate'                   => $appliedRate,
+                    'regular_rate'           => $regularRate,
+                    'overtime_rate'          => $overtimeRate,
+                    'regular_fee'            => $regularFee,
+                    'lembur_fee'             => $lemburFee,
+                    'total_fee'              => $activeFee,
+                    'is_overtime'            => $appliedType === LoadingRateType::TYPE_OVERTIME,
+                    'is_estimated_from_item' => false,
+                    'notes'                  => $w->notes,
+                ];
+
+                $formattedWorkers[] = $workerRow;
+
+                if ($detailed) {
+                    // Group by worker name
+                    if (!isset($byWorkerGroup[$wName])) {
+                        $byWorkerGroup[$wName] = [
+                            'worker_name'       => $wName,
+                            'total_qty'         => 0.0,
+                            'items_handled'     => 0,
+                            'item_codes'        => [],
+                            'total_regular_fee' => 0.0,
+                            'total_lembur_fee'  => 0.0,
+                            'total_fee'         => 0.0,
+                            'rate_type'         => $appliedType,
+                        ];
+                    }
+                    $byWorkerGroup[$wName]['total_qty'] += $qty;
+                    $byWorkerGroup[$wName]['items_handled'] += 1;
+                    $byWorkerGroup[$wName]['item_codes'][] = $itemCode;
+                    $byWorkerGroup[$wName]['total_regular_fee'] += $regularFee;
+                    $byWorkerGroup[$wName]['total_lembur_fee'] += $lemburFee;
+                    $byWorkerGroup[$wName]['total_fee'] += $activeFee;
+
+                    // Group by item code
+                    if (!isset($byItemGroup[$itemCode])) {
+                        $byItemGroup[$itemCode] = [
+                            'item_code'     => $itemCode,
+                            'item_name'     => $w->item_name,
+                            'uom'           => $w->uom ?: 'SAK',
+                            'total_qty'     => 0.0,
+                            'regular_rate'  => $regularRate,
+                            'overtime_rate' => $overtimeRate,
+                            'total_fee'     => 0.0,
+                            'workers_count' => 0,
+                        ];
+                    }
+                    $byItemGroup[$itemCode]['total_qty'] += $qty;
+                    $byItemGroup[$itemCode]['total_fee'] += $activeFee;
+                    $byItemGroup[$itemCode]['workers_count'] += 1;
+                }
+            }
+        } else {
+            // Case B: Worker array was not filled in.
+            // Automatically calculate worker/loading fees based on picklist items and their start_time!
+            foreach ($picklist->items as $pItem) {
+                $itemCode = (string) $pItem->item_code;
+                $qty = (float) ($pItem->checked_qty > 0 ? $pItem->checked_qty : ($pItem->pick_qty > 0 ? $pItem->pick_qty : $pItem->ordered_qty));
+                if ($qty <= 0) {
+                    continue;
+                }
+
+                $uom = $pItem->unit_msr ?: ($pItem->item?->sal_unit_msr ?? 'SAK');
+
+                // Determine time and rate type specifically from item's start_time
+                $itemTimeStr = null;
+                $timeSource = '';
+                if (!empty($pItem->start_time)) {
+                    $itemTimeStr = Carbon::parse($pItem->start_time)->format('H:i:s');
+                    $timeSource = "start_time ({$itemTimeStr})";
+                } elseif (!empty($pItem->end_time)) {
+                    $itemTimeStr = Carbon::parse($pItem->end_time)->format('H:i:s');
+                    $timeSource = "end_time ({$itemTimeStr})";
+                } elseif (!empty($pItem->checked_at)) {
+                    $itemTimeStr = Carbon::parse($pItem->checked_at)->format('H:i:s');
+                    $timeSource = "checked_at ({$itemTimeStr})";
+                } else {
+                    $itemTimeStr = $determination['reference_time'];
+                    $timeSource = "waktu operasional ({$itemTimeStr})";
+                }
+
+                $timeEvaluation = $this->determineTimeRateType($itemTimeStr, $rateTypes);
+                $lineRateType = $timeEvaluation['rate_type'];
+                $lineIsOt = $timeEvaluation['is_overtime'];
+
+                // Lookup master rates for this item
+                $regModel = $masterRates->first(function ($r) use ($itemCode) {
+                    return $r->item_code === $itemCode &&
+                        (strtoupper($r->rate_type) === LoadingRateType::TYPE_REGULAR || strtoupper($r->rate_type) === 'REGULER');
+                });
+                $regularRate = $regModel ? (float) $regModel->rate : 0.0;
+
+                $otModel = $masterRates->first(function ($r) use ($itemCode) {
+                    return $r->item_code === $itemCode &&
+                        (strtoupper($r->rate_type) === LoadingRateType::TYPE_OVERTIME || strtoupper($r->rate_type) === 'LEMBUR');
+                });
+                $overtimeRate = $otModel ? (float) $otModel->rate : 0.0;
+
+                $regularFee = round($qty * $regularRate, 2);
+                $lemburFee = round($qty * $overtimeRate, 2);
+
+                if ($lineIsOt) {
                     $appliedRate = $overtimeRate > 0 ? $overtimeRate : $regularRate;
                     $appliedType = LoadingRateType::TYPE_OVERTIME;
                     $activeFee = $lemburFee;
@@ -461,67 +625,76 @@ class PicklistWorkerManagementService
                     $appliedType = LoadingRateType::TYPE_REGULAR;
                     $activeFee = $regularFee;
                 }
-            }
 
-            $totalFee += $activeFee;
+                $totalQty += $qty;
+                $totalRegularAmount += $regularFee;
+                $totalOvertimeAmount += $lemburFee;
+                $totalFee += $activeFee;
 
-            $workerRow = [
-                'id'            => $w->id,
-                'item_code'     => $itemCode,
-                'item_name'     => $w->item_name,
-                'worker_name'   => $w->worker_name,
-                'qty'           => $qty,
-                'uom'           => $w->uom ?: 'SAK',
-                'rate_type'     => $appliedType,
-                'rate'          => $appliedRate,
-                'regular_rate'  => $regularRate,
-                'overtime_rate' => $overtimeRate,
-                'regular_fee'   => $regularFee,
-                'lembur_fee'    => $lemburFee,
-                'total_fee'     => $activeFee,
-                'is_overtime'   => $appliedType === LoadingRateType::TYPE_OVERTIME,
-                'notes'         => $w->notes,
-            ];
+                $wName = !empty($pItem->checked_by_checker)
+                    ? trim((string) $pItem->checked_by_checker)
+                    : (!empty($picklist->checker_name) ? trim((string) $picklist->checker_name) : 'Regu Muat / Kuli');
+                $workerNames[$wName] = true;
 
-            $formattedWorkers[] = $workerRow;
+                $workerRow = [
+                    'id'                     => null,
+                    'item_code'              => $itemCode,
+                    'item_name'              => $pItem->item_name,
+                    'worker_name'            => $wName,
+                    'qty'                    => $qty,
+                    'uom'                    => $uom,
+                    'rate_type'              => $appliedType,
+                    'rate'                   => $appliedRate,
+                    'regular_rate'           => $regularRate,
+                    'overtime_rate'          => $overtimeRate,
+                    'regular_fee'            => $regularFee,
+                    'lembur_fee'             => $lemburFee,
+                    'total_fee'              => $activeFee,
+                    'is_overtime'            => $lineIsOt,
+                    'start_time'             => $pItem->start_time ? Carbon::parse($pItem->start_time)->toIso8601String() : null,
+                    'is_estimated_from_item' => true,
+                    'notes'                  => "Dihitung otomatis berdasarkan {$timeSource}",
+                ];
 
-            if ($detailed) {
-                // Group by worker name
-                if (!isset($byWorkerGroup[$wName])) {
-                    $byWorkerGroup[$wName] = [
-                        'worker_name'       => $wName,
-                        'total_qty'         => 0.0,
-                        'items_handled'     => 0,
-                        'item_codes'        => [],
-                        'total_regular_fee' => 0.0,
-                        'total_lembur_fee'  => 0.0,
-                        'total_fee'         => 0.0,
-                        'rate_type'         => $appliedType,
-                    ];
+                $formattedWorkers[] = $workerRow;
+
+                if ($detailed) {
+                    // Group by worker name
+                    if (!isset($byWorkerGroup[$wName])) {
+                        $byWorkerGroup[$wName] = [
+                            'worker_name'       => $wName,
+                            'total_qty'         => 0.0,
+                            'items_handled'     => 0,
+                            'item_codes'        => [],
+                            'total_regular_fee' => 0.0,
+                            'total_lembur_fee'  => 0.0,
+                            'total_fee'         => 0.0,
+                            'rate_type'         => $appliedType,
+                        ];
+                    }
+                    $byWorkerGroup[$wName]['total_qty'] += $qty;
+                    $byWorkerGroup[$wName]['items_handled'] += 1;
+                    $byWorkerGroup[$wName]['item_codes'][] = $itemCode;
+                    $byWorkerGroup[$wName]['total_regular_fee'] += $regularFee;
+                    $byWorkerGroup[$wName]['total_lembur_fee'] += $lemburFee;
+                    $byWorkerGroup[$wName]['total_fee'] += $activeFee;
+
+                    // Group by item code
+                    if (!isset($byItemGroup[$itemCode])) {
+                        $byItemGroup[$itemCode] = [
+                            'item_code'     => $itemCode,
+                            'item_name'     => $pItem->item_name,
+                            'uom'           => $uom,
+                            'total_qty'     => 0.0,
+                            'regular_rate'  => $regularRate,
+                            'overtime_rate' => $overtimeRate,
+                            'total_fee'     => 0.0,
+                            'workers_count' => 1,
+                        ];
+                    }
+                    $byItemGroup[$itemCode]['total_qty'] += $qty;
+                    $byItemGroup[$itemCode]['total_fee'] += $activeFee;
                 }
-                $byWorkerGroup[$wName]['total_qty'] += $qty;
-                $byWorkerGroup[$wName]['items_handled'] += 1;
-                $byWorkerGroup[$wName]['item_codes'][] = $itemCode;
-                $byWorkerGroup[$wName]['total_regular_fee'] += $regularFee;
-                $byWorkerGroup[$wName]['total_lembur_fee'] += $lemburFee;
-                $byWorkerGroup[$wName]['total_fee'] += $activeFee;
-
-                // Group by item code
-                if (!isset($byItemGroup[$itemCode])) {
-                    $byItemGroup[$itemCode] = [
-                        'item_code'     => $itemCode,
-                        'item_name'     => $w->item_name,
-                        'uom'           => $w->uom ?: 'SAK',
-                        'total_qty'     => 0.0,
-                        'regular_rate'  => $regularRate,
-                        'overtime_rate' => $overtimeRate,
-                        'total_fee'     => 0.0,
-                        'workers_count' => 0,
-                    ];
-                }
-                $byItemGroup[$itemCode]['total_qty'] += $qty;
-                $byItemGroup[$itemCode]['total_fee'] += $activeFee;
-                $byItemGroup[$itemCode]['workers_count'] += 1;
             }
         }
 
@@ -544,6 +717,8 @@ class PicklistWorkerManagementService
         }
 
         $summary = [
+            'has_explicit_workers'  => $hasExplicitWorkers,
+            'calculation_basis'     => $hasExplicitWorkers ? 'workers' : 'start_time',
             'determined_rate_type'  => $determinedType,
             'is_overtime'           => $isOvertime,
             'reference_time'        => $determination['reference_time'],

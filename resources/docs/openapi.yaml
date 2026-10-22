@@ -19821,6 +19821,15 @@ paths:
                         calculation_summary:
                           type: object
                           properties:
+                            has_explicit_workers:
+                              type: boolean
+                              example: true
+                              description: "True jika data kuli diinput manual, false jika dihitung otomatis berdasarkan start_time item"
+                            calculation_basis:
+                              type: string
+                              example: "workers"
+                              enum: [workers, start_time]
+                              description: "Sumber dasar perhitungan: workers (input manual) atau start_time (otomatis dari jam mulai muat item)"
                             determined_rate_type:
                               type: string
                               example: "OVERTIME"
@@ -19916,6 +19925,15 @@ paths:
                       calculation_summary:
                         type: object
                         properties:
+                          has_explicit_workers:
+                            type: boolean
+                            example: true
+                            description: "True jika data kuli diinput manual, false jika dihitung otomatis berdasarkan start_time item"
+                          calculation_basis:
+                            type: string
+                            example: "workers"
+                            enum: [workers, start_time]
+                            description: "Sumber dasar perhitungan: workers (input manual) atau start_time (otomatis dari jam mulai muat item)"
                           determined_rate_type:
                             type: string
                             example: "OVERTIME"

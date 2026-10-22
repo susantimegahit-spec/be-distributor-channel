@@ -372,4 +372,112 @@ class PicklistWorkerManagementTest extends TestCase
         $resAlias->assertStatus(200)
             ->assertJsonPath('success', true);
     }
+
+    public function test_worker_management_calculates_based_on_item_start_time_when_workers_not_filled(): void
+    {
+        // Picklist with NO worker entries, but checker submitted all items with start_time
+        $picklist = Picklist::create([
+            'picklist_no'       => 'PKL-MGMT-NO-WORKER',
+            'shipping_type'     => 'internal',
+            'status'            => Picklist::STATUS_WEIGH_OUT,
+            'posting_date'      => '2026-10-22',
+            'due_date'          => '2026-10-22',
+            'delivery_order_no' => 'DO-NO-WRK-01',
+            'license_plate'     => 'L 8888 NW',
+            'driver_name'       => 'Driver Auto',
+            'checker_name'      => 'Checker Mandiri',
+            'weigh_in_weight'   => 4000.0,
+            'weigh_out_weight'  => 5500.0,
+            'weigh_out_at'      => Carbon::parse('2026-10-22 18:30:00'),
+            'created_by'        => $this->user->id,
+        ]);
+
+        // Item 1: Started at 14:00 (Regular: 08:00 - 16:30)
+        // SKU-MGMT-01: reg_rate 1000, ot_rate 1500. Qty = 20 -> fee = 20 * 1000 = 20,000
+        PicklistItem::create([
+            'picklist_id'           => $picklist->id,
+            'sales_order_id'        => $this->order->id,
+            'sales_order_detail_id' => $this->detail1->id,
+            'item_code'             => $this->item1->item_code,
+            'item_name'             => $this->item1->item_name,
+            'whs_code'              => 'WHS-SBY',
+            'unit_msr'              => 'SAK',
+            'ordered_qty'           => 20,
+            'pick_qty'              => 20,
+            'checked_qty'           => 20,
+            'is_checked'            => true,
+            'checked_by_checker'    => 'Checker Mandiri',
+            'start_time'            => Carbon::parse('2026-10-22 14:00:00'),
+            'end_time'              => Carbon::parse('2026-10-22 14:45:00'),
+            'checked_at'            => Carbon::parse('2026-10-22 14:45:00'),
+        ]);
+
+        // Item 2: Started at 17:15 (Overtime: 16:30 - 02:00)
+        // SKU-MGMT-02: reg_rate 600, ot_rate 900. Qty = 10 -> fee = 10 * 900 = 9,000
+        PicklistItem::create([
+            'picklist_id'           => $picklist->id,
+            'sales_order_id'        => $this->order->id,
+            'sales_order_detail_id' => $this->detail2->id,
+            'item_code'             => $this->item2->item_code,
+            'item_name'             => $this->item2->item_name,
+            'whs_code'              => 'WHS-SBY',
+            'unit_msr'              => 'SAK',
+            'ordered_qty'           => 10,
+            'pick_qty'              => 10,
+            'checked_qty'           => 10,
+            'is_checked'            => true,
+            'checked_by_checker'    => 'Checker Mandiri',
+            'start_time'            => Carbon::parse('2026-10-22 17:15:00'),
+            'end_time'              => Carbon::parse('2026-10-22 18:00:00'),
+            'checked_at'            => Carbon::parse('2026-10-22 18:00:00'),
+        ]);
+
+        // 1. Test Detail endpoint fallback calculation
+        $res = $this->actingAs($this->user)
+            ->getJson("/api/distributor-channel/v1/logistic/worker-management/picklists/{$picklist->id}");
+
+        $res->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.calculation_summary.has_explicit_workers', false)
+            ->assertJsonPath('data.calculation_summary.calculation_basis', 'start_time')
+            ->assertJsonPath('data.calculation_summary.total_qty', 30)
+            ->assertJsonPath('data.calculation_summary.total_regular_amount', 26000) // (20*1000) + (10*600)
+            ->assertJsonPath('data.calculation_summary.total_overtime_amount', 39000) // (20*1500) + (10*900)
+            ->assertJsonPath('data.calculation_summary.total_fee', 29000) // Item 1 (20,000 reg) + Item 2 (9,000 ot)
+            ->assertJsonCount(2, 'data.workers');
+
+        $workers = $res->json('data.workers');
+
+        // Item 1: Started 14:00 (REGULAR)
+        $w1 = $workers[0];
+        $this->assertEquals('SKU-MGMT-01', $w1['item_code']);
+        $this->assertEquals('REGULAR', $w1['rate_type']);
+        $this->assertEquals(1000, $w1['rate']);
+        $this->assertEquals(20000, $w1['total_fee']);
+        $this->assertFalse($w1['is_overtime']);
+        $this->assertTrue($w1['is_estimated_from_item']);
+
+        // Item 2: Started 17:15 (OVERTIME)
+        $w2 = $workers[1];
+        $this->assertEquals('SKU-MGMT-02', $w2['item_code']);
+        $this->assertEquals('OVERTIME', $w2['rate_type']);
+        $this->assertEquals(900, $w2['rate']);
+        $this->assertEquals(9000, $w2['total_fee']);
+        $this->assertTrue($w2['is_overtime']);
+        $this->assertTrue($w2['is_estimated_from_item']);
+
+        // 2. Test List endpoint includes this picklist with calculated summary
+        $listRes = $this->actingAs($this->user)
+            ->getJson('/api/distributor-channel/v1/logistic/worker-management/picklists?search=PKL-MGMT-NO-WORKER');
+
+        $listRes->assertStatus(200)
+            ->assertJsonPath('success', true);
+
+        $listData = $listRes->json('data');
+        $this->assertCount(1, $listData);
+        $this->assertEquals(false, $listData[0]['calculation_summary']['has_explicit_workers']);
+        $this->assertEquals('start_time', $listData[0]['calculation_summary']['calculation_basis']);
+        $this->assertEquals(29000, $listData[0]['calculation_summary']['total_fee']);
+    }
 }
+
