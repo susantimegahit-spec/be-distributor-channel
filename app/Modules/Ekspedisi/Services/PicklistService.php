@@ -3,11 +3,14 @@
 namespace App\Modules\Ekspedisi\Services;
 
 use App\Models\Item;
+use App\Models\LoadingRate;
+use App\Models\LoadingRateType;
 use App\Models\LogisticSetting;
 use App\Models\Picklist;
 use App\Models\PicklistItem;
 use App\Models\PicklistItemLabelPhoto;
 use App\Models\PicklistSignature;
+use App\Models\PicklistWorker;
 use App\Models\SalesOrder;
 use App\Models\SalesOrderDetail;
 use App\Models\SalesOrderLogisticLog;
@@ -147,6 +150,7 @@ class PicklistService
             'creator:id,name,username',
             'updater:id,name,username',
             'signatures.creator:id,name',
+            'workers',
         ])->find($id);
 
         if (!$picklist) {
@@ -1293,9 +1297,10 @@ class PicklistService
 
         $picklist->update($picklistUpdate);
 
-        // 5. Save inspection / handover signatures if provided
+        // 5. Save inspection / handover signatures and workers if provided
         $savedSignatures = $this->savePicklistSignatures($picklist, $payload, $userId);
-        $freshPicklist = $picklist->fresh(['items.salesOrder', 'creator', 'updater', 'signatures']);
+        $savedWorkers = $this->savePicklistWorkers($picklist, $payload, $userId);
+        $freshPicklist = $picklist->fresh(['items.salesOrder', 'creator', 'updater', 'signatures', 'workers']);
 
         return [
             'picklist_id'       => $picklist->id,
@@ -1306,6 +1311,8 @@ class PicklistService
             'is_checked'        => (bool) $freshPicklist->is_checked,
             'results'           => $resultsPerOrder,
             'signatures'        => $savedSignatures,
+            'workers'           => $savedWorkers['workers'],
+            'total_lembur'      => $savedWorkers['total_lembur'],
             'picklist'          => $freshPicklist,
         ];
     }
@@ -1793,8 +1800,9 @@ class PicklistService
 
                 try {
                     $this->savePicklistSignatures($picklist, $sigPayload, $userId);
+                    $this->savePicklistWorkers($picklist, $sigPayload, $userId);
                 } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::warning("Failed to save signatures for Picklist #{$picklist->id}: " . $e->getMessage());
+                    \Illuminate\Support\Facades\Log::warning("Failed to save signatures/workers for Picklist #{$picklist->id}: " . $e->getMessage());
                 }
 
                 $activeChecker = !empty($header['checked_by_checker'])
@@ -1884,7 +1892,7 @@ class PicklistService
             ];
         }
 
-        $freshFirstPicklist = $firstPicklist?->fresh(['items', 'signatures']);
+        $freshFirstPicklist = $firstPicklist?->fresh(['items', 'signatures', 'workers']);
 
         return [
             'delivery_order_no' => (string) $latestDocNum,
@@ -1895,6 +1903,8 @@ class PicklistService
             'picklist_id'       => $firstPicklist?->id,
             'documents'         => $processedDocs,
             'signatures'        => $freshFirstPicklist?->signatures ?? [],
+            'workers'           => $this->formatWorkerList($freshFirstPicklist?->workers ?? collect()),
+            'total_lembur'      => (float) ($freshFirstPicklist?->workers?->sum('lembur_fee') ?? 0),
             'response'          => $lastResult,
         ];
     }
@@ -2140,6 +2150,174 @@ class PicklistService
         }
 
         return $saved;
+    }
+
+    /**
+     * Save worker loading details and calculate overtime (lembur) fees for a picklist.
+     *
+     * @param Picklist $picklist
+     * @param array $payload
+     * @param int|null $userId
+     * @return array
+     */
+    public function savePicklistWorkers(Picklist $picklist, array $payload, ?int $userId = null): array
+    {
+        // 0. Unwrap nested payload if wrapped in 'data'
+        if (isset($payload['data']) && is_array($payload['data'])) {
+            $payload = array_merge($payload['data'], $payload);
+        }
+
+        $rawWorkers = $payload['workers']
+            ?? $payload['worker']
+            ?? $payload['kuli']
+            ?? $payload['worker_list']
+            ?? $payload['tenaga_kerja']
+            ?? null;
+
+        // If no worker key was provided in payload at all, keep and return existing workers
+        if ($rawWorkers === null) {
+            $existing = PicklistWorker::where('picklist_id', $picklist->id)->orderBy('id')->get();
+            return [
+                'workers'      => $this->formatWorkerList($existing),
+                'total_lembur' => (float) $existing->sum('lembur_fee'),
+            ];
+        }
+
+        if (!is_array($rawWorkers)) {
+            $rawWorkers = [];
+        }
+
+        // Synchronize: clear previous workers for this picklist and insert new list
+        PicklistWorker::where('picklist_id', $picklist->id)->delete();
+
+        $saved = [];
+        $totalLembur = 0.0;
+
+        foreach ($rawWorkers as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $itemCode = trim((string) ($item['item_code'] ?? $item['ItemCode'] ?? $item['kode_item'] ?? ''));
+            if ($itemCode === '') {
+                continue;
+            }
+
+            $workerName = !empty($item['worker_name'])
+                ? trim((string) $item['worker_name'])
+                : (!empty($item['name'])
+                    ? trim((string) $item['name'])
+                    : (!empty($item['nama_worker'])
+                        ? trim((string) $item['nama_worker'])
+                        : (!empty($item['nama']) ? trim((string) $item['nama']) : null)));
+
+            $qty = (float) ($item['qty'] ?? $item['quantity'] ?? $item['Quantity'] ?? $item['berat'] ?? $item['weight'] ?? 0);
+            $customRate = $item['rate'] ?? $item['overtime_rate'] ?? $item['tarif'] ?? $item['lembur_rate'] ?? null;
+            $notes = !empty($item['notes']) ? trim((string) $item['notes']) : (!empty($item['keterangan']) ? trim((string) $item['keterangan']) : null);
+
+            // Lookup item and loading rate
+            $itemModel = Item::where('item_code', $itemCode)->first();
+            $pItem = PicklistItem::where('picklist_id', $picklist->id)->where('item_code', $itemCode)->first();
+
+            $itemName = !empty($item['item_name'])
+                ? trim((string) $item['item_name'])
+                : ($itemModel?->item_name ?? $pItem?->item_name ?? null);
+
+            $uom = !empty($item['uom'])
+                ? trim((string) $item['uom'])
+                : (!empty($item['Uom'])
+                    ? trim((string) $item['Uom'])
+                    : ($itemModel?->sal_unit_msr ?? $pItem?->unit_msr ?? null));
+
+            $rateType = 'OVERTIME';
+            $rate = 0.0;
+
+            if ($customRate !== null && is_numeric($customRate)) {
+                $rate = (float) $customRate;
+            } else {
+                // Try to find active OVERTIME loading rate
+                $loadingRate = LoadingRate::where('item_code', $itemCode)
+                    ->where(function ($q) {
+                        $q->where('rate_type', LoadingRateType::TYPE_OVERTIME)
+                          ->orWhere('rate_type', 'OVERTIME')
+                          ->orWhere('rate_type', 'LEMBUR');
+                    })
+                    ->where('status', LoadingRate::STATUS_ACTIVE)
+                    ->first();
+
+                if ($loadingRate) {
+                    $rate = (float) $loadingRate->rate;
+                    $rateType = $loadingRate->rate_type;
+                    if (empty($itemName)) {
+                        $itemName = $loadingRate->item_name;
+                    }
+                    if (empty($uom) && !empty($loadingRate->uom)) {
+                        $uom = $loadingRate->uom;
+                    }
+                } else {
+                    // Fallback to any active loading rate for this item if overtime not specifically defined
+                    $fallbackRate = LoadingRate::where('item_code', $itemCode)
+                        ->where('status', LoadingRate::STATUS_ACTIVE)
+                        ->first();
+                    if ($fallbackRate) {
+                        $rate = (float) $fallbackRate->rate;
+                        $rateType = $fallbackRate->rate_type;
+                        if (empty($itemName)) {
+                            $itemName = $fallbackRate->item_name;
+                        }
+                        if (empty($uom) && !empty($fallbackRate->uom)) {
+                            $uom = $fallbackRate->uom;
+                        }
+                    }
+                }
+            }
+
+            $lemburFee = round($qty * $rate, 2);
+            $totalLembur += $lemburFee;
+
+            $record = PicklistWorker::create([
+                'picklist_id' => $picklist->id,
+                'item_code'   => $itemCode,
+                'item_name'   => $itemName,
+                'worker_name' => $workerName,
+                'qty'         => $qty,
+                'uom'         => $uom,
+                'rate_type'   => $rateType,
+                'rate'        => $rate,
+                'lembur_fee'  => $lemburFee,
+                'notes'       => $notes,
+                'created_by'  => $userId,
+            ]);
+
+            $saved[] = $record;
+        }
+
+        return [
+            'workers'      => $this->formatWorkerList(collect($saved)),
+            'total_lembur' => round($totalLembur, 2),
+        ];
+    }
+
+    /**
+     * Format worker records into canonical response structure.
+     */
+    public function formatWorkerList($workers): array
+    {
+        $result = [];
+        foreach ($workers as $w) {
+            $result[] = [
+                'id'          => $w->id,
+                'item_code'   => (string) $w->item_code,
+                'item_name'   => $w->item_name,
+                'worker_name' => $w->worker_name,
+                'qty'         => (float) $w->qty,
+                'uom'         => $w->uom,
+                'rate_type'   => (string) $w->rate_type,
+                'rate'        => (float) $w->rate,
+                'lembur_fee'  => (float) $w->lembur_fee,
+            ];
+        }
+        return $result;
     }
 
     /**
@@ -2438,8 +2616,9 @@ class PicklistService
         $picklist->updated_by = $userId;
         $picklist->save();
 
-        // 2. Save signatures if provided (uses updateOrCreate to accumulate multiple checkers)
+        // 2. Save signatures and workers if provided
         $savedSignatures = $this->savePicklistSignatures($picklist, $payload, $userId);
+        $savedWorkers = $this->savePicklistWorkers($picklist, $payload, $userId);
 
         // 3. Process item checklists
         $lines = $payload['items'] ?? $payload['Lines'] ?? $payload['lines'] ?? [];
@@ -2623,7 +2802,7 @@ class PicklistService
             }
         }
 
-        $freshPicklist = $picklist->fresh(['items.salesOrder', 'items.labelPhotos', 'creator', 'updater', 'signatures']);
+        $freshPicklist = $picklist->fresh(['items.salesOrder', 'items.labelPhotos', 'creator', 'updater', 'signatures', 'workers']);
         $totalItems = $freshPicklist->items->count();
         $checkedItemsCount = $freshPicklist->items->where('is_checked', true)->count();
         $isFullyChecked = $totalItems > 0 && $checkedItemsCount >= $totalItems;
@@ -2653,6 +2832,8 @@ class PicklistService
             'is_fully_checked'  => $isFullyChecked,
             'updated_items'     => count($updatedItemIds),
             'signatures'        => $savedSignatures,
+            'workers'           => $savedWorkers['workers'],
+            'total_lembur'      => $savedWorkers['total_lembur'],
             'message'           => $msg,
             'picklist'          => $freshPicklist,
         ];

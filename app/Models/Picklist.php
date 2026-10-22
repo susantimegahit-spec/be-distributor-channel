@@ -124,6 +124,7 @@ class Picklist extends Model
         'driver_signatures',
         'checker_signature',
         'driver_signature',
+        'total_lembur',
     ];
 
     /**
@@ -214,6 +215,25 @@ class Picklist extends Model
     public function signatures(): HasMany
     {
         return $this->hasMany(PicklistSignature::class, 'picklist_id')->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
+     * Get all workers assigned to this picklist.
+     */
+    public function workers(): HasMany
+    {
+        return $this->hasMany(PicklistWorker::class, 'picklist_id')->orderBy('id');
+    }
+
+    /**
+     * Total calculated overtime loading fee (lembur) across all workers.
+     */
+    public function getTotalLemburAttribute(): float
+    {
+        if ($this->relationLoaded('workers')) {
+            return (float) $this->workers->sum('lembur_fee');
+        }
+        return (float) $this->workers()->sum('lembur_fee');
     }
 
     /**

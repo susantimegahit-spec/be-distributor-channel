@@ -19942,6 +19942,13 @@ paths:
                   signer_role_title: "Supir"
                   signer_name: "Budi Santoso"
                   signature: "data:image/png;base64,iVBORw0KGgoAAA..."
+              workers:
+                - item_code: "SKU-LOAD-01"
+                  worker_name: "Pak Budi"
+                  qty: 500
+                - item_code: "SKU-LOAD-02"
+                  worker_name: "Pak Slamet"
+                  qty: 250
               Lines:
                 - id: 10
                   BaseEntry: 1052
@@ -20069,6 +20076,47 @@ paths:
                               type: string
                               format: date-time
                               example: "2026-10-08T10:30:00.000000Z"
+                      workers:
+                        type: array
+                        description: Daftar worker pengangkut barang beserta rincian hitungan upah lembur
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            item_code:
+                              type: string
+                              example: "SKU-LOAD-01"
+                            item_name:
+                              type: string
+                              nullable: true
+                              example: "Garam Kasar 50kg"
+                            worker_name:
+                              type: string
+                              nullable: true
+                              example: "Pak Budi"
+                            qty:
+                              type: number
+                              example: 500
+                            uom:
+                              type: string
+                              nullable: true
+                              example: "KG"
+                            rate_type:
+                              type: string
+                              example: "OVERTIME"
+                            rate:
+                              type: number
+                              example: 1500
+                            lembur_fee:
+                              type: number
+                              description: Total hitungan lembur worker untuk item ini (qty * rate)
+                              example: 750000
+                      total_lembur:
+                        type: number
+                        description: Total akumulasi hitungan upah lembur seluruh worker
+                        example: 750000
         '400':
           description: Business error atau SAP AddDO failure. Signature tidak tersimpan jika DO gagal.
         '422':
@@ -21767,6 +21815,39 @@ components:
                 type: string
                 format: date-time
                 description: Waktu tanda tangan
+        workers:
+          type: array
+          description: |
+            Daftar tenaga kerja (worker/kuli bongkar muat) yang mengangkut barang.
+            Sistem secara otomatis menghitung tarif lembur (overtime fee) berdasarkan master data loading rates dikalikan berat/qty yang diangkut.
+          items:
+            type: object
+            required:
+              - item_code
+              - qty
+            properties:
+              item_code:
+                type: string
+                description: Kode item produk yang diangkut
+                example: "SKU-LOAD-01"
+              worker_name:
+                type: string
+                nullable: true
+                description: Nama worker / kuli (opsional)
+                example: "Pak Budi"
+              qty:
+                type: number
+                description: Berat atau kuantitas barang yang diangkut
+                example: 500
+              rate:
+                type: number
+                nullable: true
+                description: Override tarif lembur per satuan (opsional, jika tidak diisi maka diambil otomatis dari master data loading_rates)
+                example: 1500
+              notes:
+                type: string
+                nullable: true
+                description: Catatan tambahan
     MasterApproval:
       type: object
       properties:
