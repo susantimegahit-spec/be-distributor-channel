@@ -174,6 +174,8 @@ class PicklistWorkerManagementService
                 'weigh_in_at'         => $picklist->weigh_in_at ? Carbon::parse($picklist->weigh_in_at)->toIso8601String() : null,
                 'weigh_out_weight'    => (float) $picklist->weigh_out_weight,
                 'weigh_out_at'        => $picklist->weigh_out_at ? Carbon::parse($picklist->weigh_out_at)->toIso8601String() : null,
+                'start_time'          => $analysis['summary']['start_time'],
+                'end_time'            => $analysis['summary']['end_time'],
                 'calculation_summary' => $analysis['summary'],
                 'workers'             => $analysis['workers'],
                 'sales_orders'        => $salesOrders,
@@ -290,6 +292,8 @@ class PicklistWorkerManagementService
                 'weigh_in_at'         => $picklist->weigh_in_at ? Carbon::parse($picklist->weigh_in_at)->toIso8601String() : null,
                 'weigh_out_weight'    => (float) $picklist->weigh_out_weight,
                 'weigh_out_at'        => $picklist->weigh_out_at ? Carbon::parse($picklist->weigh_out_at)->toIso8601String() : null,
+                'start_time'          => $analysis['summary']['start_time'],
+                'end_time'            => $analysis['summary']['end_time'],
                 'created_by'          => $picklist->creator?->name,
                 'created_at'          => $picklist->created_at ? Carbon::parse($picklist->created_at)->toIso8601String() : null,
                 'updated_at'          => $picklist->updated_at ? Carbon::parse($picklist->updated_at)->toIso8601String() : null,
@@ -317,25 +321,39 @@ class PicklistWorkerManagementService
         $refDateTime = null;
         $sourceDesc = 'waktu pembaruan picklist';
 
+        $startTimes = [];
+        $endTimes = [];
+
+        if (!empty($picklist->start_time)) {
+            $startTimes[] = Carbon::parse($picklist->start_time);
+        }
+        if (!empty($picklist->end_time)) {
+            $endTimes[] = Carbon::parse($picklist->end_time);
+        }
+
         // Priority 1: Picklist items' start_time, end_time, or checked_at
         $latestItemTime = null;
         foreach ($picklist->items as $item) {
             if (!empty($item->start_time)) {
-                $parsed = Carbon::parse($item->start_time);
-                if (!$latestItemTime || $parsed->gt($latestItemTime)) {
-                    $latestItemTime = $parsed;
+                $pStart = Carbon::parse($item->start_time);
+                $startTimes[] = $pStart;
+                if (!$latestItemTime || $pStart->gt($latestItemTime)) {
+                    $latestItemTime = $pStart;
                     $sourceDesc = 'jam mulai muat item (start_time)';
                 }
-            } elseif (!empty($item->end_time)) {
-                $parsed = Carbon::parse($item->end_time);
-                if (!$latestItemTime || $parsed->gt($latestItemTime)) {
-                    $latestItemTime = $parsed;
+            }
+            if (!empty($item->end_time)) {
+                $pEnd = Carbon::parse($item->end_time);
+                $endTimes[] = $pEnd;
+                if (!$latestItemTime || $pEnd->gt($latestItemTime)) {
+                    $latestItemTime = $pEnd;
                     $sourceDesc = 'jam selesai pemeriksaan item (end_time)';
                 }
             } elseif (!empty($item->checked_at)) {
-                $parsed = Carbon::parse($item->checked_at);
-                if (!$latestItemTime || $parsed->gt($latestItemTime)) {
-                    $latestItemTime = $parsed;
+                $pChecked = Carbon::parse($item->checked_at);
+                $endTimes[] = $pChecked;
+                if (!$latestItemTime || $pChecked->gt($latestItemTime)) {
+                    $latestItemTime = $pChecked;
                     $sourceDesc = 'jam submit checker (checked_at)';
                 }
             }
@@ -361,12 +379,22 @@ class PicklistWorkerManagementService
             $refDateTime = $picklist->updated_at ? Carbon::parse($picklist->updated_at) : now();
         }
 
+        $earliestStart = !empty($startTimes)
+            ? collect($startTimes)->min()
+            : (!empty($picklist->weigh_in_at) ? Carbon::parse($picklist->weigh_in_at) : null);
+
+        $latestEnd = !empty($endTimes)
+            ? collect($endTimes)->max()
+            : (!empty($picklist->weigh_out_at) ? Carbon::parse($picklist->weigh_out_at) : null);
+
         $timeStr = $refDateTime->format('H:i:s');
         $timeEvaluation = $this->determineTimeRateType($timeStr, $rateTypes);
 
         return [
             'rate_type'           => $timeEvaluation['rate_type'],
             'is_overtime'         => $timeEvaluation['is_overtime'],
+            'start_time'          => $earliestStart ? $earliestStart->toIso8601String() : null,
+            'end_time'            => $latestEnd ? $latestEnd->toIso8601String() : null,
             'reference_time'      => $timeStr,
             'reference_timestamp' => $refDateTime->toIso8601String(),
             'source_description'  => $sourceDesc,
@@ -721,6 +749,8 @@ class PicklistWorkerManagementService
             'calculation_basis'     => $hasExplicitWorkers ? 'workers' : 'start_time',
             'determined_rate_type'  => $determinedType,
             'is_overtime'           => $isOvertime,
+            'start_time'            => $determination['start_time'],
+            'end_time'              => $determination['end_time'],
             'reference_time'        => $determination['reference_time'],
             'reference_timestamp'   => $determination['reference_timestamp'],
             'rate_type_source'      => $determination['reason'],

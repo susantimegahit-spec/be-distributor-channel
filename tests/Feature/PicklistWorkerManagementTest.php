@@ -265,6 +265,10 @@ class PicklistWorkerManagementTest extends TestCase
         $this->assertEquals(300000.0, (float) $summary['total_regular_amount']); // 300 * 1000
         $this->assertEquals(450000.0, (float) $summary['total_fee']);
 
+        $this->assertArrayHasKey('start_time', $found);
+        $this->assertArrayHasKey('end_time', $found);
+        $this->assertNotNull($found['end_time']);
+
         // Ensure open picklist is not listed
         $foundOpen = collect($data)->firstWhere('id', $picklistOpen->id);
         $this->assertNull($foundOpen, 'Open picklist without checker submit should not be in worker management list');
@@ -478,6 +482,10 @@ class PicklistWorkerManagementTest extends TestCase
         $this->assertEquals(false, $listData[0]['calculation_summary']['has_explicit_workers']);
         $this->assertEquals('start_time', $listData[0]['calculation_summary']['calculation_basis']);
         $this->assertEquals(29000, $listData[0]['calculation_summary']['total_fee']);
+        $this->assertNotNull($listData[0]['start_time']);
+        $this->assertNotNull($listData[0]['end_time']);
+        $this->assertStringContainsString('14:00:00', $listData[0]['start_time']);
+        $this->assertStringContainsString('18:00:00', $listData[0]['end_time']);
     }
 }
 
