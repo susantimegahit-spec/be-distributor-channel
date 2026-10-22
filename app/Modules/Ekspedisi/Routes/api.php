@@ -80,6 +80,8 @@ Route::prefix('v1/logistic/picklists')->middleware('auth:sanctum')->group(functi
     Route::post('/', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'store']);
     Route::post('/add-do', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'directAddDo']);
     Route::post('/save-draft', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'saveDraft']);
+    Route::get('/worker-management', [\App\Modules\Ekspedisi\Controllers\PicklistWorkerManagementController::class, 'index']);
+    Route::get('/{id}/worker-management', [\App\Modules\Ekspedisi\Controllers\PicklistWorkerManagementController::class, 'show']);
     Route::get('/{id}', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'show']);
     Route::patch('/{id}/status', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'updateStatus']);
     Route::post('/{id}/weigh-in', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'weighIn']);
@@ -94,6 +96,12 @@ Route::prefix('v1/logistic/picklists')->middleware('auth:sanctum')->group(functi
     Route::post('/items/{itemId}/start-time', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'startItemTime']);
     Route::post('/items/{itemId}/start', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'startItemTime']);
     Route::post('/start-time', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'startItemTime']);
+});
+
+// Dedicated Worker Management Routes
+Route::prefix('v1/logistic/worker-management')->middleware('auth:sanctum')->group(function () {
+    Route::get('/picklists', [\App\Modules\Ekspedisi\Controllers\PicklistWorkerManagementController::class, 'index']);
+    Route::get('/picklists/{id}', [\App\Modules\Ekspedisi\Controllers\PicklistWorkerManagementController::class, 'show']);
 });
 
 // Direct public preview for picklist signatures and label photos (allows standard <img> tag rendering without Bearer token header)

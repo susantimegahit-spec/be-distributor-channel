@@ -19717,6 +19717,321 @@ paths:
         '404':
           description: Picklist not found.
 
+  /v1/logistic/worker-management/picklists:
+    get:
+      summary: List Picklist untuk Dashboard Worker Management (Setelah Checker Submit / Add DO)
+      description: |
+        Mengambil daftar picklist yang telah melalui proses checker submit / add-do (status weigh_out, complete, memiliki nomor DO, atau memiliki data tenaga kerja/kuli).
+        Dilengkapi dengan ringkasan perhitungan ongkos kuli dan klasifikasi otomatis apakah operasional masuk kategori REGULER atau LEMBUR (OVERTIME).
+      tags:
+        - Logistic - Worker Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter status picklist (misal weigh_out, complete)
+          schema:
+            type: string
+        - name: shipping_type
+          in: query
+          description: Filter jenis pengiriman (internal, external, pickup)
+          schema:
+            type: string
+        - name: rate_type
+          in: query
+          description: Filter tipe tarif (REGULAR, OVERTIME)
+          schema:
+            type: string
+            enum: [REGULAR, OVERTIME]
+        - name: search
+          in: query
+          description: Pencarian no picklist, no DO, nopol, driver, checker, atau nama kuli/worker
+          schema:
+            type: string
+        - name: date_from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 15
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Worker management picklists retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Worker management picklists retrieved successfully."
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 10
+                        picklist_no:
+                          type: string
+                          example: "PKL-202610-0001"
+                        shipping_type:
+                          type: string
+                          example: "internal"
+                        status:
+                          type: string
+                          example: "weigh_out"
+                        posting_date:
+                          type: string
+                          example: "2026-10-22"
+                        due_date:
+                          type: string
+                          example: "2026-10-22"
+                        delivery_order_no:
+                          type: string
+                          example: "882201"
+                        license_plate:
+                          type: string
+                          example: "L 1234 AB"
+                        driver_name:
+                          type: string
+                          example: "Pak Supir"
+                        checker_name:
+                          type: string
+                          example: "Rochim"
+                        calculation_summary:
+                          type: object
+                          properties:
+                            determined_rate_type:
+                              type: string
+                              example: "OVERTIME"
+                            is_overtime:
+                              type: boolean
+                              example: true
+                            reference_time:
+                              type: string
+                              example: "17:30:00"
+                            total_workers:
+                              type: integer
+                              example: 3
+                            total_qty:
+                              type: number
+                              example: 650.0
+                            total_regular_amount:
+                              type: number
+                              example: 650000.0
+                            total_overtime_amount:
+                              type: number
+                              example: 975000.0
+                            total_fee:
+                              type: number
+                              example: 975000.0
+                        workers:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                              item_code:
+                                type: string
+                              worker_name:
+                                type: string
+                              qty:
+                                type: number
+                              uom:
+                                type: string
+                              rate_type:
+                                type: string
+                              rate:
+                                type: number
+                              total_fee:
+                                type: number
+                  meta:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                      last_page:
+                        type: integer
+                      per_page:
+                        type: integer
+                      total:
+                        type: integer
+
+  /v1/logistic/worker-management/picklists/{id}:
+    get:
+      summary: Detail Picklist untuk Worker Management & Analisis Lembur vs Reguler
+      description: |
+        Menampilkan detail lengkap picklist beserta breakdown komparasi perhitungan ongkos kuli reguler vs lembur (overtime), rekap per tenaga kerja, rekap per item, serta daftar item checklist dan tanda tangan.
+      tags:
+        - Logistic - Worker Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Picklist
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Worker management picklist detail retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Worker management picklist detail retrieved successfully."
+                  data:
+                    type: object
+                    properties:
+                      picklist:
+                        type: object
+                      calculation_summary:
+                        type: object
+                        properties:
+                          determined_rate_type:
+                            type: string
+                            example: "OVERTIME"
+                          is_overtime:
+                            type: boolean
+                            example: true
+                          reference_time:
+                            type: string
+                            example: "17:30:00"
+                          reference_timestamp:
+                            type: string
+                            example: "2026-10-22T17:30:00+07:00"
+                          rate_type_source:
+                            type: string
+                            example: "Waktu operasional 17:30:00 berada dalam jam lembur (16:30:00 - 02:00:00)."
+                          total_workers:
+                            type: integer
+                            example: 3
+                          total_qty:
+                            type: number
+                            example: 650.0
+                          total_regular_amount:
+                            type: number
+                            example: 650000.0
+                          total_overtime_amount:
+                            type: number
+                            example: 975000.0
+                          total_fee:
+                            type: number
+                            example: 975000.0
+                      workers:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                            item_code:
+                              type: string
+                            item_name:
+                              type: string
+                            worker_name:
+                              type: string
+                            qty:
+                              type: number
+                            uom:
+                              type: string
+                            rate_type:
+                              type: string
+                            rate:
+                              type: number
+                            regular_rate:
+                              type: number
+                            overtime_rate:
+                              type: number
+                            regular_fee:
+                              type: number
+                            lembur_fee:
+                              type: number
+                            total_fee:
+                              type: number
+                            is_overtime:
+                              type: boolean
+                      breakdown_by_worker:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            worker_name:
+                              type: string
+                            total_qty:
+                              type: number
+                            items_handled:
+                              type: integer
+                            item_codes:
+                              type: array
+                              items:
+                                type: string
+                            total_regular_fee:
+                              type: number
+                            total_lembur_fee:
+                              type: number
+                            total_fee:
+                              type: number
+                            rate_type:
+                              type: string
+                      breakdown_by_item:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            item_code:
+                              type: string
+                            item_name:
+                              type: string
+                            uom:
+                              type: string
+                            total_qty:
+                              type: number
+                            regular_rate:
+                              type: number
+                            overtime_rate:
+                              type: number
+                            total_fee:
+                              type: number
+                      items:
+                        type: array
+                        items:
+                          type: object
+                      signatures:
+                        type: array
+                        items:
+                          type: object
+        '404':
+          description: Picklist not found.
+
   /v1/logistic/picklists/{id}/status:
     patch:
       summary: Update Status Dokumen Picklist

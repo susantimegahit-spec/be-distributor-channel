@@ -2229,18 +2229,50 @@ class PicklistService
                     ? trim((string) $item['Uom'])
                     : ($itemModel?->sal_unit_msr ?? $pItem?->unit_msr ?? null));
 
-            $rateType = 'OVERTIME';
+            $inputRateType = !empty($item['rate_type'])
+                ? strtoupper(trim((string) $item['rate_type']))
+                : (!empty($item['rateType']) ? strtoupper(trim((string) $item['rateType'])) : null);
+
+            if (!$inputRateType) {
+                $curTime = now()->format('H:i:s');
+                $otType = LoadingRateType::where('is_active', true)
+                    ->where(function ($q) {
+                        $q->where('code', LoadingRateType::TYPE_OVERTIME)->orWhere('code', 'LEMBUR');
+                    })->first();
+                $regType = LoadingRateType::where('is_active', true)
+                    ->where(function ($q) {
+                        $q->where('code', LoadingRateType::TYPE_REGULAR)->orWhere('code', 'REGULER');
+                    })->first();
+
+                if ($otType && $otType->isTimeInRange($curTime)) {
+                    $inputRateType = LoadingRateType::TYPE_OVERTIME;
+                } elseif ($regType && $regType->isTimeInRange($curTime)) {
+                    $inputRateType = LoadingRateType::TYPE_REGULAR;
+                } else {
+                    $inputRateType = ($curTime >= '16:30:00' || $curTime < '08:00:00')
+                        ? LoadingRateType::TYPE_OVERTIME
+                        : LoadingRateType::TYPE_REGULAR;
+                }
+            }
+
+            $rateType = $inputRateType;
             $rate = 0.0;
 
             if ($customRate !== null && is_numeric($customRate)) {
                 $rate = (float) $customRate;
             } else {
-                // Try to find active OVERTIME loading rate
+                // Try to find active loading rate matching determined rate_type
                 $loadingRate = LoadingRate::where('item_code', $itemCode)
-                    ->where(function ($q) {
-                        $q->where('rate_type', LoadingRateType::TYPE_OVERTIME)
-                          ->orWhere('rate_type', 'OVERTIME')
-                          ->orWhere('rate_type', 'LEMBUR');
+                    ->where(function ($q) use ($inputRateType) {
+                        if ($inputRateType === LoadingRateType::TYPE_REGULAR) {
+                            $q->where('rate_type', LoadingRateType::TYPE_REGULAR)
+                              ->orWhere('rate_type', 'REGULAR')
+                              ->orWhere('rate_type', 'REGULER');
+                        } else {
+                            $q->where('rate_type', LoadingRateType::TYPE_OVERTIME)
+                              ->orWhere('rate_type', 'OVERTIME')
+                              ->orWhere('rate_type', 'LEMBUR');
+                        }
                     })
                     ->where('status', LoadingRate::STATUS_ACTIVE)
                     ->first();
@@ -2255,7 +2287,7 @@ class PicklistService
                         $uom = $loadingRate->uom;
                     }
                 } else {
-                    // Fallback to any active loading rate for this item if overtime not specifically defined
+                    // Fallback to any active loading rate for this item if specific type not defined
                     $fallbackRate = LoadingRate::where('item_code', $itemCode)
                         ->where('status', LoadingRate::STATUS_ACTIVE)
                         ->first();
