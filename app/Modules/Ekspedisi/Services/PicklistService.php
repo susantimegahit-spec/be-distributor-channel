@@ -3676,5 +3676,80 @@ class PicklistService
             'items'                => $picklist->items,
         ];
     }
+
+    /**
+     * Get list of all overload records with filters and pagination.
+     *
+     * @param array $filters
+     * @return array
+     */
+    public function getOverloads(array $filters = []): array
+    {
+        $query = PicklistOverload::with([
+            'picklist:id,picklist_no,shipping_type,vehicle_no,driver_name,checker_name,status,weight_check_status,total_weight_limit,weigh_in_weight,weigh_out_weight,weigh_out_net_weight,unit',
+        ]);
+
+        $like = $query->getConnection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+
+        if (!empty($filters['picklist_id'])) {
+            $query->where('picklist_id', $filters['picklist_id']);
+        }
+
+        if (!empty($filters['picklist_no'])) {
+            $query->where('picklist_no', $like, "%{$filters['picklist_no']}%");
+        }
+
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        if (!empty($filters['date_from'])) {
+            $query->whereDate('weighed_at', '>=', $filters['date_from']);
+        }
+
+        if (!empty($filters['date_to'])) {
+            $query->whereDate('weighed_at', '<=', $filters['date_to']);
+        }
+
+        if (!empty($filters['search'])) {
+            $search = trim((string) $filters['search']);
+            $query->where(function (Builder $q) use ($search, $like) {
+                $q->where('picklist_no', $like, "%{$search}%")
+                    ->orWhere('ticket_no', $like, "%{$search}%")
+                    ->orWhere('operator_name', $like, "%{$search}%")
+                    ->orWhere('rejection_reason', $like, "%{$search}%")
+                    ->orWhereHas('picklist', function (Builder $pq) use ($search, $like) {
+                        $pq->where('vehicle_no', $like, "%{$search}%")
+                            ->orWhere('driver_name', $like, "%{$search}%")
+                            ->orWhere('checker_name', $like, "%{$search}%");
+                    });
+            });
+        }
+
+        $perPage = (int) ($filters['per_page'] ?? 15);
+        if ($perPage <= 0) {
+            $items = $query->orderBy('id', 'desc')->get();
+            return [
+                'data' => $items,
+                'meta' => [
+                    'total' => $items->count(),
+                ],
+            ];
+        }
+
+        $perPage = max(1, min(100, $perPage));
+        $paginator = $query->orderBy('id', 'desc')->paginate($perPage);
+
+        return [
+            'data' => $paginator->items(),
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page'    => $paginator->lastPage(),
+                'per_page'     => $paginator->perPage(),
+                'total'        => $paginator->total(),
+            ],
+        ];
+    }
 }
+
 

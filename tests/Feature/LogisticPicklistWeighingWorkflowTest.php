@@ -508,6 +508,26 @@ class LogisticPicklistWeighingWorkflowTest extends TestCase
             ->assertJsonCount(1, 'data.history');
 
         $this->assertEquals(3000.0, (float) $getOverloadRes->json('data.latest_overload.overload_weight'));
+
+        // Test GET /v1/logistic/picklists/overload (Get All Overloads without ID)
+        $getAllOverloadsRes = $this->actingAs($this->user)->getJson("/api/distributor-channel/v1/logistic/picklists/overload");
+        $getAllOverloadsRes->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Daftar data overload berhasil diambil.');
+
+        $this->assertNotEmpty($getAllOverloadsRes->json('data'));
+        $this->assertEquals($picklist->id, $getAllOverloadsRes->json('data.0.picklist_id'));
+        $this->assertEquals('PKL-REJECT-OL-001', $getAllOverloadsRes->json('data.0.picklist_no'));
+        $this->assertEquals(3000.0, (float) $getAllOverloadsRes->json('data.0.overload_weight'));
+        $this->assertNotNull($getAllOverloadsRes->json('meta'));
+
+        // Test GET /v1/logistic/picklists/overloads (Alias Route with search filter)
+        $getAliasRes = $this->actingAs($this->user)->getJson("/api/distributor-channel/v1/logistic/picklists/overloads?search=REJECT-99");
+        $getAliasRes->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.ticket_no', 'TMB-OUT-REJECT-99');
     }
 }
+
 

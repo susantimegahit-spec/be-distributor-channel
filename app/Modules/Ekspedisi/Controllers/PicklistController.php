@@ -568,6 +568,39 @@ class PicklistController extends Controller
     }
 
     /**
+     * Get list of all overload records without ID.
+     */
+    public function getAllOverloads(Request $request): JsonResponse
+    {
+        $filters = [
+            'picklist_id' => $request->query('picklist_id'),
+            'picklist_no' => $request->query('picklist_no'),
+            'status'      => $request->query('status'),
+            'search'      => $request->query('search'),
+            'date_from'   => $request->query('date_from'),
+            'date_to'     => $request->query('date_to'),
+            'per_page'    => $request->query('per_page', 15),
+        ];
+
+        try {
+            $result = $this->picklistService->getOverloads($filters);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Daftar data overload berhasil diambil.',
+                'data'    => $result['data'],
+                'meta'    => $result['meta'],
+            ], 200);
+        } catch (\Throwable $e) {
+            $statusCode = ($e->getCode() >= 400 && $e->getCode() < 600) ? (int) $e->getCode() : 500;
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengambil data overload: ' . $e->getMessage(),
+            ], $statusCode);
+        }
+    }
+
+    /**
      * Get overload details and temporary history for a picklist.
      */
     public function getOverload(Request $request, int $id): JsonResponse

@@ -76,6 +76,8 @@ Route::prefix('v1/logistic/orders')->middleware('auth:sanctum')->group(function 
 Route::prefix('v1/logistic/picklists')->middleware('auth:sanctum')->group(function () {
     Route::get('/series', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'getSeries']);
     Route::get('/available-orders', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'availableOrders']);
+    Route::get('/overload', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'getAllOverloads']);
+    Route::get('/overloads', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'getAllOverloads']);
     Route::get('/', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'index']);
     Route::post('/', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'store']);
     Route::post('/add-do', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'directAddDo']);
