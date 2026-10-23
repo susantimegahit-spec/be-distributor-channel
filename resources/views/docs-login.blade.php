@@ -4,16 +4,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SMESTA — API Docs</title>
+    <title>SMESTA — API Docs & Pixel Voyage</title>
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Google Fonts: Space Grotesk & JetBrains Mono -->
+    <!-- Google Fonts: Space Grotesk, JetBrains Mono & Press Start 2P -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Press+Start+2P&family=Space+Grotesk:wght@500;600;700&display=swap"
         rel="stylesheet">
 
     <script>
@@ -37,6 +37,7 @@
                     fontFamily: {
                         sans: ['Space Grotesk', 'sans-serif'],
                         mono: ['JetBrains Mono', 'monospace'],
+                        pixel: ['"Press Start 2P"', 'monospace']
                     }
                 }
             }
@@ -46,6 +47,13 @@
     <style>
         * {
             box-sizing: border-box;
+            user-select: none;
+        }
+
+        input,
+        code,
+        pre {
+            user-select: text;
         }
 
         body {
@@ -62,6 +70,7 @@
             image-rendering: -webkit-crisp-edges;
             image-rendering: pixelated;
             image-rendering: crisp-edges;
+            touch-action: manipulation;
         }
 
         /* Minimalist Input Focus */
@@ -89,116 +98,147 @@
 </head>
 
 <body
-    class="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 selection:bg-kapal-cyan selection:text-navy-950">
+    class="min-h-screen w-full flex items-center justify-center p-2 sm:p-4 lg:p-6 selection:bg-kapal-cyan selection:text-navy-950">
 
-    <!-- VIEW 1: MINIMALIST PIXEL LOGIN CARD -->
+    <!-- VIEW 1: FULL-WIDTH EXPANDED LOGIN + PLAYABLE PIXEL SHIP ARCADE GAME -->
     <main id="loginView"
-        class="w-full max-w-[820px] bg-navy-900 border border-white/15 grid grid-cols-1 md:grid-cols-12 overflow-hidden shadow-2xl">
+        class="w-full max-w-[1440px] 2xl:max-w-[1680px] min-h-[85vh] lg:min-h-[88vh] bg-navy-900 border border-white/15 grid grid-cols-1 lg:grid-cols-12 overflow-hidden shadow-2xl rounded-sm">
 
-        <!-- Left Panel: Handcrafted Interactive 2D Pixel Art Scene (7 Columns) -->
+        <!-- Left Panel: Playable 2D Pixel Art Game ("Cap Kapal Pixel Voyage") (8 Columns on Large Screens) -->
         <div
-            class="md:col-span-7 relative bg-navy-950 border-b md:border-b-0 md:border-r border-white/15 flex flex-col justify-between min-h-[260px] sm:min-h-[380px] overflow-hidden">
+            class="lg:col-span-8 relative bg-navy-950 border-b lg:border-b-0 lg:border-r border-white/15 flex flex-col justify-between min-h-[380px] sm:min-h-[460px] lg:min-h-full overflow-hidden">
 
-            <!-- Low-Res Pixel Canvas (160x144 scaled up cleanly) -->
-            <canvas id="pixelScene" width="160" height="144"
-                class="pixel-canvas w-full h-full object-cover absolute inset-0 cursor-crosshair"></canvas>
+            <!-- Low-Res Playable Pixel Canvas (240x160 scaled up cleanly to fill widescreen) -->
+            <canvas id="pixelScene" width="240" height="160"
+                class="pixel-canvas w-full h-full object-cover absolute inset-0 cursor-pointer"></canvas>
 
-            <!-- Minimal Top-Left Brand Tag Over Pixel Canvas -->
+            <!-- Top Overlay: Brand Header & Tiny Mute Toggle Button -->
             <div class="relative z-10 p-4 flex items-center justify-between pointer-events-none">
-                <span
-                    class="px-2 py-0.5 bg-navy-950/80 border border-white/15 font-mono text-[10px] tracking-widest text-kapal-salt uppercase">
-                    EST. 1978
-                </span>
-                <span class="px-2 py-0.5 bg-navy-950/80 border border-white/15 font-mono text-[10px] text-kapal-cyan">
-                    NaCl • PIXEL ENGINE
-                </span>
+                <div class="flex items-center gap-2">
+                    <span
+                        class="px-2.5 py-1 bg-navy-950/85 border border-white/15 font-mono text-[10px] tracking-widest text-kapal-salt uppercase rounded-sm">
+                        EST. 1978 • PT SUSANTI MEGAH
+                    </span>
+                    <span
+                        class="hidden sm:inline-block px-2.5 py-1 bg-navy-950/85 border border-white/15 font-mono text-[10px] text-kapal-cyan rounded-sm">
+                        ARCADE VOYAGE • NaCl • PIXEL ENGINE
+                    </span>
+                </div>
+
+                <button type="button" id="muteBtn" onclick="toggleMute(event)" title="Toggle 8-Bit Sound"
+                    class="pointer-events-auto px-2.5 py-1 bg-navy-950/85 hover:bg-navy-800 border border-white/15 font-mono text-[10px] text-slate-300 flex items-center gap-1.5 transition rounded-sm">
+                    <span id="muteIcon" class="text-kapal-cyan">♪ ON</span>
+                </button>
             </div>
 
-            <!-- Minimal Bottom Caption -->
-            <div class="relative z-10 p-4 pointer-events-none mt-auto">
-                <p class="font-mono text-[11px] text-slate-400 tracking-tight">
-                    PT SUSANTI MEGAH
-                </p>
+            <!-- Minimal Bottom Control Prompt -->
+            <div
+                class="relative z-10 px-4 py-2.5 bg-navy-950/85 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 pointer-events-none mt-auto">
+                <span class="font-mono text-[11px] text-slate-300 tracking-tight flex items-center gap-2">
+                    <span class="px-1.5 py-0.5 bg-white/10 rounded text-[10px] text-white">W/S</span>
+                    <span class="px-1.5 py-0.5 bg-white/10 rounded text-[10px] text-white">↑/↓</span>
+                    <span class="px-1.5 py-0.5 bg-white/10 rounded text-[10px] text-white">KLIK/TAP</span>
+                    <span>KENDALIKAN KAPAL</span>
+                </span>
+                <span class="font-mono text-[11px] text-kapal-cyan flex items-center gap-3">
+                    <span><strong class="text-white">+10</strong> NaCl Crystal</span>
+                    <span><strong class="text-kapal-gold">+50</strong> Salt Crate</span>
+                    <span class="text-rose-400"><strong class="text-rose-400">-20</strong> Sea Reef</span>
+                </span>
             </div>
         </div>
 
-        <!-- Right Panel: Ultra-Clean Login Form (5 Columns) -->
-        <div class="md:col-span-5 p-7 sm:p-9 flex flex-col justify-center bg-navy-900">
+        <!-- Right Panel: Login Form (4 Columns on Large Screens) -->
+        <div class="lg:col-span-4 p-6 sm:p-8 lg:p-10 flex flex-col justify-between bg-navy-900">
 
-            <!-- Minimal Header -->
-            <div class="mb-8">
-                <div class="flex items-center gap-2.5 mb-2">
-                    <!-- Mini 8-bit Pixel Ship Emblem SVG -->
-                    <svg class="w-5 h-5 shrink-0" viewBox="0 0 16 16" fill="none" shape-rendering="crispEdges">
-                        <rect x="7" y="2" width="1" height="9" fill="#F59E0B" />
-                        <rect x="8" y="3" width="4" height="6" fill="#F8FAFC" />
-                        <rect x="4" y="5" width="3" height="4" fill="#CBD5E1" />
-                        <rect x="2" y="11" width="12" height="2" fill="#E11D48" />
-                        <rect x="3" y="13" width="10" height="1" fill="#9F1239" />
-                        <rect x="1" y="15" width="14" height="1" fill="#38BDF8" />
-                    </svg>
-                    <span class="font-bold tracking-wider text-sm text-white uppercase">
-                        SMESTA
-                    </span>
+            <!-- Top Header -->
+            <div>
+                <div class="mb-8">
+                    <div class="flex items-center gap-2.5 mb-2">
+                        <!-- Mini 8-bit Pixel Ship Emblem SVG -->
+                        <svg class="w-6 h-6 shrink-0" viewBox="0 0 16 16" fill="none" shape-rendering="crispEdges">
+                            <rect x="7" y="2" width="1" height="9" fill="#F59E0B" />
+                            <rect x="8" y="3" width="4" height="6" fill="#F8FAFC" />
+                            <rect x="4" y="5" width="3" height="4" fill="#CBD5E1" />
+                            <rect x="2" y="11" width="12" height="2" fill="#E11D48" />
+                            <rect x="3" y="13" width="10" height="1" fill="#9F1239" />
+                            <rect x="1" y="15" width="14" height="1" fill="#38BDF8" />
+                        </svg>
+                        <span class="font-bold tracking-wider text-base text-white uppercase">
+                            SMESTA
+                        </span>
+                        <span class="text-slate-600">/</span>
+                        <span class="font-mono text-xs text-kapal-gold tracking-wide uppercase">
+                            Garam Cap Kapal
+                        </span>
+                    </div>
+                    <h1 class="font-mono text-xs text-slate-400">
+                        API Documentation Portal & Integration Hub
+                    </h1>
                 </div>
-                <h1 class="font-mono text-xs text-slate-400">
-                    API Documentation
-                </h1>
+
+                <!-- Server Flash Status Messages -->
+                @if(session('error'))
+                    <div
+                        class="mb-4 p-3 bg-rose-950/70 border border-rose-500/60 font-mono text-xs text-rose-300 flex items-center gap-2 rounded-sm">
+                        <span class="inline-block w-2 h-2 bg-rose-500 shrink-0"></span>
+                        <span>{{ session('error') }}</span>
+                    </div>
+                @elseif(request()->has('expired'))
+                    <div
+                        class="mb-4 p-3 bg-amber-950/70 border border-amber-500/60 font-mono text-xs text-amber-300 flex items-center gap-2 rounded-sm">
+                        <span class="inline-block w-2 h-2 bg-amber-500 shrink-0"></span>
+                        <span>Sesi Anda telah kedaluwarsa. Silakan masuk kembali.</span>
+                    </div>
+                @endif
+
+                <!-- Login Form -->
+                <form id="loginForm" action="{{ url('/docs/login') }}" method="POST" onsubmit="return handleLogin(event)"
+                    class="space-y-5" novalidate>
+                    @csrf
+                    <div>
+                        <label for="username" class="block font-mono text-xs text-slate-300 mb-2">
+                            Username
+                        </label>
+                        <input type="text" id="username" name="username" required autocomplete="username" autofocus
+                            placeholder="username" oninput="triggerTypingBoost()" value="{{ old('username') }}"
+                            class="clean-input w-full px-3.5 py-3 bg-navy-950 border border-white/20 font-mono text-sm text-white placeholder-slate-600 transition rounded-sm">
+                    </div>
+
+                    <div>
+                        <label for="password" class="block font-mono text-xs text-slate-300 mb-2">
+                            Password
+                        </label>
+                        <input type="password" id="password" name="password" required autocomplete="current-password"
+                            placeholder="••••••••" oninput="triggerTypingBoost()"
+                            class="clean-input w-full px-3.5 py-3 bg-navy-950 border border-white/20 font-mono text-sm text-white placeholder-slate-600 transition rounded-sm">
+                    </div>
+
+                    <p id="errorMsg" class="hidden font-mono text-[11px] text-kapal-red">
+                        Masukkan username dan password terlebih dahulu.
+                    </p>
+
+                    <div class="pt-2">
+                        <button type="submit"
+                            class="pixel-btn w-full py-3 px-4 bg-kapal-red text-white font-mono text-xs font-semibold uppercase tracking-widest border border-rose-300/30 rounded-sm">
+                            Masuk ke Dokumentasi
+                        </button>
+                    </div>
+                </form>
             </div>
 
-            <!-- Status Alert from Laravel Session -->
-            @if(session('error'))
-                <div class="mb-4 p-3 bg-rose-950/70 border border-rose-500/60 font-mono text-xs text-rose-300 flex items-center gap-2">
-                    <span class="inline-block w-2 h-2 bg-rose-500 shrink-0"></span>
-                    <span>{{ session('error') }}</span>
-                </div>
-            @elseif(request()->has('expired'))
-                <div class="mb-4 p-3 bg-amber-950/70 border border-amber-500/60 font-mono text-xs text-amber-300 flex items-center gap-2">
-                    <span class="inline-block w-2 h-2 bg-amber-500 shrink-0"></span>
-                    <span>Sesi Anda telah kedaluwarsa. Silakan masuk kembali.</span>
-                </div>
-            @endif
-
-            <!-- Strictly Username, Password, and Login Button -->
-            <form id="loginForm" action="{{ url('/docs/login') }}" method="POST" onsubmit="return handleLogin(event)" class="space-y-5" novalidate>
-                @csrf
-                <div>
-                    <label for="username" class="block font-mono text-xs text-slate-300 mb-2">
-                        Username
-                    </label>
-                    <input type="text" id="username" name="username" required autocomplete="username" autofocus
-                        placeholder="username" oninput="triggerPixelSaltBurst()"
-                        value="{{ old('username') }}"
-                        class="clean-input w-full px-3.5 py-2.5 bg-navy-950 border border-white/20 font-mono text-sm text-white placeholder-slate-600 transition">
-                </div>
-
-                <div>
-                    <label for="password" class="block font-mono text-xs text-slate-300 mb-2">
-                        Password
-                    </label>
-                    <input type="password" id="password" name="password" required autocomplete="current-password"
-                        placeholder="••••••••" oninput="triggerPixelSaltBurst()"
-                        class="clean-input w-full px-3.5 py-2.5 bg-navy-950 border border-white/20 font-mono text-sm text-white placeholder-slate-600 transition">
-                </div>
-
-                <p id="errorMsg" class="hidden font-mono text-[11px] text-kapal-red">
-                    Masukkan username dan password.
-                </p>
-
-                <div class="pt-2">
-                    <button type="submit"
-                        class="pixel-btn w-full py-2.5 px-4 bg-kapal-red text-white font-mono text-xs font-semibold uppercase tracking-widest border border-rose-300/30">
-                        Login
-                    </button>
-                </div>
-            </form>
+            <!-- Footer Meta -->
+            <div class="pt-6 border-t border-white/10 mt-6 flex items-center justify-between text-slate-500 font-mono text-[11px]">
+                <span>PT Susanti Megah</span>
+                <span>v1.0 • HTTPS SECURE</span>
+            </div>
 
         </div>
     </main>
 
     <!-- VIEW 2: MINIMALIST API DOCUMENTATION (Fallback Preview) -->
     <section id="docsView"
-        class="hidden w-full max-w-[820px] bg-navy-900 border border-white/15 shadow-2xl overflow-hidden">
+        class="hidden w-full max-w-[1440px] bg-navy-900 border border-white/15 shadow-2xl overflow-hidden rounded-sm">
 
         <!-- Top Bar -->
         <header class="px-6 py-4 bg-navy-950 border-b border-white/15 flex items-center justify-between">
@@ -218,7 +258,7 @@
             <div class="flex items-center gap-4">
                 <span id="loggedUserLabel" class="font-mono text-xs text-slate-400"></span>
                 <button onclick="handleLogout()"
-                    class="px-3 py-1 bg-navy-800 hover:bg-navy-950 border border-white/15 font-mono text-xs text-slate-200 transition">
+                    class="px-3 py-1 bg-navy-800 hover:bg-navy-950 border border-white/15 font-mono text-xs text-slate-200 transition rounded-sm">
                     Logout
                 </button>
             </div>
@@ -229,11 +269,11 @@
 
             <!-- Base URL & Auth -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div class="p-3.5 bg-navy-950 border border-white/10">
+                <div class="p-3.5 bg-navy-950 border border-white/10 rounded-sm">
                     <div class="font-mono text-[10px] text-slate-400 uppercase mb-1">Base URL</div>
                     <code class="font-mono text-xs text-kapal-cyan select-all">{{ url('/v1') }}</code>
                 </div>
-                <div class="p-3.5 bg-navy-950 border border-white/10">
+                <div class="p-3.5 bg-navy-950 border border-white/10 rounded-sm">
                     <div class="font-mono text-[10px] text-slate-400 uppercase mb-1">Auth Header</div>
                     <code
                         class="font-mono text-xs text-kapal-gold select-all">Authorization: Bearer &lt;token&gt;</code>
@@ -272,224 +312,510 @@
         </div>
     </section>
 
-    <!-- PIXEL ART ENGINE & MINIMAL LOGIC -->
+    <!-- PLAYABLE 2D PIXEL SHIP GAME ENGINE ("CAP KAPAL PIXEL VOYAGE") -->
     <script>
         const canvas = document.getElementById('pixelScene');
         const ctx = canvas.getContext('2d');
-        const W = canvas.width;  // 160
-        const H = canvas.height; // 144
+        const W = canvas.width;  // 240
+        const H = canvas.height; // 160
 
+        // 8-Bit Web Audio Synthesizer
+        let audioCtx = null;
+        let isMuted = false;
+
+        function ensureAudio() {
+            if (isMuted) return null;
+            if (!audioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioContextClass) audioCtx = new AudioContextClass();
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        function play8BitSound(type) {
+            const actx = ensureAudio();
+            if (!actx) return;
+
+            const now = actx.currentTime;
+            const osc = actx.createOscillator();
+            const gain = actx.createGain();
+            osc.connect(gain);
+            gain.connect(actx.destination);
+
+            if (type === 'move') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(240, now);
+                osc.frequency.exponentialRampToValueAtTime(360, now + 0.045);
+                gain.gain.setValueAtTime(0.03, now);
+                gain.gain.linearRampToValueAtTime(0.001, now + 0.045);
+                osc.start(now);
+                osc.stop(now + 0.045);
+            } else if (type === 'salt') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(587.33, now); // D5
+                osc.frequency.setValueAtTime(880, now + 0.045); // A5
+                gain.gain.setValueAtTime(0.04, now);
+                gain.gain.linearRampToValueAtTime(0.001, now + 0.11);
+                osc.start(now);
+                osc.stop(now + 0.11);
+            } else if (type === 'crate') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.setValueAtTime(659.25, now + 0.05); // E5
+                osc.frequency.setValueAtTime(783.99, now + 0.10); // G5
+                osc.frequency.setValueAtTime(1046.50, now + 0.15); // C6
+                gain.gain.setValueAtTime(0.06, now);
+                gain.gain.linearRampToValueAtTime(0.001, now + 0.24);
+                osc.start(now);
+                osc.stop(now + 0.24);
+            } else if (type === 'hit') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.linearRampToValueAtTime(55, now + 0.18);
+                gain.gain.setValueAtTime(0.06, now);
+                gain.gain.linearRampToValueAtTime(0.001, now + 0.18);
+                osc.start(now);
+                osc.stop(now + 0.18);
+            }
+        }
+
+        function toggleMute(e) {
+            if (e) e.stopPropagation();
+            isMuted = !isMuted;
+            const icon = document.getElementById('muteIcon');
+            icon.textContent = isMuted ? '♪ OFF' : '♪ ON';
+            icon.className = isMuted ? 'text-slate-500' : 'text-kapal-cyan';
+            if (!isMuted) play8BitSound('move');
+        }
+
+        // Sea Lanes Y-Coordinates (3 Horizontal Sea Lanes)
+        const LANES = [90, 112, 134];
+
+        // Game State
         let tick = 0;
-        let mouseX = W / 2;
-        let mouseY = H / 2;
-        let typingEnergy = 0;
+        let score = 0;
+        let bestScore = 0;
+        let speedBoost = 0;
+        let hitFlash = 0;
+        let spawnTimer = 25;
 
-        // Floating Salt Crystal Pixels
-        const saltPixels = Array.from({ length: 34 }, () => ({
+        // Player Ship State
+        const ship = {
+            x: 28,
+            lane: 1,
+            y: LANES[1],
+            targetY: LANES[1]
+        };
+
+        // Entities: Collectibles & Reef Obstacles
+        const entities = [];
+        // Floating Score Popups
+        const popups = [];
+        // Water Wake Particles
+        const wakes = [];
+
+        // Twinkling Night Sky Stars / Salt Dust
+        const stars = Array.from({ length: 36 }, () => ({
             x: Math.floor(Math.random() * W),
-            y: Math.floor(Math.random() * (H - 45)),
-            speedY: 0.12 + Math.random() * 0.2,
-            blinkOffset: Math.random() * 100,
-            isBig: Math.random() > 0.78
+            y: 16 + Math.floor(Math.random() * 56),
+            speed: 0.15 + Math.random() * 0.25,
+            phase: Math.random() * 100
         }));
 
-        // Water Ripples on Mouse/Typing
-        const ripples = [];
-
-        // Ship Pixel Sprite Map ("Cap Kapal" Silhouette + Sails + Red Hull)
-        // Legend:
-        // '.' = transparent
-        // 'W' = Pure Salt White Sail (#F8FAFC)
-        // 'S' = Shaded Sail (#CBD5E1)
-        // 'G' = Gold Mast/Flag (#F59E0B)
-        // 'R' = Cap Kapal Red Hull (#E11D48)
-        // 'D' = Dark Crimson Hull Bottom (#9F1239)
-        // 'N' = Navy Cabin Detail (#060D1A)
+        // Compact Iconic "Cap Kapal" Sailboat Sprite (24x16)
         const shipSprite = [
-            "................G...............",
-            "..............G.G...............",
-            "................G.......G.......",
-            "...............WG......GG.......",
-            "..............WWG.......G.......",
-            ".......G.....WWWG......WG.......",
-            "......GG....WWWWG.....WWG.......",
-            ".......G...WWWWWG....WWWG.......",
-            "......WG..WWWWWWG...WWWWG.......",
-            ".....WWG.WWWWWWWG..WWWWWG.......",
-            "....SSSG.WWWWWWWG.WWWWWWG.......",
-            "...SSSSG.WWWWWWWG.WWWWWWG.......",
-            "..SSSSSG.WWWWWWWG.WWWWWWG.......",
-            ".SSSSSSG.WWWWWWWG.WWWWWWG.......",
-            "................G.......G.......",
-            "..RRRRRRRRRRRRRRRRRRRRRRRRRRRR..",
-            "...RRRRNNRRRRNNRRRRNNRRRRRRRR...",
-            "....DDDDDDDDDDDDDDDDDDDDDDDD...."
+            "...........G............",
+            ".........G.G............",
+            "...........G.....G......",
+            "..........WG....GG......",
+            ".....G...WWG.....G......",
+            "....GG..WWWG....WG......",
+            ".....G.WWWWG...WWG......",
+            "....WG.WWWWG..WWWG......",
+            "...SSG.WWWWG.WWWWG......",
+            "..SSSG.WWWWG.WWWWG......",
+            ".SSSSG.WWWWG.WWWWG......",
+            "...........G.....G......",
+            ".RRRRRRRRRRRRRRRRRRRRRR.",
+            "..RRRNRRRNRRRNRRRRRRRR..",
+            "...DDDDDDDDDDDDDDDDDD..."
+        ];
+
+        // Halite Crystal Sprite (+10 NaCl) (7x7)
+        const crystalSprite = [
+            "...C...",
+            "..CCC..",
+            ".CWKWC.",
+            "CCKKKCC",
+            ".CWKWC.",
+            "..CCC..",
+            "...C..."
+        ];
+
+        // Golden Salt Crate Sprite (+50 NaCl) (9x8)
+        const crateSprite = [
+            ".GGGGGGG.",
+            "GWWWWWWWG",
+            "GWGGGGGWg",
+            "GWGWWWGWG",
+            "GWGGGGGWg",
+            "GWWWWWWWG",
+            ".DDDDDDD."
+        ];
+
+        // Dark Sea Reef Obstacle Sprite (11x8)
+        const reefSprite = [
+            ".....M.....",
+            "....MMM....",
+            "..MMLLLMM..",
+            ".MLLLLLLLM.",
+            "MLLLLLLLLLM",
+            "RRRRRRRRRRR",
+            ".CCCCCCCC.."
         ];
 
         const palette = {
             'W': '#F8FAFC',
+            'K': '#FFFFFF',
             'S': '#94A3B8',
             'G': '#F59E0B',
+            'g': '#D97706',
             'R': '#E11D48',
             'D': '#9F1239',
-            'N': '#060D1A'
+            'N': '#060D1A',
+            'C': '#38BDF8',
+            'M': '#334155',
+            'L': '#1E293B'
         };
 
-        // Track Mouse in Pixel Coordinates
-        canvas.addEventListener('mousemove', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            mouseX = Math.floor(((e.clientX - rect.left) / rect.width) * W);
-            mouseY = Math.floor(((e.clientY - rect.top) / rect.height) * H);
+        // Tiny 3x5 Pixel Font Map for Crisp Canvas HUD
+        const pixelFont = {
+            '0': ["111","101","101","101","111"],
+            '1': ["010","110","010","010","111"],
+            '2': ["111","001","111","100","111"],
+            '3': ["111","001","111","001","111"],
+            '4': ["101","101","111","001","001"],
+            '5': ["111","100","111","001","111"],
+            '6': ["111","100","111","101","111"],
+            '7': ["111","001","001","001","001"],
+            '8': ["111","101","111","101","111"],
+            '9': ["111","101","111","001","111"],
+            'A': ["010","101","111","101","101"],
+            'B': ["110","101","110","101","110"],
+            'C': ["111","100","100","100","111"],
+            'E': ["111","100","110","100","111"],
+            'I': ["111","010","010","010","111"],
+            'L': ["100","100","100","100","111"],
+            'N': ["111","101","101","101","101"],
+            'O': ["111","101","101","101","111"],
+            'P': ["111","101","111","100","100"],
+            'R': ["111","101","110","101","101"],
+            'S': ["111","100","111","001","111"],
+            'T': ["111","010","010","010","010"],
+            'V': ["101","101","101","101","010"],
+            'Y': ["101","101","010","010","010"],
+            '+': ["000","010","111","010","000"],
+            '-': ["000","000","111","000","000"],
+            ':': ["000","010","000","010","000"],
+            ' ': ["000","000","000","000","000"]
+        };
 
-            if (mouseY > 92 && Math.random() > 0.5) {
-                ripples.push({ x: mouseX, y: mouseY, r: 1, maxR: 8 });
+        function drawPixelText(text, x, y, color) {
+            const str = String(text).toUpperCase();
+            let curX = Math.floor(x);
+            const curY = Math.floor(y);
+            ctx.fillStyle = color;
+
+            for (let i = 0; i < str.length; i++) {
+                const glyph = pixelFont[str[i]] || pixelFont[' '];
+                for (let r = 0; r < 5; r++) {
+                    for (let c = 0; c < 3; c++) {
+                        if (glyph[r][c] === '1') {
+                            ctx.fillRect(curX + c, curY + r, 1, 1);
+                        }
+                    }
+                }
+                curX += 4;
+            }
+        }
+
+        function drawSprite(sprite, x, y) {
+            const sx = Math.floor(x);
+            const sy = Math.floor(y);
+            for (let r = 0; r < sprite.length; r++) {
+                const row = sprite[r];
+                for (let c = 0; c < row.length; c++) {
+                    const ch = row[c];
+                    if (ch !== '.' && palette[ch]) {
+                        ctx.fillStyle = palette[ch];
+                        ctx.fillRect(sx + c, sy + r, 1, 1);
+                    }
+                }
+            }
+        }
+
+        function changeLane(delta) {
+            const nextLane = Math.max(0, Math.min(2, ship.lane + delta));
+            if (nextLane !== ship.lane) {
+                ship.lane = nextLane;
+                ship.targetY = LANES[ship.lane];
+                play8BitSound('move');
+                // Spawn wake splash
+                for (let i = 0; i < 4; i++) {
+                    wakes.push({
+                        x: ship.x + 6 + Math.random() * 10,
+                        y: ship.y + 13,
+                        vx: -0.8 - Math.random(),
+                        life: 14
+                    });
+                }
+            }
+        }
+
+        // Keyboard Controls
+        window.addEventListener('keydown', (e) => {
+            const activeTag = document.activeElement ? document.activeElement.tagName : '';
+            const isInput = activeTag === 'INPUT' || activeTag === 'TEXTAREA';
+
+            if (e.key === 'ArrowUp' || (!isInput && (e.key === 'w' || e.key === 'W'))) {
+                e.preventDefault();
+                changeLane(-1);
+            } else if (e.key === 'ArrowDown' || (!isInput && (e.key === 's' || e.key === 'S'))) {
+                e.preventDefault();
+                changeLane(1);
+            } else if (!isInput && e.key === ' ') {
+                e.preventDefault();
+                ship.lane = (ship.lane + 1) % 3;
+                ship.targetY = LANES[ship.lane];
+                play8BitSound('move');
             }
         });
 
-        canvas.addEventListener('click', () => {
-            triggerPixelSaltBurst();
+        // Click / Tap on Canvas to Steer Ship to Clicked Sea Lane
+        canvas.addEventListener('pointerdown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const clickY = ((e.clientY - rect.top) / rect.height) * H;
+
+            // Find closest sea lane to tap position
+            let closestLane = 0;
+            let minDiff = 999;
+            for (let i = 0; i < LANES.length; i++) {
+                const diff = Math.abs(clickY - LANES[i]);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closestLane = i;
+                }
+            }
+
+            if (closestLane !== ship.lane) {
+                ship.lane = closestLane;
+                ship.targetY = LANES[ship.lane];
+                play8BitSound('move');
+            } else {
+                // Cycle lane if user taps directly on current lane
+                ship.lane = (ship.lane + 1) % 3;
+                ship.targetY = LANES[ship.lane];
+                play8BitSound('move');
+            }
         });
 
-        function triggerPixelSaltBurst() {
-            typingEnergy = 12;
-            // Spawn a water ripple near the ship
-            ripples.push({
-                x: 64 + Math.floor(Math.random() * 32),
-                y: 102 + Math.floor(Math.random() * 14),
-                r: 1,
-                maxR: 12
+        // Typing in Username/Password Boosts Ship & Spawns Bonus Salt Crystal
+        function triggerTypingBoost() {
+            speedBoost = 18;
+            const bonusLane = Math.floor(Math.random() * 3);
+            entities.push({
+                type: Math.random() > 0.8 ? 'crate' : 'crystal',
+                lane: bonusLane,
+                x: W + 4,
+                y: LANES[bonusLane]
             });
         }
 
-        function drawPixel(x, y, color) {
-            ctx.fillStyle = color;
-            ctx.fillRect(Math.floor(x), Math.floor(y), 1, 1);
+        function spawnEntity() {
+            const lane = Math.floor(Math.random() * 3);
+            const roll = Math.random();
+            let type = 'crystal';
+            if (roll > 0.84) {
+                type = 'crate';
+            } else if (roll < 0.32) {
+                type = 'reef';
+            }
+
+            // Prevent impossible 3-lane reef blockade
+            const recentReefs = entities.filter(e => e.type === 'reef' && e.x > W - 45);
+            if (type === 'reef' && recentReefs.length >= 2) {
+                type = 'crystal';
+            }
+
+            entities.push({
+                type,
+                lane,
+                x: W + 10,
+                y: LANES[lane]
+            });
         }
 
-        function drawRect(x, y, w, h, color) {
-            ctx.fillStyle = color;
-            ctx.fillRect(Math.floor(x), Math.floor(y), Math.floor(w), Math.floor(h));
-        }
-
-        function renderPixelScene() {
+        function updateGame() {
             tick++;
-            if (typingEnergy > 0) typingEnergy *= 0.92;
+            if (speedBoost > 0) speedBoost *= 0.94;
+            if (hitFlash > 0) hitFlash--;
 
-            // 1. Deep Maritime Night Sky Bands (Pixel Dithered Look)
-            drawRect(0, 0, W, 36, '#050B16');
-            drawRect(0, 36, W, 32, '#081223');
-            drawRect(0, 68, W, 28, '#0B192C');
+            const currentSpeed = 1.05 + Math.min(0.6, score / 800) + (speedBoost * 0.06);
 
-            // 2. Pixel Crescent Moon / Salt Crystal Emblem in Sky (Top Right)
-            const moonX = 126;
-            const moonY = 26;
-            drawRect(moonX - 5, moonY - 5, 11, 11, '#132742');
-            // Diamond Salt Crystal Halo
-            drawRect(moonX - 3, moonY - 3, 7, 7, '#F8FAFC');
-            drawPixel(moonX, moonY - 5, '#38BDF8');
-            drawPixel(moonX, moonY + 5, '#38BDF8');
-            drawPixel(moonX - 5, moonY, '#38BDF8');
-            drawPixel(moonX + 5, moonY, '#38BDF8');
+            // Smooth vertical lane interpolation
+            ship.y += (ship.targetY - ship.y) * 0.28;
 
-            // 3. Falling / Twinkling Salt Crystal Pixels
-            for (let i = 0; i < saltPixels.length; i++) {
-                const p = saltPixels[i];
-                p.y += p.speedY + (typingEnergy * 0.08);
-                if (p.y > 94) {
-                    p.y = 2;
-                    p.x = Math.floor(Math.random() * W);
-                }
+            // Spawn water wake behind ship hull
+            if (tick % 3 === 0) {
+                wakes.push({
+                    x: ship.x + 2,
+                    y: Math.round(ship.y) + 13 + (Math.random() > 0.5 ? 1 : 0),
+                    vx: -currentSpeed * 0.9,
+                    life: 16
+                });
+            }
 
-                const twinkle = Math.sin(tick * 0.08 + p.blinkOffset);
-                if (twinkle > -0.3) {
-                    const color = twinkle > 0.6 ? '#F8FAFC' : '#38BDF8';
-                    if (p.isBig && typingEnergy > 2) {
-                        // Draw 3x3 mini crystal cross when typing
-                        drawPixel(p.x, p.y, '#F8FAFC');
-                        drawPixel(p.x - 1, p.y, '#38BDF8');
-                        drawPixel(p.x + 1, p.y, '#38BDF8');
-                        drawPixel(p.x - 1, p.y, '#38BDF8');
-                        drawPixel(p.x, p.y + 1, '#38BDF8');
-                    } else {
-                        drawPixel(p.x, p.y, color);
+            for (let i = wakes.length - 1; i >= 0; i--) {
+                wakes[i].x += wakes[i].vx;
+                wakes[i].life--;
+                if (wakes[i].life <= 0) wakes.splice(i, 1);
+            }
+
+            // Spawn Collectibles & Reefs
+            spawnTimer--;
+            if (spawnTimer <= 0) {
+                spawnEntity();
+                spawnTimer = Math.max(22, Math.floor(42 - currentSpeed * 6 + Math.random() * 16));
+            }
+
+            // Update Entities & Check Collisions
+            for (let i = entities.length - 1; i >= 0; i--) {
+                const en = entities[i];
+                en.x -= currentSpeed;
+
+                // Hitbox Check with Ship
+                const dx = Math.abs((ship.x + 11) - (en.x + 4));
+                const dy = Math.abs((ship.y + 10) - (en.y + 4));
+
+                if (dx < 11 && dy < 8) {
+                    if (en.type === 'crystal') {
+                        score += 10;
+                        if (score > bestScore) bestScore = score;
+                        play8BitSound('salt');
+                        popups.push({ text: '+10', x: ship.x + 12, y: ship.y - 2, color: '#38BDF8', life: 22 });
+                    } else if (en.type === 'crate') {
+                        score += 50;
+                        if (score > bestScore) bestScore = score;
+                        play8BitSound('crate');
+                        popups.push({ text: '+50', x: ship.x + 12, y: ship.y - 2, color: '#F59E0B', life: 26 });
+                    } else if (en.type === 'reef') {
+                        score = Math.max(0, score - 20);
+                        hitFlash = 10;
+                        play8BitSound('hit');
+                        popups.push({ text: '-20', x: ship.x + 12, y: ship.y - 2, color: '#E11D48', life: 22 });
                     }
+                    entities.splice(i, 1);
+                    continue;
+                }
+
+                if (en.x < -20) {
+                    entities.splice(i, 1);
                 }
             }
 
-            // 4. Calculate Ship Bobbing on Waves
-            const shipBobY = Math.round(Math.sin(tick * 0.05) * 1.4);
-            const shipX = 56;
-            const shipY = 79 + shipBobY;
+            // Update Popups
+            for (let i = popups.length - 1; i >= 0; i--) {
+                popups[i].y -= 0.35;
+                popups[i].life--;
+                if (popups[i].life <= 0) popups.splice(i, 1);
+            }
+        }
 
-            // 5. Back Ocean Horizon Layer
-            for (let x = 0; x < W; x++) {
-                const waveH = Math.floor(Math.sin(x * 0.08 + tick * 0.04) * 1.5);
-                drawRect(x, 94 + waveH, 1, H - (94 + waveH), '#0D223D');
-                if ((x + Math.floor(tick * 0.3)) % 7 === 0) {
-                    drawPixel(x, 94 + waveH, '#1E3A5F');
+        function renderGame() {
+            updateGame();
+
+            // 1. Sky Background Bands
+            ctx.fillStyle = hitFlash > 0 ? '#2A0A18' : '#050B16';
+            ctx.fillRect(0, 0, W, 38);
+            ctx.fillStyle = '#081223';
+            ctx.fillRect(0, 38, W, 24);
+            ctx.fillStyle = '#0B192C';
+            ctx.fillRect(0, 62, W, 20);
+
+            // 2. Twinkling Stars & Salt Dust in Sky
+            for (let i = 0; i < stars.length; i++) {
+                const s = stars[i];
+                s.x -= s.speed + (speedBoost * 0.03);
+                if (s.x < 0) s.x = W - 1;
+                if (Math.sin(tick * 0.07 + s.phase) > -0.2) {
+                    ctx.fillStyle = (i % 3 === 0) ? '#38BDF8' : '#F8FAFC';
+                    ctx.fillRect(Math.floor(s.x), s.y, 1, 1);
                 }
             }
 
-            // 6. Draw Iconic "Cap Kapal" Pixel Ship
-            for (let row = 0; row < shipSprite.length; row++) {
-                const line = shipSprite[row];
-                for (let col = 0; col < line.length; col++) {
-                    const ch = line[col];
-                    if (ch !== '.') {
-                        drawPixel(shipX + col, shipY + row, palette[ch]);
-                    }
+            // 3. Pixel Moon & Distant Surabaya Lighthouse Silhouette
+            const moonX = W - 34;
+            const moonY = 28;
+            ctx.fillStyle = '#132742';
+            ctx.fillRect(moonX - 5, moonY - 5, 11, 11);
+            ctx.fillStyle = '#F8FAFC';
+            ctx.fillRect(moonX - 3, moonY - 3, 7, 7);
+
+            // 4. Sea Background & 3 Distinct Sailing Lanes
+            ctx.fillStyle = '#09172A';
+            ctx.fillRect(0, 82, W, H - 82);
+
+            for (let laneIdx = 0; laneIdx < LANES.length; laneIdx++) {
+                const ly = LANES[laneIdx] + 13;
+                // Subtle wave crest along each lane
+                for (let x = 0; x < W; x += 2) {
+                    const waveOffset = Math.floor(Math.sin((x * 0.08) - (tick * 0.08) + laneIdx) * 1.2);
+                    const isFoam = ((x + Math.floor(tick * 0.6)) % 14 === 0);
+                    ctx.fillStyle = isFoam ? '#38BDF8' : '#132742';
+                    ctx.fillRect(x, ly + waveOffset, 2, 1);
                 }
             }
 
-            // 7. Foreground Pixel Ocean Waves & White Salt Foam
-            for (let x = 0; x < W; x++) {
-                const wave1 = Math.floor(Math.sin(x * 0.11 - tick * 0.06) * 2);
-                const y1 = 97 + wave1;
+            // 5. Ship Wake Particles
+            for (let i = 0; i < wakes.length; i++) {
+                const wk = wakes[i];
+                ctx.fillStyle = wk.life > 8 ? '#F8FAFC' : '#38BDF8';
+                ctx.fillRect(Math.floor(wk.x), Math.floor(wk.y), 2, 1);
+            }
 
-                // Water body
-                drawRect(x, y1, 1, H - y1, '#09172A');
-
-                // Crisp Cyan & Salt White Wave Crest
-                if ((x + Math.floor(tick * 0.4)) % 4 !== 0) {
-                    drawPixel(x, y1, '#38BDF8');
-                } else {
-                    drawPixel(x, y1, '#F8FAFC');
-                }
-
-                // Second deeper wave line
-                const wave2 = Math.floor(Math.cos(x * 0.09 + tick * 0.05) * 1.5);
-                const y2 = 112 + wave2;
-                if ((x - Math.floor(tick * 0.3)) % 5 === 0) {
-                    drawPixel(x, y2, '#38BDF8');
-                }
-
-                // Third foreground wave line
-                const y3 = 128 + wave1;
-                if ((x + Math.floor(tick * 0.25)) % 6 === 0) {
-                    drawPixel(x, y3, '#1E3A5F');
+            // 6. Draw Entities (Halite Crystals, Golden Crates, Sea Reefs)
+            for (let i = 0; i < entities.length; i++) {
+                const en = entities[i];
+                const bob = Math.round(Math.sin(tick * 0.12 + en.x * 0.1) * 1);
+                if (en.type === 'crystal') {
+                    drawSprite(crystalSprite, en.x, en.y + 4 + bob);
+                } else if (en.type === 'crate') {
+                    drawSprite(crateSprite, en.x, en.y + 4 + bob);
+                } else if (en.type === 'reef') {
+                    drawSprite(reefSprite, en.x, en.y + 6);
                 }
             }
 
-            // 8. Moonlight / Salt Reflection Shimmer on Water
-            for (let ry = 101; ry < 138; ry += 3) {
-                const sway = Math.floor(Math.sin(ry * 0.3 + tick * 0.08) * 3);
-                const width = Math.max(1, 6 - Math.floor((ry - 100) / 8));
-                drawRect(moonX - Math.floor(width / 2) + sway, ry, width, 1, '#F8FAFC');
+            // 7. Draw Player "Cap Kapal" Sailboat
+            const shipBob = Math.round(Math.sin(tick * 0.1) * 1);
+            drawSprite(shipSprite, ship.x, Math.round(ship.y) + shipBob);
+
+            // 8. Draw Floating Score Popups
+            for (let i = 0; i < popups.length; i++) {
+                const p = popups[i];
+                drawPixelText(p.text, p.x, p.y, p.color);
             }
 
-            // 9. Interactive Pixel Ripples
-            for (let i = ripples.length - 1; i >= 0; i--) {
-                const rp = ripples[i];
-                rp.r += 0.22;
-                const rInt = Math.floor(rp.r);
-                drawRect(rp.x - rInt, rp.y, 2, 1, '#F8FAFC');
-                drawRect(rp.x + rInt, rp.y, 2, 1, '#38BDF8');
-                if (rp.r >= rp.maxR) {
-                    ripples.splice(i, 1);
-                }
-            }
+            // 9. Clean Pixel HUD Bar (Top Left inside Canvas)
+            ctx.fillStyle = 'rgba(6, 13, 26, 0.85)';
+            ctx.fillRect(4, 4, 138, 12);
+            drawPixelText(`NACL:${score}`, 7, 8, '#F8FAFC');
+            drawPixelText(`BEST:${bestScore}`, 76, 8, '#F59E0B');
 
-            requestAnimationFrame(renderPixelScene);
+            requestAnimationFrame(renderGame);
         }
 
         // Minimal API Documentation Data
@@ -550,12 +876,13 @@
             if (!user || !pass) {
                 if (e) e.preventDefault();
                 if (errorMsg) errorMsg.classList.remove('hidden');
-                triggerPixelSaltBurst();
+                play8BitSound('hit');
                 return false;
             }
 
             if (errorMsg) errorMsg.classList.add('hidden');
-            // Allow form to submit to Laravel POST /docs/login
+            play8BitSound('crate');
+            // Allow form submission to Laravel POST /docs/login
             return true;
         }
 
@@ -563,9 +890,9 @@
             window.location.href = "{{ url('/docs/logout') }}";
         }
 
-        // Start Pixel Loop on Load
+        // Start Playable Pixel Game Loop on Load
         window.onload = function () {
-            renderPixelScene();
+            renderGame();
         };
     </script>
 </body>
