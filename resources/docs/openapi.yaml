@@ -20283,8 +20283,256 @@ paths:
       responses:
         '200':
           description: Data overload berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Data overload picklist berhasil diambil."
+                  data:
+                    type: object
+                    properties:
+                      picklist_id:
+                        type: integer
+                        example: 42
+                      picklist_no:
+                        type: string
+                        example: "PKL-20261023-001"
+                      status:
+                        type: string
+                        example: "overload"
+                      weight_check_status:
+                        type: string
+                        example: "overload"
+                      total_weight_limit:
+                        type: number
+                        example: 10000.0
+                      weigh_in_weight:
+                        type: number
+                        example: 8000.0
+                      weigh_out_weight:
+                        type: number
+                        example: 21000.0
+                      weigh_out_net_weight:
+                        type: number
+                        example: 13000.0
+                      latest_overload:
+                        type: object
+                      history:
+                        type: array
+                        items:
+                          type: object
+                      items:
+                        type: array
+                        items:
+                          type: object
         '404':
           description: Picklist tidak ditemukan.
+
+  /v1/logistic/picklists/overload:
+    get:
+      summary: List Seluruh Data Overload Picklist (Tanpa ID)
+      description: |
+        Mengambil seluruh daftar data temporary overload pada picklist (tabel `ekspedisi.picklist_overloads`), mencakup informasi berat kotor (gross), tara (tare), neto, batas berat maksimal armada, selisih berat lebih (overload), nomor tiket timbangan, alasan penolakan timbang keluar, snapshot item muatan, serta status penanganan penyesuaian muatan di gudang.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          description: Pencarian teks pada nomor picklist, tiket timbangan, nama operator, alasan penolakan, atau data armada (plat nomor, supir, checker)
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Filter status record overload
+          schema:
+            type: string
+            enum: [PENDING_ADJUSTMENT, UNLOADED, RESOLVED, CANCELLED]
+        - name: picklist_id
+          in: query
+          description: Filter berdasarkan ID Picklist spesifik
+          schema:
+            type: integer
+        - name: picklist_no
+          in: query
+          description: Filter berdasarkan Nomor Dokumen Picklist
+          schema:
+            type: string
+        - name: date_from
+          in: query
+          description: Filter tanggal awal penimbangan (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          description: Filter tanggal akhir penimbangan (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: per_page
+          in: query
+          description: Jumlah record per halaman (default 15, max 100, atau 0 untuk semua)
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Daftar data overload berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Daftar data overload berhasil diambil."
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        picklist_id:
+                          type: integer
+                          example: 42
+                        picklist_no:
+                          type: string
+                          example: "PKL-20261023-001"
+                        gross_weight:
+                          type: number
+                          format: float
+                          example: 21000.0
+                        tare_weight:
+                          type: number
+                          format: float
+                          example: 8000.0
+                        net_weight:
+                          type: number
+                          format: float
+                          example: 13000.0
+                        weight_limit:
+                          type: number
+                          format: float
+                          example: 10000.0
+                        overload_weight:
+                          type: number
+                          format: float
+                          example: 3000.0
+                        ticket_no:
+                          type: string
+                          example: "TMB-OUT-REJECT-99"
+                        operator_name:
+                          type: string
+                          example: "Operator Jembatan Timbang"
+                        rejection_reason:
+                          type: string
+                          example: "Kelebihan muatan armada truk sebesar 3,000 KG."
+                        status:
+                          type: string
+                          example: "PENDING_ADJUSTMENT"
+                        items_snapshot:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                                example: 101
+                              item_code:
+                                type: string
+                                example: "FG-OVERLOAD-01"
+                              item_name:
+                                type: string
+                                example: "Garam Kasar Overload 50kg"
+                              whs_code:
+                                type: string
+                                example: "VPGMN01"
+                              uom:
+                                type: string
+                                example: "SAK"
+                              pick_qty:
+                                type: number
+                                example: 200
+                              unit_weight:
+                                type: number
+                                example: 50.0
+                              total_weight:
+                                type: number
+                                example: 10000.0
+                        weighed_at:
+                          type: string
+                          format: date-time
+                          example: "2026-10-23T09:30:00.000000Z"
+                        picklist:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 42
+                            picklist_no:
+                              type: string
+                              example: "PKL-20261023-001"
+                            shipping_type:
+                              type: string
+                              example: "internal"
+                            vehicle_no:
+                              type: string
+                              example: "L 9999 XX"
+                            driver_name:
+                              type: string
+                              example: "Pak Supir"
+                            checker_name:
+                              type: string
+                              example: "Pak Checker"
+                            status:
+                              type: string
+                              example: "overload"
+                            weight_check_status:
+                              type: string
+                              example: "overload"
+                            total_weight_limit:
+                              type: number
+                              example: 10000.0
+                            weigh_in_weight:
+                              type: number
+                              example: 8000.0
+                            weigh_out_weight:
+                              type: number
+                              example: 21000.0
+                            weigh_out_net_weight:
+                              type: number
+                              example: 13000.0
+                            unit:
+                              type: string
+                              example: "GRM"
+                  meta:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                        example: 1
+                      last_page:
+                        type: integer
+                        example: 1
+                      per_page:
+                        type: integer
+                        example: 15
+                      total:
+                        type: integer
+                        example: 1
 
   /v1/logistic/picklists/{id}/add-do:
     post:
