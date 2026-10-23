@@ -165,6 +165,150 @@ class PurchaseRequestService
     }
 
     /**
+     * Get draft Purchase Requests from SAP B1 API (/api/GetDraftPR).
+     *
+     * @param array $payload
+     * @param int|null $userId
+     * @return array
+     */
+    public function getDraftPR(array $payload, ?int $userId = null): array
+    {
+        $sapUrl = rtrim(config('services.sap.url') ?: env('SAP_API_URL', 'http://103.18.133.187:3100'), '/');
+
+        // 1. Resolve Originator (CostumQuery)
+        $originator = $payload['CostumQuery']
+            ?? $payload['CustomQuery']
+            ?? $payload['costum_query']
+            ?? $payload['custom_query']
+            ?? $payload['originator_id']
+            ?? $payload['originator']
+            ?? null;
+
+        if (($originator === null || $originator === '') && $userId) {
+            $user = \App\Models\User::find($userId);
+            if ($user && !empty($user->originator)) {
+                $originator = (string) $user->originator;
+            }
+        }
+
+        // 2. Resolve UserId
+        $userIdInput = $payload['UserId']
+            ?? $payload['user_id']
+            ?? null;
+
+        if ($userIdInput === null && $userId) {
+            $user = \App\Models\User::find($userId);
+            if ($user) {
+                $userIdInput = (string) ($user->username ?: $user->id);
+            }
+        }
+
+        // 3. Resolve From and To dates (format YYYYMMDD)
+        $from = $payload['From'] ?? $payload['from'] ?? $payload['date_from'] ?? $payload['start_date'] ?? null;
+        $fromClean = $from ? str_replace(['-', '/'], '', trim((string) $from)) : '';
+
+        $to = $payload['To'] ?? $payload['to'] ?? $payload['date_to'] ?? $payload['end_date'] ?? null;
+        $toClean = $to ? str_replace(['-', '/'], '', trim((string) $to)) : '';
+
+        // 4. Resolve Status
+        $status = $payload['Status'] ?? $payload['status'] ?? '';
+
+        $sapPayload = [
+            'CostumQuery' => (string) ($originator ?? ''),
+            'CustomQuery' => (string) ($originator ?? ''),
+            'UserId'      => (string) ($userIdInput ?? ''),
+            'From'        => (string) $fromClean,
+            'To'          => (string) $toClean,
+            'Status'      => (string) $status,
+        ];
+
+        try {
+            $response = Http::timeout(30)->post("{$sapUrl}/api/GetDraftPR", $sapPayload);
+
+            if ($response->successful()) {
+                $body = $response->json();
+                $errorCode = (int) ($body['ErrorCode'] ?? 0);
+                $message = (string) ($body['Message'] ?? '');
+                $result = $body['Result'] ?? [];
+
+                if ($errorCode !== 0) {
+                    return [
+                        'error_code' => $errorCode,
+                        'message'    => $message ?: 'Error from SAP GetDraftPR',
+                        'data'       => [],
+                    ];
+                }
+
+                if (is_array($result)) {
+                    $filtered = array_values(array_filter($result, function ($item) {
+                        return is_array($item) && !$this->isDummyDraftItem($item);
+                    }));
+
+                    return [
+                        'error_code' => 0,
+                        'message'    => empty($filtered) ? 'Data not found' : $message,
+                        'data'       => $filtered,
+                    ];
+                }
+            }
+
+            return [
+                'error_code' => $response->status(),
+                'message'    => 'Failed to communicate with SAP B1: HTTP ' . $response->status(),
+                'data'       => [],
+            ];
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to fetch draft PR from SAP: ' . $e->getMessage());
+
+            return [
+                'error_code' => 500,
+                'message'    => 'Connection to SAP failed: ' . $e->getMessage(),
+                'data'       => [],
+            ];
+        }
+    }
+
+    /**
+     * Check if a draft PR item returned from SAP is an empty/dummy placeholder.
+     *
+     * @param array $item
+     * @return bool
+     */
+    public function isDummyDraftItem(array $item): bool
+    {
+        $docEntry = (string) ($item['DocEntry'] ?? '0');
+        $draftEntry = (string) ($item['DraftEntry'] ?? '0');
+        $draftNum = (string) ($item['DraftNum'] ?? '0');
+        $docNum = (string) ($item['DocNum'] ?? '0');
+        $wddCode = (string) ($item['WddCode'] ?? '0');
+        $docDate = trim((string) ($item['DocDate'] ?? ''));
+        $status = trim((string) ($item['Status'] ?? ''));
+        $statusCode = trim((string) ($item['StatusCode'] ?? ''));
+        $remarks = trim((string) ($item['Remarks'] ?? ''));
+        $objType = trim((string) ($item['ObjType'] ?? ''));
+
+        $isZeroOrEmpty = function ($val) {
+            return $val === '' || $val === '0' || $val === 0 || $val === '0.000000';
+        };
+
+        if ($isZeroOrEmpty($docEntry)
+            && $isZeroOrEmpty($draftEntry)
+            && $isZeroOrEmpty($draftNum)
+            && $isZeroOrEmpty($docNum)
+            && $isZeroOrEmpty($wddCode)
+            && $docDate === ''
+            && $status === ''
+            && $statusCode === ''
+            && $objType === ''
+            && $remarks === ''
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Build SAP payload for addpr API endpoint.
      */
     public function buildSapPayload(array $payload, ?int $userId = null): array

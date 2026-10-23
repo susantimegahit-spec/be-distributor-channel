@@ -14086,6 +14086,141 @@ paths:
         '200':
           description: Daftar item berhasil diambil.
 
+  /v1/purchasing-request/draft-pr:
+    post:
+      summary: Get Draft Purchase Request dari SAP B1 (/api/GetDraftPR)
+      description: |
+        Mengambil daftar dokumen draft Purchase Request dari SAP B1 API (`/api/GetDraftPR`) berdasarkan ID Originator, User ID, dan rentang tanggal.
+        Jika data tidak ditemukan atau SAP mengembalikan placeholder dummy kosong, endpoint akan mengembalikan respon data not found.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                CostumQuery:
+                  type: string
+                  description: ID Originator SAP B1 (contoh "59")
+                  example: "59"
+                UserId:
+                  type: string
+                  description: User ID SMESTA
+                  example: "admin"
+                From:
+                  type: string
+                  description: Tanggal awal filter (YYYYMMDD atau YYYY-MM-DD)
+                  example: "20260901"
+                To:
+                  type: string
+                  description: Tanggal akhir filter (YYYYMMDD atau YYYY-MM-DD)
+                  example: "20260930"
+                Status:
+                  type: string
+                  description: Status draft PR
+                  example: ""
+      responses:
+        '200':
+          description: Data draft Purchase Request berhasil diambil atau data not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Data draft Purchase Request berhasil diambil."
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        WddCode:
+                          type: string
+                          example: "12"
+                        DocEntry:
+                          type: string
+                          example: "101"
+                        DraftEntry:
+                          type: string
+                          example: "201"
+                        DraftNum:
+                          type: string
+                          example: "201"
+                        DocNum:
+                          type: string
+                          example: "101"
+                        DocTotal:
+                          type: string
+                          example: "500000.000000"
+                        ObjType:
+                          type: string
+                          example: "1470000113"
+                        DocDate:
+                          type: string
+                          example: "2026-09-15"
+                        CurrStep:
+                          type: string
+                          example: "1"
+                        Status:
+                          type: string
+                          example: "W"
+                        StatusCode:
+                          type: string
+                          example: "W"
+                        StatusDescription:
+                          type: string
+                          example: "Pending Approval"
+                        Remarks:
+                          type: string
+                          example: "Draft PR Urgent"
+    get:
+      summary: Get Draft Purchase Request dari SAP B1 (Query Params)
+      description: Mengambil daftar draft Purchase Request via method GET.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: CostumQuery
+          in: query
+          description: ID Originator SAP B1
+          schema:
+            type: string
+            example: "59"
+        - name: UserId
+          in: query
+          description: User ID SMESTA
+          schema:
+            type: string
+        - name: From
+          in: query
+          description: Tanggal awal filter (YYYYMMDD)
+          schema:
+            type: string
+            example: "20260901"
+        - name: To
+          in: query
+          description: Tanggal akhir filter (YYYYMMDD)
+          schema:
+            type: string
+            example: "20260930"
+        - name: Status
+          in: query
+          description: Status draft PR
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Data draft Purchase Request berhasil diambil.
+
   /v1/purchasing-request/requests:
     get:
       summary: Get Purchase Request list

@@ -15,6 +15,7 @@ Route::match(['get', 'post'], '/GetListByOwnerId', [\App\Modules\MasterApproval\
 Route::match(['get', 'post'], '/GetDetailByObjectCode', [\App\Modules\MasterApproval\Controllers\MasterApprovalController::class, 'getDocumentDetail'])->middleware('auth:sanctum');
 Route::match(['get', 'post'], '/GetOriginator', [\App\Modules\MasterApproval\Controllers\MasterApprovalController::class, 'getOriginators'])->middleware('auth:sanctum');
 Route::match(['get', 'post'], '/GetDepartment', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'getDepartments']);
+Route::match(['get', 'post'], '/GetDraftPR', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'getDraftPR']);
 
 Route::prefix('dashboard-layouts')->middleware('auth:sanctum')->group(function () {
     Route::get('/me', [\App\Modules\Dashboard\Controllers\DashboardLayoutController::class, 'getMyLayout']);

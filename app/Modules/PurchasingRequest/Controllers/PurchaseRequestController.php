@@ -52,6 +52,50 @@ class PurchaseRequestController extends Controller
         return $this->successResponse($departments, 'Daftar department berhasil diambil.');
     }
 
+    /**
+     * Get draft Purchase Requests from SAP B1 API (/api/GetDraftPR).
+     */
+    public function getDraftPR(Request $request): JsonResponse
+    {
+        $payload = $request->all();
+        $userId = $request->user()?->id;
+
+        $result = $this->service->getDraftPR($payload, $userId);
+        $drafts = $result['data'] ?? [];
+
+        $isSapFormat = $request->is('api/GetDraftPR')
+            || $request->is('GetDraftPR')
+            || $request->is('*GetDraftPR*')
+            || $request->query('format') === 'sap'
+            || $request->input('format') === 'sap';
+
+        if ($isSapFormat) {
+            if (empty($drafts)) {
+                return response()->json([
+                    'ErrorCode' => 0,
+                    'Message'   => 'Data not found',
+                    'Result'    => [],
+                ], 200);
+            }
+
+            return response()->json([
+                'ErrorCode' => 0,
+                'Message'   => $result['message'] ?? '',
+                'Result'    => $drafts,
+            ], 200);
+        }
+
+        if (empty($drafts)) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Data not found.',
+                'data'    => [],
+            ], 200);
+        }
+
+        return $this->successResponse($drafts, 'Data draft Purchase Request berhasil diambil.');
+    }
+
     public function index(Request $request): JsonResponse
     {
         $filters = $request->only([

@@ -520,4 +520,99 @@ class PurchaseRequestSapIntegrationTest extends TestCase
             return $request['Lines'][0]['FreeTxt'] === '';
         });
     }
+
+    public function test_get_draft_pr_returns_data_not_found_when_sap_returns_dummy_zero_record()
+    {
+        Http::fake([
+            '*/api/GetDraftPR' => Http::response([
+                'ErrorCode' => 0,
+                'Message'   => '',
+                'Result'    => [
+                    [
+                        'WddCode'           => '0',
+                        'DocEntry'          => '0',
+                        'DraftEntry'        => '0',
+                        'DraftNum'          => '0',
+                        'DocNum'            => '0',
+                        'DocTotal'          => '0.000000',
+                        'ObjType'           => '',
+                        'DocDate'           => '',
+                        'CurrStep'          => '0',
+                        'Status'            => '',
+                        'StatusCode'        => '',
+                        'StatusDescription' => '',
+                        'Remarks'           => '',
+                    ]
+                ],
+            ], 200),
+        ]);
+
+        // Test standard REST route
+        $response = $this->actingAs($this->user)->postJson('/api/distributor-channel/v1/purchasing-request/draft-pr', [
+            'CostumQuery' => '59',
+            'UserId'      => 'admin',
+            'From'        => '20260901',
+            'To'          => '20260930',
+            'Status'      => '',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Data not found.')
+            ->assertJsonPath('data', []);
+
+        // Test direct GetDraftPR route (SAP format)
+        $sapResponse = $this->actingAs($this->user)->postJson('/api/distributor-channel/GetDraftPR', [
+            'CostumQuery' => '59',
+            'UserId'      => 'admin',
+            'From'        => '20260901',
+            'To'          => '20260930',
+            'Status'      => '',
+        ]);
+
+        $sapResponse->assertStatus(200)
+            ->assertJsonPath('ErrorCode', 0)
+            ->assertJsonPath('Message', 'Data not found')
+            ->assertJsonPath('Result', []);
+    }
+
+    public function test_get_draft_pr_returns_valid_draft_items()
+    {
+        Http::fake([
+            '*/api/GetDraftPR' => Http::response([
+                'ErrorCode' => 0,
+                'Message'   => '',
+                'Result'    => [
+                    [
+                        'WddCode'           => '12',
+                        'DocEntry'          => '101',
+                        'DraftEntry'        => '201',
+                        'DraftNum'          => '201',
+                        'DocNum'            => '101',
+                        'DocTotal'          => '500000.000000',
+                        'ObjType'           => '1470000113',
+                        'DocDate'           => '2026-09-15',
+                        'CurrStep'          => '1',
+                        'Status'            => 'W',
+                        'StatusCode'        => 'W',
+                        'StatusDescription' => 'Pending Approval',
+                        'Remarks'           => 'Draft PR Urgent',
+                    ]
+                ],
+            ], 200),
+        ]);
+
+        $response = $this->actingAs($this->user)->postJson('/api/distributor-channel/v1/purchasing-request/draft-pr', [
+            'CostumQuery' => '59',
+            'From'        => '20260901',
+            'To'          => '20260930',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.DraftNum', '201')
+            ->assertJsonPath('data.0.Remarks', 'Draft PR Urgent');
+    }
 }
+
