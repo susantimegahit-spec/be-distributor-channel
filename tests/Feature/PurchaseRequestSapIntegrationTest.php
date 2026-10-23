@@ -614,5 +614,256 @@ class PurchaseRequestSapIntegrationTest extends TestCase
             ->assertJsonPath('data.0.DraftNum', '201')
             ->assertJsonPath('data.0.Remarks', 'Draft PR Urgent');
     }
+
+    public function test_get_list_pr_generated_returns_data_not_found_when_empty_or_zeros()
+    {
+        Http::fake([
+            '*/api/GetListPRGenerated' => Http::response([
+                'ErrorCode' => 0,
+                'Message'   => '',
+                'Result'    => [
+                    [
+                        'DocEntry' => '0',
+                        'DocNum'   => '0',
+                        'DocDate'  => '',
+                    ]
+                ],
+            ], 200),
+        ]);
+
+        // REST Route
+        $response = $this->actingAs($this->user)->postJson('/api/distributor-channel/v1/purchasing-request/generated', [
+            'CostumQuery' => 'IT',
+            'From'        => '20250901',
+            'To'          => '20260930',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Data not found.')
+            ->assertJsonPath('data', []);
+
+        // Direct SAP Route
+        $sapResponse = $this->actingAs($this->user)->postJson('/api/distributor-channel/GetListPRGenerated', [
+            'CostumQuery' => 'IT',
+            'From'        => '20250901',
+            'To'          => '20260930',
+        ]);
+
+        $sapResponse->assertStatus(200)
+            ->assertJsonPath('ErrorCode', 0)
+            ->assertJsonPath('Message', 'Data not found')
+            ->assertJsonPath('Result', []);
+    }
+
+    public function test_get_list_pr_generated_returns_valid_records()
+    {
+        Http::fake([
+            '*/api/GetListPRGenerated' => Http::response([
+                'ErrorCode' => 0,
+                'Message'   => '',
+                'Result'    => [
+                    [
+                        'DocEntry'      => '5339',
+                        'DocNum'        => '260840020',
+                        'DocDate'       => '20260810',
+                        'DocDueDate'    => '20260817',
+                        'ReqDate'       => '20260817',
+                        'RequesterName' => 'Produksi, Maintenance & Logistik',
+                        'Department'    => '1',
+                        'DocStatus'     => 'Closed',
+                        'Comments'      => 'UNTUK CAT POMPA ALL UNIT 2 DAN ALAT BERAT',
+                    ],
+                    [
+                        'DocEntry'      => '5338',
+                        'DocNum'        => '260840019',
+                        'DocDate'       => '20260810',
+                        'DocDueDate'    => '20260817',
+                        'ReqDate'       => '20260817',
+                        'RequesterName' => 'Produksi, Maintenance & Logistik',
+                        'Department'    => '1',
+                        'DocStatus'     => 'Open',
+                        'Comments'      => 'UNTUK PERAWATAN PRODUKSI UNIT 1 DAN UNIT 2 GRESIK',
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        // Test POST REST endpoint
+        $response = $this->actingAs($this->user)->postJson('/api/distributor-channel/v1/purchasing-request/generated', [
+            'CostumQuery' => 'IT',
+            'From'        => '20250901',
+            'To'          => '20260930',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.DocNum', '260840020')
+            ->assertJsonPath('data.1.DocNum', '260840019');
+
+        // Test direct SAP endpoint
+        $sapResponse = $this->actingAs($this->user)->postJson('/api/distributor-channel/GetListPRGenerated', [
+            'CostumQuery' => 'IT',
+            'From'        => '20250901',
+            'To'          => '20260930',
+        ]);
+
+        $sapResponse->assertStatus(200)
+            ->assertJsonPath('ErrorCode', 0)
+            ->assertJsonCount(2, 'Result')
+            ->assertJsonPath('Result.0.DocEntry', '5339');
+    }
+
+    public function test_close_pr_returns_sap_failed_format_when_not_found()
+    {
+        Http::fake([
+            '*/api/ClosePR' => Http::response([
+                'ErrorCode' => 0,
+                'Message'   => 'Failed - [ClosePurchaseRequest] Data tidak ditemukan',
+                'Result'    => null,
+            ], 200),
+        ]);
+
+        // Direct SAP format endpoint
+        $response = $this->postJson('/api/ClosePR', [
+            'DocEntry' => '999999',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'ErrorCode' => 0,
+                'Message'   => 'Failed - [ClosePurchaseRequest] Data tidak ditemukan',
+                'Result'    => null,
+            ]);
+
+        // REST endpoint format
+        $restResponse = $this->actingAs($this->user)->postJson('/api/distributor-channel/v1/purchasing-request/close-pr', [
+            'DocEntry' => '999999',
+        ]);
+
+        $restResponse->assertStatus(400)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'Failed - [ClosePurchaseRequest] Data tidak ditemukan');
+    }
+
+    public function test_close_pr_success_and_updates_local_status()
+    {
+        Http::fake([
+            '*/api/ClosePR' => Http::response([
+                'ErrorCode' => 0,
+                'Message'   => 'Success - [ClosePurchaseRequest] PR Closed',
+                'Result'    => 'Success',
+            ], 200),
+        ]);
+
+        // Create local PR
+        $pr = \App\Models\PurchaseRequest::create([
+            'pr_number'     => 'PR-TEST-CLOSE-01',
+            'department'    => '1',
+            'cost_center'   => 'CC01',
+            'doc_date'      => '2026-10-23',
+            'doc_due_date'  => '2026-10-30',
+            'status'        => 'APPROVED',
+            'sap_doc_entry' => 5339,
+        ]);
+
+        // Call direct endpoint
+        $response = $this->postJson('/api/ClosePR', [
+            'DocEntry' => '5339',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('ErrorCode', 0)
+            ->assertJsonPath('Message', 'Success - [ClosePurchaseRequest] PR Closed');
+
+        $this->assertEquals('COMPLETED', $pr->fresh()->status);
+    }
+
+    public function test_close_pr_validation_error_when_doc_entry_missing()
+    {
+        $response = $this->postJson('/api/ClosePR', []);
+
+        $response->assertStatus(400)
+            ->assertJsonPath('ErrorCode', 1)
+            ->assertJsonPath('Message', 'Failed - [ClosePurchaseRequest] Parameter DocEntry is required')
+            ->assertJsonPath('Result', null);
+    }
+
+    public function test_cancel_pr_returns_sap_failed_format_when_not_found()
+    {
+        Http::fake([
+            '*/api/CancelPR' => Http::response([
+                'ErrorCode' => 0,
+                'Message'   => 'Failed - [CancelPurchaseRequest] Data tidak ditemukan',
+                'Result'    => null,
+            ], 200),
+        ]);
+
+        // Direct SAP format endpoint
+        $response = $this->postJson('/api/CancelPR', [
+            'DocEntry' => '999999',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'ErrorCode' => 0,
+                'Message'   => 'Failed - [CancelPurchaseRequest] Data tidak ditemukan',
+                'Result'    => null,
+            ]);
+
+        // REST endpoint format
+        $restResponse = $this->actingAs($this->user)->postJson('/api/distributor-channel/v1/purchasing-request/cancel-pr', [
+            'DocEntry' => '999999',
+        ]);
+
+        $restResponse->assertStatus(400)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'Failed - [CancelPurchaseRequest] Data tidak ditemukan');
+    }
+
+    public function test_cancel_pr_success_and_updates_local_status()
+    {
+        Http::fake([
+            '*/api/CancelPR' => Http::response([
+                'ErrorCode' => 0,
+                'Message'   => 'Success - [CancelPurchaseRequest] PR Cancelled',
+                'Result'    => 'Success',
+            ], 200),
+        ]);
+
+        // Create local PR
+        $pr = \App\Models\PurchaseRequest::create([
+            'pr_number'     => 'PR-TEST-CANCEL-01',
+            'department'    => '1',
+            'cost_center'   => 'CC01',
+            'doc_date'      => '2026-10-23',
+            'doc_due_date'  => '2026-10-30',
+            'status'        => 'DRAFT',
+            'sap_doc_entry' => 5338,
+        ]);
+
+        // Call direct endpoint
+        $response = $this->postJson('/api/CancelPR', [
+            'DocEntry' => '5338',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('ErrorCode', 0)
+            ->assertJsonPath('Message', 'Success - [CancelPurchaseRequest] PR Cancelled');
+
+        $this->assertEquals('CANCELLED', $pr->fresh()->status);
+    }
+
+    public function test_cancel_pr_validation_error_when_doc_entry_missing()
+    {
+        $response = $this->postJson('/api/CancelPR', []);
+
+        $response->assertStatus(400)
+            ->assertJsonPath('ErrorCode', 1)
+            ->assertJsonPath('Message', 'Failed - [CancelPurchaseRequest] Parameter DocEntry is required')
+            ->assertJsonPath('Result', null);
+    }
 }
+
 

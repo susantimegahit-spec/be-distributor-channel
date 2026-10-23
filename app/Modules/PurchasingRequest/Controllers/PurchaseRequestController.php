@@ -96,6 +96,174 @@ class PurchaseRequestController extends Controller
         return $this->successResponse($drafts, 'Data draft Purchase Request berhasil diambil.');
     }
 
+    /**
+     * Get list of generated Purchase Requests from SAP B1 API (/api/GetListPRGenerated).
+     */
+    public function getListPRGenerated(Request $request): JsonResponse
+    {
+        $payload = $request->all();
+        $userId = $request->user()?->id;
+
+        $result = $this->service->getListPRGenerated($payload, $userId);
+        $items = $result['data'] ?? [];
+
+        $isSapFormat = $request->is('api/GetListPRGenerated')
+            || $request->is('GetListPRGenerated')
+            || $request->is('*GetListPRGenerated*')
+            || $request->query('format') === 'sap'
+            || $request->input('format') === 'sap';
+
+        if ($isSapFormat) {
+            if (empty($items)) {
+                return response()->json([
+                    'ErrorCode' => 0,
+                    'Message'   => 'Data not found',
+                    'Result'    => [],
+                ], 200);
+            }
+
+            return response()->json([
+                'ErrorCode' => 0,
+                'Message'   => $result['message'] ?? '',
+                'Result'    => $items,
+            ], 200);
+        }
+
+        if (empty($items)) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Data not found.',
+                'data'    => [],
+            ], 200);
+        }
+
+        return $this->successResponse($items, 'Daftar Purchase Request yang telah di-generate berhasil diambil.');
+    }
+
+    /**
+     * Close Purchase Request in SAP B1 (/api/ClosePR).
+     */
+    public function closePR(Request $request): JsonResponse
+    {
+        $payload = $request->all();
+        $userId = $request->user()?->id;
+
+        $docEntry = $payload['DocEntry'] ?? $payload['doc_entry'] ?? $payload['id'] ?? null;
+        $isSapFormat = $request->is('api/ClosePR')
+            || $request->is('ClosePR')
+            || $request->is('*ClosePR*')
+            || $request->query('format') === 'sap'
+            || $request->input('format') === 'sap';
+
+        if (empty($docEntry)) {
+            if ($isSapFormat) {
+                return response()->json([
+                    'ErrorCode' => 1,
+                    'Message'   => 'Failed - [ClosePurchaseRequest] Parameter DocEntry is required',
+                    'Result'    => null,
+                ], 400);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Parameter DocEntry wajib diisi.',
+                'data'    => null,
+            ], 400);
+        }
+
+        $res = $this->service->closePR($payload, $userId);
+
+        if ($isSapFormat) {
+            return response()->json([
+                'ErrorCode' => $res['error_code'],
+                'Message'   => $res['message'],
+                'Result'    => $res['result'],
+            ], 200);
+        }
+
+        if (!$res['success']) {
+            return response()->json([
+                'success' => false,
+                'message' => $res['message'],
+                'data'    => [
+                    'doc_entry'  => $res['doc_entry'],
+                    'error_code' => $res['error_code'],
+                ],
+            ], 400);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $res['message'] ?: 'Purchase Request berhasil di-close di SAP.',
+            'data'    => [
+                'doc_entry' => $res['doc_entry'],
+                'result'    => $res['result'],
+            ],
+        ], 200);
+    }
+
+    /**
+     * Cancel Purchase Request in SAP B1 (/api/CancelPR).
+     */
+    public function cancelPR(Request $request): JsonResponse
+    {
+        $payload = $request->all();
+        $userId = $request->user()?->id;
+
+        $docEntry = $payload['DocEntry'] ?? $payload['doc_entry'] ?? $payload['id'] ?? null;
+        $isSapFormat = $request->is('api/CancelPR')
+            || $request->is('CancelPR')
+            || $request->is('*CancelPR*')
+            || $request->query('format') === 'sap'
+            || $request->input('format') === 'sap';
+
+        if (empty($docEntry)) {
+            if ($isSapFormat) {
+                return response()->json([
+                    'ErrorCode' => 1,
+                    'Message'   => 'Failed - [CancelPurchaseRequest] Parameter DocEntry is required',
+                    'Result'    => null,
+                ], 400);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Parameter DocEntry wajib diisi.',
+                'data'    => null,
+            ], 400);
+        }
+
+        $res = $this->service->cancelPR($payload, $userId);
+
+        if ($isSapFormat) {
+            return response()->json([
+                'ErrorCode' => $res['error_code'],
+                'Message'   => $res['message'],
+                'Result'    => $res['result'],
+            ], 200);
+        }
+
+        if (!$res['success']) {
+            return response()->json([
+                'success' => false,
+                'message' => $res['message'],
+                'data'    => [
+                    'doc_entry'  => $res['doc_entry'],
+                    'error_code' => $res['error_code'],
+                ],
+            ], 400);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $res['message'] ?: 'Purchase Request berhasil di-cancel di SAP.',
+            'data'    => [
+                'doc_entry' => $res['doc_entry'],
+                'result'    => $res['result'],
+            ],
+        ], 200);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $filters = $request->only([

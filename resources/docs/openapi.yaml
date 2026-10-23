@@ -14221,6 +14221,189 @@ paths:
         '200':
           description: Data draft Purchase Request berhasil diambil.
 
+  /v1/purchasing-request/generated:
+    post:
+      summary: List Purchase Request Generated dari SAP B1 (/api/GetListPRGenerated)
+      description: |
+        Mengambil daftar dokumen Purchase Request yang telah di-generate dari SAP B1 API (`/api/GetListPRGenerated`) berdasarkan departemen/query dan rentang tanggal.
+        Jika data kosong atau placeholder dummy tidak valid, endpoint mengembalikan respon data not found.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                CostumQuery:
+                  type: string
+                  description: Kode departemen atau kata kunci (contoh "IT", "PRO")
+                  example: "IT"
+                From:
+                  type: string
+                  description: Tanggal awal filter (YYYYMMDD atau YYYY-MM-DD)
+                  example: "20250901"
+                To:
+                  type: string
+                  description: Tanggal akhir filter (YYYYMMDD atau YYYY-MM-DD)
+                  example: "20260930"
+      responses:
+        '200':
+          description: Daftar Purchase Request yang telah di-generate berhasil diambil atau data not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Daftar Purchase Request yang telah di-generate berhasil diambil."
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        DocEntry:
+                          type: string
+                          example: "5339"
+                        DocNum:
+                          type: string
+                          example: "260840020"
+                        DocDate:
+                          type: string
+                          example: "20260810"
+                        DocDueDate:
+                          type: string
+                          example: "20260817"
+                        ReqDate:
+                          type: string
+                          example: "20260817"
+                        RequesterName:
+                          type: string
+                          example: "Produksi, Maintenance & Logistik"
+                        Department:
+                          type: string
+                          example: "1"
+                        DocStatus:
+                          type: string
+                          example: "Closed"
+                        Comments:
+                          type: string
+                          example: "UNTUK CAT POMPA ALL UNIT 2 DAN ALAT BERAT"
+    get:
+      summary: List Purchase Request Generated dari SAP B1 (Query Params)
+      description: Mengambil daftar Purchase Request yang telah di-generate via method GET.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: CostumQuery
+          in: query
+          description: Kode departemen atau kata kunci (contoh "IT")
+          schema:
+            type: string
+            example: "IT"
+        - name: From
+          in: query
+          description: Tanggal awal filter (YYYYMMDD)
+          schema:
+            type: string
+            example: "20250901"
+        - name: To
+          in: query
+          description: Tanggal akhir filter (YYYYMMDD)
+          schema:
+            type: string
+            example: "20260930"
+      responses:
+        '200':
+          description: Daftar Purchase Request yang telah di-generate berhasil diambil.
+
+  /v1/purchasing-request/close-pr:
+    post:
+      summary: Close Purchase Request di SAP B1 (/api/ClosePR)
+      description: |
+        Menutup dokumen Purchase Request pada sistem SAP B1 via endpoint `/api/ClosePR`.
+        Jika dokumen PR terkait ada di database lokal, status PR lokal otomatis diperbarui menjadi `COMPLETED`.
+      tags:
+        - Purchasing Request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocEntry
+              properties:
+                DocEntry:
+                  type: string
+                  description: DocEntry Purchase Request pada SAP B1
+                  example: "5339"
+      responses:
+        '200':
+          description: Respon dari SAP B1.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ErrorCode:
+                    type: integer
+                    example: 0
+                  Message:
+                    type: string
+                    example: "Failed - [ClosePurchaseRequest] Data tidak ditemukan"
+                  Result:
+                    nullable: true
+                    example: null
+
+  /v1/purchasing-request/cancel-pr:
+    post:
+      summary: Cancel Purchase Request di SAP B1 (/api/CancelPR)
+      description: |
+        Membatalkan dokumen Purchase Request pada sistem SAP B1 via endpoint `/api/CancelPR`.
+        Jika dokumen PR terkait ada di database lokal, status PR lokal otomatis diperbarui menjadi `CANCELLED`.
+      tags:
+        - Purchasing Request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocEntry
+              properties:
+                DocEntry:
+                  type: string
+                  description: DocEntry Purchase Request pada SAP B1
+                  example: "5338"
+      responses:
+        '200':
+          description: Respon dari SAP B1.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ErrorCode:
+                    type: integer
+                    example: 0
+                  Message:
+                    type: string
+                    example: "Failed - [CancelPurchaseRequest] Data tidak ditemukan"
+                  Result:
+                    nullable: true
+                    example: null
+
   /v1/purchasing-request/requests:
     get:
       summary: Get Purchase Request list
