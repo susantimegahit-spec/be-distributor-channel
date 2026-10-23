@@ -163,7 +163,7 @@
                     </span>
                     <span class="text-slate-600">/</span>
                     <span class="font-mono text-[11px] text-kapal-gold tracking-wide uppercase">
-                        Garam Cap Kapal
+                        Apps
                     </span>
                 </div>
 
@@ -185,17 +185,17 @@
 
             <!-- Server Flash Status Messages -->
             @if(session('error'))
-                <div
-                    class="mb-4 p-2.5 bg-rose-950/70 border border-rose-500/60 font-mono text-xs text-rose-300 flex items-center gap-2 rounded-sm">
-                    <span class="inline-block w-1.5 h-1.5 bg-rose-500 shrink-0"></span>
-                    <span>{{ session('error') }}</span>
-                </div>
+            <div
+                class="mb-4 p-2.5 bg-rose-950/70 border border-rose-500/60 font-mono text-xs text-rose-300 flex items-center gap-2 rounded-sm">
+                <span class="inline-block w-1.5 h-1.5 bg-rose-500 shrink-0"></span>
+                <span>{{ session('error') }}</span>
+            </div>
             @elseif(request()->has('expired'))
-                <div
-                    class="mb-4 p-2.5 bg-amber-950/70 border border-amber-500/60 font-mono text-xs text-amber-300 flex items-center gap-2 rounded-sm">
-                    <span class="inline-block w-1.5 h-1.5 bg-amber-500 shrink-0"></span>
-                    <span>Sesi Anda telah kedaluwarsa. Silakan masuk kembali.</span>
-                </div>
+            <div
+                class="mb-4 p-2.5 bg-amber-950/70 border border-amber-500/60 font-mono text-xs text-amber-300 flex items-center gap-2 rounded-sm">
+                <span class="inline-block w-1.5 h-1.5 bg-amber-500 shrink-0"></span>
+                <span>Sesi Anda telah kedaluwarsa. Silakan masuk kembali.</span>
+            </div>
             @endif
 
             <!-- Login Form -->
@@ -321,7 +321,7 @@
     <script>
         const canvas = document.getElementById('pixelScene');
         const ctx = canvas.getContext('2d');
-        const W = canvas.width;  // 200
+        const W = canvas.width; // 200
         const H = canvas.height; // 160
 
         // 8-Bit Web Audio Synthesizer
@@ -423,7 +423,9 @@
         const wakes = [];
 
         // Twinkling Night Sky Stars / Salt Dust
-        const stars = Array.from({ length: 28 }, () => ({
+        const stars = Array.from({
+            length: 28
+        }, () => ({
             x: Math.floor(Math.random() * W),
             y: 18 + Math.floor(Math.random() * 52),
             speed: 0.15 + Math.random() * 0.25,
@@ -498,34 +500,34 @@
 
         // Tiny 3x5 Pixel Font Map for Crisp Canvas HUD
         const pixelFont = {
-            '0': ["111","101","101","101","111"],
-            '1': ["010","110","010","010","111"],
-            '2': ["111","001","111","100","111"],
-            '3': ["111","001","111","001","111"],
-            '4': ["101","101","111","001","001"],
-            '5': ["111","100","111","001","111"],
-            '6': ["111","100","111","101","111"],
-            '7': ["111","001","001","001","001"],
-            '8': ["111","101","111","101","111"],
-            '9': ["111","101","111","001","111"],
-            'A': ["010","101","111","101","101"],
-            'B': ["110","101","110","101","110"],
-            'C': ["111","100","100","100","111"],
-            'E': ["111","100","110","100","111"],
-            'I': ["111","010","010","010","111"],
-            'L': ["100","100","100","100","111"],
-            'N': ["111","101","101","101","101"],
-            'O': ["111","101","101","101","111"],
-            'P': ["111","101","111","100","100"],
-            'R': ["111","101","110","101","101"],
-            'S': ["111","100","111","001","111"],
-            'T': ["111","010","010","010","010"],
-            'V': ["101","101","101","101","010"],
-            'Y': ["101","101","010","010","010"],
-            '+': ["000","010","111","010","000"],
-            '-': ["000","000","111","000","000"],
-            ':': ["000","010","000","010","000"],
-            ' ': ["000","000","000","000","000"]
+            '0': ["111", "101", "101", "101", "111"],
+            '1': ["010", "110", "010", "010", "111"],
+            '2': ["111", "001", "111", "100", "111"],
+            '3': ["111", "001", "111", "001", "111"],
+            '4': ["101", "101", "111", "001", "001"],
+            '5': ["111", "100", "111", "001", "111"],
+            '6': ["111", "100", "111", "101", "111"],
+            '7': ["111", "001", "001", "001", "001"],
+            '8': ["111", "101", "111", "101", "111"],
+            '9': ["111", "101", "111", "001", "111"],
+            'A': ["010", "101", "111", "101", "101"],
+            'B': ["110", "101", "110", "101", "110"],
+            'C': ["111", "100", "100", "100", "111"],
+            'E': ["111", "100", "110", "100", "111"],
+            'I': ["111", "010", "010", "010", "111"],
+            'L': ["100", "100", "100", "100", "111"],
+            'N': ["111", "101", "101", "101", "101"],
+            'O': ["111", "101", "101", "101", "111"],
+            'P': ["111", "101", "111", "100", "100"],
+            'R': ["111", "101", "110", "101", "101"],
+            'S': ["111", "100", "111", "001", "111"],
+            'T': ["111", "010", "010", "010", "010"],
+            'V': ["101", "101", "101", "101", "010"],
+            'Y': ["101", "101", "010", "010", "010"],
+            '+': ["000", "010", "111", "010", "000"],
+            '-': ["000", "000", "111", "000", "000"],
+            ':': ["000", "010", "000", "010", "000"],
+            ' ': ["000", "000", "000", "000", "000"]
         };
 
         function drawPixelText(text, x, y, color) {
@@ -710,17 +712,35 @@
                         score += 10;
                         if (score > bestScore) bestScore = score;
                         play8BitSound('salt');
-                        popups.push({ text: '+10', x: ship.x + 12, y: ship.y - 2, color: '#38BDF8', life: 22 });
+                        popups.push({
+                            text: '+10',
+                            x: ship.x + 12,
+                            y: ship.y - 2,
+                            color: '#38BDF8',
+                            life: 22
+                        });
                     } else if (en.type === 'crate') {
                         score += 50;
                         if (score > bestScore) bestScore = score;
                         play8BitSound('crate');
-                        popups.push({ text: '+50', x: ship.x + 12, y: ship.y - 2, color: '#F59E0B', life: 26 });
+                        popups.push({
+                            text: '+50',
+                            x: ship.x + 12,
+                            y: ship.y - 2,
+                            color: '#F59E0B',
+                            life: 26
+                        });
                     } else if (en.type === 'reef') {
                         score = Math.max(0, score - 20);
                         hitFlash = 10;
                         play8BitSound('hit');
-                        popups.push({ text: '-20', x: ship.x + 12, y: ship.y - 2, color: '#E11D48', life: 22 });
+                        popups.push({
+                            text: '-20',
+                            x: ship.x + 12,
+                            y: ship.y - 2,
+                            color: '#E11D48',
+                            life: 22
+                        });
                     }
                     entities.splice(i, 1);
                     continue;
@@ -824,8 +844,7 @@
         }
 
         // Minimal API Documentation Data
-        const endpoints = [
-            {
+        const endpoints = [{
                 desc: 'Daftar produk SMESTA beryodium (SNI 3556).',
                 code: `{
   "producer": "PT Susanti Megah",
@@ -896,7 +915,7 @@
         }
 
         // Start Playable Pixel Game Loop on Load
-        window.onload = function () {
+        window.onload = function() {
             renderGame();
         };
     </script>
