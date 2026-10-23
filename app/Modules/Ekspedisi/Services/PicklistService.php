@@ -9,6 +9,7 @@ use App\Models\LogisticSetting;
 use App\Models\Picklist;
 use App\Models\PicklistItem;
 use App\Models\PicklistItemLabelPhoto;
+use App\Models\PicklistOverload;
 use App\Models\PicklistSignature;
 use App\Models\PicklistWorker;
 use App\Models\SalesOrder;
@@ -3053,17 +3054,55 @@ class PicklistService
         ];
 
         if ($isOverload) {
+            $picklist->update([
+                'status' => Picklist::STATUS_OVERLOAD,
+            ]);
+
+            $itemsSnapshot = $picklist->items->map(function ($item) {
+                return [
+                    'id'           => (int) $item->id,
+                    'item_code'    => (string) $item->item_code,
+                    'item_name'    => (string) $item->item_name,
+                    'whs_code'     => (string) ($item->whs_code ?? ''),
+                    'uom'          => (string) ($item->unit_msr ?? $item->uom ?? 'KG'),
+                    'pick_qty'     => (float) $item->pick_qty,
+                    'unit_weight'  => (float) $item->unit_weight,
+                    'total_weight' => (float) $item->total_weight,
+                ];
+            })->values()->toArray();
+
+            $overloadRecord = PicklistOverload::create([
+                'picklist_id'      => $picklist->id,
+                'picklist_no'      => $picklist->picklist_no,
+                'gross_weight'     => $grossWeight,
+                'tare_weight'      => $tareWeight,
+                'net_weight'       => $netWeight,
+                'weight_limit'     => $weightLimit,
+                'overload_weight'  => $overloadDiff,
+                'ticket_no'        => $ticketNo,
+                'operator_name'    => $operator,
+                'rejection_reason' => $notes ?: "Terjadi kelebihan muatan (Overload) sebesar " . number_format($overloadDiff, 2) . " KG melebihi kapasitas armada.",
+                'status'           => PicklistOverload::STATUS_PENDING_ADJUSTMENT,
+                'items_snapshot'   => $itemsSnapshot,
+                'weighed_at'       => $weighedAt,
+                'created_by'       => $userId,
+                'updated_by'       => $userId,
+            ]);
+
+            $freshPicklist = $picklist->fresh(['items']);
+
             return [
                 'success'         => false,
                 'is_overload'     => true,
                 'message'         => "Peringatan: Terjadi kelebihan muatan (Overload) sebesar " . number_format($overloadDiff, 2) . " KG melebihi kapasitas armada. Delivery Order belum dapat dibuat.",
-                'picklist_id'     => $picklist->id,
-                'picklist_no'     => $picklist->picklist_no,
-                'status'          => $picklist->status,
+                'picklist_id'     => $freshPicklist->id,
+                'picklist_no'     => $freshPicklist->picklist_no,
+                'status'          => $freshPicklist->status,
                 'weight_summary'  => $weightSummary,
+                'overload_record' => $overloadRecord,
                 'delivery_order'  => null,
                 'action_required' => 'Harap kurangi muatan di gudang atau lakukan penyesuaian muatan dengan Checker terlebih dahulu.',
-                'picklist'        => $picklist->fresh(['items']),
+                'picklist'        => $freshPicklist,
             ];
         }
 
@@ -3467,6 +3506,174 @@ class PicklistService
             'checked_by_checker' => (string) ($targetItem->checked_by_checker ?? ''),
             'is_checked'         => (bool) $targetItem->is_checked,
             'item'               => $freshItem,
+        ];
+    }
+
+    /**
+     * Reject or cancel weigh-out due to overload and record to temporary overload table.
+     * Sets picklist status to 'overload'.
+     *
+     * @param int $picklistId
+     * @param array $payload
+     * @param int|null $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function rejectWeighOutOverload(int $picklistId, array $payload = [], ?int $userId = null): array
+    {
+        $picklist = Picklist::with(['items', 'expedition'])->find($picklistId);
+        if (!$picklist) {
+            throw new \Exception("Picklist with ID #{$picklistId} not found.", 404);
+        }
+
+        $statusLower = strtolower(trim((string)$picklist->status));
+        if (in_array($statusLower, [Picklist::STATUS_CANCELED, 'cancelled', 'canceled'], true)) {
+            throw new \Exception("Cannot reject weigh-out for a CANCELLED picklist.", 400);
+        }
+
+        if (empty($picklist->weigh_in_weight) || (float) $picklist->weigh_in_weight <= 0) {
+            throw new \Exception("Data timbang masuk (weigh_in_weight) belum tercatat untuk picklist ini.", 400);
+        }
+
+        $tareWeight = (float) $picklist->weigh_in_weight;
+        $grossWeight = (float) ($payload['weight'] ?? $payload['weigh_out_weight'] ?? $payload['gross_weight'] ?? $picklist->weigh_out_weight ?? 0);
+
+        if ($grossWeight <= 0) {
+            throw new \Exception("Berat timbang keluar (weight) harus diisi dan lebih besar dari 0 KG.", 422);
+        }
+
+        $netWeight = round($grossWeight - $tareWeight, 4);
+        if ($netWeight <= 0) {
+            throw new \Exception("Berat timbang keluar ({$grossWeight} KG) harus lebih besar dari berat timbang masuk ({$tareWeight} KG).", 422);
+        }
+
+        $user = $userId ? User::find($userId) : null;
+        $operator = !empty($payload['operator_name'])
+            ? trim((string) $payload['operator_name'])
+            : (!empty($payload['weigh_out_by']) ? trim((string) $payload['weigh_out_by']) : ($user?->name ?? 'Petugas Timbangan'));
+
+        $weighedAt = !empty($payload['weighed_at'])
+            ? Carbon::parse($payload['weighed_at'])
+            : (!empty($payload['weigh_out_at']) ? Carbon::parse($payload['weigh_out_at']) : now());
+
+        $ticketNo = !empty($payload['ticket_no'])
+            ? trim((string) $payload['ticket_no'])
+            : (!empty($payload['weigh_out_ticket_no']) ? trim((string) $payload['weigh_out_ticket_no']) : $picklist->weigh_out_ticket_no);
+
+        $notes = !empty($payload['rejection_reason'])
+            ? trim((string) $payload['rejection_reason'])
+            : (!empty($payload['notes']) ? trim((string) $payload['notes']) : 'Timbang keluar ditolak karena kelebihan muatan (Overload).');
+
+        $manifestWeight = (float) $picklist->total_weight;
+        $weightLimit = (float) $picklist->total_weight_limit;
+        $overloadDiff = ($weightLimit > 0 && $netWeight > $weightLimit) ? round($netWeight - $weightLimit, 2) : 0.0;
+
+        // Update picklist status to overload
+        $picklist->update([
+            'status'               => Picklist::STATUS_OVERLOAD,
+            'weigh_out_weight'     => $grossWeight,
+            'weigh_out_net_weight' => $netWeight,
+            'weigh_out_ticket_no'  => $ticketNo,
+            'weigh_out_by'         => $operator,
+            'weigh_out_at'         => $weighedAt,
+            'weigh_out_notes'      => $notes,
+            'weight_check_status'  => 'overload',
+            'updated_by'           => $userId,
+        ]);
+
+        $itemsSnapshot = $picklist->items->map(function ($item) {
+            return [
+                'id'           => (int) $item->id,
+                'item_code'    => (string) $item->item_code,
+                'item_name'    => (string) $item->item_name,
+                'whs_code'     => (string) ($item->whs_code ?? ''),
+                'uom'          => (string) ($item->unit_msr ?? $item->uom ?? 'KG'),
+                'pick_qty'     => (float) $item->pick_qty,
+                'unit_weight'  => (float) $item->unit_weight,
+                'total_weight' => (float) $item->total_weight,
+            ];
+        })->values()->toArray();
+
+        // Create temporary overload record
+        $overloadRecord = PicklistOverload::create([
+            'picklist_id'      => $picklist->id,
+            'picklist_no'      => $picklist->picklist_no,
+            'gross_weight'     => $grossWeight,
+            'tare_weight'      => $tareWeight,
+            'net_weight'       => $netWeight,
+            'weight_limit'     => $weightLimit,
+            'overload_weight'  => $overloadDiff,
+            'ticket_no'        => $ticketNo,
+            'operator_name'    => $operator,
+            'rejection_reason' => $notes,
+            'status'           => PicklistOverload::STATUS_PENDING_ADJUSTMENT,
+            'items_snapshot'   => $itemsSnapshot,
+            'weighed_at'       => $weighedAt,
+            'created_by'       => $userId,
+            'updated_by'       => $userId,
+        ]);
+
+        $weightSummary = [
+            'gross_weight'        => $grossWeight,
+            'tare_weight'         => $tareWeight,
+            'net_weight'          => $netWeight,
+            'manifest_weight'     => $manifestWeight,
+            'weight_difference'   => round($netWeight - $manifestWeight, 2),
+            'weight_limit'        => $weightLimit,
+            'weight_check_status' => 'overload',
+        ];
+
+        $freshPicklist = $picklist->fresh(['items']);
+
+        return [
+            'success'         => true,
+            'is_overload'     => true,
+            'message'         => "Timbang keluar berhasil ditolak karena Overload. Status picklist diubah menjadi 'overload'.",
+            'picklist_id'     => $freshPicklist->id,
+            'picklist_no'     => $freshPicklist->picklist_no,
+            'status'          => $freshPicklist->status,
+            'weight_summary'  => $weightSummary,
+            'overload_record' => $overloadRecord,
+            'delivery_order'  => null,
+            'action_required' => 'Harap kurangi muatan di gudang atau lakukan penyesuaian muatan dengan Checker terlebih dahulu.',
+            'picklist'        => $freshPicklist,
+        ];
+    }
+
+    /**
+     * Get overload details and temporary records for a picklist.
+     *
+     * @param int $picklistId
+     * @return array
+     * @throws \Exception
+     */
+    public function getOverloadDetail(int $picklistId): array
+    {
+        $picklist = Picklist::with([
+            'overloads' => function ($q) {
+                $q->orderBy('created_at', 'desc');
+            },
+            'items',
+        ])->find($picklistId);
+
+        if (!$picklist) {
+            throw new \Exception("Picklist with ID #{$picklistId} not found.", 404);
+        }
+
+        $latestOverload = $picklist->overloads->first();
+
+        return [
+            'picklist_id'          => (int) $picklist->id,
+            'picklist_no'          => (string) $picklist->picklist_no,
+            'status'               => (string) $picklist->status,
+            'weight_check_status'  => (string) ($picklist->weight_check_status ?? ''),
+            'total_weight_limit'   => (float) $picklist->total_weight_limit,
+            'weigh_in_weight'      => (float) $picklist->weigh_in_weight,
+            'weigh_out_weight'     => (float) $picklist->weigh_out_weight,
+            'weigh_out_net_weight' => (float) $picklist->weigh_out_net_weight,
+            'latest_overload'      => $latestOverload,
+            'history'              => $picklist->overloads,
+            'items'                => $picklist->items,
         ];
     }
 }

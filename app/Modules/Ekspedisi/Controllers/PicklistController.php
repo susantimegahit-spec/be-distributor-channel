@@ -170,7 +170,7 @@ class PicklistController extends Controller
     public function updateStatus(Request $request, int $id): JsonResponse
     {
         $request->validate([
-            'status' => 'required|string|in:open,weigh_in,inprogress,weigh_out,complete,canceled,OPEN,COMPLETED,CANCELLED',
+            'status' => 'required|string|in:open,weigh_in,inprogress,weigh_out,overload,complete,canceled,OPEN,COMPLETED,CANCELLED,OVERLOAD',
         ]);
 
         try {
@@ -526,6 +526,60 @@ class PicklistController extends Controller
                 'message' => $result['message'] ?? 'Timbang keluar berhasil diproses.',
                 'data'    => $result,
             ], $statusCode);
+        } catch (\Throwable $e) {
+            $statusCode = ($e->getCode() >= 400 && $e->getCode() < 600) ? (int) $e->getCode() : 400;
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $statusCode);
+        }
+    }
+
+    /**
+     * Reject or cancel weigh-out due to overload.
+     */
+    public function rejectWeighOut(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'weight'           => 'nullable|numeric|min:0.0001',
+            'ticket_no'        => 'nullable|string|max:50',
+            'operator_name'    => 'nullable|string|max:150',
+            'rejection_reason' => 'nullable|string|max:1000',
+            'notes'            => 'nullable|string|max:1000',
+            'weighed_at'       => 'nullable|date',
+        ]);
+
+        try {
+            $user = $request->user();
+            $result = $this->picklistService->rejectWeighOutOverload($id, $request->all(), $user?->id);
+
+            return response()->json([
+                'success' => true,
+                'message' => $result['message'] ?? 'Timbang keluar berhasil ditolak karena overload.',
+                'data'    => $result,
+            ], 200);
+        } catch (\Throwable $e) {
+            $statusCode = ($e->getCode() >= 400 && $e->getCode() < 600) ? (int) $e->getCode() : 400;
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $statusCode);
+        }
+    }
+
+    /**
+     * Get overload details and temporary history for a picklist.
+     */
+    public function getOverload(Request $request, int $id): JsonResponse
+    {
+        try {
+            $result = $this->picklistService->getOverloadDetail($id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Data overload picklist berhasil diambil.',
+                'data'    => $result,
+            ], 200);
         } catch (\Throwable $e) {
             $statusCode = ($e->getCode() >= 400 && $e->getCode() < 600) ? (int) $e->getCode() : 400;
             return response()->json([

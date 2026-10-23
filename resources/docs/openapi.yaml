@@ -20156,7 +20156,7 @@ paths:
       description: |
         Mencatat hasil penimbangan truk yang sudah dimuati barang (Gross Weight) setelah seluruh checker menyelesaikan proses checklist.
         Sistem menghitung Berat Bersih: `Net Weight = Gross Weight - Tare Weight`.
-        - **Validasi Overload**: Jika muatan melebihi batas kapasitas armada (`total_weight_limit`), respon memberikan peringatan overload dan Delivery Order (DO) **TIDAK dibuat**. Status picklist tetap `weigh_out`.
+        - **Validasi Overload**: Jika muatan melebihi batas kapasitas armada (`total_weight_limit`), respon memberikan peringatan overload, Delivery Order (DO) **TIDAK dibuat**, status picklist berubah menjadi `overload`, dan rincian kelebihan beban dicatat ke tabel temporary `picklist_overloads`.
         - **Muatan Sesuai**: Jika muatan sesuai toleransi armada, sistem otomatis mengeksekusi pembuatan Delivery Order (DO) ke SAP B1 (`/api/AddDO`). Status picklist berubah menjadi `complete`.
       tags:
         - Logistic - Picklist
@@ -20203,9 +20203,86 @@ paths:
         '200':
           description: Timbang keluar berhasil dan muatan sesuai. Delivery Order berhasil dibuat di SAP B1 (status complete).
         '422':
-          description: Peringatan kelebihan muatan (Overload) atau berat tidak valid. DO ditahan.
+          description: Peringatan kelebihan muatan (Overload). Status berubah menjadi overload dan dicatat ke tabel temporary picklist_overloads.
         '400':
           description: Truk belum timbang masuk atau pemeriksaan checker belum selesai.
+        '404':
+          description: Picklist tidak ditemukan.
+
+  /v1/logistic/picklists/{id}/weigh-out/reject:
+    post:
+      summary: Reject / Cancel Timbang Keluar karena Overload
+      description: |
+        Menolak / membatalkan timbang keluar karena muatan melebihi batas kapasitas armada (Overload).
+        Status picklist diubah menjadi `overload` dan data kelebihan beban beserta snapshot barang disimpan ke tabel temporary `picklist_overloads` untuk proses penyesuaian muatan di gudang.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Picklist
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                weight:
+                  type: number
+                  description: Berat kotor timbangan keluar (KG)
+                  example: 21000.00
+                ticket_no:
+                  type: string
+                  description: Nomor tiket timbang keluar
+                  example: "TMB-OUT-REJECT-001"
+                operator_name:
+                  type: string
+                  description: Nama operator timbangan
+                  example: "Petugas Timbangan"
+                rejection_reason:
+                  type: string
+                  description: Alasan penolakan overload
+                  example: "Muatan melebihi kapasitas armada truk sebesar 3,000 KG."
+                notes:
+                  type: string
+                  description: Catatan tambahan
+                weighed_at:
+                  type: string
+                  format: date-time
+                  description: Waktu penimbangan
+      responses:
+        '200':
+          description: Timbang keluar berhasil ditolak karena overload. Status picklist berubah menjadi overload.
+        '400':
+          description: Data timbang masuk belum tercatat atau status picklist tidak valid.
+        '404':
+          description: Picklist tidak ditemukan.
+
+  /v1/logistic/picklists/{id}/overload:
+    get:
+      summary: Detail Data Overload & Riwayat Temporary Picklist
+      description: |
+        Mengambil detail data overload aktif dan histori temporary overload pada picklist untuk keperluan penyesuaian/pembongkaran muatan di gudang.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Picklist
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Data overload berhasil diambil.
         '404':
           description: Picklist tidak ditemukan.
 

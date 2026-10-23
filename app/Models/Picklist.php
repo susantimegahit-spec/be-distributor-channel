@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Picklist extends Model
 {
@@ -19,6 +20,7 @@ class Picklist extends Model
     public const STATUS_WEIGH_IN    = 'weigh_in';
     public const STATUS_IN_PROGRESS = 'inprogress';
     public const STATUS_WEIGH_OUT   = 'weigh_out';
+    public const STATUS_OVERLOAD    = 'overload';
     public const STATUS_COMPLETE    = 'complete';
     public const STATUS_CANCELED    = 'canceled';
 
@@ -242,6 +244,22 @@ class Picklist extends Model
     public function labelPhotos(): HasMany
     {
         return $this->hasMany(PicklistItemLabelPhoto::class, 'picklist_id');
+    }
+
+    /**
+     * Get all temporary overload records for this picklist.
+     */
+    public function overloads(): HasMany
+    {
+        return $this->hasMany(PicklistOverload::class, 'picklist_id');
+    }
+
+    /**
+     * Get the latest overload record for this picklist.
+     */
+    public function latestOverload(): HasOne
+    {
+        return $this->hasOne(PicklistOverload::class, 'picklist_id')->latestOfMany();
     }
 
     /**

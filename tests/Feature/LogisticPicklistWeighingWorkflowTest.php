@@ -271,12 +271,15 @@ class LogisticPicklistWeighingWorkflowTest extends TestCase
 
         $overloadRes->assertStatus(422)
             ->assertJsonPath('success', false)
-            ->assertJsonPath('data.status', 'weigh_out')
+            ->assertJsonPath('data.status', 'overload')
             ->assertJsonPath('data.weight_summary.weight_check_status', 'overload');
 
         $picklist->refresh();
-        $this->assertEquals('weigh_out', $picklist->status);
+        $this->assertEquals('overload', $picklist->status);
         $this->assertNull($picklist->delivery_order_no);
+        $this->assertCount(1, $picklist->overloads);
+        $this->assertEquals(1500.0, (float) $picklist->latestOverload->overload_weight);
+        $this->assertEquals('PENDING_ADJUSTMENT', $picklist->latestOverload->status);
 
         // 7. Test Weigh-out Valid (Muatan Sesuai): Tare 8500 kg + Net 10000 kg = Gross 18500 kg
         $validWeighOutRes = $this->actingAs($this->user)->postJson("/api/distributor-channel/v1/logistic/picklists/{$picklistId}/weigh-out", [
@@ -306,28 +309,30 @@ class LogisticPicklistWeighingWorkflowTest extends TestCase
     {
         $so = SalesOrder::create([
             'order_no'         => 'SO-TEST-LBL-001',
-            'order_date'       => now(),
-            'code_customer'    => $this->distributor->code_customer,
-            'depo'             => 'SURABAYA',
+            'doc_date'         => now(),
+            'distributor_id'   => $this->distributor->id,
+            'card_code'        => $this->distributor->code_customer,
+            'customer_name'    => 'PT Distribusi Logistik',
             'status'           => 'APPROVED',
             'sap_doc_num'      => 'SO-SAP-9901',
             'sap_doc_entry'    => 1088,
-            'total_order'      => 500000,
         ]);
 
         $detail = SalesOrderDetail::create([
             'sales_order_id' => $so->id,
             'item_code'      => $this->item1->item_code,
             'item_name'      => $this->item1->item_name,
-            'order_qty'      => 50,
-            'open_qty'       => 50,
-            'price'          => 10000,
-            'uom'            => 'KG',
+            'quantity'       => 50,
+            'unit_price'     => 10000,
+            'line_total'     => 500000,
             'baseline'       => 0,
+            'line_num'       => 0,
         ]);
 
         $picklist = Picklist::create([
             'picklist_no'   => 'PKL-TEST-LBL-001',
+            'posting_date'  => '2026-10-23',
+            'due_date'      => '2026-10-24',
             'status'        => Picklist::STATUS_IN_PROGRESS,
             'shipping_type' => 'pickup',
             'tare_weight'   => 5000,
@@ -404,6 +409,105 @@ class LogisticPicklistWeighingWorkflowTest extends TestCase
             ->assertJsonCount(2, 'data.items.0.labels.0.label_photos')
             ->assertJsonPath('data.items.0.labels.1.production_date', '2026-10-12')
             ->assertJsonCount(1, 'data.items.0.labels.1.label_photos');
+    }
+
+    /**
+     * Test explicit reject/cancel weigh-out endpoint and retrieval from temporary overload table.
+     */
+    public function test_reject_weigh_out_overload_endpoint_and_get_overload_records(): void
+    {
+        $so = SalesOrder::create([
+            'order_no'         => 'SO-LOG-OVERLOAD-REJECT',
+            'doc_date'         => now(),
+            'distributor_id'   => $this->distributor->id,
+            'card_code'        => $this->distributor->code_customer,
+            'customer_name'    => 'PT Distribusi Logistik',
+            'status'           => 'APPROVED',
+            'sap_doc_num'      => 'SO-SAP-9999',
+            'sap_doc_entry'    => 1099,
+        ]);
+
+        $soDetail = SalesOrderDetail::create([
+            'sales_order_id' => $so->id,
+            'item_code'      => $this->item1->item_code,
+            'item_name'      => $this->item1->item_name,
+            'quantity'       => 200,
+            'unit_price'     => 25000,
+            'line_total'     => 5000000,
+            'baseline'       => 0,
+            'line_num'       => 0,
+        ]);
+
+        $picklist = Picklist::create([
+            'picklist_no'        => 'PKL-REJECT-OL-001',
+            'shipping_type'      => 'internal',
+            'status'             => 'weigh_in',
+            'posting_date'       => '2026-10-23',
+            'due_date'           => '2026-10-24',
+            'total_weight_limit' => 10000.0, // 10 ton limit
+            'total_weight'       => 10000.0,
+            'weigh_in_weight'    => 8000.0, // 8 ton tare
+            'weigh_in_ticket_no' => 'TMB-IN-OL-01',
+            'weigh_in_by'        => 'Petugas Timbangan Masuk',
+            'weigh_in_at'        => now(),
+        ]);
+
+        $picklistItem = PicklistItem::create([
+            'picklist_id'            => $picklist->id,
+            'sales_order_id'         => $so->id,
+            'sales_order_detail_id'  => $soDetail->id,
+            'item_code'              => 'FG-OVERLOAD-01',
+            'item_name'              => 'Garam Kasar Overload 50kg',
+            'whs_code'               => 'VPGMN01',
+            'unit_msr'               => 'SAK',
+            'ordered_qty'            => 200,
+            'pick_qty'               => 200,
+            'unit_weight'            => 50.0,
+            'total_weight'           => 10000.0,
+            'is_checked'             => true,
+        ]);
+
+        // Gross weight 21000 kg -> Net weight = 21000 - 8000 = 13000 kg (> limit 10000 kg -> Overload 3000 kg!)
+        $rejectRes = $this->actingAs($this->user)->postJson("/api/distributor-channel/v1/logistic/picklists/{$picklist->id}/weigh-out/reject", [
+            'weight'           => 21000.0,
+            'ticket_no'        => 'TMB-OUT-REJECT-99',
+            'operator_name'    => 'Operator Jembatan Timbang',
+            'rejection_reason' => 'Kelebihan muatan armada truk sebesar 3,000 KG. Ditolak dan diarahkan bongkar muatan.',
+        ]);
+
+        $rejectRes->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.status', 'overload')
+            ->assertJsonPath('data.is_overload', true)
+            ->assertJsonPath('data.overload_record.ticket_no', 'TMB-OUT-REJECT-99');
+
+        $this->assertEquals(21000.0, (float) $rejectRes->json('data.weight_summary.gross_weight'));
+        $this->assertEquals(13000.0, (float) $rejectRes->json('data.weight_summary.net_weight'));
+        $this->assertEquals(10000.0, (float) $rejectRes->json('data.weight_summary.weight_limit'));
+        $this->assertEquals(3000.0, (float) $rejectRes->json('data.overload_record.overload_weight'));
+
+        $picklist->refresh();
+        $this->assertEquals('overload', $picklist->status);
+        $this->assertEquals('overload', $picklist->weight_check_status);
+        $this->assertNull($picklist->delivery_order_no);
+
+        // Verify temporary overload table record
+        $this->assertCount(1, $picklist->overloads);
+        $overloadRecord = $picklist->latestOverload;
+        $this->assertEquals(3000.0, (float) $overloadRecord->overload_weight);
+        $this->assertEquals('PENDING_ADJUSTMENT', $overloadRecord->status);
+        $this->assertNotEmpty($overloadRecord->items_snapshot);
+        $this->assertEquals('FG-OVERLOAD-01', $overloadRecord->items_snapshot[0]['item_code']);
+
+        // Test GET /v1/logistic/picklists/{id}/overload
+        $getOverloadRes = $this->actingAs($this->user)->getJson("/api/distributor-channel/v1/logistic/picklists/{$picklist->id}/overload");
+        $getOverloadRes->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.picklist_id', $picklist->id)
+            ->assertJsonPath('data.status', 'overload')
+            ->assertJsonCount(1, 'data.history');
+
+        $this->assertEquals(3000.0, (float) $getOverloadRes->json('data.latest_overload.overload_weight'));
     }
 }
 
