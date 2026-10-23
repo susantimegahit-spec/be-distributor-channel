@@ -3686,7 +3686,7 @@ class PicklistService
     public function getOverloads(array $filters = []): array
     {
         $query = PicklistOverload::with([
-            'picklist:id,picklist_no,shipping_type,vehicle_no,driver_name,checker_name,status,weight_check_status,total_weight_limit,weigh_in_weight,weigh_out_weight,weigh_out_net_weight,unit',
+            'picklist:id,picklist_no,shipping_type,license_plate,driver_name,checker_name,status,weight_check_status,total_weight_limit,total_weight,weigh_in_weight,weigh_out_weight,weigh_out_net_weight',
         ]);
 
         $like = $query->getConnection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
@@ -3719,7 +3719,7 @@ class PicklistService
                     ->orWhere('operator_name', $like, "%{$search}%")
                     ->orWhere('rejection_reason', $like, "%{$search}%")
                     ->orWhereHas('picklist', function (Builder $pq) use ($search, $like) {
-                        $pq->where('vehicle_no', $like, "%{$search}%")
+                        $pq->where('license_plate', $like, "%{$search}%")
                             ->orWhere('driver_name', $like, "%{$search}%")
                             ->orWhere('checker_name', $like, "%{$search}%");
                     });

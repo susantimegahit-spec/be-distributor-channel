@@ -20488,7 +20488,7 @@ paths:
                             shipping_type:
                               type: string
                               example: "internal"
-                            vehicle_no:
+                            license_plate:
                               type: string
                               example: "L 9999 XX"
                             driver_name:
@@ -20515,9 +20515,6 @@ paths:
                             weigh_out_net_weight:
                               type: number
                               example: 13000.0
-                            unit:
-                              type: string
-                              example: "GRM"
                   meta:
                     type: object
                     properties:
