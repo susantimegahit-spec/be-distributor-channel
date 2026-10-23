@@ -80,6 +80,17 @@
             box-shadow: 2px 2px 0px #38BDF8;
         }
 
+        /* Prevent ugly yellow browser autofill background */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus,
+        input:-webkit-autofill:active {
+            -webkit-text-fill-color: #F8FAFC !important;
+            -webkit-box-shadow: 0 0 0 1000px #060D1A inset !important;
+            box-shadow: 0 0 0 1000px #060D1A inset !important;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+
         /* Subtle Pixel Button Press */
         .pixel-btn {
             box-shadow: 3px 3px 0px #881337;
@@ -98,139 +109,133 @@
 </head>
 
 <body
-    class="min-h-screen w-full flex items-center justify-center p-2 sm:p-4 lg:p-6 selection:bg-kapal-cyan selection:text-navy-950">
+    class="min-h-screen w-full flex items-center justify-center p-3 sm:p-5 selection:bg-kapal-cyan selection:text-navy-950">
 
-    <!-- VIEW 1: FULL-WIDTH EXPANDED LOGIN + PLAYABLE PIXEL SHIP ARCADE GAME -->
+    <!-- VIEW 1: COMPACT, BALANCED RETRO ARCADE LOGIN CARD -->
     <main id="loginView"
-        class="w-full max-w-[1440px] 2xl:max-w-[1680px] min-h-[85vh] lg:min-h-[88vh] bg-navy-900 border border-white/15 grid grid-cols-1 lg:grid-cols-12 overflow-hidden shadow-2xl rounded-sm">
+        class="w-full max-w-[900px] bg-navy-900 border border-white/15 grid grid-cols-1 md:grid-cols-12 overflow-hidden shadow-2xl rounded-sm">
 
-        <!-- Left Panel: Playable 2D Pixel Art Game ("Cap Kapal Pixel Voyage") (8 Columns on Large Screens) -->
+        <!-- Left Panel: Playable 2D Pixel Art Game ("Cap Kapal Pixel Voyage") (7 Columns) -->
         <div
-            class="lg:col-span-8 relative bg-navy-950 border-b lg:border-b-0 lg:border-r border-white/15 flex flex-col justify-between min-h-[380px] sm:min-h-[460px] lg:min-h-full overflow-hidden">
+            class="md:col-span-7 relative bg-navy-950 border-b md:border-b-0 md:border-r border-white/15 flex flex-col justify-between min-h-[300px] sm:min-h-[420px] overflow-hidden">
 
-            <!-- Low-Res Playable Pixel Canvas (240x160 scaled up cleanly to fill widescreen) -->
-            <canvas id="pixelScene" width="240" height="160"
+            <!-- Low-Res Playable Pixel Canvas (200x160 scaled up cleanly) -->
+            <canvas id="pixelScene" width="200" height="160"
                 class="pixel-canvas w-full h-full object-cover absolute inset-0 cursor-pointer"></canvas>
 
-            <!-- Top Overlay: Brand Header & Tiny Mute Toggle Button -->
-            <div class="relative z-10 p-4 flex items-center justify-between pointer-events-none">
-                <div class="flex items-center gap-2">
-                    <span
-                        class="px-2.5 py-1 bg-navy-950/85 border border-white/15 font-mono text-[10px] tracking-widest text-kapal-salt uppercase rounded-sm">
-                        EST. 1978 • PT SUSANTI MEGAH
-                    </span>
-                    <span
-                        class="hidden sm:inline-block px-2.5 py-1 bg-navy-950/85 border border-white/15 font-mono text-[10px] text-kapal-cyan rounded-sm">
-                        ARCADE VOYAGE • NaCl • PIXEL ENGINE
-                    </span>
-                </div>
-
+            <!-- Top Right: ONLY Mute Toggle Button so HUD at top-left is completely unobscured -->
+            <div class="relative z-10 p-3 flex items-center justify-end pointer-events-none">
                 <button type="button" id="muteBtn" onclick="toggleMute(event)" title="Toggle 8-Bit Sound"
-                    class="pointer-events-auto px-2.5 py-1 bg-navy-950/85 hover:bg-navy-800 border border-white/15 font-mono text-[10px] text-slate-300 flex items-center gap-1.5 transition rounded-sm">
+                    class="pointer-events-auto px-2 py-1 bg-navy-950/85 hover:bg-navy-800 border border-white/15 font-mono text-[10px] text-slate-300 flex items-center gap-1.5 transition rounded-sm">
                     <span id="muteIcon" class="text-kapal-cyan">♪ ON</span>
                 </button>
             </div>
 
             <!-- Minimal Bottom Control Prompt -->
             <div
-                class="relative z-10 px-4 py-2.5 bg-navy-950/85 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 pointer-events-none mt-auto">
-                <span class="font-mono text-[11px] text-slate-300 tracking-tight flex items-center gap-2">
-                    <span class="px-1.5 py-0.5 bg-white/10 rounded text-[10px] text-white">W/S</span>
-                    <span class="px-1.5 py-0.5 bg-white/10 rounded text-[10px] text-white">↑/↓</span>
-                    <span class="px-1.5 py-0.5 bg-white/10 rounded text-[10px] text-white">KLIK/TAP</span>
-                    <span>KENDALIKAN KAPAL</span>
+                class="relative z-10 px-3 py-2 bg-navy-950/85 border-t border-white/10 flex items-center justify-between pointer-events-none mt-auto">
+                <span class="font-mono text-[10px] text-slate-300 tracking-tight">
+                    [W/S • ↑/↓ • KLIK] JALUR
                 </span>
-                <span class="font-mono text-[11px] text-kapal-cyan flex items-center gap-3">
-                    <span><strong class="text-white">+10</strong> NaCl Crystal</span>
-                    <span><strong class="text-kapal-gold">+50</strong> Salt Crate</span>
-                    <span class="text-rose-400"><strong class="text-rose-400">-20</strong> Sea Reef</span>
+                <span class="font-mono text-[10px] text-kapal-cyan">
+                    +10 NaCl • +50 CRATE • -20 REEF
                 </span>
             </div>
         </div>
 
-        <!-- Right Panel: Login Form (4 Columns on Large Screens) -->
-        <div class="lg:col-span-4 p-6 sm:p-8 lg:p-10 flex flex-col justify-between bg-navy-900">
+        <!-- Right Panel: Login Form (5 Columns) -->
+        <div class="md:col-span-5 p-6 sm:p-8 flex flex-col justify-center bg-navy-900">
 
-            <!-- Top Header -->
-            <div>
-                <div class="mb-8">
-                    <div class="flex items-center gap-2.5 mb-2">
-                        <!-- Mini 8-bit Pixel Ship Emblem SVG -->
-                        <svg class="w-6 h-6 shrink-0" viewBox="0 0 16 16" fill="none" shape-rendering="crispEdges">
-                            <rect x="7" y="2" width="1" height="9" fill="#F59E0B" />
-                            <rect x="8" y="3" width="4" height="6" fill="#F8FAFC" />
-                            <rect x="4" y="5" width="3" height="4" fill="#CBD5E1" />
-                            <rect x="2" y="11" width="12" height="2" fill="#E11D48" />
-                            <rect x="3" y="13" width="10" height="1" fill="#9F1239" />
-                            <rect x="1" y="15" width="14" height="1" fill="#38BDF8" />
-                        </svg>
-                        <span class="font-bold tracking-wider text-base text-white uppercase">
-                            SMESTA
-                        </span>
-                        <span class="text-slate-600">/</span>
-                        <span class="font-mono text-xs text-kapal-gold tracking-wide uppercase">
-                            Garam Cap Kapal
-                        </span>
-                    </div>
-                    <h1 class="font-mono text-xs text-slate-400">
-                        API Documentation Portal & Integration Hub
-                    </h1>
+            <!-- Minimal Header -->
+            <div class="mb-6">
+                <div class="flex items-center gap-2 mb-2">
+                    <!-- Mini 8-bit Pixel Ship Emblem SVG -->
+                    <svg class="w-5 h-5 shrink-0" viewBox="0 0 16 16" fill="none" shape-rendering="crispEdges">
+                        <rect x="7" y="2" width="1" height="9" fill="#F59E0B" />
+                        <rect x="8" y="3" width="4" height="6" fill="#F8FAFC" />
+                        <rect x="4" y="5" width="3" height="4" fill="#CBD5E1" />
+                        <rect x="2" y="11" width="12" height="2" fill="#E11D48" />
+                        <rect x="3" y="13" width="10" height="1" fill="#9F1239" />
+                        <rect x="1" y="15" width="14" height="1" fill="#38BDF8" />
+                    </svg>
+                    <span class="font-bold tracking-wider text-sm text-white uppercase">
+                        SMESTA
+                    </span>
+                    <span class="text-slate-600">/</span>
+                    <span class="font-mono text-[11px] text-kapal-gold tracking-wide uppercase">
+                        Garam Cap Kapal
+                    </span>
                 </div>
 
-                <!-- Server Flash Status Messages -->
-                @if(session('error'))
-                    <div
-                        class="mb-4 p-3 bg-rose-950/70 border border-rose-500/60 font-mono text-xs text-rose-300 flex items-center gap-2 rounded-sm">
-                        <span class="inline-block w-2 h-2 bg-rose-500 shrink-0"></span>
-                        <span>{{ session('error') }}</span>
-                    </div>
-                @elseif(request()->has('expired'))
-                    <div
-                        class="mb-4 p-3 bg-amber-950/70 border border-amber-500/60 font-mono text-xs text-amber-300 flex items-center gap-2 rounded-sm">
-                        <span class="inline-block w-2 h-2 bg-amber-500 shrink-0"></span>
-                        <span>Sesi Anda telah kedaluwarsa. Silakan masuk kembali.</span>
-                    </div>
-                @endif
+                <div class="flex items-center gap-2 mb-1.5">
+                    <span
+                        class="px-1.5 py-0.5 bg-navy-950 border border-white/15 font-mono text-[9px] tracking-widest text-kapal-salt uppercase">
+                        EST. 1978
+                    </span>
+                    <span
+                        class="px-1.5 py-0.5 bg-navy-950 border border-white/15 font-mono text-[9px] text-kapal-cyan">
+                        NaCl • PIXEL ENGINE
+                    </span>
+                </div>
 
-                <!-- Login Form -->
-                <form id="loginForm" action="{{ url('/docs/login') }}" method="POST" onsubmit="return handleLogin(event)"
-                    class="space-y-5" novalidate>
-                    @csrf
-                    <div>
-                        <label for="username" class="block font-mono text-xs text-slate-300 mb-2">
-                            Username
-                        </label>
-                        <input type="text" id="username" name="username" required autocomplete="username" autofocus
-                            placeholder="username" oninput="triggerTypingBoost()" value="{{ old('username') }}"
-                            class="clean-input w-full px-3.5 py-3 bg-navy-950 border border-white/20 font-mono text-sm text-white placeholder-slate-600 transition rounded-sm">
-                    </div>
-
-                    <div>
-                        <label for="password" class="block font-mono text-xs text-slate-300 mb-2">
-                            Password
-                        </label>
-                        <input type="password" id="password" name="password" required autocomplete="current-password"
-                            placeholder="••••••••" oninput="triggerTypingBoost()"
-                            class="clean-input w-full px-3.5 py-3 bg-navy-950 border border-white/20 font-mono text-sm text-white placeholder-slate-600 transition rounded-sm">
-                    </div>
-
-                    <p id="errorMsg" class="hidden font-mono text-[11px] text-kapal-red">
-                        Masukkan username dan password terlebih dahulu.
-                    </p>
-
-                    <div class="pt-2">
-                        <button type="submit"
-                            class="pixel-btn w-full py-3 px-4 bg-kapal-red text-white font-mono text-xs font-semibold uppercase tracking-widest border border-rose-300/30 rounded-sm">
-                            Masuk ke Dokumentasi
-                        </button>
-                    </div>
-                </form>
+                <h1 class="font-mono text-xs text-slate-400">
+                    API Documentation Portal
+                </h1>
             </div>
 
-            <!-- Footer Meta -->
-            <div class="pt-6 border-t border-white/10 mt-6 flex items-center justify-between text-slate-500 font-mono text-[11px]">
-                <span>PT Susanti Megah</span>
-                <span>v1.0 • HTTPS SECURE</span>
+            <!-- Server Flash Status Messages -->
+            @if(session('error'))
+                <div
+                    class="mb-4 p-2.5 bg-rose-950/70 border border-rose-500/60 font-mono text-xs text-rose-300 flex items-center gap-2 rounded-sm">
+                    <span class="inline-block w-1.5 h-1.5 bg-rose-500 shrink-0"></span>
+                    <span>{{ session('error') }}</span>
+                </div>
+            @elseif(request()->has('expired'))
+                <div
+                    class="mb-4 p-2.5 bg-amber-950/70 border border-amber-500/60 font-mono text-xs text-amber-300 flex items-center gap-2 rounded-sm">
+                    <span class="inline-block w-1.5 h-1.5 bg-amber-500 shrink-0"></span>
+                    <span>Sesi Anda telah kedaluwarsa. Silakan masuk kembali.</span>
+                </div>
+            @endif
+
+            <!-- Login Form -->
+            <form id="loginForm" action="{{ url('/docs/login') }}" method="POST" onsubmit="return handleLogin(event)"
+                class="space-y-4" novalidate>
+                @csrf
+                <div>
+                    <label for="username" class="block font-mono text-xs text-slate-300 mb-1.5">
+                        Username
+                    </label>
+                    <input type="text" id="username" name="username" required autocomplete="username" autofocus
+                        placeholder="username" oninput="triggerTypingBoost()" value="{{ old('username') }}"
+                        class="clean-input w-full px-3.5 py-2.5 bg-navy-950 border border-white/20 font-mono text-sm text-white placeholder-slate-600 transition rounded-sm">
+                </div>
+
+                <div>
+                    <label for="password" class="block font-mono text-xs text-slate-300 mb-1.5">
+                        Password
+                    </label>
+                    <input type="password" id="password" name="password" required autocomplete="current-password"
+                        placeholder="••••••••" oninput="triggerTypingBoost()"
+                        class="clean-input w-full px-3.5 py-2.5 bg-navy-950 border border-white/20 font-mono text-sm text-white placeholder-slate-600 transition rounded-sm">
+                </div>
+
+                <p id="errorMsg" class="hidden font-mono text-[11px] text-kapal-red">
+                    Masukkan username dan password.
+                </p>
+
+                <div class="pt-1">
+                    <button type="submit"
+                        class="pixel-btn w-full py-2.5 px-4 bg-kapal-red text-white font-mono text-xs font-semibold uppercase tracking-widest border border-rose-300/30 rounded-sm">
+                        Masuk ke Dokumentasi
+                    </button>
+                </div>
+            </form>
+
+            <div
+                class="pt-4 mt-4 border-t border-white/10 flex items-center justify-between text-slate-500 font-mono text-[10px]">
+                <span>PT SUSANTI MEGAH</span>
+                <span>HTTPS SECURE</span>
             </div>
 
         </div>
@@ -238,7 +243,7 @@
 
     <!-- VIEW 2: MINIMALIST API DOCUMENTATION (Fallback Preview) -->
     <section id="docsView"
-        class="hidden w-full max-w-[1440px] bg-navy-900 border border-white/15 shadow-2xl overflow-hidden rounded-sm">
+        class="hidden w-full max-w-[900px] bg-navy-900 border border-white/15 shadow-2xl overflow-hidden rounded-sm">
 
         <!-- Top Bar -->
         <header class="px-6 py-4 bg-navy-950 border-b border-white/15 flex items-center justify-between">
@@ -316,7 +321,7 @@
     <script>
         const canvas = document.getElementById('pixelScene');
         const ctx = canvas.getContext('2d');
-        const W = canvas.width;  // 240
+        const W = canvas.width;  // 200
         const H = canvas.height; // 160
 
         // 8-Bit Web Audio Synthesizer
@@ -404,7 +409,7 @@
 
         // Player Ship State
         const ship = {
-            x: 28,
+            x: 24,
             lane: 1,
             y: LANES[1],
             targetY: LANES[1]
@@ -418,9 +423,9 @@
         const wakes = [];
 
         // Twinkling Night Sky Stars / Salt Dust
-        const stars = Array.from({ length: 36 }, () => ({
+        const stars = Array.from({ length: 28 }, () => ({
             x: Math.floor(Math.random() * W),
-            y: 16 + Math.floor(Math.random() * 56),
+            y: 18 + Math.floor(Math.random() * 52),
             speed: 0.15 + Math.random() * 0.25,
             phase: Math.random() * 100
         }));
@@ -757,7 +762,7 @@
             }
 
             // 3. Pixel Moon & Distant Surabaya Lighthouse Silhouette
-            const moonX = W - 34;
+            const moonX = 166;
             const moonY = 28;
             ctx.fillStyle = '#132742';
             ctx.fillRect(moonX - 5, moonY - 5, 11, 11);
@@ -809,7 +814,7 @@
                 drawPixelText(p.text, p.x, p.y, p.color);
             }
 
-            // 9. Clean Pixel HUD Bar (Top Left inside Canvas)
+            // 9. Clean Pixel HUD Bar (Top Left inside Canvas, completely unobstructed)
             ctx.fillStyle = 'rgba(6, 13, 26, 0.85)';
             ctx.fillRect(4, 4, 138, 12);
             drawPixelText(`NACL:${score}`, 7, 8, '#F8FAFC');
