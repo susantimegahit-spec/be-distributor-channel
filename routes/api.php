@@ -14,6 +14,11 @@ Route::post('/ApproveSAP', [\App\Modules\MasterApproval\Controllers\MasterApprov
 Route::match(['get', 'post'], '/GetListByOwnerId', [\App\Modules\MasterApproval\Controllers\MasterApprovalController::class, 'getOwnerDocuments'])->middleware('auth:sanctum');
 Route::match(['get', 'post'], '/GetDetailByObjectCode', [\App\Modules\MasterApproval\Controllers\MasterApprovalController::class, 'getDocumentDetail'])->middleware('auth:sanctum');
 Route::match(['get', 'post'], '/GetOriginator', [\App\Modules\MasterApproval\Controllers\MasterApprovalController::class, 'getOriginators'])->middleware('auth:sanctum');
+Route::match(['get', 'post'], '/GetDepartment', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'getDepartments']);
+Route::match(['get', 'post'], '/GetDraftPR', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'getDraftPR']);
+Route::match(['get', 'post'], '/GetListPRGenerated', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'getListPRGenerated']);
+Route::match(['get', 'post'], '/ClosePR', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'closePR']);
+Route::match(['get', 'post'], '/CancelPR', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'cancelPR']);
 
 Route::prefix('dashboard-layouts')->middleware('auth:sanctum')->group(function () {
     Route::get('/me', [\App\Modules\Dashboard\Controllers\DashboardLayoutController::class, 'getMyLayout']);

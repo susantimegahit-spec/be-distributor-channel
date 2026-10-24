@@ -85,18 +85,37 @@ class ClaimService
         $xml .= ' <Worksheet ss:Name="template upload klaim">' . "\n";
         $xml .= '  <Table ss:DefaultRowHeight="18">' . "\n";
         // Define Column Widths
-        $xml .= '   <Column ss:Width="120"/>' . "\n"; // Kode Distributor
-        $xml .= '   <Column ss:Width="180"/>' . "\n"; // Nama Distributor
-        $xml .= '   <Column ss:Width="100"/>' . "\n"; // Item
-        $xml .= '   <Column ss:Width="200"/>' . "\n"; // Nama Item
-        $xml .= '   <Column ss:Width="110"/>' . "\n"; // Harga Jual @Kg
-        $xml .= '   <Column ss:Width="100"/>' . "\n"; // Qty @Kg
-        $xml .= '   <Column ss:Width="110"/>' . "\n"; // Type Customer
-        $xml .= '   <Column ss:Width="130"/>' . "\n"; // Transaction Date
+        $xml .= '   <Column ss:Width="120"/>' . "\n"; // 1. Kode Distributor
+        $xml .= '   <Column ss:Width="180"/>' . "\n"; // 2. Nama Distributor
+        $xml .= '   <Column ss:Width="120"/>' . "\n"; // 3. Depo
+        $xml .= '   <Column ss:Width="120"/>' . "\n"; // 4. Kode Customer
+        $xml .= '   <Column ss:Width="180"/>' . "\n"; // 5. Nama Customer
+        $xml .= '   <Column ss:Width="220"/>' . "\n"; // 6. Alamat
+        $xml .= '   <Column ss:Width="140"/>' . "\n"; // 7. Kota / Kabupaten
+        $xml .= '   <Column ss:Width="140"/>' . "\n"; // 8. Kecamatan
+        $xml .= '   <Column ss:Width="160"/>' . "\n"; // 9. Salesman Distributor
+        $xml .= '   <Column ss:Width="100"/>' . "\n"; // 10. Item
+        $xml .= '   <Column ss:Width="200"/>' . "\n"; // 11. Nama Item
+        $xml .= '   <Column ss:Width="120"/>' . "\n"; // 12. Jenis Barang
+        $xml .= '   <Column ss:Width="100"/>' . "\n"; // 13. Qty @Kg
+        $xml .= '   <Column ss:Width="110"/>' . "\n"; // 14. Harga Jual @Kg
+        $xml .= '   <Column ss:Width="110"/>' . "\n"; // 15. Type Customer
+        $xml .= '   <Column ss:Width="120"/>' . "\n"; // 16. Jenis Transaksi
+        $xml .= '   <Column ss:Width="100"/>' . "\n"; // 17. Channel
+        $xml .= '   <Column ss:Width="120"/>' . "\n"; // 18. Invoice
+        $xml .= '   <Column ss:Width="120"/>' . "\n"; // 19. DPP
+        $xml .= '   <Column ss:Width="100"/>' . "\n"; // 20. Diskon 1
+        $xml .= '   <Column ss:Width="100"/>' . "\n"; // 21. Diskon 2
+        $xml .= '   <Column ss:Width="100"/>' . "\n"; // 22. Diskon 3
+        $xml .= '   <Column ss:Width="100"/>' . "\n"; // 23. Diskon 4
+        $xml .= '   <Column ss:Width="100"/>' . "\n"; // 24. Diskon 5
+        $xml .= '   <Column ss:Width="110"/>' . "\n"; // 25. PPN
+        $xml .= '   <Column ss:Width="120"/>' . "\n"; // 26. NET
+        $xml .= '   <Column ss:Width="130"/>' . "\n"; // 27. Transaction Date
         
         // Title Row
         $xml .= '   <Row ss:Height="40">' . "\n";
-        $xml .= '    <Cell ss:MergeAcross="7" ss:StyleID="Title"><Data ss:Type="String">  TEMPLATE UPLOAD KLAIM DISTRIBUTOR</Data></Cell>' . "\n";
+        $xml .= '    <Cell ss:MergeAcross="26" ss:StyleID="Title"><Data ss:Type="String">  TEMPLATE UPLOAD KLAIM DISTRIBUTOR</Data></Cell>' . "\n";
         $xml .= '   </Row>' . "\n";
         
         // Empty Spacer Row
@@ -106,11 +125,30 @@ class ClaimService
         $xml .= '   <Row ss:Height="26" ss:StyleID="Header">' . "\n";
         $xml .= '    <Cell><Data ss:Type="String">Kode Distributor</Data></Cell>' . "\n";
         $xml .= '    <Cell><Data ss:Type="String">Nama Distributor</Data></Cell>' . "\n";
+        $xml .= '    <Cell><Data ss:Type="String">Depo</Data></Cell>' . "\n";
+        $xml .= '    <Cell><Data ss:Type="String">Kode Customer</Data></Cell>' . "\n";
+        $xml .= '    <Cell><Data ss:Type="String">Nama Customer</Data></Cell>' . "\n";
+        $xml .= '    <Cell><Data ss:Type="String">Alamat</Data></Cell>' . "\n";
+        $xml .= '    <Cell><Data ss:Type="String">Kota / Kabupaten</Data></Cell>' . "\n";
+        $xml .= '    <Cell><Data ss:Type="String">Kecamatan</Data></Cell>' . "\n";
+        $xml .= '    <Cell><Data ss:Type="String">Salesman Distributor</Data></Cell>' . "\n";
         $xml .= '    <Cell><Data ss:Type="String">Item</Data></Cell>' . "\n";
         $xml .= '    <Cell><Data ss:Type="String">Nama Item</Data></Cell>' . "\n";
-        $xml .= '    <Cell><Data ss:Type="String">Harga Jual @Kg</Data></Cell>' . "\n";
+        $xml .= '    <Cell><Data ss:Type="String">Jenis Barang</Data></Cell>' . "\n";
         $xml .= '    <Cell><Data ss:Type="String">Qty @Kg</Data></Cell>' . "\n";
+        $xml .= '    <Cell><Data ss:Type="String">Harga Jual @Kg</Data></Cell>' . "\n";
         $xml .= '    <Cell><Data ss:Type="String">Type Customer</Data></Cell>' . "\n";
+        $xml .= '    <Cell><Data ss:Type="String">Jenis Transaksi</Data></Cell>' . "\n";
+        $xml .= '    <Cell><Data ss:Type="String">Channel</Data></Cell>' . "\n";
+        $xml .= '    <Cell><Data ss:Type="String">Invoice</Data></Cell>' . "\n";
+        $xml .= '    <Cell><Data ss:Type="String">DPP</Data></Cell>' . "\n";
+        $xml .= '    <Cell><Data ss:Type="String">Diskon 1</Data></Cell>' . "\n";
+        $xml .= '    <Cell><Data ss:Type="String">Diskon 2</Data></Cell>' . "\n";
+        $xml .= '    <Cell><Data ss:Type="String">Diskon 3</Data></Cell>' . "\n";
+        $xml .= '    <Cell><Data ss:Type="String">Diskon 4</Data></Cell>' . "\n";
+        $xml .= '    <Cell><Data ss:Type="String">Diskon 5</Data></Cell>' . "\n";
+        $xml .= '    <Cell><Data ss:Type="String">PPN</Data></Cell>' . "\n";
+        $xml .= '    <Cell><Data ss:Type="String">NET</Data></Cell>' . "\n";
         $xml .= '    <Cell><Data ss:Type="String">Transaction Date</Data></Cell>' . "\n";
         $xml .= '   </Row>' . "\n";
 
@@ -118,11 +156,30 @@ class ClaimService
         $xml .= '   <Row ss:Height="20">' . "\n";
         $xml .= '    <Cell ss:StyleID="Bordered"><Data ss:Type="String">C110003074</Data></Cell>' . "\n";
         $xml .= '    <Cell ss:StyleID="Bordered"><Data ss:Type="String">LESAFFRE SARI</Data></Cell>' . "\n";
+        $xml .= '    <Cell ss:StyleID="Bordered"><Data ss:Type="String">DEPO SURABAYA</Data></Cell>' . "\n";
+        $xml .= '    <Cell ss:StyleID="Bordered"><Data ss:Type="String">CUST-SM-001</Data></Cell>' . "\n";
+        $xml .= '    <Cell ss:StyleID="Bordered"><Data ss:Type="String">TOKO MAKMUR JAYA</Data></Cell>' . "\n";
+        $xml .= '    <Cell ss:StyleID="Bordered"><Data ss:Type="String">JL. RAYA RUNGKUT INDUSTRI NO. 10</Data></Cell>' . "\n";
+        $xml .= '    <Cell ss:StyleID="Bordered"><Data ss:Type="String">SURABAYA</Data></Cell>' . "\n";
+        $xml .= '    <Cell ss:StyleID="Bordered"><Data ss:Type="String">RUNGKUT</Data></Cell>' . "\n";
+        $xml .= '    <Cell ss:StyleID="Bordered"><Data ss:Type="String">BUDI SANTOSO</Data></Cell>' . "\n";
         $xml .= '    <Cell ss:StyleID="Bordered"><Data ss:Type="String">E65</Data></Cell>' . "\n";
         $xml .= '    <Cell ss:StyleID="Bordered"><Data ss:Type="String">TOP 250 M @ 10 KG / BAL</Data></Cell>' . "\n";
-        $xml .= '    <Cell ss:StyleID="Numeric"><Data ss:Type="Number">124500.00</Data></Cell>' . "\n";
+        $xml .= '    <Cell ss:StyleID="Bordered"><Data ss:Type="String">REGULER</Data></Cell>' . "\n";
         $xml .= '    <Cell ss:StyleID="Integer"><Data ss:Type="Number">150</Data></Cell>' . "\n";
-        $xml .= '    <Cell ss:StyleID="Bordered"><Data ss:Type="String">Distributor</Data></Cell>' . "\n";
+        $xml .= '    <Cell ss:StyleID="Numeric"><Data ss:Type="Number">124500.00</Data></Cell>' . "\n";
+        $xml .= '    <Cell ss:StyleID="Bordered"><Data ss:Type="String">GT</Data></Cell>' . "\n";
+        $xml .= '    <Cell ss:StyleID="Bordered"><Data ss:Type="String">KREDIT</Data></Cell>' . "\n";
+        $xml .= '    <Cell ss:StyleID="Bordered"><Data ss:Type="String">RETAIL</Data></Cell>' . "\n";
+        $xml .= '    <Cell ss:StyleID="Bordered"><Data ss:Type="String">INV-2026-001</Data></Cell>' . "\n";
+        $xml .= '    <Cell ss:StyleID="Numeric"><Data ss:Type="Number">18675000.00</Data></Cell>' . "\n";
+        $xml .= '    <Cell ss:StyleID="Numeric"><Data ss:Type="Number">100000.00</Data></Cell>' . "\n";
+        $xml .= '    <Cell ss:StyleID="Numeric"><Data ss:Type="Number">0.00</Data></Cell>' . "\n";
+        $xml .= '    <Cell ss:StyleID="Numeric"><Data ss:Type="Number">0.00</Data></Cell>' . "\n";
+        $xml .= '    <Cell ss:StyleID="Numeric"><Data ss:Type="Number">0.00</Data></Cell>' . "\n";
+        $xml .= '    <Cell ss:StyleID="Numeric"><Data ss:Type="Number">0.00</Data></Cell>' . "\n";
+        $xml .= '    <Cell ss:StyleID="Numeric"><Data ss:Type="Number">2043250.00</Data></Cell>' . "\n";
+        $xml .= '    <Cell ss:StyleID="Numeric"><Data ss:Type="Number">20618250.00</Data></Cell>' . "\n";
         $xml .= '    <Cell ss:StyleID="Bordered"><Data ss:Type="String">' . date('Y-m-d') . '</Data></Cell>' . "\n";
         $xml .= '   </Row>' . "\n";
 

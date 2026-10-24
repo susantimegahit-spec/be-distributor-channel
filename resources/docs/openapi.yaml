@@ -1070,6 +1070,50 @@ paths:
         '201':
           description: List tugas berhasil dibuat.
 
+  /task-management/lists/{id}:
+    delete:
+      summary: Hapus List Tugas Beserta Seluruh Isi Task di Dalamnya
+      description: Menghapus list tugas secara permanen beserta seluruh task dan subtask turunannya.
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID List tugas yang akan dihapus
+          schema:
+            type: integer
+            example: 10
+      responses:
+        '200':
+          description: List dan seluruh isinya berhasil dihapus.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: List and its contents deleted successfully
+        '404':
+          description: List tidak ditemukan.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    example: List not found
+
   /task-management/checklists:
     post:
       summary: Buat Header Checklist pada Task
@@ -3360,6 +3404,566 @@ paths:
           description: Akses ditolak karena card_code di luar mapingan API Key.
         '422':
           description: Parameter card_code wajib disertakan.
+
+  /v1/external/claims:
+    post:
+      summary: Submit Claim Transactions via External B2B API
+      description: Endpoint terproteksi API Key untuk sistem distributor (ERP/DMS) menambahkan data transaksi klaim (sell out) distributor baik melalui payload JSON lines maupun unggahan file Excel. Sistem secara otomatis memvalidasi keabsahan distributor, memeriksa idempotency (distributor_ref_no), dan memicu mesin kalkulasi diskon program reward secara real-time.
+      tags:
+        - External B2B Integration
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - card_code
+                - distributor_ref_no
+                - lines
+              properties:
+                card_code:
+                  type: string
+                  example: "C110003074"
+                  description: Kode Customer/Distributor terdaftar yang berhak pada API Key ini
+                distributor_ref_no:
+                  type: string
+                  example: "CLM-DIST-202610-001"
+                  description: Nomor Referensi Unik Klaim Distributor (Idempotency Key)
+                depo:
+                  type: string
+                  example: "DEPO SURABAYA UTARA"
+                  description: Nama atau kode Depo / Cabang Distributor (Opsional di root level)
+                lines:
+                  type: array
+                  description: Daftar baris transaksi sell-out klaim distributor
+                  items:
+                    type: object
+                    required:
+                      - item_code
+                      - qty_kg
+                      - customer_type
+                      - transaction_date
+                    properties:
+                      depo:
+                        type: string
+                        example: "DEPO SURABAYA UTARA"
+                        description: Nama atau kode Depo cabang distributor
+                      distributor_customer_code:
+                        type: string
+                        example: "OUTLET-SBY-001"
+                        description: Kode Customer / Toko / Outlet dari sistem distributor
+                      distributor_customer_name:
+                        type: string
+                        example: "Toko Barokah Jaya"
+                        description: Nama Customer / Toko / Outlet dari distributor
+                      address:
+                        type: string
+                        example: "Jl. Kembang Jepun No. 45"
+                        description: Alamat Toko / Outlet customer
+                      city:
+                        type: string
+                        example: "Surabaya"
+                        description: Kota / Kabupaten outlet
+                      district:
+                        type: string
+                        example: "Pabean Cantian"
+                        description: Kecamatan outlet
+                      salesman_name:
+                        type: string
+                        example: "Ahmad Santoso"
+                        description: Nama Salesman distributor
+                      item_code:
+                        type: string
+                        example: "E65"
+                        description: Kode SKU item terdaftar di PT Susanti Megah
+                      item_category:
+                        type: string
+                        example: "Garam Konsumsi"
+                        description: Jenis / Kategori Barang
+                      sell_price_per_kg:
+                        type: number
+                        example: 7500.00
+                        description: Harga jual distributor per kilogram (opsional)
+                      qty_kg:
+                        type: number
+                        example: 100.5
+                        description: Kuantitas transaksi dalam satuan Kilogram (harus > 0)
+                      customer_type:
+                        type: string
+                        enum: [GT, MT]
+                        example: "GT"
+                        description: Tipe customer penjualan distributor (GT = General Trade, MT = Modern Trade)
+                      transaction_type:
+                        type: string
+                        example: "Kredit 30 Hari"
+                        description: Jenis transaksi penjualan distributor
+                      channel:
+                        type: string
+                        example: "GT"
+                        description: Saluran distribusi / Channel
+                      invoice_no:
+                        type: string
+                        example: "INV/2026/10/00888"
+                        description: Nomor faktur / invoice penjualan distributor
+                      dpp:
+                        type: number
+                        example: 750000.00
+                        description: Dasar Pengenaan Pajak (DPP)
+                      diskon_1:
+                        type: number
+                        example: 15000.00
+                        description: Nilai Diskon 1
+                      diskon_2:
+                        type: number
+                        example: 5000.00
+                        description: Nilai Diskon 2
+                      diskon_3:
+                        type: number
+                        example: 0.00
+                        description: Nilai Diskon 3
+                      diskon_4:
+                        type: number
+                        example: 0.00
+                        description: Nilai Diskon 4
+                      diskon_5:
+                        type: number
+                        example: 0.00
+                        description: Nilai Diskon 5
+                      ppn:
+                        type: number
+                        example: 80300.00
+                        description: Nilai PPN
+                      net:
+                        type: number
+                        example: 810300.00
+                        description: Nilai NET faktur / total setelah pajak & diskon
+                      transaction_date:
+                        type: string
+                        format: date
+                        example: "2026-10-15"
+                        description: Tanggal transaksi penjualan (Format YYYY-MM-DD)
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - card_code
+                - distributor_ref_no
+              properties:
+                card_code:
+                  type: string
+                  example: "C110003074"
+                distributor_ref_no:
+                  type: string
+                  example: "CLM-DIST-202610-001"
+                depo:
+                  type: string
+                  example: "DEPO SURABAYA UTARA"
+                file:
+                  type: string
+                  format: binary
+                  description: File template spreadsheet transaksi Excel (.xlsx atau .xls, maks 10MB)
+                lines:
+                  type: string
+                  description: Array item klaim dalam format JSON string (opsional jika mengunggah file)
+                  example: '[{"item_code":"E65","qty_kg":100,"customer_type":"GT","transaction_date":"2026-10-15","depo":"DEPO SBY","distributor_customer_code":"OUT-01","distributor_customer_name":"Toko Barokah","invoice_no":"INV-001","dpp":750000,"net":810000}]'
+      responses:
+        '201':
+          description: Data transaksi klaim distributor berhasil dikirim dan dikalkulasi secara otomatis.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data transaksi klaim distributor berhasil dikirim dan dikalkulasi secara otomatis.
+                  data:
+                    type: object
+                    properties:
+                      batch_id:
+                        type: integer
+                        example: 15
+                      batch_no:
+                        type: string
+                        example: "UPLOAD-20261016-001"
+                      distributor_ref_no:
+                        type: string
+                        example: "CLM-DIST-202610-001"
+                      depo:
+                        type: string
+                        example: "DEPO SURABAYA UTARA"
+                      card_code:
+                        type: string
+                        example: "C110003074"
+                      customer_name:
+                        type: string
+                        example: "PT SUSANTI DISTRIBUSI MAKMUR"
+                      total_rows:
+                        type: integer
+                        example: 10
+                      processed_rows:
+                        type: integer
+                        example: 10
+                      invalid_rows:
+                        type: integer
+                        example: 0
+                      total_diskon:
+                        type: number
+                        example: 250000.00
+        '200':
+          description: Response Idempotent (Klaim dengan distributor_ref_no ini sudah pernah dibuat sebelumnya).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  is_duplicate:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Klaim dengan distributor_ref_no ini sudah pernah dibuat sebelumnya (Idempotent Response).
+                  data:
+                    type: object
+        '401':
+          description: API Key / Bearer token tidak ditemukan atau tidak valid.
+        '403':
+          description: card_code tidak terdaftar untuk API Key ini.
+        '422':
+          description: Validasi input data klaim gagal.
+
+  /v1/external/claims/batches:
+    get:
+      summary: Get list of claim batches for distributor
+      description: Mendapatkan daftar riwayat batch klaim yang diajukan oleh distributor yang terhubung dengan API Key pengirim.
+      tags:
+        - External B2B Integration
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: card_code
+          in: query
+          required: false
+          description: Filter khusus untuk satu kode customer tertentu (harus dalam izin API Key)
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          required: false
+          description: Jumlah baris data per halaman (default 15)
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Daftar batch klaim berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar batch klaim berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                        example: 1
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            batch_id:
+                              type: integer
+                              example: 15
+                            batch_no:
+                              type: string
+                              example: "UPLOAD-20261016-001"
+                            distributor_ref_no:
+                              type: string
+                              example: "CLM-DIST-202610-001"
+                            depo:
+                              type: string
+                              example: "DEPO SURABAYA UTARA"
+                            code_customer:
+                              type: string
+                              example: "C110003074"
+                            customer_name:
+                              type: string
+                              example: "PT SUSANTI DISTRIBUSI MAKMUR"
+                            total_rows:
+                              type: integer
+                              example: 10
+                            valid_rows:
+                              type: integer
+                              example: 10
+                            invalid_rows:
+                              type: integer
+                              example: 0
+                            total_diskon:
+                              type: number
+                              example: 250000.00
+                            total_diskon_verified:
+                              type: number
+                              example: 250000.00
+                            available_balance:
+                              type: number
+                              example: 250000.00
+        '401':
+          description: API Key tidak valid.
+
+  /v1/external/claims/batches/{identifier}:
+    get:
+      summary: Get claim batch detail and results
+      description: Mendapatkan detail performa batch klaim dan rincian baris hasil kalkulasi diskon berdasarkan ID batch, nomor batch (batch_no), atau nomor referensi distributor (distributor_ref_no).
+      tags:
+        - External B2B Integration
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: identifier
+          in: path
+          required: true
+          description: ID batch, batch_no (misal UPLOAD-20261016-001), atau distributor_ref_no (misal CLM-DIST-202610-001)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Detail batch klaim berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Detail batch klaim berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      batch_id:
+                        type: integer
+                        example: 15
+                      batch_no:
+                        type: string
+                        example: "UPLOAD-20261016-001"
+                      distributor_ref_no:
+                        type: string
+                        example: "CLM-DIST-202610-001"
+                      depo:
+                        type: string
+                        example: "DEPO SURABAYA UTARA"
+                      total_rows:
+                        type: integer
+                        example: 1
+                      valid_rows:
+                        type: integer
+                        example: 1
+                      total_diskon:
+                        type: number
+                        example: 25000.00
+                      results:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 101
+                            depo:
+                              type: string
+                              example: "DEPO SURABAYA UTARA"
+                            distributor_customer_code:
+                              type: string
+                              example: "OUTLET-SBY-001"
+                            distributor_customer_name:
+                              type: string
+                              example: "Toko Barokah Jaya"
+                            address:
+                              type: string
+                              example: "Jl. Kembang Jepun No. 45"
+                            city:
+                              type: string
+                              example: "Surabaya"
+                            district:
+                              type: string
+                              example: "Pabean Cantian"
+                            salesman_name:
+                              type: string
+                              example: "Ahmad Santoso"
+                            item_code:
+                              type: string
+                              example: "E65"
+                            item_name:
+                              type: string
+                              example: "TOP 250 M @ 10 KG / BAL"
+                            item_category:
+                              type: string
+                              example: "Garam Konsumsi"
+                            qty_kg:
+                              type: number
+                              example: 100.00
+                            customer_type:
+                              type: string
+                              example: "GT"
+                            transaction_type:
+                              type: string
+                              example: "Kredit 30 Hari"
+                            channel:
+                              type: string
+                              example: "GT"
+                            invoice_no:
+                              type: string
+                              example: "INV/2026/10/00888"
+                            sell_price_per_kg:
+                              type: number
+                              example: 7500.00
+                            dpp:
+                              type: number
+                              example: 750000.00
+                            diskon_1:
+                              type: number
+                              example: 15000.00
+                            diskon_2:
+                              type: number
+                              example: 5000.00
+                            diskon_3:
+                              type: number
+                              example: 0.00
+                            diskon_4:
+                              type: number
+                              example: 0.00
+                            diskon_5:
+                              type: number
+                              example: 0.00
+                            ppn:
+                              type: number
+                              example: 80300.00
+                            net:
+                              type: number
+                              example: 810300.00
+                            harga_program_per_kg:
+                              type: number
+                              example: 7500.00
+                            diskon_per_kg:
+                              type: number
+                              example: 250.00
+                            total_diskon:
+                              type: number
+                              example: 25000.00
+                            transaction_date:
+                              type: string
+                              example: "2026-10-15"
+                            status:
+                              type: string
+                              example: "VALID_PROGRAM"
+                            is_verified:
+                              type: boolean
+                              example: false
+        '404':
+          description: Batch klaim tidak ditemukan atau tidak memiliki akses.
+
+  /v1/external/claims/programs:
+    get:
+      summary: Get active claim promotion programs
+      description: Mendapatkan daftar program promosi klaim yang sedang aktif beserta strata kuantiti dan nilai diskon per kg yang berlaku untuk distributor terautentikasi.
+      tags:
+        - External B2B Integration
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar program promosi klaim aktif berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar program promosi klaim aktif berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 5
+                        program_code:
+                          type: string
+                          example: "PRG-2026-OCT"
+                        program_name:
+                          type: string
+                          example: "Program Promo Garam Top Oktober 2026"
+                        start_date:
+                          type: string
+                          example: "2026-10-01"
+                        end_date:
+                          type: string
+                          example: "2026-10-31"
+                        status:
+                          type: string
+                          example: "ACTIVE"
+                        items:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                                example: 10
+                              item_code:
+                                type: string
+                                example: "E65"
+                              item_name:
+                                type: string
+                                example: "TOP 250 M @ 10 KG / BAL"
+                        strata:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                                example: 12
+                              customer_type:
+                                type: string
+                                example: "GT"
+                              min_qty_kg:
+                                type: number
+                                example: 10.00
+                              max_qty_kg:
+                                type: number
+                                example: 500.00
+                              harga_program_per_kg:
+                                type: number
+                                example: 7500.00
+                              diskon_per_kg:
+                                type: number
+                                example: 250.00
+
   /v1/sales-dashboard/upload:
     post:
       summary: Upload Target or CMO Excel/CSV file
@@ -9078,7 +9682,7 @@ paths:
   /v1/claims/template-excel:
     get:
       summary: Download claims template Excel
-      description: Mengunduh template Excel untuk upload data klaim distributor. Template ini berisi dua sheet, yaitu "template upload klaim" dan "master data item".
+      description: Mengunduh template Excel untuk upload data klaim distributor. Template ini berisi dua sheet, yaitu "template upload klaim" (27 kolom lengkap mencakup Kode/Nama Distributor, Depo, Kode/Nama Customer, Alamat, Kota, Kecamatan, Salesman, Item, Jenis Barang, Qty, Harga, Type Customer, Jenis Transaksi, Channel, Invoice, DPP, Diskon 1-5, PPN, NET, Tanggal) dan "master data item".
       tags:
         - Claims
       security:
@@ -13410,6 +14014,102 @@ paths:
                           type: string
                           example: "BLR25-10"
 
+  /GetDepartment:
+    get:
+      summary: Get Department SAP B1
+      description: Mengambil daftar department dari SAP Business One (/api/GetDepartment).
+      tags:
+        - Master SAP
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Pencarian nama atau kode departemen
+          schema:
+            type: string
+            example: "PRO"
+      responses:
+        '200':
+          description: Daftar department berhasil diambil dari SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ErrorCode:
+                    type: integer
+                    example: 0
+                  Message:
+                    type: string
+                    example: ""
+                  Result:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Code:
+                          type: string
+                          example: "-2"
+                        Remarks:
+                          type: string
+                          example: "General Department"
+                        Name:
+                          type: string
+                          example: "General"
+    post:
+      summary: Get Department SAP B1 (POST)
+      description: Mengambil daftar department dari SAP Business One (/api/GetDepartment).
+      tags:
+        - Master SAP
+      responses:
+        '200':
+          description: Daftar department berhasil diambil dari SAP.
+
+  /v1/purchasing-request/departments:
+    get:
+      summary: Get Daftar Department SAP B1
+      description: Mengambil daftar department dari SAP Business One (/api/GetDepartment).
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Pencarian nama atau kode departemen
+          schema:
+            type: string
+            example: "PRO"
+      responses:
+        '200':
+          description: Daftar department berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar department berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Code:
+                          type: string
+                          example: "1"
+                        Remarks:
+                          type: string
+                          example: "Production"
+                        Name:
+                          type: string
+                          example: "PRO"
+
   /v1/purchasing-request/items:
     get:
       summary: Get Daftar Item untuk Purchase Request (Beserta default UoM)
@@ -13429,6 +14129,324 @@ paths:
       responses:
         '200':
           description: Daftar item berhasil diambil.
+
+  /v1/purchasing-request/draft-pr:
+    post:
+      summary: Get Draft Purchase Request dari SAP B1 (/api/GetDraftPR)
+      description: |
+        Mengambil daftar dokumen draft Purchase Request dari SAP B1 API (`/api/GetDraftPR`) berdasarkan ID Originator, User ID, dan rentang tanggal.
+        Jika data tidak ditemukan atau SAP mengembalikan placeholder dummy kosong, endpoint akan mengembalikan respon data not found.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                CostumQuery:
+                  type: string
+                  description: ID Originator SAP B1 (contoh "59")
+                  example: "59"
+                UserId:
+                  type: string
+                  description: User ID SMESTA
+                  example: "admin"
+                From:
+                  type: string
+                  description: Tanggal awal filter (YYYYMMDD atau YYYY-MM-DD)
+                  example: "20260901"
+                To:
+                  type: string
+                  description: Tanggal akhir filter (YYYYMMDD atau YYYY-MM-DD)
+                  example: "20260930"
+                Status:
+                  type: string
+                  description: Status draft PR
+                  example: ""
+      responses:
+        '200':
+          description: Data draft Purchase Request berhasil diambil atau data not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Data draft Purchase Request berhasil diambil."
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        WddCode:
+                          type: string
+                          example: "12"
+                        DocEntry:
+                          type: string
+                          example: "101"
+                        DraftEntry:
+                          type: string
+                          example: "201"
+                        DraftNum:
+                          type: string
+                          example: "201"
+                        DocNum:
+                          type: string
+                          example: "101"
+                        DocTotal:
+                          type: string
+                          example: "500000.000000"
+                        ObjType:
+                          type: string
+                          example: "1470000113"
+                        DocDate:
+                          type: string
+                          example: "2026-09-15"
+                        CurrStep:
+                          type: string
+                          example: "1"
+                        Status:
+                          type: string
+                          example: "W"
+                        StatusCode:
+                          type: string
+                          example: "W"
+                        StatusDescription:
+                          type: string
+                          example: "Pending Approval"
+                        Remarks:
+                          type: string
+                          example: "Draft PR Urgent"
+    get:
+      summary: Get Draft Purchase Request dari SAP B1 (Query Params)
+      description: Mengambil daftar draft Purchase Request via method GET.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: CostumQuery
+          in: query
+          description: ID Originator SAP B1
+          schema:
+            type: string
+            example: "59"
+        - name: UserId
+          in: query
+          description: User ID SMESTA
+          schema:
+            type: string
+        - name: From
+          in: query
+          description: Tanggal awal filter (YYYYMMDD)
+          schema:
+            type: string
+            example: "20260901"
+        - name: To
+          in: query
+          description: Tanggal akhir filter (YYYYMMDD)
+          schema:
+            type: string
+            example: "20260930"
+        - name: Status
+          in: query
+          description: Status draft PR
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Data draft Purchase Request berhasil diambil.
+
+  /v1/purchasing-request/generated:
+    post:
+      summary: List Purchase Request Generated dari SAP B1 (/api/GetListPRGenerated)
+      description: |
+        Mengambil daftar dokumen Purchase Request yang telah di-generate dari SAP B1 API (`/api/GetListPRGenerated`) berdasarkan departemen/query dan rentang tanggal.
+        Jika data kosong atau placeholder dummy tidak valid, endpoint mengembalikan respon data not found.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                CostumQuery:
+                  type: string
+                  description: Kode departemen atau kata kunci (contoh "IT", "PRO")
+                  example: "IT"
+                From:
+                  type: string
+                  description: Tanggal awal filter (YYYYMMDD atau YYYY-MM-DD)
+                  example: "20250901"
+                To:
+                  type: string
+                  description: Tanggal akhir filter (YYYYMMDD atau YYYY-MM-DD)
+                  example: "20260930"
+      responses:
+        '200':
+          description: Daftar Purchase Request yang telah di-generate berhasil diambil atau data not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Daftar Purchase Request yang telah di-generate berhasil diambil."
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        DocEntry:
+                          type: string
+                          example: "5339"
+                        DocNum:
+                          type: string
+                          example: "260840020"
+                        DocDate:
+                          type: string
+                          example: "20260810"
+                        DocDueDate:
+                          type: string
+                          example: "20260817"
+                        ReqDate:
+                          type: string
+                          example: "20260817"
+                        RequesterName:
+                          type: string
+                          example: "Produksi, Maintenance & Logistik"
+                        Department:
+                          type: string
+                          example: "1"
+                        DocStatus:
+                          type: string
+                          example: "Closed"
+                        Comments:
+                          type: string
+                          example: "UNTUK CAT POMPA ALL UNIT 2 DAN ALAT BERAT"
+    get:
+      summary: List Purchase Request Generated dari SAP B1 (Query Params)
+      description: Mengambil daftar Purchase Request yang telah di-generate via method GET.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: CostumQuery
+          in: query
+          description: Kode departemen atau kata kunci (contoh "IT")
+          schema:
+            type: string
+            example: "IT"
+        - name: From
+          in: query
+          description: Tanggal awal filter (YYYYMMDD)
+          schema:
+            type: string
+            example: "20250901"
+        - name: To
+          in: query
+          description: Tanggal akhir filter (YYYYMMDD)
+          schema:
+            type: string
+            example: "20260930"
+      responses:
+        '200':
+          description: Daftar Purchase Request yang telah di-generate berhasil diambil.
+
+  /v1/purchasing-request/close-pr:
+    post:
+      summary: Close Purchase Request di SAP B1 (/api/ClosePR)
+      description: |
+        Menutup dokumen Purchase Request pada sistem SAP B1 via endpoint `/api/ClosePR`.
+        Jika dokumen PR terkait ada di database lokal, status PR lokal otomatis diperbarui menjadi `COMPLETED`.
+      tags:
+        - Purchasing Request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocEntry
+              properties:
+                DocEntry:
+                  type: string
+                  description: DocEntry Purchase Request pada SAP B1
+                  example: "5339"
+      responses:
+        '200':
+          description: Respon dari SAP B1.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ErrorCode:
+                    type: integer
+                    example: 0
+                  Message:
+                    type: string
+                    example: "Failed - [ClosePurchaseRequest] Data tidak ditemukan"
+                  Result:
+                    nullable: true
+                    example: null
+
+  /v1/purchasing-request/cancel-pr:
+    post:
+      summary: Cancel Purchase Request di SAP B1 (/api/CancelPR)
+      description: |
+        Membatalkan dokumen Purchase Request pada sistem SAP B1 via endpoint `/api/CancelPR`.
+        Jika dokumen PR terkait ada di database lokal, status PR lokal otomatis diperbarui menjadi `CANCELLED`.
+      tags:
+        - Purchasing Request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocEntry
+              properties:
+                DocEntry:
+                  type: string
+                  description: DocEntry Purchase Request pada SAP B1
+                  example: "5338"
+      responses:
+        '200':
+          description: Respon dari SAP B1.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ErrorCode:
+                    type: integer
+                    example: 0
+                  Message:
+                    type: string
+                    example: "Failed - [CancelPurchaseRequest] Data tidak ditemukan"
+                  Result:
+                    nullable: true
+                    example: null
 
   /v1/purchasing-request/requests:
     get:
@@ -13511,6 +14529,10 @@ paths:
                 ReqType:
                   type: string
                   example: "12"
+                ReqDate:
+                  type: string
+                  format: date
+                  example: "2026-10-19"
                 Requester:
                   type: string
                   example: "IND01"
@@ -13566,7 +14588,7 @@ paths:
                         example: "Pcs"
                       FreeTxt:
                         type: string
-                        example: "untuk upgrade"
+                        example: ""
                       OcrCode:
                         type: string
                         example: "BLR"
@@ -18860,10 +19882,10 @@ paths:
             enum: [internal, external, pickup]
         - name: status
           in: query
-          description: Filter status picklist (OPEN, COMPLETED, CANCELLED)
+          description: Filter status picklist (open, weigh_in, inprogress, weigh_out, complete, canceled)
           schema:
             type: string
-            enum: [OPEN, COMPLETED, CANCELLED]
+            enum: [open, weigh_in, inprogress, weigh_out, complete, canceled, OPEN, COMPLETED, CANCELLED]
         - name: search
           in: query
           description: Pencarian nomor picklist, plat nomor, supir, checker, atau nomor SO
@@ -19041,13 +20063,359 @@ paths:
       responses:
         '200':
           description: Picklist detail retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Picklist detail retrieved successfully."
+                  data:
+                    $ref: '#/components/schemas/Picklist'
+        '404':
+          description: Picklist not found.
+
+  /v1/logistic/worker-management/picklists:
+    get:
+      summary: List Picklist untuk Dashboard Worker Management (Setelah Checker Submit / Add DO)
+      description: |
+        Mengambil daftar picklist yang telah melalui proses checker submit / add-do (status weigh_out, complete, memiliki nomor DO, atau memiliki data tenaga kerja/kuli).
+        Dilengkapi dengan ringkasan perhitungan ongkos kuli dan klasifikasi otomatis apakah operasional masuk kategori REGULER atau LEMBUR (OVERTIME).
+      tags:
+        - Logistic - Worker Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter status picklist (misal weigh_out, complete)
+          schema:
+            type: string
+        - name: shipping_type
+          in: query
+          description: Filter jenis pengiriman (internal, external, pickup)
+          schema:
+            type: string
+        - name: rate_type
+          in: query
+          description: Filter tipe tarif (REGULAR, OVERTIME)
+          schema:
+            type: string
+            enum: [REGULAR, OVERTIME]
+        - name: search
+          in: query
+          description: Pencarian no picklist, no DO, nopol, driver, checker, atau nama kuli/worker
+          schema:
+            type: string
+        - name: date_from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 15
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Worker management picklists retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Worker management picklists retrieved successfully."
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 10
+                        picklist_no:
+                          type: string
+                          example: "PKL-202610-0001"
+                        shipping_type:
+                          type: string
+                          example: "internal"
+                        status:
+                          type: string
+                          example: "weigh_out"
+                        posting_date:
+                          type: string
+                          example: "2026-10-22"
+                        due_date:
+                          type: string
+                          example: "2026-10-22"
+                        delivery_order_no:
+                          type: string
+                          example: "882201"
+                        license_plate:
+                          type: string
+                          example: "L 1234 AB"
+                        driver_name:
+                          type: string
+                          example: "Pak Supir"
+                        checker_name:
+                          type: string
+                          example: "Rochim"
+                        calculation_summary:
+                          type: object
+                          properties:
+                            has_explicit_workers:
+                              type: boolean
+                              example: true
+                              description: "True jika data kuli diinput manual, false jika dihitung otomatis berdasarkan start_time item"
+                            calculation_basis:
+                              type: string
+                              example: "workers"
+                              enum: [workers, start_time]
+                              description: "Sumber dasar perhitungan: workers (input manual) atau start_time (otomatis dari jam mulai muat item)"
+                            determined_rate_type:
+                              type: string
+                              example: "OVERTIME"
+                            is_overtime:
+                              type: boolean
+                              example: true
+                            reference_time:
+                              type: string
+                              example: "17:30:00"
+                            total_workers:
+                              type: integer
+                              example: 3
+                            total_qty:
+                              type: number
+                              example: 650.0
+                            total_regular_amount:
+                              type: number
+                              example: 650000.0
+                            total_overtime_amount:
+                              type: number
+                              example: 975000.0
+                            total_fee:
+                              type: number
+                              example: 975000.0
+                        workers:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                              item_code:
+                                type: string
+                              worker_name:
+                                type: string
+                              qty:
+                                type: number
+                              uom:
+                                type: string
+                              rate_type:
+                                type: string
+                              rate:
+                                type: number
+                              total_fee:
+                                type: number
+                  meta:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                      last_page:
+                        type: integer
+                      per_page:
+                        type: integer
+                      total:
+                        type: integer
+
+  /v1/logistic/worker-management/picklists/{id}:
+    get:
+      summary: Detail Picklist untuk Worker Management & Analisis Lembur vs Reguler
+      description: |
+        Menampilkan detail lengkap picklist beserta breakdown komparasi perhitungan ongkos kuli reguler vs lembur (overtime), rekap per tenaga kerja, rekap per item, serta daftar item checklist dan tanda tangan.
+      tags:
+        - Logistic - Worker Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Picklist
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Worker management picklist detail retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Worker management picklist detail retrieved successfully."
+                  data:
+                    type: object
+                    properties:
+                      picklist:
+                        type: object
+                      calculation_summary:
+                        type: object
+                        properties:
+                          has_explicit_workers:
+                            type: boolean
+                            example: true
+                            description: "True jika data kuli diinput manual, false jika dihitung otomatis berdasarkan start_time item"
+                          calculation_basis:
+                            type: string
+                            example: "workers"
+                            enum: [workers, start_time]
+                            description: "Sumber dasar perhitungan: workers (input manual) atau start_time (otomatis dari jam mulai muat item)"
+                          determined_rate_type:
+                            type: string
+                            example: "OVERTIME"
+                          is_overtime:
+                            type: boolean
+                            example: true
+                          reference_time:
+                            type: string
+                            example: "17:30:00"
+                          reference_timestamp:
+                            type: string
+                            example: "2026-10-22T17:30:00+07:00"
+                          rate_type_source:
+                            type: string
+                            example: "Waktu operasional 17:30:00 berada dalam jam lembur (16:30:00 - 02:00:00)."
+                          total_workers:
+                            type: integer
+                            example: 3
+                          total_qty:
+                            type: number
+                            example: 650.0
+                          total_regular_amount:
+                            type: number
+                            example: 650000.0
+                          total_overtime_amount:
+                            type: number
+                            example: 975000.0
+                          total_fee:
+                            type: number
+                            example: 975000.0
+                      workers:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                            item_code:
+                              type: string
+                            item_name:
+                              type: string
+                            worker_name:
+                              type: string
+                            qty:
+                              type: number
+                            uom:
+                              type: string
+                            rate_type:
+                              type: string
+                            rate:
+                              type: number
+                            regular_rate:
+                              type: number
+                            overtime_rate:
+                              type: number
+                            regular_fee:
+                              type: number
+                            lembur_fee:
+                              type: number
+                            total_fee:
+                              type: number
+                            is_overtime:
+                              type: boolean
+                      breakdown_by_worker:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            worker_name:
+                              type: string
+                            total_qty:
+                              type: number
+                            items_handled:
+                              type: integer
+                            item_codes:
+                              type: array
+                              items:
+                                type: string
+                            total_regular_fee:
+                              type: number
+                            total_lembur_fee:
+                              type: number
+                            total_fee:
+                              type: number
+                            rate_type:
+                              type: string
+                      breakdown_by_item:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            item_code:
+                              type: string
+                            item_name:
+                              type: string
+                            uom:
+                              type: string
+                            total_qty:
+                              type: number
+                            regular_rate:
+                              type: number
+                            overtime_rate:
+                              type: number
+                            total_fee:
+                              type: number
+                      items:
+                        type: array
+                        items:
+                          type: object
+                      signatures:
+                        type: array
+                        items:
+                          type: object
         '404':
           description: Picklist not found.
 
   /v1/logistic/picklists/{id}/status:
     patch:
       summary: Update Status Dokumen Picklist
-      description: Mengubah status picklist dari OPEN menjadi COMPLETED atau CANCELLED.
+      description: Mengubah status picklist (open, weigh_in, inprogress, weigh_out, complete, canceled).
       tags:
         - Logistic - Picklist
       security:
@@ -19069,7 +20437,7 @@ paths:
               properties:
                 status:
                   type: string
-                  enum: [COMPLETED, CANCELLED]
+                  enum: [open, weigh_in, inprogress, weigh_out, complete, canceled, OPEN, COMPLETED, CANCELLED]
       responses:
         '200':
           description: Picklist status updated successfully.
@@ -19078,22 +20446,682 @@ paths:
         '404':
           description: Picklist not found.
 
+  /v1/logistic/picklists/{id}/weigh-in:
+    post:
+      summary: Submit Timbang Masuk / Kosong (Tare Weighing)
+      description: |
+        Mencatat hasil penimbangan truk dalam kondisi kosong (Tare Weight) sebelum masuk gudang untuk diperiksa dan dimuat barang oleh checker.
+        Status picklist otomatis berubah dari `open` menjadi `weigh_in`.
+        Setelah proses ini, dokumen timbang dicap di pos timbangan dan diserahkan ke sopir untuk diberikan kepada checker gudang.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Picklist
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - weight
+              properties:
+                weight:
+                  type: number
+                  description: Berat kosong kendaraan (Tare Weight) dalam KG
+                  example: 8500.00
+                ticket_no:
+                  type: string
+                  description: Nomor tiket jembatan timbangan fisik
+                  example: "TMB-IN-20261014-0012"
+                operator_name:
+                  type: string
+                  description: Nama petugas operator jembatan timbang
+                  example: "Bambang Supriyadi"
+                weighed_at:
+                  type: string
+                  format: date-time
+                  description: Waktu penimbangan (jika kosong, default waktu saat ini)
+                  example: "2026-10-14T08:45:00"
+                notes:
+                  type: string
+                  description: Catatan kondisi kendaraan saat timbang masuk
+                  example: "Truk colt diesel kondisi kosong, tangki solar 50%"
+                license_plate:
+                  type: string
+                  description: Konfirmasi nomor polisi kendaraan
+                  example: "L 9123 AB"
+                driver_name:
+                  type: string
+                  description: Konfirmasi nama supir
+                  example: "SLAMET"
+      responses:
+        '200':
+          description: Timbang masuk berhasil dicatat. Status picklist berubah menjadi weigh_in.
+        '400':
+          description: Picklist sudah dibatalkan atau status tidak valid.
+        '422':
+          description: Nilai berat tidak valid (harus > 0).
+        '404':
+          description: Picklist tidak ditemukan.
+
+  /v1/logistic/picklists/{id}/weigh-out:
+    post:
+      summary: Submit Timbang Keluar / Isi (Gross Weighing) & Pembuatan DO SAP B1
+      description: |
+        Mencatat hasil penimbangan truk yang sudah dimuati barang (Gross Weight) setelah seluruh checker menyelesaikan proses checklist.
+        Sistem menghitung Berat Bersih: `Net Weight = Gross Weight - Tare Weight`.
+        - **Validasi Overload**: Jika muatan melebihi batas kapasitas armada (`total_weight_limit`), respon memberikan peringatan overload, Delivery Order (DO) **TIDAK dibuat**, status picklist berubah menjadi `overload`, dan rincian kelebihan beban dicatat ke tabel temporary `picklist_overloads`.
+        - **Muatan Sesuai**: Jika muatan sesuai toleransi armada, sistem otomatis mengeksekusi pembuatan Delivery Order (DO) ke SAP B1 (`/api/AddDO`). Status picklist berubah menjadi `complete`.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Picklist
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - weight
+              properties:
+                weight:
+                  type: number
+                  description: Berat kotor kendaraan + muatan (Gross Weight) dalam KG
+                  example: 18500.00
+                ticket_no:
+                  type: string
+                  description: Nomor tiket timbangan keluar
+                  example: "TMB-OUT-20261014-0045"
+                operator_name:
+                  type: string
+                  description: Nama petugas operator timbang keluar
+                  example: "Bambang Supriyadi"
+                weighed_at:
+                  type: string
+                  format: date-time
+                  description: Waktu penimbangan keluar
+                  example: "2026-10-14T10:30:00"
+                notes:
+                  type: string
+                  description: Catatan kondisi muatan dan nomor segel
+                  example: "Muatan penuh, segel terpasang"
+      responses:
+        '200':
+          description: Timbang keluar berhasil dan muatan sesuai. Delivery Order berhasil dibuat di SAP B1 (status complete).
+        '422':
+          description: Peringatan kelebihan muatan (Overload). Status berubah menjadi overload dan dicatat ke tabel temporary picklist_overloads.
+        '400':
+          description: Truk belum timbang masuk atau pemeriksaan checker belum selesai.
+        '404':
+          description: Picklist tidak ditemukan.
+
+  /v1/logistic/picklists/{id}/weigh-out/reject:
+    post:
+      summary: Reject / Cancel Timbang Keluar karena Overload
+      description: |
+        Menolak / membatalkan timbang keluar karena muatan melebihi batas kapasitas armada (Overload).
+        Status picklist diubah menjadi `overload` dan data kelebihan beban beserta snapshot barang disimpan ke tabel temporary `picklist_overloads` untuk proses penyesuaian muatan di gudang.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Picklist
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                weight:
+                  type: number
+                  description: Berat kotor timbangan keluar (KG)
+                  example: 21000.00
+                ticket_no:
+                  type: string
+                  description: Nomor tiket timbang keluar
+                  example: "TMB-OUT-REJECT-001"
+                operator_name:
+                  type: string
+                  description: Nama operator timbangan
+                  example: "Petugas Timbangan"
+                rejection_reason:
+                  type: string
+                  description: Alasan penolakan overload
+                  example: "Muatan melebihi kapasitas armada truk sebesar 3,000 KG."
+                notes:
+                  type: string
+                  description: Catatan tambahan
+                weighed_at:
+                  type: string
+                  format: date-time
+                  description: Waktu penimbangan
+      responses:
+        '200':
+          description: Timbang keluar berhasil ditolak karena overload. Status picklist berubah menjadi overload.
+        '400':
+          description: Data timbang masuk belum tercatat atau status picklist tidak valid.
+        '404':
+          description: Picklist tidak ditemukan.
+
+  /v1/logistic/picklists/{id}/overload:
+    get:
+      summary: Detail Data Overload & Riwayat Temporary Picklist
+      description: |
+        Mengambil detail data overload aktif dan histori temporary overload pada picklist untuk keperluan penyesuaian/pembongkaran muatan di gudang.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Picklist
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Data overload berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Data overload picklist berhasil diambil."
+                  data:
+                    type: object
+                    properties:
+                      picklist_id:
+                        type: integer
+                        example: 42
+                      picklist_no:
+                        type: string
+                        example: "PKL-20261023-001"
+                      status:
+                        type: string
+                        example: "overload"
+                      weight_check_status:
+                        type: string
+                        example: "overload"
+                      total_weight_limit:
+                        type: number
+                        example: 10000.0
+                      weigh_in_weight:
+                        type: number
+                        example: 8000.0
+                      weigh_out_weight:
+                        type: number
+                        example: 21000.0
+                      weigh_out_net_weight:
+                        type: number
+                        example: 13000.0
+                      latest_overload:
+                        type: object
+                      history:
+                        type: array
+                        items:
+                          type: object
+                      items:
+                        type: array
+                        items:
+                          type: object
+        '404':
+          description: Picklist tidak ditemukan.
+
+  /v1/logistic/picklists/overload:
+    get:
+      summary: List Seluruh Data Overload Picklist (Tanpa ID)
+      description: |
+        Mengambil seluruh daftar data temporary overload pada picklist (tabel `ekspedisi.picklist_overloads`), mencakup informasi berat kotor (gross), tara (tare), neto, batas berat maksimal armada, selisih berat lebih (overload), nomor tiket timbangan, alasan penolakan timbang keluar, snapshot item muatan, serta status penanganan penyesuaian muatan di gudang.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          description: Pencarian teks pada nomor picklist, tiket timbangan, nama operator, alasan penolakan, atau data armada (plat nomor, supir, checker)
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Filter status record overload
+          schema:
+            type: string
+            enum: [PENDING_ADJUSTMENT, UNLOADED, RESOLVED, CANCELLED]
+        - name: picklist_id
+          in: query
+          description: Filter berdasarkan ID Picklist spesifik
+          schema:
+            type: integer
+        - name: picklist_no
+          in: query
+          description: Filter berdasarkan Nomor Dokumen Picklist
+          schema:
+            type: string
+        - name: date_from
+          in: query
+          description: Filter tanggal awal penimbangan (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          description: Filter tanggal akhir penimbangan (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: per_page
+          in: query
+          description: Jumlah record per halaman (default 15, max 100, atau 0 untuk semua)
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Daftar data overload berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Daftar data overload berhasil diambil."
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        picklist_id:
+                          type: integer
+                          example: 42
+                        picklist_no:
+                          type: string
+                          example: "PKL-20261023-001"
+                        gross_weight:
+                          type: number
+                          format: float
+                          example: 21000.0
+                        tare_weight:
+                          type: number
+                          format: float
+                          example: 8000.0
+                        net_weight:
+                          type: number
+                          format: float
+                          example: 13000.0
+                        weight_limit:
+                          type: number
+                          format: float
+                          example: 10000.0
+                        overload_weight:
+                          type: number
+                          format: float
+                          example: 3000.0
+                        ticket_no:
+                          type: string
+                          example: "TMB-OUT-REJECT-99"
+                        operator_name:
+                          type: string
+                          example: "Operator Jembatan Timbang"
+                        rejection_reason:
+                          type: string
+                          example: "Kelebihan muatan armada truk sebesar 3,000 KG."
+                        status:
+                          type: string
+                          example: "PENDING_ADJUSTMENT"
+                        items_snapshot:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                                example: 101
+                              item_code:
+                                type: string
+                                example: "FG-OVERLOAD-01"
+                              item_name:
+                                type: string
+                                example: "Garam Kasar Overload 50kg"
+                              whs_code:
+                                type: string
+                                example: "VPGMN01"
+                              uom:
+                                type: string
+                                example: "SAK"
+                              pick_qty:
+                                type: number
+                                example: 200
+                              unit_weight:
+                                type: number
+                                example: 50.0
+                              total_weight:
+                                type: number
+                                example: 10000.0
+                        weighed_at:
+                          type: string
+                          format: date-time
+                          example: "2026-10-23T09:30:00.000000Z"
+                        picklist:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 42
+                            picklist_no:
+                              type: string
+                              example: "PKL-20261023-001"
+                            shipping_type:
+                              type: string
+                              example: "internal"
+                            license_plate:
+                              type: string
+                              example: "L 9999 XX"
+                            driver_name:
+                              type: string
+                              example: "Pak Supir"
+                            checker_name:
+                              type: string
+                              example: "Pak Checker"
+                            status:
+                              type: string
+                              example: "overload"
+                            weight_check_status:
+                              type: string
+                              example: "overload"
+                            total_weight_limit:
+                              type: number
+                              example: 10000.0
+                            weigh_in_weight:
+                              type: number
+                              example: 8000.0
+                            weigh_out_weight:
+                              type: number
+                              example: 21000.0
+                            weigh_out_net_weight:
+                              type: number
+                              example: 13000.0
+                  meta:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                        example: 1
+                      last_page:
+                        type: integer
+                        example: 1
+                      per_page:
+                        type: integer
+                        example: 15
+                      total:
+                        type: integer
+                        example: 1
+
+  /v1/logistic/picklists/{id}/adjust-overload:
+    post:
+      summary: Penyesuaian Muatan Overload & Update Sales Order ke SAP B1 (/api/editso)
+      description: |
+        Endpoint ini digunakan untuk menindaklanjuti picklist yang ditolak karena kelebihan muatan (status `overload`).
+        Fungsi ini akan:
+        1. Menyesuaikan kuantitas item Sales Order langsung ke API SAP B1 (`/api/editso`).
+        2. Memperbarui kuantitas dan total nilai pada Sales Order serta Sales Order Detail di database lokal.
+        3. Memperbarui kuantitas muatan (`pick_qty`) dan menghitung ulang total berat (`total_weight`) pada item picklist lokal.
+        4. Mengubah status catatan `PicklistOverload` menjadi `RESOLVED` beserta pencatatan tindakan (`action_taken`), timestamp penyelesaian, dan user resolver.
+        5. Mengembalikan status picklist menjadi `weigh_out` sehingga truk armada siap untuk ditimbang keluar ulang.
+      tags:
+        - Logistic - Picklists
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Picklist yang mengalami overload
+          schema:
+            type: integer
+            example: 1250
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sales_order_id:
+                  type: integer
+                  description: ID Sales Order lokal yang akan disesuaikan (opsional jika picklist hanya memiliki 1 SO)
+                  example: 101
+                comments:
+                  type: string
+                  description: Catatan penyesuaian muatan pada Sales Order
+                  example: Update pengiriman parsial karena overload
+                action_taken:
+                  type: string
+                  description: Catatan tindakan penanganan overload oleh petugas logistik
+                  example: Muatan dikurangi 60 SAK di gudang. Sales Order disesuaikan via SAP editso.
+                lines:
+                  type: array
+                  description: Daftar baris item Sales Order yang disesuaikan
+                  items:
+                    type: object
+                    properties:
+                      LineNum:
+                        type: integer
+                        description: Nomor baris item di SAP B1 (0-indexed). Gunakan -1 jika menambahkan baris baru.
+                        example: 0
+                      ItemCode:
+                        type: string
+                        description: Kode item produk
+                        example: ITEM-A001
+                      Quantity:
+                        type: number
+                        format: float
+                        description: Kuantitas baru setelah penyesuaian
+                        example: 10.0
+                      WhsCode:
+                        type: string
+                        description: Kode gudang
+                        example: WHS-01
+                      UomEntry:
+                        type: integer
+                        example: 1
+                      UnitMsr:
+                        type: string
+                        description: Satuan ukuran produk
+                        example: SAK
+                      LineTotal:
+                        type: number
+                        format: float
+                        example: 1000000.0
+                      DiscPrcnt:
+                        type: number
+                        format: float
+                        example: 0.0
+                      VatGroup:
+                        type: string
+                        example: PPN11
+                      TaxCode:
+                        type: string
+                        example: PPN11
+            example:
+              comments: Update pengiriman parsial dan diskon promo
+              action_taken: Muatan dikurangi 60 SAK di gudang. Sales Order disesuaikan via SAP editso.
+              lines:
+                - LineNum: 0
+                  ItemCode: ITEM-A001
+                  Quantity: 10.0
+                  WhsCode: WHS-01
+                  UnitMsr: SAK
+      responses:
+        '200':
+          description: Sales Order berhasil di-edit di SAP dan data muatan picklist telah disesuaikan.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Sales Order berhasil di-edit di SAP dan data muatan picklist telah disesuaikan.
+                  data:
+                    type: object
+                    properties:
+                      picklist_id:
+                        type: integer
+                        example: 12
+                      picklist_no:
+                        type: string
+                        example: PKL-20261023-0001
+                      status:
+                        type: string
+                        example: weigh_out
+                      total_weight:
+                        type: number
+                        format: float
+                        example: 7000.0
+                      total_weight_limit:
+                        type: number
+                        format: float
+                        example: 10000.0
+                      sales_order:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 101
+                          order_no:
+                            type: string
+                            example: SO-LOG-001
+                          doc_entry:
+                            type: integer
+                            example: 1250
+                          sap_doc_num:
+                            type: string
+                            example: "300045"
+                          doc_total:
+                            type: number
+                            format: float
+                            example: 3500000.0
+                          comments:
+                            type: string
+                            example: Update pengiriman parsial karena overload
+                          disc_percent:
+                            type: number
+                            format: float
+                            example: 0.0
+                          lines:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                id:
+                                  type: integer
+                                  example: 201
+                                line_num:
+                                  type: integer
+                                  example: 0
+                                item_code:
+                                  type: string
+                                  example: ITEM-A001
+                                quantity:
+                                  type: number
+                                  format: float
+                                  example: 10.0
+                                uom:
+                                  type: string
+                                  example: SAK
+                                whs_code:
+                                  type: string
+                                  example: WHS-01
+                                line_total:
+                                  type: number
+                                  format: float
+                                  example: 1000000.0
+                      overload_record:
+                        type: object
+                        nullable: true
+                        properties:
+                          id:
+                            type: integer
+                            example: 5
+                          status:
+                            type: string
+                            example: RESOLVED
+                          action_taken:
+                            type: string
+                            example: Muatan dikurangi 60 SAK di gudang. Sales Order disesuaikan via SAP editso.
+                          resolved_at:
+                            type: string
+                            example: "2026-10-24 09:40:00"
+                      sap_result:
+                        type: object
+                        properties:
+                          DocEntry:
+                            type: integer
+                            example: 1250
+                          DocNum:
+                            type: integer
+                            example: 300045
+        '400':
+          description: Gagal melakukan penyesuaian muatan overload atau error dari API SAP B1 editso.
+
   /v1/logistic/picklists/{id}/add-do:
     post:
-      summary: Add Delivery Order (DO) ke SAP B1 berdasarkan Picklist ID (Batch Atomic)
+      summary: Submit Checklist Checker / Add Delivery Order (DO) ke SAP B1
       description: |
-        Menjalankan integrasi Add Delivery Order (DO) ke SAP Business One (/api/AddDO) untuk picklist yang ditentukan.
-        Payload dikirim ke SAP dalam format JSON Array berisi kumpulan dokumen DO berbasis Sales Order secara sekaligus (batch) dengan transaksi atomik SAP (StartTransaction dan EndTransaction). Jika salah satu dokumen gagal dibuat, seluruh dokumen dalam antrean otomatis dibatalkan (Rollback).
-        Data barang (ItemCode, harga satuan, UoM/satuan, dan kode pajak) otomatis mewarisi Sales Order asal.
-        Nomor DO (DocNum dan DocEntry) otomatis disimpan ke database Picklist dan Sales Order.
+        Endpoint ini digunakan oleh checker gudang untuk mengirimkan hasil pemeriksaan fisik barang, KPI durasi pemeriksaan, tanggal produksi, dan upload foto label kemasan per item.
 
-        **Signature terintegrasi di endpoint ini.**
-        Tanda tangan Checker dan Supir dikirim bersamaan di request body yang sama — tidak perlu memanggil `POST /signatures` secara terpisah.
-        Signature dapat dikirim dalam dua format:
+        **Alur Baru Logistik (Weighing & Multi-Checker Workflow):**
+        1. Checker memeriksa fisik barang dan mengirimkan array `Lines` berisi `id` (item ID), `start_time` & `end_time` (KPI), dan array `labels` (berisi `production_date` & `label_photos` kemasan per batch/tanggal produksi).
+        2. Pada alur baru ini, pemanggilan endpoint oleh checker **TIDAK langsung membentuk Delivery Order (DO) ke SAP B1**.
+        3. **Multi-Checker**: Jika baru sebagian item yang diperiksa (misal checker 1 dari gudang A selesai), status picklist tetap `inprogress`.
+        4. Ketika seluruh item pada picklist telah selesai diverifikasi oleh semua checker, status picklist otomatis berubah menjadi `weigh_out`.
+        5. Pembuatan Delivery Order (DO) ke SAP B1 (`/api/AddDO`) akan dieksekusi secara otomatis pada tahap Timbang Keluar (`POST /v1/logistic/picklists/{id}/weigh-out`) setelah truk dimuati dan ditimbang serta kapasitas muatan valid (tidak overload).
+        *(Catatan sistem: Flag internal `force_sap_do: true` dapat digunakan jika ingin mengeksekusi langsung SAP AddDO).*
+
+        **Signature Checker & Supir terintegrasi di endpoint ini.**
+        Tanda tangan Checker dan Supir dapat dikirim bersamaan di request body yang sama — tidak perlu memanggil `POST /signatures` secara terpisah.
         - **JSON (application/json)**: Field `signatures` berisi array objek dengan `signature` berformat Base64 Data URL (`data:image/png;base64,...`).
-        - **Multipart/form-data**: File gambar signature dikirim sebagai file upload. Sistem otomatis mendeteksi dan menyimpan file ke storage.
-
-        Jika `is_draft: true`, sistem hanya menyimpan checklist dan tanda tangan tanpa mengirim DO ke SAP. Status picklist menjadi `IN_PROGRESS`.
+        - **Multipart/form-data**: File gambar signature dikirim sebagai file upload.
       tags:
         - Logistic - Picklist
       security:
@@ -19142,8 +21170,16 @@ paths:
                   signer_role_title: "Supir"
                   signer_name: "Budi Santoso"
                   signature: "data:image/png;base64,iVBORw0KGgoAAA..."
+              workers:
+                - item_code: "SKU-LOAD-01"
+                  worker_name: "Pak Budi"
+                  qty: 500
+                - item_code: "SKU-LOAD-02"
+                  worker_name: "Pak Slamet"
+                  qty: 250
               Lines:
-                - BaseEntry: 1052
+                - id: 10
+                  BaseEntry: 1052
                   BaseLine: 0
                   Quantity: 5.0
                   WhsCode: "01"
@@ -19151,7 +21187,20 @@ paths:
                   OcrCode2: "GRM"
                   OcrCode3: "MKT"
                   is_checked: true
-                - BaseEntry: 1052
+                  checked_qty: 5.0
+                  checked_by_checker: "ROCHIM"
+                  start_time: "2026-10-14T09:00:00"
+                  end_time: "2026-10-14T09:25:00"
+                  labels:
+                    - production_date: "2026-10-10"
+                      label_photos:
+                        - "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
+                        - "data:image/png;base64,iVBORw0KGgoAAA..."
+                    - production_date: "2026-10-11"
+                      label_photos:
+                        - "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
+                - id: 11
+                  BaseEntry: 1052
                   BaseLine: 1
                   Quantity: 3.0
                   WhsCode: "01"
@@ -19255,6 +21304,47 @@ paths:
                               type: string
                               format: date-time
                               example: "2026-10-08T10:30:00.000000Z"
+                      workers:
+                        type: array
+                        description: Daftar worker pengangkut barang beserta rincian hitungan upah lembur
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            item_code:
+                              type: string
+                              example: "SKU-LOAD-01"
+                            item_name:
+                              type: string
+                              nullable: true
+                              example: "Garam Kasar 50kg"
+                            worker_name:
+                              type: string
+                              nullable: true
+                              example: "Pak Budi"
+                            qty:
+                              type: number
+                              example: 500
+                            uom:
+                              type: string
+                              nullable: true
+                              example: "KG"
+                            rate_type:
+                              type: string
+                              example: "OVERTIME"
+                            rate:
+                              type: number
+                              example: 1500
+                            lembur_fee:
+                              type: number
+                              description: Total hitungan lembur worker untuk item ini (qty * rate)
+                              example: 750000
+                      total_lembur:
+                        type: number
+                        description: Total akumulasi hitungan upah lembur seluruh worker
+                        example: 750000
         '400':
           description: Business error atau SAP AddDO failure. Signature tidak tersimpan jika DO gagal.
         '422':
@@ -19312,6 +21402,169 @@ paths:
           description: Signatures saved successfully.
         '404':
           description: Picklist not found.
+
+  /v1/logistic/picklists/{id}/signatures/{signatureId}/preview:
+    get:
+      summary: Direct Public Preview Gambar Tanda Tangan
+      description: |
+        Menampilkan file gambar tanda tangan secara langsung (streaming image).
+        Endpoint ini dapat dipanggil langsung dari tag `<img>` browser tanpa Authorization header.
+      tags:
+        - Logistic - Picklist
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: signatureId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Binary file gambar tanda tangan (image/png).
+        '404':
+          description: Tanda tangan tidak ditemukan.
+
+  /v1/logistic/picklists/{id}/items/{itemId}/label-photos/{photoId}/preview:
+    get:
+      summary: Direct Public Preview Foto Label Produk
+      description: |
+        Menampilkan file gambar foto label produk secara langsung (streaming image).
+        Endpoint ini dapat dipanggil langsung dari tag `<img>` browser tanpa perlu Authorization header.
+      tags:
+        - Logistic - Picklist
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Picklist
+          schema:
+            type: integer
+        - name: itemId
+          in: path
+          required: true
+          description: ID Picklist Item (picklist_items.id)
+          schema:
+            type: integer
+        - name: photoId
+          in: path
+          required: true
+          description: ID Foto Label (picklist_item_label_photos.id)
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Binary file gambar label produk (image/jpeg, image/png, etc.)
+        '404':
+          description: Foto label tidak ditemukan.
+
+  /v1/logistic/picklists/{id}/items/{itemId}/start-time:
+    post:
+      summary: Catat Waktu Mulai Pemeriksaan Item (Start Time KPI)
+      description: |
+        Mencatat timestamp waktu mulai (`start_time`) pemeriksaan barang oleh checker pada item picklist tertentu secara instan.
+        Endpoint ini dibuat khusus agar checker dapat langsung mencatat waktu awal saat tombol "Start" diklik pada aplikasi, sehingga jika aplikasi di-minimize, ditutup sementara, atau koneksi terputus, waktu mulai pemeriksaan tidak hilang dan tercatat akurat di server.
+        - Jika field `start_time` tidak dikirim di request body, sistem otomatis menggunakan waktu server saat ini (`now()`).
+        - Jika item sudah memiliki `start_time` dan parameter `overwrite` tidak bernilai `true`, server mempertahankan `start_time` pertama agar durasi KPI tidak ter-reset saat aplikasi dibuka kembali.
+        - Status picklist yang sebelumnya `open` atau `weigh_in` otomatis berubah menjadi `inprogress`.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Picklist
+          schema:
+            type: integer
+        - name: itemId
+          in: path
+          required: true
+          description: ID Picklist Item (picklist_items.id) atau Sales Order Detail ID
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                start_time:
+                  type: string
+                  format: date-time
+                  description: Timestamp waktu mulai pemeriksaan (opsional, default waktu server saat ini)
+                  example: "2026-10-21T08:45:00"
+                checker_name:
+                  type: string
+                  description: Nama checker yang melakukan pemeriksaan (opsional)
+                  example: "NANANG"
+                overwrite:
+                  type: boolean
+                  description: Paksa update waktu mulai jika item sudah memiliki start_time sebelumnya (default false)
+                  example: false
+      responses:
+        '200':
+          description: Start time berhasil dicatat.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Start time recorded successfully."
+                  data:
+                    type: object
+                    properties:
+                      picklist_id:
+                        type: integer
+                        example: 10
+                      picklist_no:
+                        type: string
+                        example: "PKL-202610-001"
+                      picklist_status:
+                        type: string
+                        example: "inprogress"
+                      item_id:
+                        type: integer
+                        example: 25
+                      sales_order_id:
+                        type: integer
+                        example: 101
+                      item_code:
+                        type: string
+                        example: "FG-001"
+                      item_name:
+                        type: string
+                        example: "Garam Halus 250gr"
+                      whs_code:
+                        type: string
+                        example: "WHS-FG"
+                      uom:
+                        type: string
+                        example: "SAK"
+                      start_time:
+                        type: string
+                        format: date-time
+                        example: "2026-10-21 08:45:00"
+                      checked_by_checker:
+                        type: string
+                        example: "NANANG"
+                      is_checked:
+                        type: boolean
+                        example: false
+        '400':
+          description: Picklist sudah berstatus COMPLETED atau CANCELLED.
+        '404':
+          description: Picklist atau item tidak ditemukan.
 
   /v1/logistic/picklists/{id}/save-draft:
     post:
@@ -19388,6 +21641,10 @@ paths:
                       - BaseLine
                       - Quantity
                     properties:
+                      id:
+                        type: integer
+                        description: ID baris item picklist (picklist_items.id).
+                        example: 10
                       BaseEntry:
                         type: integer
                         description: DocEntry dari Sales Order SAP
@@ -19400,6 +21657,43 @@ paths:
                         type: number
                         description: Kuantitas barang yang diverifikasi
                         example: 5.0
+                      checked_qty:
+                        type: number
+                        description: Kuantitas barang yang telah diverifikasi fisik oleh checker
+                        example: 5.0
+                      checked_by_checker:
+                        type: string
+                        description: Nama staf checker yang memverifikasi item ini
+                        example: "ROCHIM"
+                      start_time:
+                        type: string
+                        format: date-time
+                        description: Waktu mulai pemeriksaan oleh checker (KPI)
+                        example: "2026-10-14T09:00:00"
+                      end_time:
+                        type: string
+                        format: date-time
+                        description: Waktu selesai pemeriksaan oleh checker (KPI)
+                        example: "2026-10-14T09:25:00"
+                      labels:
+                        type: array
+                        description: |
+                          Daftar label kemasan produk beserta tanggal produksi untuk item ini.
+                          Satu baris item dapat memiliki lebih dari satu batch/tanggal produksi dan foto label.
+                        items:
+                          type: object
+                          properties:
+                            production_date:
+                              type: string
+                              format: date
+                              description: Tanggal produksi barang fisik pada label kemasan produk
+                              example: "2026-10-10"
+                            label_photos:
+                              type: array
+                              description: Daftar foto label kemasan untuk tanggal produksi ini. Mendukung Base64 Data URI atau URL.
+                              items:
+                                type: string
+                                example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
                       WhsCode:
                         type: string
                         description: Kode gudang
@@ -19603,6 +21897,35 @@ paths:
                           type: string
                           description: Nama checker yang memeriksa item
                           example: "ROCHIM"
+                        start_time:
+                          type: string
+                          format: date-time
+                          description: Waktu mulai pemeriksaan checker (KPI)
+                          example: "2026-10-14T09:00:00"
+                        end_time:
+                          type: string
+                          format: date-time
+                          description: Waktu selesai pemeriksaan checker (KPI)
+                          example: "2026-10-14T09:25:00"
+                        labels:
+                          type: array
+                          description: |
+                            Daftar label kemasan produk beserta tanggal produksi untuk item ini.
+                            Satu baris item dapat memiliki lebih dari satu batch/tanggal produksi dan foto label.
+                          items:
+                            type: object
+                            properties:
+                              production_date:
+                                type: string
+                                format: date
+                                description: Tanggal produksi barang fisik pada label kemasan produk
+                                example: "2026-10-10"
+                              label_photos:
+                                type: array
+                                description: Daftar foto label kemasan untuk tanggal produksi ini. Mendukung Base64 Data URI atau URL.
+                                items:
+                                  type: string
+                                  example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
                         BaseEntry:
                           type: integer
                           description: DocEntry dari Sales Order
@@ -19802,6 +22125,10 @@ paths:
                       - BaseLine
                       - Quantity
                     properties:
+                      id:
+                        type: integer
+                        description: ID baris picklist item (picklist_items.id)
+                        example: 10
                       BaseEntry:
                         type: integer
                         description: DocEntry dari Sales Order SAP
@@ -19814,6 +22141,43 @@ paths:
                         type: number
                         description: Kuantitas barang yang diverifikasi
                         example: 5.0
+                      checked_qty:
+                        type: number
+                        description: Kuantitas yang diverifikasi checker
+                        example: 5.0
+                      checked_by_checker:
+                        type: string
+                        description: Nama checker yang memeriksa item
+                        example: "ROCHIM"
+                      start_time:
+                        type: string
+                        format: date-time
+                        description: Waktu mulai pemeriksaan checker (KPI)
+                        example: "2026-10-14T09:00:00"
+                      end_time:
+                        type: string
+                        format: date-time
+                        description: Waktu selesai pemeriksaan checker (KPI)
+                        example: "2026-10-14T09:25:00"
+                      labels:
+                        type: array
+                        description: |
+                          Daftar label kemasan produk beserta tanggal produksi untuk item ini.
+                          Satu baris item dapat memiliki lebih dari satu batch/tanggal produksi dan foto label.
+                        items:
+                          type: object
+                          properties:
+                            production_date:
+                              type: string
+                              format: date
+                              description: Tanggal produksi barang fisik pada label kemasan produk
+                              example: "2026-10-10"
+                            label_photos:
+                              type: array
+                              description: Daftar foto label kemasan untuk tanggal produksi ini. Mendukung Base64 Data URI atau URL.
+                              items:
+                                type: string
+                                example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
                       WhsCode:
                         type: string
                         description: Kode gudang
@@ -20148,6 +22512,345 @@ paths:
         '404':
           description: Role ID tidak ditemukan.
 
+  /v1/ekspedisi/loading-rate-types:
+    get:
+      summary: Daftar Jenis Perhitungan Tarif Angkut Kuli
+      description: Mengambil daftar jenis perhitungan tarif ongkos angkut (seperti REGULAR dan OVERTIME).
+      tags:
+        - Logistic - Loading Rates
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: is_active
+          in: query
+          description: Filter status aktif
+          schema:
+            type: boolean
+        - name: search
+          in: query
+          description: Pencarian berdasarkan kode, nama, atau deskripsi
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Daftar jenis perhitungan berhasil diambil.
+    post:
+      summary: Tambah Jenis Perhitungan Tarif Angkut Kuli Baru
+      description: Menambahkan jenis perhitungan tarif baru (misal REGULAR atau OVERTIME).
+      tags:
+        - Logistic - Loading Rates
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+                - name
+              properties:
+                code:
+                  type: string
+                  example: "REGULAR"
+                name:
+                  type: string
+                  example: "Regular"
+                description:
+                  type: string
+                  example: "Ongkos angkut jam kerja reguler"
+                start_time:
+                  type: string
+                  description: Jam mulai berlaku (format HH:mm atau HH:mm:ss)
+                  example: "08:00:00"
+                end_time:
+                  type: string
+                  description: Jam selesai berlaku (format HH:mm atau HH:mm:ss, misal lembur sampai 02:00)
+                  example: "16:30:00"
+                is_active:
+                  type: boolean
+                  example: true
+      responses:
+        '201':
+          description: Jenis perhitungan berhasil ditambahkan.
+
+  /v1/ekspedisi/loading-rate-types/{id}:
+    get:
+      summary: Detail Jenis Perhitungan Tarif Angkut Kuli
+      tags:
+        - Logistic - Loading Rates
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail jenis perhitungan berhasil diambil.
+        '404':
+          description: Data tidak ditemukan.
+    put:
+      summary: Update Jenis Perhitungan Tarif Angkut Kuli
+      tags:
+        - Logistic - Loading Rates
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                name:
+                  type: string
+                description:
+                  type: string
+                start_time:
+                  type: string
+                  example: "16:30:00"
+                end_time:
+                  type: string
+                  example: "02:00:00"
+                is_active:
+                  type: boolean
+      responses:
+        '200':
+          description: Jenis perhitungan berhasil diperbarui.
+    delete:
+      summary: Hapus Jenis Perhitungan Tarif Angkut Kuli
+      tags:
+        - Logistic - Loading Rates
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Jenis perhitungan berhasil dihapus.
+        '400':
+          description: Tidak dapat dihapus karena masih digunakan.
+
+  /v1/ekspedisi/loading-rates:
+    get:
+      summary: Daftar Master Tarif Ongkos Angkut Kuli
+      description: Mengambil daftar tarif ongkos angkut per item barang untuk kuli muat (regular maupun lembur).
+      tags:
+        - Logistic - Loading Rates
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: item_code
+          in: query
+          description: Filter kode item
+          schema:
+            type: string
+        - name: rate_type
+          in: query
+          description: Filter jenis perhitungan (REGULAR / OVERTIME)
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Filter status (ACTIVE / INACTIVE)
+          schema:
+            type: string
+        - name: search
+          in: query
+          description: Pencarian nama item atau kode item
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          description: Jumlah baris per halaman atau "all"
+          schema:
+            type: string
+            example: "15"
+      responses:
+        '200':
+          description: Daftar tarif angkut berhasil diambil.
+    post:
+      summary: Tambah Master Tarif Ongkos Angkut Kuli
+      description: Menambahkan tarif ongkos angkut untuk item barang dan tipe rate tertentu.
+      tags:
+        - Logistic - Loading Rates
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - item_code
+                - rate
+              properties:
+                item_code:
+                  type: string
+                  example: "SKU-LOAD-01"
+                item_name:
+                  type: string
+                  example: "Garam Kasar 50kg"
+                rate_type:
+                  type: string
+                  enum: [REGULAR, OVERTIME]
+                  example: "REGULAR"
+                rate:
+                  type: number
+                  description: Biaya ongkos angkut per satuan
+                  example: 1500
+                uom:
+                  type: string
+                  description: Unit of Measure (Uom)
+                  example: "SAK"
+                status:
+                  type: string
+                  enum: [ACTIVE, INACTIVE]
+                  example: "ACTIVE"
+                remarks:
+                  type: string
+                  example: "Tarif reguler bongkar muat kuli"
+      responses:
+        '201':
+          description: Tarif angkut kuli berhasil ditambahkan.
+
+  /v1/ekspedisi/loading-rates/{id}:
+    get:
+      summary: Detail Master Tarif Ongkos Angkut Kuli
+      tags:
+        - Logistic - Loading Rates
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail tarif angkut berhasil diambil.
+        '404':
+          description: Data tidak ditemukan.
+    put:
+      summary: Update Master Tarif Ongkos Angkut Kuli
+      tags:
+        - Logistic - Loading Rates
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                item_code:
+                  type: string
+                item_name:
+                  type: string
+                rate_type:
+                  type: string
+                rate:
+                  type: number
+                uom:
+                  type: string
+                status:
+                  type: string
+                remarks:
+                  type: string
+      responses:
+        '200':
+          description: Tarif angkut kuli berhasil diperbarui.
+    delete:
+      summary: Hapus Master Tarif Ongkos Angkut Kuli
+      tags:
+        - Logistic - Loading Rates
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Tarif angkut kuli berhasil dihapus.
+
+  /v1/ekspedisi/loading-rates/upload:
+    post:
+      summary: Upload File Excel / CSV Master Tarif Ongkos Angkut Kuli
+      description: |
+        Mengunggah berkas Excel (.xlsx, .xls) atau CSV untuk melakukan import atau update masal master data tarif ongkos angkut kuli.
+        Kolom yang didukung pada file:
+        - `Kode Item` / `item_code` (Wajib)
+        - `Nama Item` / `item_name`
+        - `Type Rate` / `rate_type` (REGULAR / OVERTIME)
+        - `Biaya` / `rate` (Wajib)
+        - `UOM` / `uom`
+        - `Keterangan` / `remarks`
+      tags:
+        - Logistic - Loading Rates
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File Excel (.xlsx, .xls, .csv, max 10MB)
+      responses:
+        '200':
+          description: File berhasil diupload dan diproses.
+        '422':
+          description: Format file atau validasi baris gagal.
+
+  /v1/ekspedisi/loading-rates/template:
+    get:
+      summary: Download Format Template Excel Master Tarif Ongkos Angkut Kuli
+      description: Mengunduh template berkas spreadsheet (.xlsx) untuk upload master tarif ongkos angkut.
+      tags:
+        - Logistic - Loading Rates
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Berkas Excel template (.xlsx).
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+
 components:
   securitySchemes:
     BearerAuth:
@@ -20228,6 +22931,10 @@ components:
               - BaseLine
               - Quantity
             properties:
+              id:
+                type: integer
+                description: ID baris picklist item (picklist_items.id).
+                example: 10
               BaseEntry:
                 type: integer
                 description: DocEntry dari Sales Order SAP
@@ -20240,6 +22947,43 @@ components:
                 type: number
                 description: Jumlah barang dikirim
                 example: 5.0
+              checked_qty:
+                type: number
+                description: Jumlah kuantitas barang yang diverifikasi checker
+                example: 5.0
+              checked_by_checker:
+                type: string
+                description: Nama staf checker yang memverifikasi item ini
+                example: "ROCHIM"
+              start_time:
+                type: string
+                format: date-time
+                description: Waktu mulai pemeriksaan oleh checker (KPI)
+                example: "2026-10-14T09:00:00"
+              end_time:
+                type: string
+                format: date-time
+                description: Waktu selesai pemeriksaan oleh checker (KPI)
+                example: "2026-10-14T09:25:00"
+              labels:
+                type: array
+                description: |
+                  Daftar label kemasan produk beserta tanggal produksi untuk item ini.
+                  Satu baris item dapat memiliki lebih dari satu batch/tanggal produksi dan lebih dari satu foto label.
+                items:
+                  type: object
+                  properties:
+                    production_date:
+                      type: string
+                      format: date
+                      description: Tanggal produksi barang fisik yang tertera pada kemasan/label produk
+                      example: "2026-10-10"
+                    label_photos:
+                      type: array
+                      description: Daftar foto label produk / kemasan untuk tanggal produksi ini. Mendukung Base64 Data URI (`data:image/jpeg;base64,...`) atau upload file.
+                      items:
+                        type: string
+                        example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
               WhsCode:
                 type: string
                 description: Kode gudang
@@ -20299,6 +23043,39 @@ components:
                 type: string
                 format: date-time
                 description: Waktu tanda tangan
+        workers:
+          type: array
+          description: |
+            Daftar tenaga kerja (worker/kuli bongkar muat) yang mengangkut barang.
+            Sistem secara otomatis menghitung tarif lembur (overtime fee) berdasarkan master data loading rates dikalikan berat/qty yang diangkut.
+          items:
+            type: object
+            required:
+              - item_code
+              - qty
+            properties:
+              item_code:
+                type: string
+                description: Kode item produk yang diangkut
+                example: "SKU-LOAD-01"
+              worker_name:
+                type: string
+                nullable: true
+                description: Nama worker / kuli (opsional)
+                example: "Pak Budi"
+              qty:
+                type: number
+                description: Berat atau kuantitas barang yang diangkut
+                example: 500
+              rate:
+                type: number
+                nullable: true
+                description: Override tarif lembur per satuan (opsional, jika tidak diisi maka diambil otomatis dari master data loading_rates)
+                example: 1500
+              notes:
+                type: string
+                nullable: true
+                description: Catatan tambahan
     MasterApproval:
       type: object
       properties:
@@ -21879,6 +24656,14 @@ components:
           type: string
           format: date-time
           example: "2026-06-13T11:32:00.000000Z"
+        distributor_ref_no:
+          type: string
+          nullable: true
+          example: CLM-DIST-202610-001
+        depo:
+          type: string
+          nullable: true
+          example: DEPO SURABAYA
         total_rows:
           type: integer
           example: 105
@@ -21919,18 +24704,97 @@ components:
         customer_name:
           type: string
           example: DUA JAYA, CV
+        depo:
+          type: string
+          nullable: true
+          example: DEPO SURABAYA
+        distributor_customer_code:
+          type: string
+          nullable: true
+          example: CUST-SM-001
+        distributor_customer_name:
+          type: string
+          nullable: true
+          example: TOKO MAKMUR JAYA
+        address:
+          type: string
+          nullable: true
+          example: JL. RAYA RUNGKUT INDUSTRI NO. 10
+        city:
+          type: string
+          nullable: true
+          example: SURABAYA
+        district:
+          type: string
+          nullable: true
+          example: RUNGKUT
+        salesman_name:
+          type: string
+          nullable: true
+          example: BUDI SANTOSO
         item_code:
           type: string
           example: A26
         item_name:
           type: string
           example: TOP 250 M @ 10 KG / BAL
+        item_category:
+          type: string
+          nullable: true
+          example: REGULER
         qty_kg:
           type: number
           example: 100.00
         sell_price_per_kg:
           type: number
           example: 6400.00
+        customer_type:
+          type: string
+          example: GT
+        transaction_type:
+          type: string
+          nullable: true
+          example: KREDIT
+        channel:
+          type: string
+          nullable: true
+          example: RETAIL
+        invoice_no:
+          type: string
+          nullable: true
+          example: INV-2026-001
+        dpp:
+          type: number
+          nullable: true
+          example: 18675000.00
+        diskon_1:
+          type: number
+          nullable: true
+          example: 100000.00
+        diskon_2:
+          type: number
+          nullable: true
+          example: 0.00
+        diskon_3:
+          type: number
+          nullable: true
+          example: 0.00
+        diskon_4:
+          type: number
+          nullable: true
+          example: 0.00
+        diskon_5:
+          type: number
+          nullable: true
+          example: 0.00
+        ppn:
+          type: number
+          nullable: true
+          example: 2043250.00
+        net:
+          type: number
+          nullable: true
+          example: 20618250.00
         harga_program_per_kg:
           type: number
           example: 7700.00
@@ -21947,9 +24811,6 @@ components:
         status:
           type: string
           example: VALID_PROGRAM
-        customer_type:
-          type: string
-          example: GT
         desc_status:
           type: string
           example: VALID
@@ -23909,6 +26770,264 @@ components:
         is_active:
           type: boolean
           example: true
+
+    PicklistItemLabelPhoto:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        picklist_id:
+          type: integer
+          example: 1
+        picklist_item_id:
+          type: integer
+          example: 10
+        photo_path:
+          type: string
+          example: "label_photos/pkl_1_item_10_670ca123.jpg"
+        file_name:
+          type: string
+          example: "label_item_10.jpg"
+        file_size:
+          type: integer
+          example: 204850
+        mime_type:
+          type: string
+          example: "image/jpeg"
+        caption:
+          type: string
+          nullable: true
+          example: "Foto label karung batch 001"
+        production_date:
+          type: string
+          format: date
+          nullable: true
+          description: Tanggal produksi barang fisik yang tertera pada kemasan/label ini
+          example: "2026-10-10"
+        photo_url:
+          type: string
+          example: "http://localhost:8000/storage/label_photos/pkl_1_item_10_670ca123.jpg"
+        preview_url:
+          type: string
+          description: Public streaming proxy URL untuk preview langsung di browser atau tag <img> tanpa Bearer header
+          example: "/api/distributor-channel/v1/logistic/picklists/1/items/10/label-photos/1/preview"
+        created_by:
+          type: integer
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-10-14T09:15:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-10-14T09:15:00.000000Z"
+
+    PicklistItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 10
+        picklist_id:
+          type: integer
+          example: 1
+        sales_order_id:
+          type: integer
+          example: 1
+        sales_order_detail_id:
+          type: integer
+          example: 10
+        item_code:
+          type: string
+          example: "FG-GARAM-001"
+        item_name:
+          type: string
+          example: "Garam Halus 250gr"
+        whs_code:
+          type: string
+          example: "01"
+        ordered_qty:
+          type: number
+          example: 10.0
+        pick_qty:
+          type: number
+          example: 10.0
+        checked_qty:
+          type: number
+          example: 10.0
+        is_checked:
+          type: boolean
+          example: true
+        checked_by_checker:
+          type: string
+          example: "ROCHIM"
+        unit_weight:
+          type: number
+          example: 0.25
+        total_weight:
+          type: number
+          example: 2.5
+        uom:
+          type: string
+          description: Satuan ukuran item (Unit of Measure)
+          example: "KG"
+        start_time:
+          type: string
+          format: date-time
+          nullable: true
+          description: Waktu mulai pemeriksaan oleh checker (KPI)
+          example: "2026-10-14T09:00:00"
+        end_time:
+          type: string
+          format: date-time
+          nullable: true
+          description: Waktu selesai pemeriksaan oleh checker (KPI)
+          example: "2026-10-14T09:25:00"
+        production_date:
+          type: string
+          format: date
+          nullable: true
+          description: Tanggal produksi barang fisik
+          example: "2026-10-10"
+        labels:
+          type: array
+          description: Daftar label kemasan produk yang dikelompokkan per tanggal produksi beserta foto labelnya
+          items:
+            type: object
+            properties:
+              production_date:
+                type: string
+                format: date
+                nullable: true
+                description: Tanggal produksi untuk label ini
+                example: "2026-10-10"
+              label_photos:
+                type: array
+                description: Daftar foto label kemasan untuk tanggal produksi ini
+                items:
+                  $ref: '#/components/schemas/PicklistItemLabelPhoto'
+        label_photos:
+          type: array
+          description: Daftar seluruh foto label kemasan yang diunggah checker untuk item ini
+          items:
+            $ref: '#/components/schemas/PicklistItemLabelPhoto'
+
+    Picklist:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        picklist_no:
+          type: string
+          example: "PKL-20261014-0001"
+        shipping_type:
+          type: string
+          enum: [internal, external, pickup]
+          example: "internal"
+        posting_date:
+          type: string
+          format: date
+          example: "2026-10-14"
+        due_date:
+          type: string
+          format: date
+          example: "2026-10-14"
+        delivery_order_no:
+          type: string
+          nullable: true
+          example: "20260088"
+        total_weight_limit:
+          type: number
+          description: Batas kapasitas berat armada (KG)
+          example: 10000.00
+        weigh_in_weight:
+          type: number
+          nullable: true
+          description: Berat kosong kendaraan (Tare Weight) dalam KG
+          example: 8500.00
+        weigh_in_ticket_no:
+          type: string
+          nullable: true
+          example: "TMB-IN-20261014-0012"
+        weigh_in_operator_name:
+          type: string
+          nullable: true
+          example: "Bambang Supriyadi"
+        weigh_in_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-10-14T08:45:00.000000Z"
+        weigh_in_notes:
+          type: string
+          nullable: true
+          example: "Truk colt diesel kondisi kosong"
+        weigh_out_weight:
+          type: number
+          nullable: true
+          description: Berat kotor kendaraan + muatan (Gross Weight) dalam KG
+          example: 17500.00
+        weigh_out_ticket_no:
+          type: string
+          nullable: true
+          example: "TMB-OUT-20261014-0045"
+        weigh_out_operator_name:
+          type: string
+          nullable: true
+          example: "Bambang Supriyadi"
+        weigh_out_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-10-14T10:30:00.000000Z"
+        weigh_out_notes:
+          type: string
+          nullable: true
+          example: "Muatan sesuai toleransi, segel terpasang"
+        net_weight:
+          type: number
+          nullable: true
+          description: Berat bersih muatan (Gross - Tare) dalam KG
+          example: 9000.00
+        weight_check_status:
+          type: string
+          enum: [pending, sesuai, overload]
+          example: "sesuai"
+        status:
+          type: string
+          enum: [open, weigh_in, inprogress, weigh_out, complete, canceled]
+          example: "complete"
+        license_plate:
+          type: string
+          nullable: true
+          example: "L 9123 AB"
+        driver_name:
+          type: string
+          nullable: true
+          example: "SLAMET"
+        checker_name:
+          type: string
+          nullable: true
+          example: "ROCHIM/NANANG"
+        seal_number:
+          type: string
+          nullable: true
+          example: "SEAL-12345"
+        do_doc_entry:
+          type: string
+          nullable: true
+          example: "1052"
+        do_doc_num:
+          type: string
+          nullable: true
+          example: "20260088"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PicklistItem'
 
 
 

@@ -134,4 +134,25 @@ class HierarchyService
         $this->hierarchyRepo->updateList($list, $data);
         return $this->hierarchyRepo->findList($id);
     }
+
+    public function deleteList(int $id): bool
+    {
+        return DB::transaction(function () use ($id) {
+            $list = $this->hierarchyRepo->findList($id);
+            if (!$list) {
+                return false;
+            }
+
+            // 1. Ambil seluruh task yang berada di list ini (termasuk yang soft-deleted)
+            $tasks = TmTask::withTrashed()->where('list_id', $id)->get();
+
+            // 2. Hapus seluruh task beserta cascade turunannya (subtasks, checklists, dll)
+            foreach ($tasks as $task) {
+                $task->forceDelete();
+            }
+
+            // 3. Hapus list
+            return $this->hierarchyRepo->deleteList($list);
+        });
+    }
 }

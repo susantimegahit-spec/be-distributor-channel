@@ -30,6 +30,8 @@ class TrxProgramUploadBatch extends Model
         'batch_no',
         'file_name',
         'uploaded_by',
+        'distributor_ref_no',
+        'depo',
     ];
 
     /**

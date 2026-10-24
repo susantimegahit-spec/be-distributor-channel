@@ -3,13 +3,19 @@
 namespace App\Modules\Ekspedisi\Services;
 
 use App\Models\Item;
+use App\Models\LoadingRate;
+use App\Models\LoadingRateType;
 use App\Models\LogisticSetting;
 use App\Models\Picklist;
 use App\Models\PicklistItem;
+use App\Models\PicklistItemLabelPhoto;
+use App\Models\PicklistOverload;
 use App\Models\PicklistSignature;
+use App\Models\PicklistWorker;
 use App\Models\SalesOrder;
 use App\Models\SalesOrderDetail;
 use App\Models\SalesOrderLogisticLog;
+use App\Models\SalesOrderIntegrationLog;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -62,9 +68,13 @@ class PicklistService
             $query->where('shipping_type', strtolower(trim((string) $filters['shipping_type'])));
         }
 
-        // Filter by status
+        // Filter by status (support both lowercase and uppercase)
         if (!empty($filters['status'])) {
-            $query->where('status', strtoupper(trim((string) $filters['status'])));
+            $st = trim((string) $filters['status']);
+            $query->where(function (Builder $q) use ($st) {
+                $q->where('status', strtolower($st))
+                    ->orWhere('status', strtoupper($st));
+            });
         }
 
         // Filter by is_checked status
@@ -138,9 +148,11 @@ class PicklistService
             'items.salesOrder.distributor:id,name,code_customer,depo',
             'items.salesOrderDetail:id,sales_order_id,item_code,line_num,baseline,whs_code,quantity',
             'items.item:id,item_code,item_name,per_kg',
+            'items.labelPhotos',
             'creator:id,name,username',
             'updater:id,name,username',
             'signatures.creator:id,name',
+            'workers',
         ])->find($id);
 
         if (!$picklist) {
@@ -764,14 +776,23 @@ class PicklistService
             throw new \Exception("Picklist with ID #{$picklistId} not found.", 404);
         }
 
-        if ($picklist->status === Picklist::STATUS_CANCELLED) {
-            throw new \Exception("Cannot generate Delivery Order for a CANCELLED picklist.", 400);
+        $statusLower = strtolower(trim((string)$picklist->status));
+        if (in_array($statusLower, [Picklist::STATUS_CANCELED, 'cancelled', 'canceled'], true)) {
+            throw new \Exception("Cannot process a CANCELLED picklist.", 400);
         }
 
         // Support draft mode for multi-checker / multi-warehouse workflow
         $isDraft = (bool) ($payload['is_draft'] ?? $payload['draft'] ?? (($payload['action'] ?? '') === 'draft'));
         if ($isDraft) {
-            return $this->saveDraftProgress($picklist, $payload, $userId);
+            return $this->saveDraftProgress($picklist, $payload, $userId, isSubmit: false);
+        }
+
+        // Under new logistics workflow, checker submission via add-do (is_draft=false) saves verification,
+        // start_time, end_time, production_date, label_photos and advances status to weigh_out (if all items checked)
+        // or inprogress (if pending items), and DOES NOT directly call SAP AddDO.
+        $forceSapDo = (bool) ($payload['force_sap_do'] ?? $payload['create_do'] ?? false);
+        if (!$forceSapDo) {
+            return $this->saveDraftProgress($picklist, $payload, $userId, isSubmit: true);
         }
 
         if ($picklist->items->isEmpty()) {
@@ -902,7 +923,8 @@ class PicklistService
                     if ($matchedDetail && $matchedDetail->baseline === null) {
                         try {
                             $matchedDetail->update(['baseline' => $lineBaseLine, 'line_num' => $lineBaseLine]);
-                        } catch (\Throwable $e) {}
+                        } catch (\Throwable $e) {
+                        }
                     }
 
                     $lineBaseEntry = (isset($cLine['BaseEntry']) && $cLine['BaseEntry'] !== '' && $cLine['BaseEntry'] !== null)
@@ -968,7 +990,8 @@ class PicklistService
                     if ($detail && $detail->baseline === null) {
                         try {
                             $detail->update(['baseline' => $lineBaseLine, 'line_num' => $lineBaseLine]);
-                        } catch (\Throwable $e) {}
+                        } catch (\Throwable $e) {
+                        }
                     }
 
                     $lineObj = [
@@ -1276,9 +1299,10 @@ class PicklistService
 
         $picklist->update($picklistUpdate);
 
-        // 5. Save inspection / handover signatures if provided
+        // 5. Save inspection / handover signatures and workers if provided
         $savedSignatures = $this->savePicklistSignatures($picklist, $payload, $userId);
-        $freshPicklist = $picklist->fresh(['items.salesOrder', 'creator', 'updater', 'signatures']);
+        $savedWorkers = $this->savePicklistWorkers($picklist, $payload, $userId);
+        $freshPicklist = $picklist->fresh(['items.salesOrder', 'creator', 'updater', 'signatures', 'workers']);
 
         return [
             'picklist_id'       => $picklist->id,
@@ -1289,6 +1313,8 @@ class PicklistService
             'is_checked'        => (bool) $freshPicklist->is_checked,
             'results'           => $resultsPerOrder,
             'signatures'        => $savedSignatures,
+            'workers'           => $savedWorkers['workers'],
+            'total_lembur'      => $savedWorkers['total_lembur'],
             'picklist'          => $freshPicklist,
         ];
     }
@@ -1523,7 +1549,8 @@ class PicklistService
                 if ($detail && $detail->baseline === null) {
                     try {
                         $detail->update(['baseline' => $lineBaseLine, 'line_num' => $lineBaseLine]);
-                    } catch (\Throwable $e) {}
+                    } catch (\Throwable $e) {
+                    }
                 }
 
                 $lineBaseEntry = (isset($line['BaseEntry']) && $line['BaseEntry'] !== '' && $line['BaseEntry'] !== null)
@@ -1775,8 +1802,9 @@ class PicklistService
 
                 try {
                     $this->savePicklistSignatures($picklist, $sigPayload, $userId);
+                    $this->savePicklistWorkers($picklist, $sigPayload, $userId);
                 } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::warning("Failed to save signatures for Picklist #{$picklist->id}: " . $e->getMessage());
+                    \Illuminate\Support\Facades\Log::warning("Failed to save signatures/workers for Picklist #{$picklist->id}: " . $e->getMessage());
                 }
 
                 $activeChecker = !empty($header['checked_by_checker'])
@@ -1866,7 +1894,7 @@ class PicklistService
             ];
         }
 
-        $freshFirstPicklist = $firstPicklist?->fresh(['items', 'signatures']);
+        $freshFirstPicklist = $firstPicklist?->fresh(['items', 'signatures', 'workers']);
 
         return [
             'delivery_order_no' => (string) $latestDocNum,
@@ -1877,6 +1905,8 @@ class PicklistService
             'picklist_id'       => $firstPicklist?->id,
             'documents'         => $processedDocs,
             'signatures'        => $freshFirstPicklist?->signatures ?? [],
+            'workers'           => $this->formatWorkerList($freshFirstPicklist?->workers ?? collect()),
+            'total_lembur'      => (float) ($freshFirstPicklist?->workers?->sum('lembur_fee') ?? 0),
             'response'          => $lastResult,
         ];
     }
@@ -2125,6 +2155,206 @@ class PicklistService
     }
 
     /**
+     * Save worker loading details and calculate overtime (lembur) fees for a picklist.
+     *
+     * @param Picklist $picklist
+     * @param array $payload
+     * @param int|null $userId
+     * @return array
+     */
+    public function savePicklistWorkers(Picklist $picklist, array $payload, ?int $userId = null): array
+    {
+        // 0. Unwrap nested payload if wrapped in 'data'
+        if (isset($payload['data']) && is_array($payload['data'])) {
+            $payload = array_merge($payload['data'], $payload);
+        }
+
+        $rawWorkers = $payload['workers']
+            ?? $payload['worker']
+            ?? $payload['kuli']
+            ?? $payload['worker_list']
+            ?? $payload['tenaga_kerja']
+            ?? null;
+
+        // If no worker key was provided in payload at all, keep and return existing workers
+        if ($rawWorkers === null) {
+            $existing = PicklistWorker::where('picklist_id', $picklist->id)->orderBy('id')->get();
+            return [
+                'workers'      => $this->formatWorkerList($existing),
+                'total_lembur' => (float) $existing->sum('lembur_fee'),
+            ];
+        }
+
+        if (!is_array($rawWorkers)) {
+            $rawWorkers = [];
+        }
+
+        // Synchronize: clear previous workers for this picklist and insert new list
+        PicklistWorker::where('picklist_id', $picklist->id)->delete();
+
+        $saved = [];
+        $totalLembur = 0.0;
+
+        foreach ($rawWorkers as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $itemCode = trim((string) ($item['item_code'] ?? $item['ItemCode'] ?? $item['kode_item'] ?? ''));
+            if ($itemCode === '') {
+                continue;
+            }
+
+            $workerName = !empty($item['worker_name'])
+                ? trim((string) $item['worker_name'])
+                : (!empty($item['name'])
+                    ? trim((string) $item['name'])
+                    : (!empty($item['nama_worker'])
+                        ? trim((string) $item['nama_worker'])
+                        : (!empty($item['nama']) ? trim((string) $item['nama']) : null)));
+
+            $qty = (float) ($item['qty'] ?? $item['quantity'] ?? $item['Quantity'] ?? $item['berat'] ?? $item['weight'] ?? 0);
+            $customRate = $item['rate'] ?? $item['overtime_rate'] ?? $item['tarif'] ?? $item['lembur_rate'] ?? null;
+            $notes = !empty($item['notes']) ? trim((string) $item['notes']) : (!empty($item['keterangan']) ? trim((string) $item['keterangan']) : null);
+
+            // Lookup item and loading rate
+            $itemModel = Item::where('item_code', $itemCode)->first();
+            $pItem = PicklistItem::where('picklist_id', $picklist->id)->where('item_code', $itemCode)->first();
+
+            $itemName = !empty($item['item_name'])
+                ? trim((string) $item['item_name'])
+                : ($itemModel?->item_name ?? $pItem?->item_name ?? null);
+
+            $uom = !empty($item['uom'])
+                ? trim((string) $item['uom'])
+                : (!empty($item['Uom'])
+                    ? trim((string) $item['Uom'])
+                    : ($itemModel?->sal_unit_msr ?? $pItem?->unit_msr ?? null));
+
+            $inputRateType = !empty($item['rate_type'])
+                ? strtoupper(trim((string) $item['rate_type']))
+                : (!empty($item['rateType']) ? strtoupper(trim((string) $item['rateType'])) : null);
+
+            if (!$inputRateType) {
+                $curTime = now()->format('H:i:s');
+                $otType = LoadingRateType::where('is_active', true)
+                    ->where(function ($q) {
+                        $q->where('code', LoadingRateType::TYPE_OVERTIME)->orWhere('code', 'LEMBUR');
+                    })->first();
+                $regType = LoadingRateType::where('is_active', true)
+                    ->where(function ($q) {
+                        $q->where('code', LoadingRateType::TYPE_REGULAR)->orWhere('code', 'REGULER');
+                    })->first();
+
+                if ($otType && $otType->isTimeInRange($curTime)) {
+                    $inputRateType = LoadingRateType::TYPE_OVERTIME;
+                } elseif ($regType && $regType->isTimeInRange($curTime)) {
+                    $inputRateType = LoadingRateType::TYPE_REGULAR;
+                } else {
+                    $inputRateType = ($curTime >= '16:30:00' || $curTime < '08:00:00')
+                        ? LoadingRateType::TYPE_OVERTIME
+                        : LoadingRateType::TYPE_REGULAR;
+                }
+            }
+
+            $rateType = $inputRateType;
+            $rate = 0.0;
+
+            if ($customRate !== null && is_numeric($customRate)) {
+                $rate = (float) $customRate;
+            } else {
+                // Try to find active loading rate matching determined rate_type
+                $loadingRate = LoadingRate::where('item_code', $itemCode)
+                    ->where(function ($q) use ($inputRateType) {
+                        if ($inputRateType === LoadingRateType::TYPE_REGULAR) {
+                            $q->where('rate_type', LoadingRateType::TYPE_REGULAR)
+                              ->orWhere('rate_type', 'REGULAR')
+                              ->orWhere('rate_type', 'REGULER');
+                        } else {
+                            $q->where('rate_type', LoadingRateType::TYPE_OVERTIME)
+                              ->orWhere('rate_type', 'OVERTIME')
+                              ->orWhere('rate_type', 'LEMBUR');
+                        }
+                    })
+                    ->where('status', LoadingRate::STATUS_ACTIVE)
+                    ->first();
+
+                if ($loadingRate) {
+                    $rate = (float) $loadingRate->rate;
+                    $rateType = $loadingRate->rate_type;
+                    if (empty($itemName)) {
+                        $itemName = $loadingRate->item_name;
+                    }
+                    if (empty($uom) && !empty($loadingRate->uom)) {
+                        $uom = $loadingRate->uom;
+                    }
+                } else {
+                    // Fallback to any active loading rate for this item if specific type not defined
+                    $fallbackRate = LoadingRate::where('item_code', $itemCode)
+                        ->where('status', LoadingRate::STATUS_ACTIVE)
+                        ->first();
+                    if ($fallbackRate) {
+                        $rate = (float) $fallbackRate->rate;
+                        $rateType = $fallbackRate->rate_type;
+                        if (empty($itemName)) {
+                            $itemName = $fallbackRate->item_name;
+                        }
+                        if (empty($uom) && !empty($fallbackRate->uom)) {
+                            $uom = $fallbackRate->uom;
+                        }
+                    }
+                }
+            }
+
+            $lemburFee = round($qty * $rate, 2);
+            $totalLembur += $lemburFee;
+
+            $record = PicklistWorker::create([
+                'picklist_id' => $picklist->id,
+                'item_code'   => $itemCode,
+                'item_name'   => $itemName,
+                'worker_name' => $workerName,
+                'qty'         => $qty,
+                'uom'         => $uom,
+                'rate_type'   => $rateType,
+                'rate'        => $rate,
+                'lembur_fee'  => $lemburFee,
+                'notes'       => $notes,
+                'created_by'  => $userId,
+            ]);
+
+            $saved[] = $record;
+        }
+
+        return [
+            'workers'      => $this->formatWorkerList(collect($saved)),
+            'total_lembur' => round($totalLembur, 2),
+        ];
+    }
+
+    /**
+     * Format worker records into canonical response structure.
+     */
+    public function formatWorkerList($workers): array
+    {
+        $result = [];
+        foreach ($workers as $w) {
+            $result[] = [
+                'id'          => $w->id,
+                'item_code'   => (string) $w->item_code,
+                'item_name'   => $w->item_name,
+                'worker_name' => $w->worker_name,
+                'qty'         => (float) $w->qty,
+                'uom'         => $w->uom,
+                'rate_type'   => (string) $w->rate_type,
+                'rate'        => (float) $w->rate,
+                'lembur_fee'  => (float) $w->lembur_fee,
+            ];
+        }
+        return $result;
+    }
+
+    /**
      * Store signature image (Base64 data URI, raw base64, or UploadedFile) to public disk and S3.
      *
      * @param int $picklistId
@@ -2275,7 +2505,8 @@ class PicklistService
             if ($so && empty($so->docentry)) {
                 try {
                     $so->update(['docentry' => (int) $candidateBaseEntry, 'sap_doc_entry' => (string) $candidateBaseEntry]);
-                } catch (\Throwable $e) {}
+                } catch (\Throwable $e) {
+                }
             }
             return (int) $candidateBaseEntry;
         }
@@ -2359,18 +2590,26 @@ class PicklistService
      * @return array
      * @throws \Exception
      */
-    public function saveDraftProgress(int|Picklist $picklistOrId, array $payload = [], ?int $userId = null): array
+    public function saveDraftProgress(int|Picklist $picklistOrId, array $payload = [], ?int $userId = null, bool $isSubmit = false): array
     {
         $picklist = is_numeric($picklistOrId)
-            ? Picklist::with(['items.salesOrder', 'signatures'])->find($picklistOrId)
+            ? Picklist::with(['items.salesOrder', 'items.labelPhotos', 'signatures'])->find($picklistOrId)
             : $picklistOrId;
 
         if (!$picklist) {
             throw new \Exception("Picklist not found.", 404);
         }
 
-        if ($picklist->status === Picklist::STATUS_CANCELLED) {
+        $statusLower = strtolower(trim((string)$picklist->status));
+        if (in_array($statusLower, [Picklist::STATUS_CANCELED, 'cancelled', 'canceled'], true)) {
             throw new \Exception("Cannot save draft progress for a CANCELLED picklist.", 400);
+        }
+
+        // If this is a submit action, ensure weigh-in has been performed
+        if ($isSubmit) {
+            if ($statusLower === Picklist::STATUS_OPEN && (empty($picklist->weigh_in_weight) || (float) $picklist->weigh_in_weight <= 0)) {
+                throw new \Exception("Truk belum melakukan timbang masuk (weigh_in). Harap lakukan proses timbang masuk terlebih dahulu.", 422);
+            }
         }
 
         // 1. Merge checker names (e.g. ROCHIM + NANANG -> ROCHIM/NANANG) or set edited value
@@ -2404,15 +2643,16 @@ class PicklistService
             $picklist->seal_number = $incomingNoseal;
         }
 
-        // Advance status from OPEN to IN_PROGRESS
-        if ($picklist->status === Picklist::STATUS_OPEN) {
+        // Advance status from OPEN or WEIGH_IN to IN_PROGRESS
+        if (in_array($statusLower, [Picklist::STATUS_OPEN, Picklist::STATUS_WEIGH_IN, 'open', 'weigh_in'], true)) {
             $picklist->status = Picklist::STATUS_IN_PROGRESS;
         }
         $picklist->updated_by = $userId;
         $picklist->save();
 
-        // 2. Save signatures if provided (uses updateOrCreate to accumulate multiple checkers)
+        // 2. Save signatures and workers if provided
         $savedSignatures = $this->savePicklistSignatures($picklist, $payload, $userId);
+        $savedWorkers = $this->savePicklistWorkers($picklist, $payload, $userId);
 
         // 3. Process item checklists
         $lines = $payload['items'] ?? $payload['Lines'] ?? $payload['lines'] ?? [];
@@ -2515,21 +2755,105 @@ class PicklistService
                         ? trim((string) $line['checked_by_checker'])
                         : $activeCheckerName;
 
-                    $targetItem->update([
+                    $itemUpdateData = [
                         'checked_qty'        => $checkedQty,
                         'is_checked'         => $isChecked,
                         'checked_by_checker' => $checkerForThisLine,
                         'checked_at'         => now(),
-                    ]);
+                    ];
+
+                    // KPI fields
+                    $startTime = $line['start_time'] ?? $line['startTime'] ?? $line['jam_mulai'] ?? null;
+                    if (!empty($startTime)) {
+                        $itemUpdateData['start_time'] = Carbon::parse($startTime);
+                    }
+                    $endTime = $line['end_time'] ?? $line['endTime'] ?? $line['jam_selesai'] ?? null;
+                    if (!empty($endTime)) {
+                        $itemUpdateData['end_time'] = Carbon::parse($endTime);
+                    }
+
+                    // Extract labels array (each containing production_date and label_photos)
+                    $lineLabels = $line['labels'] ?? $line['label'] ?? null;
+                    $prodDate = $line['production_date'] ?? $line['productionDate'] ?? $line['tanggal_produksi'] ?? $line['tgl_produksi'] ?? null;
+
+                    if (is_array($lineLabels) && !empty($lineLabels)) {
+                        // If line-level production_date is empty, get from the first label in the array
+                        if (empty($prodDate)) {
+                            foreach ($lineLabels as $lbl) {
+                                if (is_array($lbl)) {
+                                    $pDateCandidate = $lbl['production_date'] ?? $lbl['productionDate'] ?? $lbl['tanggal_produksi'] ?? $lbl['tgl_produksi'] ?? null;
+                                    if (!empty($pDateCandidate)) {
+                                        $prodDate = $pDateCandidate;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (!empty($prodDate)) {
+                        $itemUpdateData['production_date'] = Carbon::parse($prodDate)->format('Y-m-d');
+                    }
+
+                    $targetItem->update($itemUpdateData);
+
+                    // Save label photos for this line if provided
+                    if (is_array($lineLabels) && !empty($lineLabels)) {
+                        foreach ($lineLabels as $lbl) {
+                            if (is_array($lbl)) {
+                                $lblProdDate = $lbl['production_date'] ?? $lbl['productionDate'] ?? $lbl['tanggal_produksi'] ?? $lbl['tgl_produksi'] ?? null;
+                                $lblPhotos = $lbl['label_photos'] ?? $lbl['labelPhotos'] ?? $lbl['photos'] ?? $lbl['gambar_label'] ?? $lbl['foto_label'] ?? null;
+                                if (!empty($lblPhotos)) {
+                                    $this->savePicklistItemLabelPhotos($picklist->id, $targetItem->id, $lblPhotos, $userId, $lblProdDate);
+                                }
+                            }
+                        }
+                    } else {
+                        // Legacy flat label_photos on line
+                        $linePhotos = $line['label_photos'] ?? $line['labelPhotos'] ?? $line['photos'] ?? $line['gambar_label'] ?? $line['foto_label'] ?? null;
+                        if (!empty($linePhotos)) {
+                            $this->savePicklistItemLabelPhotos($picklist->id, $targetItem->id, $linePhotos, $userId, $prodDate);
+                        }
+                    }
 
                     $updatedItemIds[] = $targetItem->id;
                 }
             }
         }
 
-        $freshPicklist = $picklist->fresh(['items.salesOrder', 'creator', 'updater', 'signatures']);
+        // Support root-level photos indexed by picklist_item_id or keyed by item id
+        $rootPhotos = $payload['label_photos'] ?? $payload['labelPhotos'] ?? $payload['item_photos'] ?? null;
+        if (is_array($rootPhotos) && !empty($rootPhotos)) {
+            foreach ($rootPhotos as $rKey => $rItem) {
+                if (is_array($rItem) && !empty($rItem['picklist_item_id'])) {
+                    $pPhotos = $rItem['photos'] ?? $rItem['images'] ?? $rItem['photo'] ?? $rItem['image'] ?? $rItem['label_photos'] ?? null;
+                    if (!empty($pPhotos)) {
+                        $this->savePicklistItemLabelPhotos($picklist->id, (int)$rItem['picklist_item_id'], $pPhotos, $userId);
+                    }
+                } elseif (is_numeric($rKey) && !empty($rItem)) {
+                    $this->savePicklistItemLabelPhotos($picklist->id, (int)$rKey, $rItem, $userId);
+                }
+            }
+        }
+
+        $freshPicklist = $picklist->fresh(['items.salesOrder', 'items.labelPhotos', 'creator', 'updater', 'signatures', 'workers']);
         $totalItems = $freshPicklist->items->count();
         $checkedItemsCount = $freshPicklist->items->where('is_checked', true)->count();
+        $isFullyChecked = $totalItems > 0 && $checkedItemsCount >= $totalItems;
+
+        $msg = 'Draft picklist progress successfully saved.';
+
+        if ($isSubmit) {
+            if ($isFullyChecked) {
+                $freshPicklist->status = Picklist::STATUS_WEIGH_OUT;
+                $freshPicklist->save();
+                $msg = 'Pemeriksaan selesai. Seluruh item telah diverifikasi checker. Status picklist berubah menjadi weigh_out.';
+            } else {
+                $freshPicklist->status = Picklist::STATUS_IN_PROGRESS;
+                $freshPicklist->save();
+                $msg = 'Pemeriksaan sebagian item berhasil disimpan. Menunggu checker lainnya untuk menyelesaikan sisa item.';
+            }
+        }
 
         return [
             'picklist_id'       => $freshPicklist->id,
@@ -2539,11 +2863,1300 @@ class PicklistService
             'driver_name'       => $freshPicklist->driver_name,
             'total_items'       => $totalItems,
             'checked_items'     => $checkedItemsCount,
-            'is_fully_checked'  => $totalItems > 0 && $checkedItemsCount >= $totalItems,
+            'is_fully_checked'  => $isFullyChecked,
             'updated_items'     => count($updatedItemIds),
             'signatures'        => $savedSignatures,
-            'message'           => 'Draft picklist progress successfully saved.',
+            'workers'           => $savedWorkers['workers'],
+            'total_lembur'      => $savedWorkers['total_lembur'],
+            'message'           => $msg,
             'picklist'          => $freshPicklist,
         ];
     }
+
+    /**
+     * Submit Tare Weighing (Timbang Masuk / Kosong) for a picklist.
+     * Transitions status from open to weigh_in.
+     *
+     * @param int $picklistId
+     * @param array $payload
+     * @param int|null $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function submitWeighIn(int $picklistId, array $payload = [], ?int $userId = null): array
+    {
+        $picklist = Picklist::with(['items'])->find($picklistId);
+        if (!$picklist) {
+            throw new \Exception("Picklist with ID #{$picklistId} not found.", 404);
+        }
+
+        $statusLower = strtolower(trim((string)$picklist->status));
+        if (in_array($statusLower, [Picklist::STATUS_CANCELED, 'cancelled', 'canceled'], true)) {
+            throw new \Exception("Cannot process weigh-in for a CANCELLED picklist.", 400);
+        }
+
+        if (in_array($statusLower, [Picklist::STATUS_IN_PROGRESS, Picklist::STATUS_WEIGH_OUT, Picklist::STATUS_COMPLETE, 'complete', 'completed'], true)) {
+            throw new \Exception("Picklist is already {$picklist->status}. Cannot re-execute weigh-in.", 400);
+        }
+
+        $weight = (float) ($payload['weight'] ?? $payload['weigh_in_weight'] ?? 0);
+        if ($weight <= 0) {
+            throw new \Exception("Berat timbang masuk (weight) harus lebih besar dari 0 KG.", 422);
+        }
+
+        $user = $userId ? User::find($userId) : null;
+        $operator = !empty($payload['operator_name'])
+            ? trim((string) $payload['operator_name'])
+            : (!empty($payload['weigh_in_by']) ? trim((string) $payload['weigh_in_by']) : ($user?->name ?? 'Petugas Timbangan Masuk'));
+
+        $weighedAt = !empty($payload['weighed_at'])
+            ? Carbon::parse($payload['weighed_at'])
+            : (!empty($payload['weigh_in_at']) ? Carbon::parse($payload['weigh_in_at']) : now());
+
+        $ticketNo = !empty($payload['ticket_no'])
+            ? trim((string) $payload['ticket_no'])
+            : (!empty($payload['weigh_in_ticket_no']) ? trim((string) $payload['weigh_in_ticket_no']) : null);
+
+        $notes = !empty($payload['notes'])
+            ? trim((string) $payload['notes'])
+            : (!empty($payload['weigh_in_notes']) ? trim((string) $payload['weigh_in_notes']) : null);
+
+        $updateData = [
+            'status'             => Picklist::STATUS_WEIGH_IN,
+            'weigh_in_weight'    => $weight,
+            'weigh_in_ticket_no' => $ticketNo,
+            'weigh_in_by'        => $operator,
+            'weigh_in_at'        => $weighedAt,
+            'weigh_in_notes'     => $notes,
+            'updated_by'         => $userId,
+        ];
+
+        if (!empty($payload['license_plate'])) {
+            $updateData['license_plate'] = trim((string) $payload['license_plate']);
+        }
+        if (!empty($payload['driver_name'])) {
+            $updateData['driver_name'] = trim((string) $payload['driver_name']);
+        }
+
+        $picklist->update($updateData);
+
+        return [
+            'id'                 => $picklist->id,
+            'picklist_no'        => $picklist->picklist_no,
+            'status'             => $picklist->status,
+            'weigh_in_weight'    => (float) $picklist->weigh_in_weight,
+            'weigh_in_ticket_no' => $picklist->weigh_in_ticket_no,
+            'weigh_in_by'        => $picklist->weigh_in_by,
+            'weigh_in_at'        => $picklist->weigh_in_at?->toDateTimeString(),
+            'weigh_in_notes'     => $picklist->weigh_in_notes,
+            'license_plate'      => $picklist->license_plate,
+            'driver_name'        => $picklist->driver_name,
+            'picklist'           => $picklist->fresh(['items']),
+        ];
+    }
+
+    /**
+     * Submit Gross Weighing (Timbang Keluar / Isi) for a picklist.
+     * Calculates net weight, validates overload against vehicle limit,
+     * and triggers SAP AddDO if weight is valid.
+     *
+     * @param int $picklistId
+     * @param array $payload
+     * @param int|null $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function submitWeighOut(int $picklistId, array $payload = [], ?int $userId = null): array
+    {
+        $picklist = Picklist::with(['items.salesOrder', 'expedition'])->find($picklistId);
+        if (!$picklist) {
+            throw new \Exception("Picklist with ID #{$picklistId} not found.", 404);
+        }
+
+        $statusLower = strtolower(trim((string)$picklist->status));
+        if (in_array($statusLower, [Picklist::STATUS_CANCELED, 'cancelled', 'canceled'], true)) {
+            throw new \Exception("Cannot process weigh-out for a CANCELLED picklist.", 400);
+        }
+
+        if ($statusLower === Picklist::STATUS_OPEN) {
+            throw new \Exception("Truk belum melakukan timbang masuk (weigh_in) dan pemeriksaan checker.", 400);
+        }
+
+        if ($statusLower === Picklist::STATUS_WEIGH_IN || $statusLower === Picklist::STATUS_IN_PROGRESS) {
+            throw new \Exception("Pemeriksaan oleh checker gudang belum selesai. Status saat ini: {$picklist->status}.", 400);
+        }
+
+        if (empty($picklist->weigh_in_weight) || (float) $picklist->weigh_in_weight <= 0) {
+            throw new \Exception("Data timbang masuk (weigh_in_weight) belum tercatat untuk picklist ini.", 400);
+        }
+
+        $grossWeight = (float) ($payload['weight'] ?? $payload['weigh_out_weight'] ?? 0);
+        if ($grossWeight <= 0) {
+            throw new \Exception("Berat timbang keluar (weight) harus lebih besar dari 0 KG.", 422);
+        }
+
+        $tareWeight = (float) $picklist->weigh_in_weight;
+        $netWeight = round($grossWeight - $tareWeight, 4);
+
+        if ($netWeight <= 0) {
+            throw new \Exception("Berat timbang keluar ({$grossWeight} KG) harus lebih besar dari berat timbang masuk ({$tareWeight} KG).", 422);
+        }
+
+        $user = $userId ? User::find($userId) : null;
+        $operator = !empty($payload['operator_name'])
+            ? trim((string) $payload['operator_name'])
+            : (!empty($payload['weigh_out_by']) ? trim((string) $payload['weigh_out_by']) : ($user?->name ?? 'Petugas Timbangan Keluar'));
+
+        $weighedAt = !empty($payload['weighed_at'])
+            ? Carbon::parse($payload['weighed_at'])
+            : (!empty($payload['weigh_out_at']) ? Carbon::parse($payload['weigh_out_at']) : now());
+
+        $ticketNo = !empty($payload['ticket_no'])
+            ? trim((string) $payload['ticket_no'])
+            : (!empty($payload['weigh_out_ticket_no']) ? trim((string) $payload['weigh_out_ticket_no']) : null);
+
+        $notes = !empty($payload['notes'])
+            ? trim((string) $payload['notes'])
+            : (!empty($payload['weigh_out_notes']) ? trim((string) $payload['weigh_out_notes']) : null);
+
+        $manifestWeight = (float) $picklist->total_weight;
+        $weightLimit = (float) $picklist->total_weight_limit;
+
+        // Check overload: if weight limit exists and net weight exceeds limit
+        $isOverload = false;
+        $overloadDiff = 0.0;
+
+        if ($weightLimit > 0 && $netWeight > $weightLimit) {
+            $isOverload = true;
+            $overloadDiff = round($netWeight - $weightLimit, 2);
+        }
+
+        $checkStatus = $isOverload ? 'overload' : 'sesuai';
+
+        $picklist->update([
+            'weigh_out_weight'     => $grossWeight,
+            'weigh_out_net_weight' => $netWeight,
+            'weigh_out_ticket_no'  => $ticketNo,
+            'weigh_out_by'         => $operator,
+            'weigh_out_at'         => $weighedAt,
+            'weigh_out_notes'      => $notes,
+            'weight_check_status'  => $checkStatus,
+            'updated_by'           => $userId,
+        ]);
+
+        $weightSummary = [
+            'gross_weight'        => $grossWeight,
+            'tare_weight'         => $tareWeight,
+            'net_weight'          => $netWeight,
+            'manifest_weight'     => $manifestWeight,
+            'weight_difference'   => round($netWeight - $manifestWeight, 2),
+            'weight_limit'        => $weightLimit,
+            'weight_check_status' => $checkStatus,
+        ];
+
+        if ($isOverload) {
+            $picklist->update([
+                'status' => Picklist::STATUS_OVERLOAD,
+            ]);
+
+            $itemsSnapshot = $picklist->items->map(function ($item) {
+                return [
+                    'id'           => (int) $item->id,
+                    'item_code'    => (string) $item->item_code,
+                    'item_name'    => (string) $item->item_name,
+                    'whs_code'     => (string) ($item->whs_code ?? ''),
+                    'uom'          => (string) ($item->unit_msr ?? $item->uom ?? 'KG'),
+                    'pick_qty'     => (float) $item->pick_qty,
+                    'unit_weight'  => (float) $item->unit_weight,
+                    'total_weight' => (float) $item->total_weight,
+                ];
+            })->values()->toArray();
+
+            $overloadRecord = PicklistOverload::create([
+                'picklist_id'      => $picklist->id,
+                'picklist_no'      => $picklist->picklist_no,
+                'gross_weight'     => $grossWeight,
+                'tare_weight'      => $tareWeight,
+                'net_weight'       => $netWeight,
+                'weight_limit'     => $weightLimit,
+                'overload_weight'  => $overloadDiff,
+                'ticket_no'        => $ticketNo,
+                'operator_name'    => $operator,
+                'rejection_reason' => $notes ?: "Terjadi kelebihan muatan (Overload) sebesar " . number_format($overloadDiff, 2) . " KG melebihi kapasitas armada.",
+                'status'           => PicklistOverload::STATUS_PENDING_ADJUSTMENT,
+                'items_snapshot'   => $itemsSnapshot,
+                'weighed_at'       => $weighedAt,
+                'created_by'       => $userId,
+                'updated_by'       => $userId,
+            ]);
+
+            $freshPicklist = $picklist->fresh(['items']);
+
+            return [
+                'success'         => false,
+                'is_overload'     => true,
+                'message'         => "Peringatan: Terjadi kelebihan muatan (Overload) sebesar " . number_format($overloadDiff, 2) . " KG melebihi kapasitas armada. Delivery Order belum dapat dibuat.",
+                'picklist_id'     => $freshPicklist->id,
+                'picklist_no'     => $freshPicklist->picklist_no,
+                'status'          => $freshPicklist->status,
+                'weight_summary'  => $weightSummary,
+                'overload_record' => $overloadRecord,
+                'delivery_order'  => null,
+                'action_required' => 'Harap kurangi muatan di gudang atau lakukan penyesuaian muatan dengan Checker terlebih dahulu.',
+                'picklist'        => $freshPicklist,
+            ];
+        }
+
+        // Muatan sesuai -> Trigger AddDO to SAP B1
+        $doResult = $this->addDeliveryOrder($picklistId, array_merge($payload, ['force_sap_do' => true]), $userId);
+
+        $freshPicklist = $picklist->fresh(['items.salesOrder', 'signatures']);
+
+        return [
+            'success'             => true,
+            'is_overload'         => false,
+            'message'             => "Timbang keluar berhasil dan muatan sesuai. Delivery Order berhasil dibuat di SAP B1.",
+            'picklist_id'         => $freshPicklist->id,
+            'picklist_no'         => $freshPicklist->picklist_no,
+            'status'              => $freshPicklist->status,
+            'weight_summary'      => $weightSummary,
+            'delivery_order'      => [
+                'do_doc_num'        => $freshPicklist->do_doc_num,
+                'do_doc_entry'      => $freshPicklist->do_doc_entry,
+                'delivery_order_no' => $freshPicklist->delivery_order_no,
+                'do_status'         => $freshPicklist->do_status,
+            ],
+            'weigh_out_ticket_no' => $freshPicklist->weigh_out_ticket_no,
+            'weigh_out_by'        => $freshPicklist->weigh_out_by,
+            'weigh_out_at'        => $freshPicklist->weigh_out_at?->toDateTimeString(),
+            'sap_results'         => $doResult['results'] ?? [],
+            'picklist'            => $freshPicklist,
+        ];
+    }
+
+    /**
+     * Save label photos for a specific picklist item.
+     *
+     * @param int $picklistId
+     * @param int $itemId
+     * @param mixed $photos
+     * @param int|null $userId
+     * @return array
+     */
+    public function savePicklistItemLabelPhotos(int $picklistId, int $itemId, mixed $photos, ?int $userId = null, ?string $productionDate = null): array
+    {
+        if (empty($photos)) {
+            return [];
+        }
+
+        // Decode JSON-encoded string if provided (e.g. from FormData)
+        if (is_string($photos) && (str_starts_with(trim($photos), '[') || str_starts_with(trim($photos), '{'))) {
+            $decoded = json_decode($photos, true);
+            if (is_array($decoded)) {
+                $photos = $decoded;
+            }
+        }
+
+        if (!is_array($photos)) {
+            $photos = [$photos];
+        }
+
+        $saved = [];
+        $index = 1;
+
+        foreach ($photos as $photoItem) {
+            $photoData = is_array($photoItem) ? ($photoItem['photo'] ?? $photoItem['image'] ?? $photoItem['file'] ?? $photoItem['data'] ?? null) : $photoItem;
+            $caption = is_array($photoItem) ? ($photoItem['caption'] ?? $photoItem['notes'] ?? null) : null;
+            $itemProdDate = is_array($photoItem) ? ($photoItem['production_date'] ?? $photoItem['productionDate'] ?? null) : null;
+            $effProdDate = $itemProdDate ?: $productionDate;
+            $formattedProdDate = null;
+            if (!empty($effProdDate)) {
+                try {
+                    $formattedProdDate = Carbon::parse($effProdDate)->format('Y-m-d');
+                } catch (\Throwable $e) {
+                }
+            }
+
+            if (empty($photoData)) {
+                continue;
+            }
+
+            $storedPath = $this->storeLabelPhotoImage($picklistId, $itemId, $index, $photoData);
+            if ($storedPath) {
+                $fileName = basename($storedPath);
+                $fileSize = null;
+                $mimeType = 'image/jpeg';
+
+                if (str_ends_with(strtolower($fileName), '.png')) {
+                    $mimeType = 'image/png';
+                } elseif (str_ends_with(strtolower($fileName), '.webp')) {
+                    $mimeType = 'image/webp';
+                }
+
+                try {
+                    if (Storage::disk('public')->exists($storedPath)) {
+                        $fileSize = Storage::disk('public')->size($storedPath);
+                    }
+                } catch (\Throwable $e) {
+                }
+
+                $photoModel = PicklistItemLabelPhoto::create([
+                    'picklist_id'      => $picklistId,
+                    'picklist_item_id' => $itemId,
+                    'photo_path'       => $storedPath,
+                    'file_name'        => $fileName,
+                    'file_size'        => $fileSize,
+                    'mime_type'        => $mimeType,
+                    'caption'          => $caption,
+                    'production_date'  => $formattedProdDate,
+                    'created_by'       => $userId,
+                ]);
+
+                $saved[] = $photoModel;
+                $index++;
+            }
+        }
+
+        return $saved;
+    }
+
+    /**
+     * Store label photo image to public storage and sync to S3.
+     *
+     * @param int $picklistId
+     * @param int $itemId
+     * @param int $index
+     * @param mixed $photoData
+     * @return string|null
+     */
+    protected function storeLabelPhotoImage(int $picklistId, int $itemId, int $index, mixed $photoData): ?string
+    {
+        $dir = "label_photos/picklists/{$picklistId}/item_{$itemId}";
+        $timestamp = time() . '_' . substr(md5(uniqid()), 0, 6);
+        $s3Bucket = config('filesystems.disks.s3.bucket');
+        $preferS3 = !empty($s3Bucket) && env('SIGNATURE_STORAGE_DISK', 's3') === 's3';
+
+        if ($photoData instanceof \Illuminate\Http\UploadedFile) {
+            $ext = $photoData->getClientOriginalExtension() ?: 'jpg';
+            $filename = "{$dir}/lbl_{$picklistId}_{$itemId}_{$index}_{$timestamp}.{$ext}";
+
+            try {
+                if (!Storage::disk('public')->exists($dir)) {
+                    Storage::disk('public')->makeDirectory($dir);
+                }
+                Storage::disk('public')->putFileAs($dir, $photoData, basename($filename));
+            } catch (\Throwable $e) {
+                Log::warning("Failed to store label photo locally: " . $e->getMessage());
+            }
+
+            if ($preferS3) {
+                try {
+                    Storage::disk('s3')->putFileAs($dir, $photoData, basename($filename), 'public');
+                } catch (\Throwable $e) {
+                    Log::warning("Failed to store label photo to S3: " . $e->getMessage());
+                }
+            }
+
+            return $filename;
+        }
+
+        if (is_string($photoData)) {
+            $photoStr = trim($photoData);
+            if (empty($photoStr)) {
+                return null;
+            }
+
+            if (str_starts_with($photoStr, 'label_photos/') || str_starts_with($photoStr, 'http://') || str_starts_with($photoStr, 'https://')) {
+                return $photoStr;
+            }
+
+            if (str_starts_with($photoStr, 'data%3A') || str_contains($photoStr, '%2C')) {
+                $photoStr = urldecode($photoStr);
+            }
+
+            $ext = 'jpg';
+            $binary = false;
+
+            if (preg_match('/^data:image\/([a-zA-Z0-9\+\-\.]+);base64,(.+)$/is', $photoStr, $matches)) {
+                $rawExt = strtolower($matches[1]);
+                $ext = match ($rawExt) {
+                    'jpeg' => 'jpg',
+                    'svg+xml' => 'svg',
+                    default => $rawExt,
+                };
+                $cleanB64 = str_replace([' ', "\r", "\n", "\t"], ['+', '', '', ''], trim($matches[2]));
+                $binary = base64_decode($cleanB64);
+            } else {
+                $cleanB64 = str_replace([' ', "\r", "\n", "\t"], ['+', '', '', ''], $photoStr);
+                $binary = base64_decode($cleanB64);
+            }
+
+            if ($binary === false || empty($binary)) {
+                return null;
+            }
+
+            $filename = "{$dir}/lbl_{$picklistId}_{$itemId}_{$index}_{$timestamp}.{$ext}";
+
+            try {
+                if (!Storage::disk('public')->exists($dir)) {
+                    Storage::disk('public')->makeDirectory($dir);
+                }
+                Storage::disk('public')->put($filename, $binary);
+            } catch (\Throwable $e) {
+                Log::warning("Failed to store label photo locally: " . $e->getMessage());
+            }
+
+            if ($preferS3) {
+                try {
+                    Storage::disk('s3')->put($filename, $binary, 'public');
+                } catch (\Throwable $e) {
+                    Log::warning("Failed to store label photo to S3: " . $e->getMessage());
+                }
+            }
+
+            return $filename;
+        }
+
+        return null;
+    }
+
+    /**
+     * Preview label photo directly (allows standard <img> rendering).
+     *
+     * @param int $picklistId
+     * @param int $itemId
+     * @param int $photoId
+     * @return \Illuminate\Http\Response
+     */
+    public function previewLabelPhoto(int $picklistId, int $itemId, int $photoId)
+    {
+        $photo = PicklistItemLabelPhoto::where('picklist_id', $picklistId)
+            ->where('picklist_item_id', $itemId)
+            ->where('id', $photoId)
+            ->first();
+
+        if (!$photo || empty($photo->photo_path)) {
+            abort(404, 'Label photo not found.');
+        }
+
+        $path = $photo->photo_path;
+
+        if (str_starts_with($path, 'data:image/')) {
+            $parts = explode(',', $path, 2);
+            $mime = 'image/jpeg';
+            if (preg_match('/^data:(image\/[a-zA-Z0-9\+\-\.]+);/i', $parts[0], $m)) {
+                $mime = $m[1];
+            }
+            $binary = base64_decode($parts[1] ?? '');
+            return response($binary, 200, [
+                'Content-Type'  => $mime,
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+
+        if (config('filesystems.disks.s3.bucket') && Storage::disk('s3')->exists($path)) {
+            $mime = Storage::disk('s3')->mimeType($path) ?: ($photo->mime_type ?: 'image/jpeg');
+            return response(Storage::disk('s3')->get($path), 200, [
+                'Content-Type'  => $mime,
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+
+        if (Storage::disk('public')->exists($path)) {
+            $mime = Storage::disk('public')->mimeType($path) ?: ($photo->mime_type ?: 'image/jpeg');
+            return response(Storage::disk('public')->get($path), 200, [
+                'Content-Type'  => $mime,
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+
+        $localPath = storage_path('app/public/' . $path);
+        if (file_exists($localPath)) {
+            $mime = mime_content_type($localPath) ?: ($photo->mime_type ?: 'image/jpeg');
+            return response(file_get_contents($localPath), 200, [
+                'Content-Type'  => $mime,
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+
+        abort(404, 'Label photo file not found on disk.');
+    }
+
+    /**
+     * Record start time for a picklist item checklist (KPI).
+     *
+     * @param int|Picklist|null $picklistOrId
+     * @param int $itemId
+     * @param array $payload
+     * @param int|null $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function startItemTime(int|Picklist|null $picklistOrId, int $itemId, array $payload = [], ?int $userId = null): array
+    {
+        $picklist = null;
+        if ($picklistOrId instanceof Picklist) {
+            $picklist = $picklistOrId;
+        } elseif (is_numeric($picklistOrId) && (int) $picklistOrId > 0) {
+            $picklist = Picklist::find($picklistOrId);
+            if (!$picklist) {
+                throw new \Exception("Picklist with ID #{$picklistOrId} not found.", 404);
+            }
+        }
+
+        // Match target PicklistItem
+        $targetItem = null;
+        if ($picklist) {
+            $targetItem = PicklistItem::where('picklist_id', $picklist->id)
+                ->where(function ($q) use ($itemId) {
+                    $q->where('id', $itemId)
+                      ->orWhere('sales_order_detail_id', $itemId);
+                })
+                ->first();
+        }
+
+        if (!$targetItem) {
+            $targetItem = PicklistItem::find($itemId);
+            if ($targetItem && $picklist && (int) $targetItem->picklist_id !== (int) $picklist->id) {
+                throw new \Exception("Item #{$itemId} does not belong to Picklist #{$picklist->id}.", 400);
+            }
+        }
+
+        if (!$targetItem) {
+            throw new \Exception("Picklist item with ID #{$itemId} not found.", 404);
+        }
+
+        if (!$picklist) {
+            $picklist = Picklist::find($targetItem->picklist_id);
+            if (!$picklist) {
+                throw new \Exception("Picklist associated with item #{$itemId} not found.", 404);
+            }
+        }
+
+        $statusLower = strtolower(trim((string) $picklist->status));
+        if (in_array($statusLower, [Picklist::STATUS_CANCELED, 'cancelled', 'canceled'], true)) {
+            throw new \Exception("Cannot start item for a CANCELLED picklist.", 400);
+        }
+
+        if (in_array($statusLower, [Picklist::STATUS_COMPLETE, 'complete', 'completed'], true)) {
+            throw new \Exception("Cannot start item for an already COMPLETED picklist.", 400);
+        }
+
+        // Advance status from OPEN or WEIGH_IN to IN_PROGRESS
+        if (in_array($statusLower, [Picklist::STATUS_OPEN, Picklist::STATUS_WEIGH_IN, 'open', 'weigh_in'], true)) {
+            $picklist->status = Picklist::STATUS_IN_PROGRESS;
+            $picklist->updated_by = $userId;
+            $picklist->save();
+        }
+
+        // Determine start_time
+        $rawStartTime = $payload['start_time'] ?? $payload['startTime'] ?? $payload['jam_mulai'] ?? null;
+        $overwrite = filter_var($payload['overwrite'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+        if (!empty($rawStartTime)) {
+            $startTime = Carbon::parse($rawStartTime);
+        } elseif ($targetItem->start_time && !$overwrite) {
+            // Keep existing start_time so app minimizing / reopening does not reset the initial start timestamp
+            $startTime = $targetItem->start_time;
+        } else {
+            $startTime = now();
+        }
+
+        $targetItem->start_time = $startTime;
+
+        // Determine checker name
+        $incomingChecker = $payload['checker_name'] ?? $payload['checkerName'] ?? $payload['NamaChecker'] ?? $payload['nama_checker'] ?? ($payload['checked_by_checker'] ?? null);
+        if (!empty($incomingChecker)) {
+            $checkerStr = trim((string) $incomingChecker);
+            $targetItem->checked_by_checker = $checkerStr;
+
+            if (empty($picklist->checker_name)) {
+                $picklist->checker_name = $checkerStr;
+                $picklist->save();
+            } else {
+                $existingCheckers = array_filter(array_map('trim', explode('/', (string) $picklist->checker_name)));
+                if (!in_array($checkerStr, $existingCheckers, true)) {
+                    $existingCheckers[] = $checkerStr;
+                    $picklist->checker_name = implode('/', $existingCheckers);
+                    $picklist->save();
+                }
+            }
+        } elseif (empty($targetItem->checked_by_checker)) {
+            $user = $userId ? User::find($userId) : null;
+            if ($user?->name) {
+                $targetItem->checked_by_checker = $user->name;
+            }
+        }
+
+        $targetItem->save();
+
+        $freshItem = $targetItem->fresh();
+        $freshItem->makeHidden(['order_number', 'order_no']);
+
+        return [
+            'picklist_id'        => (int) $picklist->id,
+            'picklist_no'        => (string) $picklist->picklist_no,
+            'picklist_status'    => (string) $picklist->status,
+            'item_id'            => (int) $targetItem->id,
+            'sales_order_id'     => (int) $targetItem->sales_order_id,
+            'item_code'          => (string) $targetItem->item_code,
+            'item_name'          => (string) $targetItem->item_name,
+            'whs_code'           => (string) $targetItem->whs_code,
+            'uom'                => (string) ($targetItem->unit_msr ?? ''),
+            'start_time'         => $targetItem->start_time?->toDateTimeString(),
+            'checked_by_checker' => (string) ($targetItem->checked_by_checker ?? ''),
+            'is_checked'         => (bool) $targetItem->is_checked,
+            'item'               => $freshItem,
+        ];
+    }
+
+    /**
+     * Reject or cancel weigh-out due to overload and record to temporary overload table.
+     * Sets picklist status to 'overload'.
+     *
+     * @param int $picklistId
+     * @param array $payload
+     * @param int|null $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function rejectWeighOutOverload(int $picklistId, array $payload = [], ?int $userId = null): array
+    {
+        $picklist = Picklist::with(['items', 'expedition'])->find($picklistId);
+        if (!$picklist) {
+            throw new \Exception("Picklist with ID #{$picklistId} not found.", 404);
+        }
+
+        $statusLower = strtolower(trim((string)$picklist->status));
+        if (in_array($statusLower, [Picklist::STATUS_CANCELED, 'cancelled', 'canceled'], true)) {
+            throw new \Exception("Cannot reject weigh-out for a CANCELLED picklist.", 400);
+        }
+
+        if (empty($picklist->weigh_in_weight) || (float) $picklist->weigh_in_weight <= 0) {
+            throw new \Exception("Data timbang masuk (weigh_in_weight) belum tercatat untuk picklist ini.", 400);
+        }
+
+        $tareWeight = (float) $picklist->weigh_in_weight;
+        $grossWeight = (float) ($payload['weight'] ?? $payload['weigh_out_weight'] ?? $payload['gross_weight'] ?? $picklist->weigh_out_weight ?? 0);
+
+        if ($grossWeight <= 0) {
+            throw new \Exception("Berat timbang keluar (weight) harus diisi dan lebih besar dari 0 KG.", 422);
+        }
+
+        $netWeight = round($grossWeight - $tareWeight, 4);
+        if ($netWeight <= 0) {
+            throw new \Exception("Berat timbang keluar ({$grossWeight} KG) harus lebih besar dari berat timbang masuk ({$tareWeight} KG).", 422);
+        }
+
+        $user = $userId ? User::find($userId) : null;
+        $operator = !empty($payload['operator_name'])
+            ? trim((string) $payload['operator_name'])
+            : (!empty($payload['weigh_out_by']) ? trim((string) $payload['weigh_out_by']) : ($user?->name ?? 'Petugas Timbangan'));
+
+        $weighedAt = !empty($payload['weighed_at'])
+            ? Carbon::parse($payload['weighed_at'])
+            : (!empty($payload['weigh_out_at']) ? Carbon::parse($payload['weigh_out_at']) : now());
+
+        $ticketNo = !empty($payload['ticket_no'])
+            ? trim((string) $payload['ticket_no'])
+            : (!empty($payload['weigh_out_ticket_no']) ? trim((string) $payload['weigh_out_ticket_no']) : $picklist->weigh_out_ticket_no);
+
+        $notes = !empty($payload['rejection_reason'])
+            ? trim((string) $payload['rejection_reason'])
+            : (!empty($payload['notes']) ? trim((string) $payload['notes']) : 'Timbang keluar ditolak karena kelebihan muatan (Overload).');
+
+        $manifestWeight = (float) $picklist->total_weight;
+        $weightLimit = (float) $picklist->total_weight_limit;
+        $overloadDiff = ($weightLimit > 0 && $netWeight > $weightLimit) ? round($netWeight - $weightLimit, 2) : 0.0;
+
+        // Update picklist status to overload
+        $picklist->update([
+            'status'               => Picklist::STATUS_OVERLOAD,
+            'weigh_out_weight'     => $grossWeight,
+            'weigh_out_net_weight' => $netWeight,
+            'weigh_out_ticket_no'  => $ticketNo,
+            'weigh_out_by'         => $operator,
+            'weigh_out_at'         => $weighedAt,
+            'weigh_out_notes'      => $notes,
+            'weight_check_status'  => 'overload',
+            'updated_by'           => $userId,
+        ]);
+
+        $itemsSnapshot = $picklist->items->map(function ($item) {
+            return [
+                'id'           => (int) $item->id,
+                'item_code'    => (string) $item->item_code,
+                'item_name'    => (string) $item->item_name,
+                'whs_code'     => (string) ($item->whs_code ?? ''),
+                'uom'          => (string) ($item->unit_msr ?? $item->uom ?? 'KG'),
+                'pick_qty'     => (float) $item->pick_qty,
+                'unit_weight'  => (float) $item->unit_weight,
+                'total_weight' => (float) $item->total_weight,
+            ];
+        })->values()->toArray();
+
+        // Create temporary overload record
+        $overloadRecord = PicklistOverload::create([
+            'picklist_id'      => $picklist->id,
+            'picklist_no'      => $picklist->picklist_no,
+            'gross_weight'     => $grossWeight,
+            'tare_weight'      => $tareWeight,
+            'net_weight'       => $netWeight,
+            'weight_limit'     => $weightLimit,
+            'overload_weight'  => $overloadDiff,
+            'ticket_no'        => $ticketNo,
+            'operator_name'    => $operator,
+            'rejection_reason' => $notes,
+            'status'           => PicklistOverload::STATUS_PENDING_ADJUSTMENT,
+            'items_snapshot'   => $itemsSnapshot,
+            'weighed_at'       => $weighedAt,
+            'created_by'       => $userId,
+            'updated_by'       => $userId,
+        ]);
+
+        $weightSummary = [
+            'gross_weight'        => $grossWeight,
+            'tare_weight'         => $tareWeight,
+            'net_weight'          => $netWeight,
+            'manifest_weight'     => $manifestWeight,
+            'weight_difference'   => round($netWeight - $manifestWeight, 2),
+            'weight_limit'        => $weightLimit,
+            'weight_check_status' => 'overload',
+        ];
+
+        $freshPicklist = $picklist->fresh(['items']);
+
+        return [
+            'success'         => true,
+            'is_overload'     => true,
+            'message'         => "Timbang keluar berhasil ditolak karena Overload. Status picklist diubah menjadi 'overload'.",
+            'picklist_id'     => $freshPicklist->id,
+            'picklist_no'     => $freshPicklist->picklist_no,
+            'status'          => $freshPicklist->status,
+            'weight_summary'  => $weightSummary,
+            'overload_record' => $overloadRecord,
+            'delivery_order'  => null,
+            'action_required' => 'Harap kurangi muatan di gudang atau lakukan penyesuaian muatan dengan Checker terlebih dahulu.',
+            'picklist'        => $freshPicklist,
+        ];
+    }
+
+    /**
+     * Get overload details and temporary records for a picklist.
+     *
+     * @param int $picklistId
+     * @return array
+     * @throws \Exception
+     */
+    public function getOverloadDetail(int $picklistId): array
+    {
+        $picklist = Picklist::with([
+            'overloads' => function ($q) {
+                $q->orderBy('created_at', 'desc');
+            },
+            'items',
+        ])->find($picklistId);
+
+        if (!$picklist) {
+            throw new \Exception("Picklist with ID #{$picklistId} not found.", 404);
+        }
+
+        $latestOverload = $picklist->overloads->first();
+
+        return [
+            'picklist_id'          => (int) $picklist->id,
+            'picklist_no'          => (string) $picklist->picklist_no,
+            'status'               => (string) $picklist->status,
+            'weight_check_status'  => (string) ($picklist->weight_check_status ?? ''),
+            'total_weight_limit'   => (float) $picklist->total_weight_limit,
+            'weigh_in_weight'      => (float) $picklist->weigh_in_weight,
+            'weigh_out_weight'     => (float) $picklist->weigh_out_weight,
+            'weigh_out_net_weight' => (float) $picklist->weigh_out_net_weight,
+            'latest_overload'      => $latestOverload,
+            'history'              => $picklist->overloads,
+            'items'                => $picklist->items,
+        ];
+    }
+
+    /**
+     * Get list of all overload records with filters and pagination.
+     *
+     * @param array $filters
+     * @return array
+     */
+    public function getOverloads(array $filters = []): array
+    {
+        $query = PicklistOverload::with([
+            'picklist:id,picklist_no,shipping_type,license_plate,driver_name,checker_name,status,weight_check_status,total_weight_limit,total_weight,weigh_in_weight,weigh_out_weight,weigh_out_net_weight',
+        ]);
+
+        $like = $query->getConnection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+
+        if (!empty($filters['picklist_id'])) {
+            $query->where('picklist_id', $filters['picklist_id']);
+        }
+
+        if (!empty($filters['picklist_no'])) {
+            $query->where('picklist_no', $like, "%{$filters['picklist_no']}%");
+        }
+
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        if (!empty($filters['date_from'])) {
+            $query->whereDate('weighed_at', '>=', $filters['date_from']);
+        }
+
+        if (!empty($filters['date_to'])) {
+            $query->whereDate('weighed_at', '<=', $filters['date_to']);
+        }
+
+        if (!empty($filters['search'])) {
+            $search = trim((string) $filters['search']);
+            $query->where(function (Builder $q) use ($search, $like) {
+                $q->where('picklist_no', $like, "%{$search}%")
+                    ->orWhere('ticket_no', $like, "%{$search}%")
+                    ->orWhere('operator_name', $like, "%{$search}%")
+                    ->orWhere('rejection_reason', $like, "%{$search}%")
+                    ->orWhereHas('picklist', function (Builder $pq) use ($search, $like) {
+                        $pq->where('license_plate', $like, "%{$search}%")
+                            ->orWhere('driver_name', $like, "%{$search}%")
+                            ->orWhere('checker_name', $like, "%{$search}%");
+                    });
+            });
+        }
+
+        $perPage = (int) ($filters['per_page'] ?? 15);
+        if ($perPage <= 0) {
+            $items = $query->orderBy('id', 'desc')->get();
+            return [
+                'data' => $items,
+                'meta' => [
+                    'total' => $items->count(),
+                ],
+            ];
+        }
+
+        $perPage = max(1, min(100, $perPage));
+        $paginator = $query->orderBy('id', 'desc')->paginate($perPage);
+
+        return [
+            'data' => $paginator->items(),
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page'    => $paginator->lastPage(),
+                'per_page'     => $paginator->perPage(),
+                'total'        => $paginator->total(),
+            ],
+        ];
+    }
+
+    /**
+     * Adjust overloaded picklist by updating Sales Order in SAP (/api/editso)
+     * and syncing local SalesOrder, SalesOrderDetail, PicklistItem, and PicklistOverload.
+     *
+     * @param int $picklistId
+     * @param array $payload
+     * @param int|null $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function adjustOverload(int $picklistId, array $payload = [], ?int $userId = null): array
+    {
+        $picklist = Picklist::with(['items.salesOrder.details', 'overloads'])->find($picklistId);
+        if (!$picklist) {
+            throw new \Exception("Picklist with ID #{$picklistId} not found.", 404);
+        }
+
+        // Ambil Sales Order target
+        $targetSoId = $payload['sales_order_id'] ?? $payload['sales_order_Id'] ?? null;
+        $targetDocEntry = $payload['DocEntry'] ?? $payload['doc_entry'] ?? null;
+
+        $targetSo = null;
+        if (!empty($targetSoId)) {
+            $targetSo = SalesOrder::with(['details', 'distributor'])->find($targetSoId);
+        } elseif (!empty($targetDocEntry)) {
+            $targetSo = SalesOrder::with(['details', 'distributor'])
+                ->where(function ($q) use ($targetDocEntry) {
+                    $q->where('docentry', (int) $targetDocEntry)
+                      ->orWhere('sap_doc_entry', (int) $targetDocEntry);
+                })->first();
+        }
+
+        if (!$targetSo) {
+            // Coba ambil dari item picklist pertama yang memiliki sales order
+            $firstItemWithSo = $picklist->items->first(function ($it) {
+                return !empty($it->salesOrder);
+            });
+            $targetSo = $firstItemWithSo?->salesOrder;
+        }
+
+        if (!$targetSo) {
+            $firstSoId = $picklist->items->pluck('sales_order_id')->filter()->first();
+            if ($firstSoId) {
+                $targetSo = SalesOrder::with(['details', 'distributor'])->find($firstSoId);
+            }
+        }
+
+        if (!$targetSo) {
+            throw new \Exception("Sales Order terkait picklist #{$picklistId} tidak ditemukan.", 400);
+        }
+
+        $baseEntry = $this->resolveSalesOrderDocEntry($targetSo, $targetDocEntry);
+        if (empty($baseEntry)) {
+            throw new \Exception("Sales Order #{$targetSo->order_no} belum memiliki DocEntry SAP (belum terintegrasi ke SAP).", 400);
+        }
+
+        // Ambil list lines adjustment dari payload
+        $rawLines = $payload['Lines'] ?? $payload['lines'] ?? $payload['items'] ?? [];
+
+        // Buat mapping line adjustments jika ada
+        $soDetails = $targetSo->details ? $targetSo->details->sortBy('id')->values() : collect();
+        if ($soDetails->isEmpty()) {
+            throw new \Exception("Sales Order #{$targetSo->order_no} tidak memiliki rincian item (details).", 400);
+        }
+
+        $sapLines = [];
+        $appliedAdjustments = [];
+
+        foreach ($soDetails as $idx => $detail) {
+            // Cari apakah detail ini memiliki adjustment di payload
+            $adjustment = null;
+            if (is_array($rawLines) && !empty($rawLines)) {
+                $adjustment = collect($rawLines)->first(function ($rLine) use ($detail, $idx) {
+                    $rLineNum = $rLine['LineNum'] ?? $rLine['line_num'] ?? null;
+                    if ($rLineNum !== null && (int) $rLineNum === (int) ($detail->line_num ?? $detail->baseline ?? $idx)) {
+                        return true;
+                    }
+                    $rDetailId = $rLine['sales_order_detail_id'] ?? $rLine['detail_id'] ?? null;
+                    if ($rDetailId !== null && (int) $rDetailId === (int) $detail->id) {
+                        return true;
+                    }
+                    $rItemCode = trim((string) ($rLine['ItemCode'] ?? $rLine['item_code'] ?? ''));
+                    if (!empty($rItemCode) && strtolower($rItemCode) === strtolower(trim((string) $detail->item_code))) {
+                        return true;
+                    }
+                    return false;
+                });
+            }
+
+            $qty = ($adjustment !== null && isset($adjustment['Quantity']))
+                ? (float) $adjustment['Quantity']
+                : (($adjustment !== null && isset($adjustment['quantity']))
+                    ? (float) $adjustment['quantity']
+                    : (($adjustment !== null && isset($adjustment['pick_qty']))
+                        ? (float) $adjustment['pick_qty']
+                        : (float) $detail->quantity));
+
+            $unitPrice = ($adjustment !== null && isset($adjustment['UnitPrice']))
+                ? (float) $adjustment['UnitPrice']
+                : (float) $detail->unit_price;
+
+            $discPrcnt = ($adjustment !== null && isset($adjustment['DiscPrcnt']))
+                ? (float) $adjustment['DiscPrcnt']
+                : (($adjustment !== null && isset($adjustment['disc_percent']))
+                    ? (float) $adjustment['disc_percent']
+                    : (float) ($detail->disc_percent ?? 0.0));
+
+            $lineTotal = ($adjustment !== null && isset($adjustment['LineTotal']))
+                ? (float) $adjustment['LineTotal']
+                : round($qty * $unitPrice * (1 - ($discPrcnt / 100)), 2);
+
+            $lineNum = (int) ($detail->line_num ?? $detail->baseline ?? $idx);
+            $uomEntry = ($adjustment !== null && isset($adjustment['UomEntry']))
+                ? (int) $adjustment['UomEntry']
+                : ($detail->uom_entry ? (int) $detail->uom_entry : 1);
+            $unitMsr = ($adjustment !== null && !empty($adjustment['UnitMsr']))
+                ? (string) $adjustment['UnitMsr']
+                : (($adjustment !== null && !empty($adjustment['unit_msr']))
+                    ? (string) $adjustment['unit_msr']
+                    : ($detail->unit_msr ?? 'PCS'));
+            $whsCode = ($adjustment !== null && !empty($adjustment['WhsCode']))
+                ? (string) $adjustment['WhsCode']
+                : (($adjustment !== null && !empty($adjustment['whs_code']))
+                    ? (string) $adjustment['whs_code']
+                    : ($detail->whs_code ?? 'WHS-01'));
+            $vatGroup = ($adjustment !== null && !empty($adjustment['VatGroup']))
+                ? (string) $adjustment['VatGroup']
+                : (($adjustment !== null && !empty($adjustment['vat_group']))
+                    ? (string) $adjustment['vat_group']
+                    : ($detail->vat_group ?? 'PPN11'));
+            $taxCode = ($adjustment !== null && !empty($adjustment['TaxCode']))
+                ? (string) $adjustment['TaxCode']
+                : (($adjustment !== null && !empty($adjustment['tax_code']))
+                    ? (string) $adjustment['tax_code']
+                    : $vatGroup);
+            $ocrCode = ($adjustment !== null && isset($adjustment['OcrCode']))
+                ? (string) $adjustment['OcrCode']
+                : ($detail->ocr_code ?? '');
+            $ocrCode2 = ($adjustment !== null && isset($adjustment['OcrCode2']))
+                ? (string) $adjustment['OcrCode2']
+                : ($detail->ocr_code2 ?? '');
+            $ocrCode3 = ($adjustment !== null && isset($adjustment['OcrCode3']))
+                ? (string) $adjustment['OcrCode3']
+                : ($detail->ocr_code3 ?? '');
+
+            $sapLines[] = [
+                'LineNum'   => $lineNum,
+                'ItemCode'  => (string) $detail->item_code,
+                'Quantity'  => (float) $qty,
+                'WhsCode'   => (string) $whsCode,
+                'UomEntry'  => (int) $uomEntry,
+                'UnitMsr'   => (string) $unitMsr,
+                'LineTotal' => (float) $lineTotal,
+                'VatGroup'  => (string) $vatGroup,
+                'TaxCode'   => (string) $taxCode,
+                'DiscPrcnt' => (float) $discPrcnt,
+                'OcrCode'   => (string) $ocrCode,
+                'OcrCode2'  => (string) $ocrCode2,
+                'OcrCode3'  => (string) $ocrCode3,
+            ];
+
+            $appliedAdjustments[] = [
+                'detail_id' => $detail->id,
+                'item_code' => $detail->item_code,
+                'quantity'  => $qty,
+                'line_total'=> $lineTotal,
+                'whs_code'  => $whsCode,
+                'unit_msr'  => $unitMsr,
+                'line_num'  => $lineNum,
+            ];
+        }
+
+        // Handle possible new lines with LineNum = -1
+        if (is_array($rawLines)) {
+            foreach ($rawLines as $rLine) {
+                $rLineNum = $rLine['LineNum'] ?? $rLine['line_num'] ?? null;
+                if ((int) $rLineNum === -1) {
+                    $itemCode = (string) ($rLine['ItemCode'] ?? $rLine['item_code'] ?? '');
+                    $qty = (float) ($rLine['Quantity'] ?? $rLine['quantity'] ?? 0);
+                    $whsCode = (string) ($rLine['WhsCode'] ?? $rLine['whs_code'] ?? 'WHS-01');
+                    $uomEntry = (int) ($rLine['UomEntry'] ?? $rLine['uom_entry'] ?? 1);
+                    $unitMsr = (string) ($rLine['UnitMsr'] ?? $rLine['unit_msr'] ?? 'PCS');
+                    $lineTotal = (float) ($rLine['LineTotal'] ?? $rLine['line_total'] ?? 0);
+                    $vatGroup = (string) ($rLine['VatGroup'] ?? $rLine['vat_group'] ?? 'PPN11');
+                    $taxCode = (string) ($rLine['TaxCode'] ?? $rLine['tax_code'] ?? $vatGroup);
+                    $discPrcnt = (float) ($rLine['DiscPrcnt'] ?? $rLine['disc_percent'] ?? 0);
+                    $ocrCode = (string) ($rLine['OcrCode'] ?? $rLine['ocr_code'] ?? '');
+                    $ocrCode2 = (string) ($rLine['OcrCode2'] ?? $rLine['ocr_code2'] ?? '');
+                    $ocrCode3 = (string) ($rLine['OcrCode3'] ?? $rLine['ocr_code3'] ?? '');
+
+                    $sapLines[] = [
+                        'LineNum'   => -1,
+                        'ItemCode'  => $itemCode,
+                        'Quantity'  => $qty,
+                        'WhsCode'   => $whsCode,
+                        'UomEntry'  => $uomEntry,
+                        'UnitMsr'   => $unitMsr,
+                        'LineTotal' => $lineTotal,
+                        'VatGroup'  => $vatGroup,
+                        'TaxCode'   => $taxCode,
+                        'DiscPrcnt' => $discPrcnt,
+                        'OcrCode'   => $ocrCode,
+                        'OcrCode2'  => $ocrCode2,
+                        'OcrCode3'  => $ocrCode3,
+                    ];
+                }
+            }
+        }
+
+        $sumLines = array_sum(array_column($sapLines, 'LineTotal'));
+        $discountPercent = (float) ($payload['DiscountPercent'] ?? $payload['disc_percent'] ?? $targetSo->disc_percent ?? 0.0);
+        $docTotal = isset($payload['DocTotal'])
+            ? (float) $payload['DocTotal']
+            : round($sumLines * (1 - ($discountPercent / 100)), 2);
+
+        $docDateStr = !empty($payload['DocDate'])
+            ? (string) $payload['DocDate']
+            : ($targetSo->doc_date ? Carbon::parse($targetSo->doc_date)->format('Y-m-d\T00:00:00') : now()->format('Y-m-d\T00:00:00'));
+
+        $docDueDateStr = !empty($payload['DocDueDate'])
+            ? (string) $payload['DocDueDate']
+            : ($targetSo->doc_due_date ? Carbon::parse($targetSo->doc_due_date)->format('Y-m-d\T00:00:00') : now()->format('Y-m-d\T00:00:00'));
+
+        $commentsStr = !empty($payload['Comments'])
+            ? (string) $payload['Comments']
+            : (!empty($payload['comments']) ? (string) $payload['comments'] : ($targetSo->comments ?? 'Update muatan overload'));
+
+        $user = $userId ? User::find($userId) : null;
+        $operatorUsername = $user?->username ?? $user?->name ?? 'admin01';
+
+        $sapPayload = [
+            'DocEntry'        => (int) $baseEntry,
+            'NumAtCard'       => (string) ($payload['NumAtCard'] ?? $targetSo->po_number ?? ''),
+            'DocDate'         => $docDateStr,
+            'DocDueDate'      => $docDueDateStr,
+            'SlpCode'         => (int) ($payload['SlpCode'] ?? $targetSo->slp_code ?? 0),
+            'CntctCode'       => (int) ($payload['CntctCode'] ?? $targetSo->cntct_code ?? 0),
+            'PayToCode'       => (string) ($payload['PayToCode'] ?? $targetSo->pay_to_code ?? ''),
+            'Address'         => (string) ($payload['Address'] ?? $targetSo->address ?? ''),
+            'ShipToCode'      => (string) ($payload['ShipToCode'] ?? $targetSo->ship_to_code ?? ''),
+            'Address2'        => (string) ($payload['Address2'] ?? $targetSo->address2 ?? ''),
+            'Comments'        => $commentsStr,
+            'DiscountPercent' => (float) $discountPercent,
+            'DocTotal'        => (float) $docTotal,
+            'IdDiskon'        => $payload['IdDiskon'] ?? $payload['id_discount'] ?? $targetSo->id_discount ?? null,
+            'AddonId'         => (string) ($payload['AddonId'] ?? 'ADDON-WEB-0981'),
+            'UserId'          => (string) ($payload['UserId'] ?? $operatorUsername),
+            'Lines'           => $sapLines,
+        ];
+
+        $sapUrl = rtrim(config('services.sap.url') ?: env('SAP_API_URL', 'http://103.18.133.187:3100'), '/');
+
+        try {
+            $response = Http::timeout(30)->post("{$sapUrl}/api/editso", $sapPayload);
+        } catch (\Throwable $e) {
+            Log::error("Failed to connect to SAP /api/editso for Picklist #{$picklistId}: " . $e->getMessage(), ['payload' => $sapPayload]);
+            throw new \Exception("Gagal menghubungi API SAP /api/editso: " . $e->getMessage(), 400);
+        }
+
+        if (!$response->successful()) {
+            $status = $response->status();
+            $body = $response->body();
+            Log::error("SAP /api/editso returned HTTP {$status} for Picklist #{$picklistId}: {$body}");
+            throw new \Exception("Gagal melakukan Update Sales Order di SAP (HTTP {$status}): " . substr($body, 0, 250), 400);
+        }
+
+        $sapResult = $response->json();
+        if (isset($sapResult['ErrorCode']) && (int) $sapResult['ErrorCode'] !== 0) {
+            $errMsg = $sapResult['Message'] ?? 'Unknown SAP error during UpdateSalesOrder.';
+            Log::error("SAP /api/editso returned ErrorCode {$sapResult['ErrorCode']} for Picklist #{$picklistId}: {$errMsg}");
+            throw new \Exception("SAP UpdateSalesOrder Error [{$sapResult['ErrorCode']}]: {$errMsg}", 400);
+        }
+
+        // Simpan log integrasi SAP
+        try {
+            SalesOrderIntegrationLog::create([
+                'sales_order_id' => $targetSo->id,
+                'request_json'   => json_encode($sapPayload),
+                'response_json'  => $response->body(),
+                'status'         => 'SUCCESS',
+                'error_message'  => null,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning("Could not create SalesOrderIntegrationLog for SO #{$targetSo->id}: " . $e->getMessage());
+        }
+
+        // 1. Update Database Lokal: Sales Order Header
+        $targetSo->update([
+            'doc_total'          => $docTotal,
+            'comments'           => $commentsStr,
+            'disc_percent'       => $discountPercent,
+            'sap_last_synced_at' => now(),
+        ]);
+
+        // 2. Update Database Lokal: Sales Order Details
+        foreach ($appliedAdjustments as $adj) {
+            $detail = $soDetails->firstWhere('id', $adj['detail_id']);
+            if ($detail) {
+                $detail->update([
+                    'quantity'   => $adj['quantity'],
+                    'line_total' => $adj['line_total'],
+                    'whs_code'   => $adj['whs_code'],
+                    'unit_msr'   => $adj['unit_msr'],
+                    'line_num'   => $adj['line_num'],
+                ]);
+            }
+        }
+
+        // 3. Update Database Lokal: Picklist Items & Total Weight
+        foreach ($picklist->items as $pItem) {
+            $matchedAdj = collect($appliedAdjustments)->first(function ($adj) use ($pItem) {
+                if ($pItem->sales_order_detail_id && (int) $pItem->sales_order_detail_id === (int) $adj['detail_id']) {
+                    return true;
+                }
+                return strtolower(trim((string) $pItem->item_code)) === strtolower(trim((string) $adj['item_code']));
+            });
+
+            if ($matchedAdj) {
+                $newQty = (float) $matchedAdj['quantity'];
+                $unitWeight = (float) $pItem->unit_weight;
+                $pItem->update([
+                    'pick_qty'     => $newQty,
+                    'ordered_qty'  => $newQty,
+                    'total_weight' => round($newQty * $unitWeight, 4),
+                ]);
+            }
+        }
+
+        $freshItems = $picklist->items()->get();
+        $newPicklistTotalWeight = round((float) $freshItems->sum('total_weight'), 4);
+
+        // 4. Update Database Lokal: Picklist status & weight check
+        $picklist->update([
+            'status'               => Picklist::STATUS_WEIGH_OUT,
+            'total_weight'         => $newPicklistTotalWeight,
+            'weight_check_status'  => null,
+            'weigh_out_weight'     => null,
+            'weigh_out_net_weight' => null,
+            'weigh_out_notes'      => ($picklist->weigh_out_notes ? $picklist->weigh_out_notes . ' | ' : '') . 'Overload berhasil disesuaikan via SAP editso. Siap ditimbang keluar ulang.',
+            'updated_by'           => $userId,
+        ]);
+
+        // 5. Update Database Lokal: PicklistOverload record status -> RESOLVED
+        $overloadRecord = PicklistOverload::where('picklist_id', $picklist->id)
+            ->where('status', PicklistOverload::STATUS_PENDING_ADJUSTMENT)
+            ->latest('id')
+            ->first();
+
+        if (!$overloadRecord) {
+            $overloadRecord = PicklistOverload::where('picklist_id', $picklist->id)->latest('id')->first();
+        }
+
+        $actionTaken = !empty($payload['action_taken'])
+            ? trim((string) $payload['action_taken'])
+            : "Sales Order #{$targetSo->order_no} berhasil diperbarui di SAP (/api/editso). Total muatan picklist disesuaikan menjadi {$newPicklistTotalWeight} KG. Status picklist dikembalikan ke weigh_out siap timbang keluar ulang.";
+
+        if ($overloadRecord) {
+            $overloadRecord->update([
+                'status'       => PicklistOverload::STATUS_RESOLVED,
+                'action_taken' => $actionTaken,
+                'resolved_at'  => now(),
+                'resolved_by'  => $userId,
+                'updated_by'   => $userId,
+            ]);
+        }
+
+        $freshPicklist = $picklist->fresh(['items', 'overloads']);
+        $freshSo = $targetSo->fresh(['details']);
+
+        return [
+            'picklist_id'        => (int) $freshPicklist->id,
+            'picklist_no'        => (string) $freshPicklist->picklist_no,
+            'status'             => (string) $freshPicklist->status,
+            'total_weight'       => (float) $freshPicklist->total_weight,
+            'total_weight_limit' => (float) $freshPicklist->total_weight_limit,
+            'sales_order'        => [
+                'id'           => (int) $freshSo->id,
+                'order_no'     => (string) $freshSo->order_no,
+                'doc_entry'    => (int) $baseEntry,
+                'sap_doc_num'  => (string) ($freshSo->sap_doc_num ?? ''),
+                'doc_total'    => (float) $freshSo->doc_total,
+                'comments'     => (string) ($freshSo->comments ?? ''),
+                'disc_percent' => (float) $freshSo->disc_percent,
+                'lines'        => $freshSo->details->map(function ($d) {
+                    return [
+                        'id'         => (int) $d->id,
+                        'line_num'   => (int) ($d->line_num ?? $d->baseline ?? 0),
+                        'item_code'  => (string) $d->item_code,
+                        'quantity'   => (float) $d->quantity,
+                        'uom'        => (string) ($d->unit_msr ?? 'PCS'),
+                        'whs_code'   => (string) ($d->whs_code ?? ''),
+                        'line_total' => (float) $d->line_total,
+                    ];
+                })->values()->toArray(),
+            ],
+            'overload_record'    => $overloadRecord ? [
+                'id'           => (int) $overloadRecord->id,
+                'status'       => (string) $overloadRecord->status,
+                'action_taken' => (string) ($overloadRecord->action_taken ?? ''),
+                'resolved_at'  => $overloadRecord->resolved_at?->toDateTimeString(),
+            ] : null,
+            'sap_result'         => $sapResult['Result'] ?? $sapResult,
+        ];
+    }
 }
+
+
+

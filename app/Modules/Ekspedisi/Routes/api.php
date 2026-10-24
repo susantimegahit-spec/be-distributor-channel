@@ -6,6 +6,8 @@ use App\Modules\Ekspedisi\Controllers\WilayahController;
 use App\Modules\Ekspedisi\Controllers\MasterLeadtimeController;
 use App\Modules\Ekspedisi\Controllers\WarehouseOriginController;
 use App\Modules\Ekspedisi\Controllers\SapEkspedisiController;
+use App\Modules\Ekspedisi\Controllers\LoadingRateController;
+use App\Modules\Ekspedisi\Controllers\LoadingRateTypeController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/ekspedisi')->middleware('auth:sanctum')->group(function () {
@@ -42,6 +44,22 @@ Route::prefix('v1/ekspedisi')->middleware('auth:sanctum')->group(function () {
 
     // Master Leadtime (Logistics Route Benchmark Lead Time)
     Route::apiResource('leadtimes', MasterLeadtimeController::class);
+
+    // Upload & Template Master Ongkos Angkut Kuli (harus dideklarasikan sebelum apiResource agar tidak bentrok dengan {id})
+    Route::post('loading-rates/upload', [LoadingRateController::class, 'upload']);
+    Route::get('loading-rates/template', [LoadingRateController::class, 'template']);
+
+    // Master Ongkos Angkut Kuli (Loading Rates) & Jenis Perhitungan (Loading Rate Types: REGULAR / OVERTIME)
+    Route::apiResource('loading-rate-types', LoadingRateTypeController::class);
+    Route::apiResource('loading-rates', LoadingRateController::class);
+});
+
+// Logistic Alias Routes for Loading Rates & Rate Types
+Route::prefix('v1/logistic')->middleware('auth:sanctum')->group(function () {
+    Route::post('loading-rates/upload', [LoadingRateController::class, 'upload']);
+    Route::get('loading-rates/template', [LoadingRateController::class, 'template']);
+    Route::apiResource('loading-rate-types', LoadingRateTypeController::class);
+    Route::apiResource('loading-rates', LoadingRateController::class);
 });
 
 // Logistic & Sales Order Delivery Monitoring Routes
@@ -58,19 +76,40 @@ Route::prefix('v1/logistic/orders')->middleware('auth:sanctum')->group(function 
 Route::prefix('v1/logistic/picklists')->middleware('auth:sanctum')->group(function () {
     Route::get('/series', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'getSeries']);
     Route::get('/available-orders', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'availableOrders']);
+    Route::get('/overload', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'getAllOverloads']);
+    Route::get('/overloads', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'getAllOverloads']);
     Route::get('/', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'index']);
     Route::post('/', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'store']);
     Route::post('/add-do', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'directAddDo']);
     Route::post('/save-draft', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'saveDraft']);
+    Route::get('/worker-management', [\App\Modules\Ekspedisi\Controllers\PicklistWorkerManagementController::class, 'index']);
+    Route::get('/{id}/worker-management', [\App\Modules\Ekspedisi\Controllers\PicklistWorkerManagementController::class, 'show']);
     Route::get('/{id}', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'show']);
     Route::patch('/{id}/status', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'updateStatus']);
+    Route::post('/{id}/weigh-in', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'weighIn']);
+    Route::post('/{id}/weigh-out', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'weighOut']);
+    Route::post('/{id}/weigh-out/reject', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'rejectWeighOut']);
+    Route::get('/{id}/overload', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'getOverload']);
+    Route::post('/{id}/adjust-overload', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'adjustOverload']);
+    Route::post('/overload/{id}/adjust', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'adjustOverload']);
     Route::post('/{id}/add-do', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'addDo']);
     Route::post('/{id}/save-draft', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'saveDraft']);
     Route::post('/{id}/signatures', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'saveSignatures']);
     Route::get('/{id}/signatures/{signatureId}/preview', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'previewSignature']);
+    Route::get('/{id}/items/{itemId}/label-photos/{photoId}/preview', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'previewLabelPhoto']);
+    Route::post('/{id}/items/{itemId}/start-time', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'startItemTime']);
+    Route::post('/{id}/items/{itemId}/start', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'startItemTime']);
+    Route::post('/items/{itemId}/start-time', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'startItemTime']);
+    Route::post('/items/{itemId}/start', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'startItemTime']);
+    Route::post('/start-time', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'startItemTime']);
 });
 
-// Direct public preview for picklist signatures (allows standard <img> tag rendering without Bearer token header)
+// Dedicated Worker Management Routes
+Route::prefix('v1/logistic/worker-management')->middleware('auth:sanctum')->group(function () {
+    Route::get('/picklists', [\App\Modules\Ekspedisi\Controllers\PicklistWorkerManagementController::class, 'index']);
+    Route::get('/picklists/{id}', [\App\Modules\Ekspedisi\Controllers\PicklistWorkerManagementController::class, 'show']);
+});
+
+// Direct public preview for picklist signatures and label photos (allows standard <img> tag rendering without Bearer token header)
 Route::get('v1/logistic/picklists/{id}/signatures/{signatureId}/preview', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'previewSignature']);
-
-
+Route::get('v1/logistic/picklists/{id}/items/{itemId}/label-photos/{photoId}/preview', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'previewLabelPhoto']);

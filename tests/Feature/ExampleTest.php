@@ -43,4 +43,34 @@ class ExampleTest extends TestCase
         $response->assertStatus(200)
             ->assertHeader('Content-Type', 'text/yaml; charset=utf-8');
     }
+
+    public function test_docs_login_page_renders_pixel_art_template(): void
+    {
+        $response = $this->get('/docs/login');
+
+        $response->assertStatus(200);
+        $response->assertSee('SMESTA');
+        $response->assertSee('pixelScene');
+        $response->assertSee('NaCl • PIXEL ENGINE');
+        $response->assertSee('PT SUSANTI MEGAH');
+    }
+
+    public function test_docs_login_authentication_success_and_failure(): void
+    {
+        // Failed login
+        $failRes = $this->post('/docs/login', [
+            'username' => 'wrong',
+            'password' => 'wrong',
+        ]);
+        $failRes->assertRedirect('/docs/login');
+        $failRes->assertSessionHas('error');
+
+        // Success login
+        $successRes = $this->post('/docs/login', [
+            'username' => 'adminsm',
+            'password' => 'adminsm!',
+        ]);
+        $successRes->assertRedirect('/docs');
+        $successRes->assertSessionHas('docs_authenticated', true);
+    }
 }

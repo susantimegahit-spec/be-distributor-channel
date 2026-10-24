@@ -17,6 +17,8 @@ class UploadRepository implements UploadRepositoryInterface
             'batch_no' => $data['batch_no'],
             'file_name' => $data['file_name'],
             'uploaded_by' => $data['uploaded_by'] ?? null,
+            'distributor_ref_no' => $data['distributor_ref_no'] ?? null,
+            'depo' => $data['depo'] ?? null,
         ]);
     }
 
@@ -121,13 +123,14 @@ class UploadRepository implements UploadRepositoryInterface
                 'b.id as batch_id',
                 'b.id',
                 'b.batch_no',
+                'b.distributor_ref_no',
                 'b.file_name',
                 'b.uploaded_by',
                 'b.uploaded_at',
                 'd.code_customer as code_customer',
                 'd.name as customer_name',
                 'd.name as name_customer',
-                'd.depo as depo'
+                DB::raw('COALESCE(b.depo, d.depo) as depo')
             ])
             ->selectSub($totalRowsQuery->selectRaw('COUNT(*)'), 'total_rows')
             ->selectSub($validRowsQuery->selectRaw('COUNT(*)'), 'valid_rows')
@@ -260,6 +263,8 @@ class UploadRepository implements UploadRepositoryInterface
         return [
             'batch_id' => $batch->id,
             'batch_no' => $batch->batch_no,
+            'distributor_ref_no' => $batch->distributor_ref_no ?? null,
+            'depo' => $batch->depo ?? null,
             'file_name' => $batch->file_name,
             'uploaded_by' => $batch->uploaded_by,
             'uploaded_at' => $batch->uploaded_at,
@@ -286,6 +291,9 @@ class UploadRepository implements UploadRepositoryInterface
         if (!$batch) {
             return false;
         }
+        $uploadIds = TrxProgramUpload::where('batch_id', $id)->pluck('id');
+        \App\Models\TrxProgramResult::whereIn('upload_id', $uploadIds)->delete();
+        TrxProgramUpload::where('batch_id', $id)->delete();
         return (bool)$batch->delete();
     }
 }

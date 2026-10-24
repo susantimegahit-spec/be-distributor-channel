@@ -43,3 +43,14 @@ Route::prefix('v1/claims')->middleware('auth:sanctum')->group(function () {
     Route::get('/balance-ledger', [BalanceLedgerController::class, 'index']);
     Route::post('/balance-ledger/adjustment', [BalanceLedgerController::class, 'storeAdjustment']);
 });
+
+// External B2B API Routes for Distributor Claim Integration (API Key Auth)
+Route::prefix('v1/external/claims')
+    ->middleware([\App\Http\Middleware\AuthenticateDistributorApiKey::class, 'throttle:60,1'])
+    ->group(function () {
+        Route::post('/', [\App\Modules\Claim\Controllers\ExternalClaimController::class, 'store']);
+        Route::get('/batches', [\App\Modules\Claim\Controllers\ExternalClaimController::class, 'getBatches']);
+        Route::get('/batches/{identifier}', [\App\Modules\Claim\Controllers\ExternalClaimController::class, 'showBatch']);
+        Route::get('/programs', [\App\Modules\Claim\Controllers\ExternalClaimController::class, 'getPrograms']);
+    });
+

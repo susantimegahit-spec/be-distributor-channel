@@ -103,4 +103,9 @@ class HierarchyRepository implements HierarchyRepositoryInterface
     {
         return $list->update($data);
     }
+
+    public function deleteList(TmList $list): bool
+    {
+        return $list->delete();
+    }
 }

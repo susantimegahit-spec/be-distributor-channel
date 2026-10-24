@@ -7,6 +7,17 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1/purchasing-request')->group(function () {
     Route::get('/series', [PurchaseRequestController::class, 'getSeries']);
     Route::get('/items', [PurchaseRequestController::class, 'getItems']);
+    Route::match(['get', 'post'], '/departments', [PurchaseRequestController::class, 'getDepartments']);
+    Route::match(['get', 'post'], '/draft-pr', [PurchaseRequestController::class, 'getDraftPR']);
+    Route::match(['get', 'post'], '/drafts', [PurchaseRequestController::class, 'getDraftPR']);
+    Route::match(['get', 'post'], '/get-draft-pr', [PurchaseRequestController::class, 'getDraftPR']);
+    Route::match(['get', 'post'], '/generated', [PurchaseRequestController::class, 'getListPRGenerated']);
+    Route::match(['get', 'post'], '/list-pr-generated', [PurchaseRequestController::class, 'getListPRGenerated']);
+    Route::match(['get', 'post'], '/get-list-pr-generated', [PurchaseRequestController::class, 'getListPRGenerated']);
+    Route::match(['get', 'post'], '/close-pr', [PurchaseRequestController::class, 'closePR']);
+    Route::match(['get', 'post'], '/close', [PurchaseRequestController::class, 'closePR']);
+    Route::match(['get', 'post'], '/cancel-pr', [PurchaseRequestController::class, 'cancelPR']);
+    Route::match(['get', 'post'], '/cancel', [PurchaseRequestController::class, 'cancelPR']);
     Route::get('/requests', [PurchaseRequestController::class, 'index']);
     Route::post('/requests', [PurchaseRequestController::class, 'store']);
     Route::post('/add-pr', [PurchaseRequestController::class, 'store']);
@@ -19,3 +30,15 @@ Route::prefix('v1/purchasing-request')->group(function () {
 });
 
 Route::get('v1/document-types', [DocumentTypeController::class, 'index']);
+Route::match(['get', 'post'], 'v1/departments', [PurchaseRequestController::class, 'getDepartments']);
+Route::match(['get', 'post'], 'v1/draft-pr', [PurchaseRequestController::class, 'getDraftPR']);
+Route::match(['get', 'post'], 'v1/get-draft-pr', [PurchaseRequestController::class, 'getDraftPR']);
+Route::match(['get', 'post'], 'GetDraftPR', [PurchaseRequestController::class, 'getDraftPR']);
+Route::match(['get', 'post'], 'v1/list-pr-generated', [PurchaseRequestController::class, 'getListPRGenerated']);
+Route::match(['get', 'post'], 'v1/get-list-pr-generated', [PurchaseRequestController::class, 'getListPRGenerated']);
+Route::match(['get', 'post'], 'GetListPRGenerated', [PurchaseRequestController::class, 'getListPRGenerated']);
+Route::match(['get', 'post'], 'v1/close-pr', [PurchaseRequestController::class, 'closePR']);
+Route::match(['get', 'post'], 'v1/cancel-pr', [PurchaseRequestController::class, 'cancelPR']);
+Route::match(['get', 'post'], 'ClosePR', [PurchaseRequestController::class, 'closePR']);
+Route::match(['get', 'post'], 'CancelPR', [PurchaseRequestController::class, 'cancelPR']);
+

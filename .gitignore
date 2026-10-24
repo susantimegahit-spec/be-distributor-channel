@@ -25,4 +25,6 @@ yarn-error.log
 # Ignore all markdown documentation / notes
 *.md
 !README.md
+!b2b_cmo_external_api_guide.md
+!b2b_claims_external_api_guide.md
 !.agents/**/*.md

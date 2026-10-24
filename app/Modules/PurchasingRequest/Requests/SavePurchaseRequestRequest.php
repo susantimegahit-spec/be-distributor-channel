@@ -40,6 +40,8 @@ class SavePurchaseRequestRequest extends FormRequest
             'Series' => 'nullable|string|max:50',
             'req_type' => 'nullable|string|max:20',
             'ReqType' => 'nullable|string|max:20',
+            'req_date' => 'nullable|date',
+            'ReqDate' => 'nullable|date',
             'requester' => 'nullable|string|max:100',
             'Requester' => 'nullable|string|max:100',
             'requester_name' => 'nullable|string|max:255',

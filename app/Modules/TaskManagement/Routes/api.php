@@ -42,6 +42,7 @@ $registerRoutes = function () {
 
     Route::get('/lists', [HierarchyController::class, 'getLists']);
     Route::post('/lists', [HierarchyController::class, 'createList']);
+    Route::delete('/lists/{id}', [HierarchyController::class, 'deleteList']);
 
     // 3. Checklist Endpoints
     Route::post('/checklists', [ChecklistController::class, 'storeChecklist']);
