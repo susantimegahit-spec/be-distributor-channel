@@ -29,4 +29,5 @@ interface HierarchyRepositoryInterface
     public function findList(int $id): ?TmList;
     public function createList(array $data): TmList;
     public function updateList(TmList $list, array $data): bool;
+    public function deleteList(TmList $list): bool;
 }

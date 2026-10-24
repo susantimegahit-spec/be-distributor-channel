@@ -1070,6 +1070,50 @@ paths:
         '201':
           description: List tugas berhasil dibuat.
 
+  /task-management/lists/{id}:
+    delete:
+      summary: Hapus List Tugas Beserta Seluruh Isi Task di Dalamnya
+      description: Menghapus list tugas secara permanen beserta seluruh task dan subtask turunannya.
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID List tugas yang akan dihapus
+          schema:
+            type: integer
+            example: 10
+      responses:
+        '200':
+          description: List dan seluruh isinya berhasil dihapus.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: List and its contents deleted successfully
+        '404':
+          description: List tidak ditemukan.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    example: List not found
+
   /task-management/checklists:
     post:
       summary: Buat Header Checklist pada Task

@@ -174,4 +174,27 @@ class HierarchyController extends Controller
         $list = $this->hierarchyService->createList($validator->validated(), $userId);
         return response()->json(['status' => 'success', 'data' => $list], 201);
     }
+
+    public function deleteList(Request $request, int $id): JsonResponse
+    {
+        try {
+            $deleted = $this->hierarchyService->deleteList($id);
+            if (!$deleted) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'List not found',
+                ], 404);
+            }
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'List and its contents deleted successfully',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Failed to delete list: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 }
