@@ -623,6 +623,38 @@ class PicklistController extends Controller
     }
 
     /**
+     * Adjust overloaded picklist by updating Sales Order in SAP (/api/editso) and syncing local DB.
+     */
+    public function adjustOverload(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'sales_order_id' => 'nullable|integer',
+            'action_taken'   => 'nullable|string',
+            'comments'       => 'nullable|string',
+            'lines'          => 'nullable|array',
+            'Lines'          => 'nullable|array',
+            'items'          => 'nullable|array',
+        ]);
+
+        try {
+            $user = $request->user();
+            $result = $this->picklistService->adjustOverload($id, $request->all(), $user?->id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Sales Order berhasil di-edit di SAP dan data muatan picklist telah disesuaikan.',
+                'data'    => $result,
+            ], 200);
+        } catch (\Throwable $e) {
+            $statusCode = ($e->getCode() >= 400 && $e->getCode() < 600) ? (int) $e->getCode() : 400;
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $statusCode);
+        }
+    }
+
+    /**
      * Preview item label photo directly (allows standard <img> rendering).
      */
     public function previewLabelPhoto(int $id, int $itemId, int $photoId)

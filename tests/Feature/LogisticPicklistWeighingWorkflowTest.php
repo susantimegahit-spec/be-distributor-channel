@@ -49,6 +49,20 @@ class LogisticPicklistWeighingWorkflowTest extends TestCase
                     'DocNum'   => 9001,
                 ],
             ], 200),
+            '*/api/editso' => Http::response([
+                'ErrorCode' => 0,
+                'Message'   => 'Success - [UpdateSalesOrder]',
+                'Result'    => [
+                    'DocEntry' => 1250,
+                    'DocNum'   => 300045,
+                    'Lines'    => [
+                        [
+                            'LineNum'  => 0,
+                            'ItemCode' => 'FG-OVERLOAD-01',
+                        ],
+                    ],
+                ],
+            ], 200),
         ]);
 
         $this->distributor = Distributor::firstOrCreate(
@@ -527,6 +541,50 @@ class LogisticPicklistWeighingWorkflowTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.ticket_no', 'TMB-OUT-REJECT-99');
+
+        // Test POST /v1/logistic/picklists/{id}/adjust-overload (Adjust Overload via SAP editso)
+        $adjustRes = $this->actingAs($this->user)->postJson("/api/distributor-channel/v1/logistic/picklists/{$picklist->id}/adjust-overload", [
+            'comments'     => 'Pengurangan muatan karena kelebihan muatan (overload).',
+            'action_taken' => 'Muatan dikurangi 60 SAK di gudang. Sales Order disesuaikan via SAP editso.',
+            'lines'        => [
+                [
+                    'LineNum'  => 0,
+                    'ItemCode' => 'FG-OVERLOAD-01',
+                    'Quantity' => 140, // Reduced from 200 to 140 SAK (140 * 50kg = 7,000kg <= limit 10,000kg)
+                ],
+            ],
+        ]);
+
+        $adjustRes->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.status', 'weigh_out')
+            ->assertJsonPath('data.overload_record.status', 'RESOLVED');
+
+        $this->assertEquals(7000.0, (float) $adjustRes->json('data.total_weight'));
+        $this->assertEquals(140.0, (float) $adjustRes->json('data.sales_order.lines.0.quantity'));
+
+        // Verify Database updates
+        $picklist->refresh();
+        $this->assertEquals('weigh_out', $picklist->status);
+        $this->assertEquals(7000.0, (float) $picklist->total_weight);
+        $this->assertNull($picklist->weight_check_status);
+        $this->assertNull($picklist->weigh_out_weight);
+
+        $picklistItem->refresh();
+        $this->assertEquals(140.0, (float) $picklistItem->pick_qty);
+        $this->assertEquals(7000.0, (float) $picklistItem->total_weight);
+
+        $soDetail->refresh();
+        $this->assertEquals(140.0, (float) $soDetail->quantity);
+
+        $so->refresh();
+        $this->assertEquals(3500000.0, (float) $so->doc_total);
+
+        $overloadRecord->refresh();
+        $this->assertEquals('RESOLVED', $overloadRecord->status);
+        $this->assertNotNull($overloadRecord->resolved_at);
+        $this->assertEquals($this->user->id, $overloadRecord->resolved_by);
+        $this->assertStringContainsString('SAP editso', $overloadRecord->action_taken);
     }
 }
 

@@ -20849,6 +20849,217 @@ paths:
                         type: integer
                         example: 1
 
+  /v1/logistic/picklists/{id}/adjust-overload:
+    post:
+      summary: Penyesuaian Muatan Overload & Update Sales Order ke SAP B1 (/api/editso)
+      description: |
+        Endpoint ini digunakan untuk menindaklanjuti picklist yang ditolak karena kelebihan muatan (status `overload`).
+        Fungsi ini akan:
+        1. Menyesuaikan kuantitas item Sales Order langsung ke API SAP B1 (`/api/editso`).
+        2. Memperbarui kuantitas dan total nilai pada Sales Order serta Sales Order Detail di database lokal.
+        3. Memperbarui kuantitas muatan (`pick_qty`) dan menghitung ulang total berat (`total_weight`) pada item picklist lokal.
+        4. Mengubah status catatan `PicklistOverload` menjadi `RESOLVED` beserta pencatatan tindakan (`action_taken`), timestamp penyelesaian, dan user resolver.
+        5. Mengembalikan status picklist menjadi `weigh_out` sehingga truk armada siap untuk ditimbang keluar ulang.
+      tags:
+        - Logistic - Picklists
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Picklist yang mengalami overload
+          schema:
+            type: integer
+            example: 1250
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sales_order_id:
+                  type: integer
+                  description: ID Sales Order lokal yang akan disesuaikan (opsional jika picklist hanya memiliki 1 SO)
+                  example: 101
+                comments:
+                  type: string
+                  description: Catatan penyesuaian muatan pada Sales Order
+                  example: Update pengiriman parsial karena overload
+                action_taken:
+                  type: string
+                  description: Catatan tindakan penanganan overload oleh petugas logistik
+                  example: Muatan dikurangi 60 SAK di gudang. Sales Order disesuaikan via SAP editso.
+                lines:
+                  type: array
+                  description: Daftar baris item Sales Order yang disesuaikan
+                  items:
+                    type: object
+                    properties:
+                      LineNum:
+                        type: integer
+                        description: Nomor baris item di SAP B1 (0-indexed). Gunakan -1 jika menambahkan baris baru.
+                        example: 0
+                      ItemCode:
+                        type: string
+                        description: Kode item produk
+                        example: ITEM-A001
+                      Quantity:
+                        type: number
+                        format: float
+                        description: Kuantitas baru setelah penyesuaian
+                        example: 10.0
+                      WhsCode:
+                        type: string
+                        description: Kode gudang
+                        example: WHS-01
+                      UomEntry:
+                        type: integer
+                        example: 1
+                      UnitMsr:
+                        type: string
+                        description: Satuan ukuran produk
+                        example: SAK
+                      LineTotal:
+                        type: number
+                        format: float
+                        example: 1000000.0
+                      DiscPrcnt:
+                        type: number
+                        format: float
+                        example: 0.0
+                      VatGroup:
+                        type: string
+                        example: PPN11
+                      TaxCode:
+                        type: string
+                        example: PPN11
+            example:
+              comments: Update pengiriman parsial dan diskon promo
+              action_taken: Muatan dikurangi 60 SAK di gudang. Sales Order disesuaikan via SAP editso.
+              lines:
+                - LineNum: 0
+                  ItemCode: ITEM-A001
+                  Quantity: 10.0
+                  WhsCode: WHS-01
+                  UnitMsr: SAK
+      responses:
+        '200':
+          description: Sales Order berhasil di-edit di SAP dan data muatan picklist telah disesuaikan.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Sales Order berhasil di-edit di SAP dan data muatan picklist telah disesuaikan.
+                  data:
+                    type: object
+                    properties:
+                      picklist_id:
+                        type: integer
+                        example: 12
+                      picklist_no:
+                        type: string
+                        example: PKL-20261023-0001
+                      status:
+                        type: string
+                        example: weigh_out
+                      total_weight:
+                        type: number
+                        format: float
+                        example: 7000.0
+                      total_weight_limit:
+                        type: number
+                        format: float
+                        example: 10000.0
+                      sales_order:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 101
+                          order_no:
+                            type: string
+                            example: SO-LOG-001
+                          doc_entry:
+                            type: integer
+                            example: 1250
+                          sap_doc_num:
+                            type: string
+                            example: "300045"
+                          doc_total:
+                            type: number
+                            format: float
+                            example: 3500000.0
+                          comments:
+                            type: string
+                            example: Update pengiriman parsial karena overload
+                          disc_percent:
+                            type: number
+                            format: float
+                            example: 0.0
+                          lines:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                id:
+                                  type: integer
+                                  example: 201
+                                line_num:
+                                  type: integer
+                                  example: 0
+                                item_code:
+                                  type: string
+                                  example: ITEM-A001
+                                quantity:
+                                  type: number
+                                  format: float
+                                  example: 10.0
+                                uom:
+                                  type: string
+                                  example: SAK
+                                whs_code:
+                                  type: string
+                                  example: WHS-01
+                                line_total:
+                                  type: number
+                                  format: float
+                                  example: 1000000.0
+                      overload_record:
+                        type: object
+                        nullable: true
+                        properties:
+                          id:
+                            type: integer
+                            example: 5
+                          status:
+                            type: string
+                            example: RESOLVED
+                          action_taken:
+                            type: string
+                            example: Muatan dikurangi 60 SAK di gudang. Sales Order disesuaikan via SAP editso.
+                          resolved_at:
+                            type: string
+                            example: "2026-10-24 09:40:00"
+                      sap_result:
+                        type: object
+                        properties:
+                          DocEntry:
+                            type: integer
+                            example: 1250
+                          DocNum:
+                            type: integer
+                            example: 300045
+        '400':
+          description: Gagal melakukan penyesuaian muatan overload atau error dari API SAP B1 editso.
+
   /v1/logistic/picklists/{id}/add-do:
     post:
       summary: Submit Checklist Checker / Add Delivery Order (DO) ke SAP B1

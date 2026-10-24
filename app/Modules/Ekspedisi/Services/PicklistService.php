@@ -15,6 +15,7 @@ use App\Models\PicklistWorker;
 use App\Models\SalesOrder;
 use App\Models\SalesOrderDetail;
 use App\Models\SalesOrderLogisticLog;
+use App\Models\SalesOrderIntegrationLog;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -3750,6 +3751,412 @@ class PicklistService
             ],
         ];
     }
+
+    /**
+     * Adjust overloaded picklist by updating Sales Order in SAP (/api/editso)
+     * and syncing local SalesOrder, SalesOrderDetail, PicklistItem, and PicklistOverload.
+     *
+     * @param int $picklistId
+     * @param array $payload
+     * @param int|null $userId
+     * @return array
+     * @throws \Exception
+     */
+    public function adjustOverload(int $picklistId, array $payload = [], ?int $userId = null): array
+    {
+        $picklist = Picklist::with(['items.salesOrder.details', 'overloads'])->find($picklistId);
+        if (!$picklist) {
+            throw new \Exception("Picklist with ID #{$picklistId} not found.", 404);
+        }
+
+        // Ambil Sales Order target
+        $targetSoId = $payload['sales_order_id'] ?? $payload['sales_order_Id'] ?? null;
+        $targetDocEntry = $payload['DocEntry'] ?? $payload['doc_entry'] ?? null;
+
+        $targetSo = null;
+        if (!empty($targetSoId)) {
+            $targetSo = SalesOrder::with(['details', 'distributor'])->find($targetSoId);
+        } elseif (!empty($targetDocEntry)) {
+            $targetSo = SalesOrder::with(['details', 'distributor'])
+                ->where(function ($q) use ($targetDocEntry) {
+                    $q->where('docentry', (int) $targetDocEntry)
+                      ->orWhere('sap_doc_entry', (int) $targetDocEntry);
+                })->first();
+        }
+
+        if (!$targetSo) {
+            // Coba ambil dari item picklist pertama yang memiliki sales order
+            $firstItemWithSo = $picklist->items->first(function ($it) {
+                return !empty($it->salesOrder);
+            });
+            $targetSo = $firstItemWithSo?->salesOrder;
+        }
+
+        if (!$targetSo) {
+            $firstSoId = $picklist->items->pluck('sales_order_id')->filter()->first();
+            if ($firstSoId) {
+                $targetSo = SalesOrder::with(['details', 'distributor'])->find($firstSoId);
+            }
+        }
+
+        if (!$targetSo) {
+            throw new \Exception("Sales Order terkait picklist #{$picklistId} tidak ditemukan.", 400);
+        }
+
+        $baseEntry = $this->resolveSalesOrderDocEntry($targetSo, $targetDocEntry);
+        if (empty($baseEntry)) {
+            throw new \Exception("Sales Order #{$targetSo->order_no} belum memiliki DocEntry SAP (belum terintegrasi ke SAP).", 400);
+        }
+
+        // Ambil list lines adjustment dari payload
+        $rawLines = $payload['Lines'] ?? $payload['lines'] ?? $payload['items'] ?? [];
+
+        // Buat mapping line adjustments jika ada
+        $soDetails = $targetSo->details ? $targetSo->details->sortBy('id')->values() : collect();
+        if ($soDetails->isEmpty()) {
+            throw new \Exception("Sales Order #{$targetSo->order_no} tidak memiliki rincian item (details).", 400);
+        }
+
+        $sapLines = [];
+        $appliedAdjustments = [];
+
+        foreach ($soDetails as $idx => $detail) {
+            // Cari apakah detail ini memiliki adjustment di payload
+            $adjustment = null;
+            if (is_array($rawLines) && !empty($rawLines)) {
+                $adjustment = collect($rawLines)->first(function ($rLine) use ($detail, $idx) {
+                    $rLineNum = $rLine['LineNum'] ?? $rLine['line_num'] ?? null;
+                    if ($rLineNum !== null && (int) $rLineNum === (int) ($detail->line_num ?? $detail->baseline ?? $idx)) {
+                        return true;
+                    }
+                    $rDetailId = $rLine['sales_order_detail_id'] ?? $rLine['detail_id'] ?? null;
+                    if ($rDetailId !== null && (int) $rDetailId === (int) $detail->id) {
+                        return true;
+                    }
+                    $rItemCode = trim((string) ($rLine['ItemCode'] ?? $rLine['item_code'] ?? ''));
+                    if (!empty($rItemCode) && strtolower($rItemCode) === strtolower(trim((string) $detail->item_code))) {
+                        return true;
+                    }
+                    return false;
+                });
+            }
+
+            $qty = ($adjustment !== null && isset($adjustment['Quantity']))
+                ? (float) $adjustment['Quantity']
+                : (($adjustment !== null && isset($adjustment['quantity']))
+                    ? (float) $adjustment['quantity']
+                    : (($adjustment !== null && isset($adjustment['pick_qty']))
+                        ? (float) $adjustment['pick_qty']
+                        : (float) $detail->quantity));
+
+            $unitPrice = ($adjustment !== null && isset($adjustment['UnitPrice']))
+                ? (float) $adjustment['UnitPrice']
+                : (float) $detail->unit_price;
+
+            $discPrcnt = ($adjustment !== null && isset($adjustment['DiscPrcnt']))
+                ? (float) $adjustment['DiscPrcnt']
+                : (($adjustment !== null && isset($adjustment['disc_percent']))
+                    ? (float) $adjustment['disc_percent']
+                    : (float) ($detail->disc_percent ?? 0.0));
+
+            $lineTotal = ($adjustment !== null && isset($adjustment['LineTotal']))
+                ? (float) $adjustment['LineTotal']
+                : round($qty * $unitPrice * (1 - ($discPrcnt / 100)), 2);
+
+            $lineNum = (int) ($detail->line_num ?? $detail->baseline ?? $idx);
+            $uomEntry = ($adjustment !== null && isset($adjustment['UomEntry']))
+                ? (int) $adjustment['UomEntry']
+                : ($detail->uom_entry ? (int) $detail->uom_entry : 1);
+            $unitMsr = ($adjustment !== null && !empty($adjustment['UnitMsr']))
+                ? (string) $adjustment['UnitMsr']
+                : (($adjustment !== null && !empty($adjustment['unit_msr']))
+                    ? (string) $adjustment['unit_msr']
+                    : ($detail->unit_msr ?? 'PCS'));
+            $whsCode = ($adjustment !== null && !empty($adjustment['WhsCode']))
+                ? (string) $adjustment['WhsCode']
+                : (($adjustment !== null && !empty($adjustment['whs_code']))
+                    ? (string) $adjustment['whs_code']
+                    : ($detail->whs_code ?? 'WHS-01'));
+            $vatGroup = ($adjustment !== null && !empty($adjustment['VatGroup']))
+                ? (string) $adjustment['VatGroup']
+                : (($adjustment !== null && !empty($adjustment['vat_group']))
+                    ? (string) $adjustment['vat_group']
+                    : ($detail->vat_group ?? 'PPN11'));
+            $taxCode = ($adjustment !== null && !empty($adjustment['TaxCode']))
+                ? (string) $adjustment['TaxCode']
+                : (($adjustment !== null && !empty($adjustment['tax_code']))
+                    ? (string) $adjustment['tax_code']
+                    : $vatGroup);
+            $ocrCode = ($adjustment !== null && isset($adjustment['OcrCode']))
+                ? (string) $adjustment['OcrCode']
+                : ($detail->ocr_code ?? '');
+            $ocrCode2 = ($adjustment !== null && isset($adjustment['OcrCode2']))
+                ? (string) $adjustment['OcrCode2']
+                : ($detail->ocr_code2 ?? '');
+            $ocrCode3 = ($adjustment !== null && isset($adjustment['OcrCode3']))
+                ? (string) $adjustment['OcrCode3']
+                : ($detail->ocr_code3 ?? '');
+
+            $sapLines[] = [
+                'LineNum'   => $lineNum,
+                'ItemCode'  => (string) $detail->item_code,
+                'Quantity'  => (float) $qty,
+                'WhsCode'   => (string) $whsCode,
+                'UomEntry'  => (int) $uomEntry,
+                'UnitMsr'   => (string) $unitMsr,
+                'LineTotal' => (float) $lineTotal,
+                'VatGroup'  => (string) $vatGroup,
+                'TaxCode'   => (string) $taxCode,
+                'DiscPrcnt' => (float) $discPrcnt,
+                'OcrCode'   => (string) $ocrCode,
+                'OcrCode2'  => (string) $ocrCode2,
+                'OcrCode3'  => (string) $ocrCode3,
+            ];
+
+            $appliedAdjustments[] = [
+                'detail_id' => $detail->id,
+                'item_code' => $detail->item_code,
+                'quantity'  => $qty,
+                'line_total'=> $lineTotal,
+                'whs_code'  => $whsCode,
+                'unit_msr'  => $unitMsr,
+                'line_num'  => $lineNum,
+            ];
+        }
+
+        // Handle possible new lines with LineNum = -1
+        if (is_array($rawLines)) {
+            foreach ($rawLines as $rLine) {
+                $rLineNum = $rLine['LineNum'] ?? $rLine['line_num'] ?? null;
+                if ((int) $rLineNum === -1) {
+                    $itemCode = (string) ($rLine['ItemCode'] ?? $rLine['item_code'] ?? '');
+                    $qty = (float) ($rLine['Quantity'] ?? $rLine['quantity'] ?? 0);
+                    $whsCode = (string) ($rLine['WhsCode'] ?? $rLine['whs_code'] ?? 'WHS-01');
+                    $uomEntry = (int) ($rLine['UomEntry'] ?? $rLine['uom_entry'] ?? 1);
+                    $unitMsr = (string) ($rLine['UnitMsr'] ?? $rLine['unit_msr'] ?? 'PCS');
+                    $lineTotal = (float) ($rLine['LineTotal'] ?? $rLine['line_total'] ?? 0);
+                    $vatGroup = (string) ($rLine['VatGroup'] ?? $rLine['vat_group'] ?? 'PPN11');
+                    $taxCode = (string) ($rLine['TaxCode'] ?? $rLine['tax_code'] ?? $vatGroup);
+                    $discPrcnt = (float) ($rLine['DiscPrcnt'] ?? $rLine['disc_percent'] ?? 0);
+                    $ocrCode = (string) ($rLine['OcrCode'] ?? $rLine['ocr_code'] ?? '');
+                    $ocrCode2 = (string) ($rLine['OcrCode2'] ?? $rLine['ocr_code2'] ?? '');
+                    $ocrCode3 = (string) ($rLine['OcrCode3'] ?? $rLine['ocr_code3'] ?? '');
+
+                    $sapLines[] = [
+                        'LineNum'   => -1,
+                        'ItemCode'  => $itemCode,
+                        'Quantity'  => $qty,
+                        'WhsCode'   => $whsCode,
+                        'UomEntry'  => $uomEntry,
+                        'UnitMsr'   => $unitMsr,
+                        'LineTotal' => $lineTotal,
+                        'VatGroup'  => $vatGroup,
+                        'TaxCode'   => $taxCode,
+                        'DiscPrcnt' => $discPrcnt,
+                        'OcrCode'   => $ocrCode,
+                        'OcrCode2'  => $ocrCode2,
+                        'OcrCode3'  => $ocrCode3,
+                    ];
+                }
+            }
+        }
+
+        $sumLines = array_sum(array_column($sapLines, 'LineTotal'));
+        $discountPercent = (float) ($payload['DiscountPercent'] ?? $payload['disc_percent'] ?? $targetSo->disc_percent ?? 0.0);
+        $docTotal = isset($payload['DocTotal'])
+            ? (float) $payload['DocTotal']
+            : round($sumLines * (1 - ($discountPercent / 100)), 2);
+
+        $docDateStr = !empty($payload['DocDate'])
+            ? (string) $payload['DocDate']
+            : ($targetSo->doc_date ? Carbon::parse($targetSo->doc_date)->format('Y-m-d\T00:00:00') : now()->format('Y-m-d\T00:00:00'));
+
+        $docDueDateStr = !empty($payload['DocDueDate'])
+            ? (string) $payload['DocDueDate']
+            : ($targetSo->doc_due_date ? Carbon::parse($targetSo->doc_due_date)->format('Y-m-d\T00:00:00') : now()->format('Y-m-d\T00:00:00'));
+
+        $commentsStr = !empty($payload['Comments'])
+            ? (string) $payload['Comments']
+            : (!empty($payload['comments']) ? (string) $payload['comments'] : ($targetSo->comments ?? 'Update muatan overload'));
+
+        $user = $userId ? User::find($userId) : null;
+        $operatorUsername = $user?->username ?? $user?->name ?? 'admin01';
+
+        $sapPayload = [
+            'DocEntry'        => (int) $baseEntry,
+            'NumAtCard'       => (string) ($payload['NumAtCard'] ?? $targetSo->po_number ?? ''),
+            'DocDate'         => $docDateStr,
+            'DocDueDate'      => $docDueDateStr,
+            'SlpCode'         => (int) ($payload['SlpCode'] ?? $targetSo->slp_code ?? 0),
+            'CntctCode'       => (int) ($payload['CntctCode'] ?? $targetSo->cntct_code ?? 0),
+            'PayToCode'       => (string) ($payload['PayToCode'] ?? $targetSo->pay_to_code ?? ''),
+            'Address'         => (string) ($payload['Address'] ?? $targetSo->address ?? ''),
+            'ShipToCode'      => (string) ($payload['ShipToCode'] ?? $targetSo->ship_to_code ?? ''),
+            'Address2'        => (string) ($payload['Address2'] ?? $targetSo->address2 ?? ''),
+            'Comments'        => $commentsStr,
+            'DiscountPercent' => (float) $discountPercent,
+            'DocTotal'        => (float) $docTotal,
+            'IdDiskon'        => $payload['IdDiskon'] ?? $payload['id_discount'] ?? $targetSo->id_discount ?? null,
+            'AddonId'         => (string) ($payload['AddonId'] ?? 'ADDON-WEB-0981'),
+            'UserId'          => (string) ($payload['UserId'] ?? $operatorUsername),
+            'Lines'           => $sapLines,
+        ];
+
+        $sapUrl = rtrim(config('services.sap.url') ?: env('SAP_API_URL', 'http://103.18.133.187:3100'), '/');
+
+        try {
+            $response = Http::timeout(30)->post("{$sapUrl}/api/editso", $sapPayload);
+        } catch (\Throwable $e) {
+            Log::error("Failed to connect to SAP /api/editso for Picklist #{$picklistId}: " . $e->getMessage(), ['payload' => $sapPayload]);
+            throw new \Exception("Gagal menghubungi API SAP /api/editso: " . $e->getMessage(), 400);
+        }
+
+        if (!$response->successful()) {
+            $status = $response->status();
+            $body = $response->body();
+            Log::error("SAP /api/editso returned HTTP {$status} for Picklist #{$picklistId}: {$body}");
+            throw new \Exception("Gagal melakukan Update Sales Order di SAP (HTTP {$status}): " . substr($body, 0, 250), 400);
+        }
+
+        $sapResult = $response->json();
+        if (isset($sapResult['ErrorCode']) && (int) $sapResult['ErrorCode'] !== 0) {
+            $errMsg = $sapResult['Message'] ?? 'Unknown SAP error during UpdateSalesOrder.';
+            Log::error("SAP /api/editso returned ErrorCode {$sapResult['ErrorCode']} for Picklist #{$picklistId}: {$errMsg}");
+            throw new \Exception("SAP UpdateSalesOrder Error [{$sapResult['ErrorCode']}]: {$errMsg}", 400);
+        }
+
+        // Simpan log integrasi SAP
+        try {
+            SalesOrderIntegrationLog::create([
+                'sales_order_id' => $targetSo->id,
+                'request_json'   => json_encode($sapPayload),
+                'response_json'  => $response->body(),
+                'status'         => 'SUCCESS',
+                'error_message'  => null,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning("Could not create SalesOrderIntegrationLog for SO #{$targetSo->id}: " . $e->getMessage());
+        }
+
+        // 1. Update Database Lokal: Sales Order Header
+        $targetSo->update([
+            'doc_total'          => $docTotal,
+            'comments'           => $commentsStr,
+            'disc_percent'       => $discountPercent,
+            'sap_last_synced_at' => now(),
+        ]);
+
+        // 2. Update Database Lokal: Sales Order Details
+        foreach ($appliedAdjustments as $adj) {
+            $detail = $soDetails->firstWhere('id', $adj['detail_id']);
+            if ($detail) {
+                $detail->update([
+                    'quantity'   => $adj['quantity'],
+                    'line_total' => $adj['line_total'],
+                    'whs_code'   => $adj['whs_code'],
+                    'unit_msr'   => $adj['unit_msr'],
+                    'line_num'   => $adj['line_num'],
+                ]);
+            }
+        }
+
+        // 3. Update Database Lokal: Picklist Items & Total Weight
+        foreach ($picklist->items as $pItem) {
+            $matchedAdj = collect($appliedAdjustments)->first(function ($adj) use ($pItem) {
+                if ($pItem->sales_order_detail_id && (int) $pItem->sales_order_detail_id === (int) $adj['detail_id']) {
+                    return true;
+                }
+                return strtolower(trim((string) $pItem->item_code)) === strtolower(trim((string) $adj['item_code']));
+            });
+
+            if ($matchedAdj) {
+                $newQty = (float) $matchedAdj['quantity'];
+                $unitWeight = (float) $pItem->unit_weight;
+                $pItem->update([
+                    'pick_qty'     => $newQty,
+                    'ordered_qty'  => $newQty,
+                    'total_weight' => round($newQty * $unitWeight, 4),
+                ]);
+            }
+        }
+
+        $freshItems = $picklist->items()->get();
+        $newPicklistTotalWeight = round((float) $freshItems->sum('total_weight'), 4);
+
+        // 4. Update Database Lokal: Picklist status & weight check
+        $picklist->update([
+            'status'               => Picklist::STATUS_WEIGH_OUT,
+            'total_weight'         => $newPicklistTotalWeight,
+            'weight_check_status'  => null,
+            'weigh_out_weight'     => null,
+            'weigh_out_net_weight' => null,
+            'weigh_out_notes'      => ($picklist->weigh_out_notes ? $picklist->weigh_out_notes . ' | ' : '') . 'Overload berhasil disesuaikan via SAP editso. Siap ditimbang keluar ulang.',
+            'updated_by'           => $userId,
+        ]);
+
+        // 5. Update Database Lokal: PicklistOverload record status -> RESOLVED
+        $overloadRecord = PicklistOverload::where('picklist_id', $picklist->id)
+            ->where('status', PicklistOverload::STATUS_PENDING_ADJUSTMENT)
+            ->latest('id')
+            ->first();
+
+        if (!$overloadRecord) {
+            $overloadRecord = PicklistOverload::where('picklist_id', $picklist->id)->latest('id')->first();
+        }
+
+        $actionTaken = !empty($payload['action_taken'])
+            ? trim((string) $payload['action_taken'])
+            : "Sales Order #{$targetSo->order_no} berhasil diperbarui di SAP (/api/editso). Total muatan picklist disesuaikan menjadi {$newPicklistTotalWeight} KG. Status picklist dikembalikan ke weigh_out siap timbang keluar ulang.";
+
+        if ($overloadRecord) {
+            $overloadRecord->update([
+                'status'       => PicklistOverload::STATUS_RESOLVED,
+                'action_taken' => $actionTaken,
+                'resolved_at'  => now(),
+                'resolved_by'  => $userId,
+                'updated_by'   => $userId,
+            ]);
+        }
+
+        $freshPicklist = $picklist->fresh(['items', 'overloads']);
+        $freshSo = $targetSo->fresh(['details']);
+
+        return [
+            'picklist_id'        => (int) $freshPicklist->id,
+            'picklist_no'        => (string) $freshPicklist->picklist_no,
+            'status'             => (string) $freshPicklist->status,
+            'total_weight'       => (float) $freshPicklist->total_weight,
+            'total_weight_limit' => (float) $freshPicklist->total_weight_limit,
+            'sales_order'        => [
+                'id'           => (int) $freshSo->id,
+                'order_no'     => (string) $freshSo->order_no,
+                'doc_entry'    => (int) $baseEntry,
+                'sap_doc_num'  => (string) ($freshSo->sap_doc_num ?? ''),
+                'doc_total'    => (float) $freshSo->doc_total,
+                'comments'     => (string) ($freshSo->comments ?? ''),
+                'disc_percent' => (float) $freshSo->disc_percent,
+                'lines'        => $freshSo->details->map(function ($d) {
+                    return [
+                        'id'         => (int) $d->id,
+                        'line_num'   => (int) ($d->line_num ?? $d->baseline ?? 0),
+                        'item_code'  => (string) $d->item_code,
+                        'quantity'   => (float) $d->quantity,
+                        'uom'        => (string) ($d->unit_msr ?? 'PCS'),
+                        'whs_code'   => (string) ($d->whs_code ?? ''),
+                        'line_total' => (float) $d->line_total,
+                    ];
+                })->values()->toArray(),
+            ],
+            'overload_record'    => $overloadRecord ? [
+                'id'           => (int) $overloadRecord->id,
+                'status'       => (string) $overloadRecord->status,
+                'action_taken' => (string) ($overloadRecord->action_taken ?? ''),
+                'resolved_at'  => $overloadRecord->resolved_at?->toDateTimeString(),
+            ] : null,
+            'sap_result'         => $sapResult['Result'] ?? $sapResult,
+        ];
+    }
 }
+
 
 
