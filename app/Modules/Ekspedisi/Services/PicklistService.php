@@ -3654,7 +3654,8 @@ class PicklistService
             'overloads' => function ($q) {
                 $q->orderBy('created_at', 'desc');
             },
-            'items',
+            'items.salesOrder.details',
+            'items.salesOrderDetail',
         ])->find($picklistId);
 
         if (!$picklist) {
@@ -3663,18 +3664,183 @@ class PicklistService
 
         $latestOverload = $picklist->overloads->first();
 
+        // Cari Sales Order target terkait picklist
+        $targetSo = null;
+        $firstItemWithSo = $picklist->items->first(function ($it) {
+            return !empty($it->salesOrder);
+        });
+        $targetSo = $firstItemWithSo?->salesOrder;
+
+        if (!$targetSo) {
+            $firstSoId = $picklist->items->pluck('sales_order_id')->filter()->first();
+            if ($firstSoId) {
+                $targetSo = SalesOrder::with(['details', 'distributor'])->find($firstSoId);
+            }
+        }
+
+        $baseEntry = $targetSo ? $this->resolveSalesOrderDocEntry($targetSo) : null;
+        if (!$baseEntry && $targetSo) {
+            $baseEntry = $targetSo->docentry ?: $targetSo->sap_doc_entry;
+        }
+
+        $soDetails = $targetSo?->details ? $targetSo->details->sortBy('id')->values() : collect();
+
+        $soLines = [];
+        $templateLines = [];
+
+        foreach ($soDetails as $idx => $detail) {
+            $pItem = $picklist->items->first(function ($it) use ($detail) {
+                if ($it->sales_order_detail_id && (int) $it->sales_order_detail_id === (int) $detail->id) {
+                    return true;
+                }
+                return strtolower(trim((string) $it->item_code)) === strtolower(trim((string) $detail->item_code));
+            });
+
+            $lineNum = (int) ($detail->line_num ?? $detail->baseline ?? $idx);
+            $qty = (float) $detail->quantity;
+            $pickQty = $pItem ? (float) $pItem->pick_qty : $qty;
+            $unitPrice = (float) $detail->unit_price;
+            $discPrcnt = (float) ($detail->disc_percent ?? 0.0);
+            $lineTotal = (float) ($detail->line_total ?: round($qty * $unitPrice * (1 - ($discPrcnt / 100)), 2));
+            $uom = (string) ($detail->unit_msr ?: ($pItem?->unit_msr ?: 'PCS'));
+            $uomEntry = (int) ($detail->uom_entry ?: 1);
+            $whsCode = (string) ($detail->whs_code ?: ($pItem?->whs_code ?: 'WHS-01'));
+            $vatGroup = (string) ($detail->vat_group ?: 'PPN11');
+            $taxCode = (string) ($detail->vat_group ?: 'PPN11');
+            $ocrCode = (string) ($detail->ocr_code ?? '');
+            $ocrCode2 = (string) ($detail->ocr_code2 ?? '');
+            $ocrCode3 = (string) ($detail->ocr_code3 ?? '');
+            $unitWeight = $pItem ? (float) $pItem->unit_weight : 0.0;
+            $totalWeight = $pItem ? (float) $pItem->total_weight : round($pickQty * $unitWeight, 4);
+
+            $soLines[] = [
+                'line_num'              => $lineNum,
+                'sales_order_detail_id' => (int) $detail->id,
+                'picklist_item_id'      => $pItem ? (int) $pItem->id : null,
+                'item_code'             => (string) $detail->item_code,
+                'item_name'             => (string) ($detail->item_name ?: ($pItem?->item_name ?: '')),
+                'quantity'              => $qty,
+                'pick_qty'              => $pickQty,
+                'uom'                   => $uom,
+                'uom_entry'             => $uomEntry,
+                'whs_code'              => $whsCode,
+                'unit_price'            => $unitPrice,
+                'line_total'            => $lineTotal,
+                'vat_group'             => $vatGroup,
+                'tax_code'              => $taxCode,
+                'disc_percent'          => $discPrcnt,
+                'ocr_code'              => $ocrCode,
+                'ocr_code2'             => $ocrCode2,
+                'ocr_code3'             => $ocrCode3,
+                'unit_weight'           => $unitWeight,
+                'total_weight'          => $totalWeight,
+            ];
+
+            $templateLines[] = [
+                'LineNum'   => $lineNum,
+                'ItemCode'  => (string) $detail->item_code,
+                'Quantity'  => $pickQty,
+                'WhsCode'   => $whsCode,
+                'UomEntry'  => $uomEntry,
+                'UnitMsr'   => $uom,
+                'LineTotal' => $lineTotal,
+                'VatGroup'  => $vatGroup,
+                'TaxCode'   => $taxCode,
+                'DiscPrcnt' => $discPrcnt,
+                'OcrCode'   => $ocrCode,
+                'OcrCode2'  => $ocrCode2,
+                'OcrCode3'  => $ocrCode3,
+            ];
+        }
+
+        if (empty($templateLines) && $picklist->items->isNotEmpty()) {
+            foreach ($picklist->items as $idx => $pItem) {
+                $pickQty = (float) $pItem->pick_qty;
+                $unitWeight = (float) $pItem->unit_weight;
+                $uom = (string) ($pItem->unit_msr ?: 'PCS');
+                $whsCode = (string) ($pItem->whs_code ?: 'WHS-01');
+
+                $templateLines[] = [
+                    'LineNum'   => (int) ($pItem->base_line ?? $idx),
+                    'ItemCode'  => (string) $pItem->item_code,
+                    'Quantity'  => $pickQty,
+                    'WhsCode'   => $whsCode,
+                    'UomEntry'  => 1,
+                    'UnitMsr'   => $uom,
+                    'LineTotal' => 0.0,
+                    'VatGroup'  => 'PPN11',
+                    'TaxCode'   => 'PPN11',
+                    'DiscPrcnt' => 0.0,
+                    'OcrCode'   => '',
+                    'OcrCode2'  => '',
+                    'OcrCode3'  => '',
+                ];
+            }
+        }
+
+        $docDateStr = $targetSo?->doc_date ? Carbon::parse($targetSo->doc_date)->format('Y-m-d\T00:00:00') : now()->format('Y-m-d\T00:00:00');
+        $docDueDateStr = $targetSo?->doc_due_date ? Carbon::parse($targetSo->doc_due_date)->format('Y-m-d\T00:00:00') : now()->format('Y-m-d\T00:00:00');
+
+        $adjustPayloadTemplate = [
+            'DocEntry'        => $baseEntry ? (int) $baseEntry : null,
+            'NumAtCard'       => (string) ($targetSo?->po_number ?? ''),
+            'DocDate'         => $docDateStr,
+            'DocDueDate'      => $docDueDateStr,
+            'SlpCode'         => (int) ($targetSo?->slp_code ?? 0),
+            'CntctCode'       => (int) ($targetSo?->cntct_code ?? 0),
+            'PayToCode'       => (string) ($targetSo?->pay_to_code ?? ''),
+            'Address'         => (string) ($targetSo?->address ?? ''),
+            'ShipToCode'      => (string) ($targetSo?->ship_to_code ?? ''),
+            'Address2'        => (string) ($targetSo?->address2 ?? ''),
+            'Comments'        => (string) ($targetSo?->comments ?? 'Update muatan overload'),
+            'DiscountPercent' => (float) ($targetSo?->disc_percent ?? 0.0),
+            'DocTotal'        => (float) ($targetSo?->doc_total ?? 0.0),
+            'IdDiskon'        => $targetSo?->id_discount,
+            'AddonId'         => 'ADDON-WEB-0981',
+            'UserId'          => 'admin01',
+            'action_taken'    => 'Muatan dikurangi di gudang dan disesuaikan ke SAP B1 via /api/editso.',
+            'Lines'           => $templateLines,
+        ];
+
+        $salesOrderData = $targetSo ? [
+            'id'           => (int) $targetSo->id,
+            'order_no'     => (string) $targetSo->order_no,
+            'doc_entry'    => $baseEntry ? (int) $baseEntry : null,
+            'sap_doc_num'  => $targetSo->sap_doc_num ? (string) $targetSo->sap_doc_num : null,
+            'po_number'    => (string) ($targetSo->po_number ?? ''),
+            'doc_date'     => $docDateStr,
+            'doc_due_date' => $docDueDateStr,
+            'doc_total'    => (float) $targetSo->doc_total,
+            'disc_percent' => (float) ($targetSo->disc_percent ?? 0.0),
+            'comments'     => (string) ($targetSo->comments ?? ''),
+            'lines'        => $soLines,
+        ] : null;
+
+        $overloadWeight = (float) ($latestOverload?->overload_weight ?? 0.0);
+        if ($overloadWeight <= 0) {
+            $netWeight = (float) $picklist->weigh_out_net_weight ?: (float) $picklist->total_weight;
+            $limit = (float) $picklist->total_weight_limit;
+            if ($netWeight > $limit && $limit > 0) {
+                $overloadWeight = round($netWeight - $limit, 4);
+            }
+        }
+
         return [
-            'picklist_id'          => (int) $picklist->id,
-            'picklist_no'          => (string) $picklist->picklist_no,
-            'status'               => (string) $picklist->status,
-            'weight_check_status'  => (string) ($picklist->weight_check_status ?? ''),
-            'total_weight_limit'   => (float) $picklist->total_weight_limit,
-            'weigh_in_weight'      => (float) $picklist->weigh_in_weight,
-            'weigh_out_weight'     => (float) $picklist->weigh_out_weight,
-            'weigh_out_net_weight' => (float) $picklist->weigh_out_net_weight,
-            'latest_overload'      => $latestOverload,
-            'history'              => $picklist->overloads,
-            'items'                => $picklist->items,
+            'picklist_id'             => (int) $picklist->id,
+            'picklist_no'             => (string) $picklist->picklist_no,
+            'status'                  => (string) $picklist->status,
+            'weight_check_status'     => (string) ($picklist->weight_check_status ?? ''),
+            'total_weight_limit'      => (float) $picklist->total_weight_limit,
+            'total_weight'            => (float) $picklist->total_weight,
+            'weigh_in_weight'         => (float) $picklist->weigh_in_weight,
+            'weigh_out_weight'        => (float) $picklist->weigh_out_weight,
+            'weigh_out_net_weight'    => (float) $picklist->weigh_out_net_weight,
+            'overload_weight'         => (float) $overloadWeight,
+            'latest_overload'         => $latestOverload,
+            'history'                 => $picklist->overloads,
+            'items'                   => $picklist->items,
+            'sales_order'             => $salesOrderData,
+            'adjust_payload_template' => $adjustPayloadTemplate,
         ];
     }
 

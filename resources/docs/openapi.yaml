@@ -20683,6 +20683,14 @@ paths:
                       weigh_out_net_weight:
                         type: number
                         example: 13000.0
+                      total_weight:
+                        type: number
+                        format: float
+                        example: 13000.0
+                      overload_weight:
+                        type: number
+                        format: float
+                        example: 3000.0
                       latest_overload:
                         type: object
                       history:
@@ -20693,6 +20701,222 @@ paths:
                         type: array
                         items:
                           type: object
+                      sales_order:
+                        type: object
+                        description: Informasi Sales Order lokal dan rincian itemnya untuk referensi penyesuaian muatan
+                        properties:
+                          id:
+                            type: integer
+                            example: 101
+                          order_no:
+                            type: string
+                            example: "SO-LOG-001"
+                          doc_entry:
+                            type: integer
+                            example: 1250
+                          sap_doc_num:
+                            type: string
+                            example: "300045"
+                          po_number:
+                            type: string
+                            example: "PO-CUST-2026-0012"
+                          doc_date:
+                            type: string
+                            format: date-time
+                            example: "2026-10-16T00:00:00"
+                          doc_due_date:
+                            type: string
+                            format: date-time
+                            example: "2026-10-23T00:00:00"
+                          doc_total:
+                            type: number
+                            format: float
+                            example: 1650000.0
+                          disc_percent:
+                            type: number
+                            format: float
+                            example: 5.0
+                          comments:
+                            type: string
+                            example: "Pengiriman barang promo"
+                          lines:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                line_num:
+                                  type: integer
+                                  example: 0
+                                sales_order_detail_id:
+                                  type: integer
+                                  example: 201
+                                picklist_item_id:
+                                  type: integer
+                                  example: 501
+                                item_code:
+                                  type: string
+                                  example: "ITEM-A001"
+                                item_name:
+                                  type: string
+                                  example: "Garam Kasar Overload 50kg"
+                                quantity:
+                                  type: number
+                                  format: float
+                                  example: 200.0
+                                pick_qty:
+                                  type: number
+                                  format: float
+                                  example: 200.0
+                                uom:
+                                  type: string
+                                  example: "SAK"
+                                uom_entry:
+                                  type: integer
+                                  example: 1
+                                whs_code:
+                                  type: string
+                                  example: "VPGMN01"
+                                unit_price:
+                                  type: number
+                                  format: float
+                                  example: 25000.0
+                                line_total:
+                                  type: number
+                                  format: float
+                                  example: 5000000.0
+                                vat_group:
+                                  type: string
+                                  example: "PPN11"
+                                tax_code:
+                                  type: string
+                                  example: "PPN11"
+                                disc_percent:
+                                  type: number
+                                  format: float
+                                  example: 0.0
+                                ocr_code:
+                                  type: string
+                                  example: "DEPT-SALES"
+                                ocr_code2:
+                                  type: string
+                                  example: "DIV-RETAIL"
+                                ocr_code3:
+                                  type: string
+                                  example: "PROJ-EAST"
+                                unit_weight:
+                                  type: number
+                                  format: float
+                                  example: 50.0
+                                total_weight:
+                                  type: number
+                                  format: float
+                                  example: 10000.0
+                      adjust_payload_template:
+                        type: object
+                        description: Template payload siap pakai yang dapat langsung diedit dan dikirim ke POST /v1/logistic/picklists/{id}/adjust-overload
+                        properties:
+                          DocEntry:
+                            type: integer
+                            example: 1250
+                          NumAtCard:
+                            type: string
+                            example: "PO-CUST-2026-0012"
+                          DocDate:
+                            type: string
+                            format: date-time
+                            example: "2026-10-16T00:00:00"
+                          DocDueDate:
+                            type: string
+                            format: date-time
+                            example: "2026-10-23T00:00:00"
+                          SlpCode:
+                            type: integer
+                            example: 5
+                          CntctCode:
+                            type: integer
+                            example: 2
+                          PayToCode:
+                            type: string
+                            example: "BILL-01"
+                          Address:
+                            type: string
+                            example: "Jl. Basuki Rahmat No. 10, Surabaya"
+                          ShipToCode:
+                            type: string
+                            example: "SHIP-01"
+                          Address2:
+                            type: string
+                            example: "Jl. Rungkut Industri Raya No. 45, Surabaya"
+                          Comments:
+                            type: string
+                            example: "Update muatan overload"
+                          DiscountPercent:
+                            type: number
+                            format: float
+                            example: 5.0
+                          DocTotal:
+                            type: number
+                            format: float
+                            example: 1650000.0
+                          IdDiskon:
+                            type: string
+                            example: "PROMO-OCT-2026"
+                          AddonId:
+                            type: string
+                            example: "ADDON-WEB-0981"
+                          UserId:
+                            type: string
+                            example: "admin01"
+                          action_taken:
+                            type: string
+                            example: "Muatan dikurangi di gudang dan disesuaikan ke SAP B1 via /api/editso."
+                          Lines:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                LineNum:
+                                  type: integer
+                                  example: 0
+                                ItemCode:
+                                  type: string
+                                  example: "ITEM-A001"
+                                Quantity:
+                                  type: number
+                                  format: float
+                                  example: 140.0
+                                WhsCode:
+                                  type: string
+                                  example: "VPGMN01"
+                                UomEntry:
+                                  type: integer
+                                  example: 1
+                                UnitMsr:
+                                  type: string
+                                  example: "SAK"
+                                LineTotal:
+                                  type: number
+                                  format: float
+                                  example: 3500000.0
+                                VatGroup:
+                                  type: string
+                                  example: "PPN11"
+                                TaxCode:
+                                  type: string
+                                  example: "PPN11"
+                                DiscPrcnt:
+                                  type: number
+                                  format: float
+                                  example: 0.0
+                                OcrCode:
+                                  type: string
+                                  example: "DEPT-SALES"
+                                OcrCode2:
+                                  type: string
+                                  example: "DIV-RETAIL"
+                                OcrCode3:
+                                  type: string
+                                  example: "PROJ-EAST"
         '404':
           description: Picklist tidak ditemukan.
 
