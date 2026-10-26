@@ -628,12 +628,29 @@ class PicklistController extends Controller
     public function adjustOverload(Request $request, int $id): JsonResponse
     {
         $request->validate([
-            'sales_order_id' => 'nullable|integer',
-            'action_taken'   => 'nullable|string',
-            'comments'       => 'nullable|string',
-            'lines'          => 'nullable|array',
-            'Lines'          => 'nullable|array',
-            'items'          => 'nullable|array',
+            'sales_order_id'  => 'nullable|integer',
+            'DocEntry'        => 'nullable|integer',
+            'doc_entry'       => 'nullable|integer',
+            'NumAtCard'       => 'nullable|string',
+            'DocDate'         => 'nullable|string',
+            'DocDueDate'      => 'nullable|string',
+            'SlpCode'         => 'nullable|integer',
+            'CntctCode'       => 'nullable|integer',
+            'PayToCode'       => 'nullable|string',
+            'Address'         => 'nullable|string',
+            'ShipToCode'      => 'nullable|string',
+            'Address2'        => 'nullable|string',
+            'DiscountPercent' => 'nullable|numeric',
+            'DocTotal'        => 'nullable|numeric',
+            'IdDiskon'        => 'nullable|string',
+            'AddonId'         => 'nullable|string',
+            'UserId'          => 'nullable|string',
+            'action_taken'    => 'nullable|string',
+            'comments'        => 'nullable|string',
+            'Comments'        => 'nullable|string',
+            'lines'           => 'nullable|array',
+            'Lines'           => 'nullable|array',
+            'items'           => 'nullable|array',
         ]);
 
         try {

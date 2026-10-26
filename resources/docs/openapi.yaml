@@ -20922,22 +20922,93 @@ paths:
           application/json:
             schema:
               type: object
+              description: |
+                Mendukung full payload SAP B1 `/api/editso` maupun format ringkas logistik.
+                Jika field header tidak dikirimkan, backend otomatis mengambil data dari Sales Order yang sudah tersimpan.
               properties:
                 sales_order_id:
                   type: integer
-                  description: ID Sales Order lokal yang akan disesuaikan (opsional jika picklist hanya memiliki 1 SO)
+                  description: ID Sales Order lokal yang akan disesuaikan (opsional jika DocEntry atau picklist sudah terhubung)
                   example: 101
+                DocEntry:
+                  type: integer
+                  description: DocEntry Sales Order di SAP B1 (opsional jika sales_order_id sudah disertakan)
+                  example: 1250
+                NumAtCard:
+                  type: string
+                  description: Nomor referensi customer / PO Customer
+                  example: PO-CUST-2026-0012
+                DocDate:
+                  type: string
+                  format: date-time
+                  description: Tanggal dokumen Sales Order (format ISO)
+                  example: 2026-10-16T00:00:00
+                DocDueDate:
+                  type: string
+                  format: date-time
+                  description: Tanggal jatuh tempo / pengiriman Sales Order (format ISO)
+                  example: 2026-10-23T00:00:00
+                SlpCode:
+                  type: integer
+                  description: Kode Sales Person SAP
+                  example: 5
+                CntctCode:
+                  type: integer
+                  description: Kode kontak customer SAP
+                  example: 2
+                PayToCode:
+                  type: string
+                  description: Kode alamat penagihan SAP
+                  example: BILL-01
+                Address:
+                  type: string
+                  description: Alamat penagihan lengkap
+                  example: Jl. Basuki Rahmat No. 10, Surabaya
+                ShipToCode:
+                  type: string
+                  description: Kode alamat pengiriman SAP
+                  example: SHIP-01
+                Address2:
+                  type: string
+                  description: Alamat pengiriman lengkap
+                  example: Jl. Rungkut Industri Raya No. 45, Surabaya
+                Comments:
+                  type: string
+                  description: Catatan penyesuaian muatan pada Sales Order SAP (dapat juga menggunakan key 'comments')
+                  example: Update pengiriman parsial dan diskon promo
                 comments:
                   type: string
-                  description: Catatan penyesuaian muatan pada Sales Order
-                  example: Update pengiriman parsial karena overload
+                  description: Alias lowercase untuk Catatan penyesuaian muatan
+                  example: Update pengiriman parsial dan diskon promo
+                DiscountPercent:
+                  type: number
+                  format: float
+                  description: Persentase diskon header Sales Order
+                  example: 5.0
+                DocTotal:
+                  type: number
+                  format: float
+                  description: Total nilai dokumen Sales Order setelah diskon (opsional, dihitung otomatis jika kosong)
+                  example: 1650000.0
+                IdDiskon:
+                  type: string
+                  description: ID voucher / promo diskon
+                  example: PROMO-OCT-2026
+                AddonId:
+                  type: string
+                  description: Identifier addon pengirim
+                  example: ADDON-WEB-0981
+                UserId:
+                  type: string
+                  description: Username pengguna / operator
+                  example: admin01
                 action_taken:
                   type: string
-                  description: Catatan tindakan penanganan overload oleh petugas logistik
+                  description: Catatan tindakan penanganan overload oleh petugas logistik (disimpan di record picklist_overloads)
                   example: Muatan dikurangi 60 SAK di gudang. Sales Order disesuaikan via SAP editso.
                 lines:
                   type: array
-                  description: Daftar baris item Sales Order yang disesuaikan
+                  description: Daftar baris item Sales Order yang disesuaikan (dapat juga menggunakan key 'Lines')
                   items:
                     type: object
                     properties:
@@ -20956,7 +21027,7 @@ paths:
                         example: 10.0
                       WhsCode:
                         type: string
-                        description: Kode gudang
+                        description: Kode gudang SAP
                         example: WHS-01
                       UomEntry:
                         type: integer
@@ -20964,7 +21035,7 @@ paths:
                       UnitMsr:
                         type: string
                         description: Satuan ukuran produk
-                        example: SAK
+                        example: PCS
                       LineTotal:
                         type: number
                         format: float
@@ -20979,15 +21050,74 @@ paths:
                       TaxCode:
                         type: string
                         example: PPN11
-            example:
-              comments: Update pengiriman parsial dan diskon promo
-              action_taken: Muatan dikurangi 60 SAK di gudang. Sales Order disesuaikan via SAP editso.
-              lines:
-                - LineNum: 0
-                  ItemCode: ITEM-A001
-                  Quantity: 10.0
-                  WhsCode: WHS-01
-                  UnitMsr: SAK
+                      OcrCode:
+                        type: string
+                        example: DEPT-SALES
+                      OcrCode2:
+                        type: string
+                        example: DIV-RETAIL
+                      OcrCode3:
+                        type: string
+                        example: PROJ-EAST
+            examples:
+              full_sap_editso_payload:
+                summary: Full Payload SAP B1 editso
+                value:
+                  DocEntry: 1250
+                  NumAtCard: PO-CUST-2026-0012
+                  DocDate: 2026-10-16T00:00:00
+                  DocDueDate: 2026-10-23T00:00:00
+                  SlpCode: 5
+                  CntctCode: 2
+                  PayToCode: BILL-01
+                  Address: Jl. Basuki Rahmat No. 10, Surabaya
+                  ShipToCode: SHIP-01
+                  Address2: Jl. Rungkut Industri Raya No. 45, Surabaya
+                  Comments: Update pengiriman parsial dan diskon promo
+                  DiscountPercent: 5.0
+                  DocTotal: 1650000.0
+                  IdDiskon: PROMO-OCT-2026
+                  AddonId: ADDON-WEB-0981
+                  UserId: admin01
+                  action_taken: Muatan disesuaikan di gudang dan disinkronkan ke SAP.
+                  Lines:
+                    - LineNum: 0
+                      ItemCode: ITEM-A001
+                      Quantity: 10.0
+                      WhsCode: WHS-01
+                      UomEntry: 1
+                      UnitMsr: PCS
+                      LineTotal: 1000000.0
+                      VatGroup: PPN11
+                      TaxCode: PPN11
+                      DiscPrcnt: 0.0
+                      OcrCode: DEPT-SALES
+                      OcrCode2: DIV-RETAIL
+                      OcrCode3: PROJ-EAST
+                    - LineNum: -1
+                      ItemCode: ITEM-B002
+                      Quantity: 5.0
+                      WhsCode: WHS-01
+                      UomEntry: 1
+                      UnitMsr: PCS
+                      LineTotal: 650000.0
+                      VatGroup: PPN11
+                      TaxCode: PPN11
+                      DiscPrcnt: 0.0
+                      OcrCode: DEPT-SALES
+                      OcrCode2: DIV-RETAIL
+                      OcrCode3: PROJ-EAST
+              simplified_payload:
+                summary: Simplified Payload (Hanya baris yang disesuaikan)
+                value:
+                  comments: Update pengiriman parsial karena overload
+                  action_taken: Muatan dikurangi 60 SAK di gudang. Sales Order disesuaikan via SAP editso.
+                  lines:
+                    - LineNum: 0
+                      ItemCode: ITEM-A001
+                      Quantity: 10.0
+                      WhsCode: WHS-01
+                      UnitMsr: SAK
       responses:
         '200':
           description: Sales Order berhasil di-edit di SAP dan data muatan picklist telah disesuaikan.
