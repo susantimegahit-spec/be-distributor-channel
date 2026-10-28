@@ -1104,6 +1104,10 @@ class PicklistService
             $ctx = $orderContexts[$index];
             $so = $ctx['so'];
 
+            // Debug: Vardump payload Delivery Order yang dikirim ke SAP B1
+            var_dump(count($batchPayload) === 1 ? $headerObj : $batchPayload);
+            exit;
+
             try {
                 $response = Http::timeout(60)->post("{$sapUrl}/api/AddDO", $headerObj);
             } catch (\Throwable $e) {
@@ -2971,6 +2975,11 @@ class PicklistService
         $picklist = Picklist::with(['items.salesOrder', 'expedition'])->find($picklistId);
         if (!$picklist) {
             throw new \Exception("Picklist with ID #{$picklistId} not found.", 404);
+        }
+
+        // Debug helper: langsung dump payload SAP Delivery Order jika diminta via dump_sap
+        if (!empty($payload['dump_sap']) || !empty($payload['preview_sap'])) {
+            return $this->addDeliveryOrder($picklistId, array_merge($payload, ['force_sap_do' => true]), $userId);
         }
 
         $statusLower = strtolower(trim((string)$picklist->status));
