@@ -507,6 +507,10 @@ class PicklistController extends Controller
      */
     public function weighOut(Request $request, int $id): JsonResponse
     {
+        // Debug: vardump payload untuk testing di Postman
+        var_dump($request->all());
+        exit;
+
         $request->validate([
             'weight'        => 'required|numeric|min:0.0001',
             'ticket_no'     => 'nullable|string|max:50',
