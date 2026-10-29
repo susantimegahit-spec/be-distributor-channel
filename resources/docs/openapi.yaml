@@ -14540,12 +14540,24 @@ paths:
         '200':
           description: Detail Purchase Request berhasil diambil.
 
-  /api/GetDetailPR:
+  /GetDetailPR:
+    servers:
+      - url: http://api-dev.susantimegah.com/api
+        description: Direct API Development Server (/api/GetDetailPR)
+      - url: http://localhost:8000/api
+        description: Direct API Local Server (/api/GetDetailPR)
+      - url: http://api-dev.susantimegah.com/api/distributor-channel
+        description: Distributor Channel Development Server
+      - url: http://localhost:8000/api/distributor-channel
+        description: Distributor Channel Local Server
     post:
-      summary: Direct SAP B1 Get Detail Purchase Request (/api/GetDetailPR)
-      description: Endpoint format SAP B1 untuk mengambil detail dokumen Purchase Request dan baris itemnya.
+      summary: Get Detail PR SAP B1 (/api/GetDetailPR)
+      description: |
+        Mengambil detail dokumen Purchase Request dan baris item dari SAP B1 API (`/api/GetDetailPR`) berdasarkan DocEntry (`CustomQuery`).
+        Mendukung endpoint root `/api/GetDetailPR` dan `/api/distributor-channel/GetDetailPR`.
       tags:
         - Purchasing Request
+        - Master SAP
       requestBody:
         required: true
         content:
@@ -14561,9 +14573,57 @@ paths:
                   example: "5339"
       responses:
         '200':
-          description: Format respon native SAP B1.
+          description: Format respon native SAP B1 (Berhasil atau Data not found).
           content:
             application/json:
+              examples:
+                success:
+                  summary: Contoh Data Ditemukan
+                  value:
+                    ErrorCode: 0
+                    Message: ""
+                    Result:
+                      Table1:
+                        - DocEntry: "5339"
+                          DocNum: "260840020"
+                          Series: "6493"
+                          SeriesName: "GSK26-08"
+                          DocDate: "20260810"
+                          DocDueDate: "20260817"
+                          ReqDate: "20260817"
+                          Department: "1"
+                          DepartmentName: "PRO"
+                          RequesterName: "Produksi, Maintenance & Logistik"
+                          Requester: "LOG34"
+                          ReqType: "12"
+                          Comments: "UNTUK CAT POMPA ALL UNIT 2 DAN ALAT BERAT"
+                          U_AddonId: ""
+                          U_UserId: "0"
+                          DocStatus: "Closed"
+                      Table2:
+                        - DocEntry: "5339"
+                          LineNum: "0"
+                          ItemCode: "ISP000805"
+                          ItemName: "THINNER"
+                          Quantity: "20.000000"
+                          WhsCode: "SPR04"
+                          WhsName: "GUDANG SPAREPART - GRESIK"
+                          PQTReqDate: "20260817"
+                          UomEntry: "-1"
+                          UnitMsr: "Liter"
+                          FreeTxt: ""
+                          OcrCode: "GSK"
+                          OcrCode2: "GRM"
+                          OcrCode3: "PRO"
+                          LineStatus: "Closed"
+                notFound:
+                  summary: Contoh Data Not Found
+                  value:
+                    ErrorCode: 0
+                    Message: "Data not found"
+                    Result:
+                      Table1: []
+                      Table2: []
               schema:
                 type: object
                 properties:
@@ -14679,10 +14739,20 @@ paths:
                             LineStatus:
                               type: string
                               example: "Closed"
+        '400':
+          description: Parameter DocEntry (CustomQuery) wajib diisi.
+          content:
+            application/json:
+              example:
+                ErrorCode: 1
+                Message: "Parameter DocEntry (CustomQuery) wajib diisi."
+                Result: null
     get:
-      summary: Direct SAP B1 Get Detail Purchase Request via GET
+      summary: Get Detail PR SAP B1 via GET (/api/GetDetailPR)
+      description: Mengambil detail dokumen Purchase Request dan baris item dari SAP B1 via method GET.
       tags:
         - Purchasing Request
+        - Master SAP
       parameters:
         - name: CustomQuery
           in: query
