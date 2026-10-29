@@ -14,6 +14,11 @@ Route::prefix('v1/purchasing-request')->group(function () {
     Route::match(['get', 'post'], '/generated', [PurchaseRequestController::class, 'getListPRGenerated']);
     Route::match(['get', 'post'], '/list-pr-generated', [PurchaseRequestController::class, 'getListPRGenerated']);
     Route::match(['get', 'post'], '/get-list-pr-generated', [PurchaseRequestController::class, 'getListPRGenerated']);
+    Route::match(['get', 'post'], '/detail', [PurchaseRequestController::class, 'getDetailPR']);
+    Route::match(['get', 'post'], '/detail-pr', [PurchaseRequestController::class, 'getDetailPR']);
+    Route::match(['get', 'post'], '/get-detail-pr', [PurchaseRequestController::class, 'getDetailPR']);
+    Route::get('/detail/{docEntry}', [PurchaseRequestController::class, 'getDetailPR']);
+    Route::get('/requests/sap/{docEntry}', [PurchaseRequestController::class, 'getDetailPR']);
     Route::match(['get', 'post'], '/close-pr', [PurchaseRequestController::class, 'closePR']);
     Route::match(['get', 'post'], '/close', [PurchaseRequestController::class, 'closePR']);
     Route::match(['get', 'post'], '/cancel-pr', [PurchaseRequestController::class, 'cancelPR']);
@@ -37,6 +42,9 @@ Route::match(['get', 'post'], 'GetDraftPR', [PurchaseRequestController::class, '
 Route::match(['get', 'post'], 'v1/list-pr-generated', [PurchaseRequestController::class, 'getListPRGenerated']);
 Route::match(['get', 'post'], 'v1/get-list-pr-generated', [PurchaseRequestController::class, 'getListPRGenerated']);
 Route::match(['get', 'post'], 'GetListPRGenerated', [PurchaseRequestController::class, 'getListPRGenerated']);
+Route::match(['get', 'post'], 'v1/detail-pr', [PurchaseRequestController::class, 'getDetailPR']);
+Route::match(['get', 'post'], 'v1/get-detail-pr', [PurchaseRequestController::class, 'getDetailPR']);
+Route::match(['get', 'post'], 'GetDetailPR', [PurchaseRequestController::class, 'getDetailPR']);
 Route::match(['get', 'post'], 'v1/close-pr', [PurchaseRequestController::class, 'closePR']);
 Route::match(['get', 'post'], 'v1/cancel-pr', [PurchaseRequestController::class, 'cancelPR']);
 Route::match(['get', 'post'], 'ClosePR', [PurchaseRequestController::class, 'closePR']);

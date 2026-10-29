@@ -542,6 +542,145 @@ class PurchaseRequestService
     }
 
     /**
+     * Get detail of Purchase Request from SAP B1 API (/api/GetDetailPR).
+     *
+     * @param array|string|int $payload
+     * @param int|null $userId
+     * @return array
+     */
+    public function getDetailPR($payload, ?int $userId = null): array
+    {
+        $docEntry = is_array($payload)
+            ? ($payload['CustomQuery'] ?? $payload['custom_query'] ?? $payload['CostumQuery'] ?? $payload['costum_query'] ?? $payload['DocEntry'] ?? $payload['doc_entry'] ?? $payload['id'] ?? '')
+            : (string) $payload;
+
+        $docEntry = trim((string) $docEntry);
+
+        if ($docEntry === '') {
+            return [
+                'success'    => false,
+                'error_code' => 1,
+                'message'    => 'Parameter DocEntry (CustomQuery) wajib diisi.',
+                'data'       => null,
+                'doc_entry'  => '',
+            ];
+        }
+
+        $sapUrl = rtrim(config('services.sap.url') ?: env('SAP_API_URL', 'http://103.18.133.187:3100'), '/');
+
+        $sapPayload = [
+            'CustomQuery' => (string) $docEntry,
+        ];
+
+        try {
+            $response = Http::timeout(30)->post("{$sapUrl}/api/GetDetailPR", $sapPayload);
+
+            if ($response->successful()) {
+                $body = $response->json();
+                $errorCode = (int) ($body['ErrorCode'] ?? 0);
+                $message = (string) ($body['Message'] ?? '');
+                $result = $body['Result'] ?? null;
+
+                if ($errorCode !== 0) {
+                    return [
+                        'success'    => false,
+                        'error_code' => $errorCode,
+                        'message'    => $message ?: 'Error from SAP GetDetailPR',
+                        'data'       => null,
+                        'doc_entry'  => (string) $docEntry,
+                    ];
+                }
+
+                $table1 = is_array($result) && isset($result['Table1']) && is_array($result['Table1'])
+                    ? $result['Table1']
+                    : [];
+                $table2 = is_array($result) && isset($result['Table2']) && is_array($result['Table2'])
+                    ? $result['Table2']
+                    : [];
+
+                // Filter dummy / empty header records
+                $filteredTable1 = array_values(array_filter($table1, function ($item) {
+                    return is_array($item) && !$this->isDummyDetailHeader($item);
+                }));
+
+                // Filter dummy / empty item records
+                $filteredTable2 = array_values(array_filter($table2, function ($item) {
+                    return is_array($item) && !$this->isDummyDetailItem($item);
+                }));
+
+                $isEmpty = empty($filteredTable1);
+
+                return [
+                    'success'    => !$isEmpty,
+                    'error_code' => 0,
+                    'message'    => $isEmpty ? 'Data not found' : $message,
+                    'data'       => [
+                        'Table1' => $filteredTable1,
+                        'Table2' => $filteredTable2,
+                        'header' => $filteredTable1[0] ?? null,
+                        'items'  => $filteredTable2,
+                    ],
+                    'doc_entry'  => (string) $docEntry,
+                ];
+            }
+
+            return [
+                'success'    => false,
+                'error_code' => $response->status(),
+                'message'    => 'Failed to communicate with SAP B1: HTTP ' . $response->status(),
+                'data'       => null,
+                'doc_entry'  => (string) $docEntry,
+            ];
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to fetch PR detail from SAP: ' . $e->getMessage());
+
+            return [
+                'success'    => false,
+                'error_code' => 500,
+                'message'    => 'Connection to SAP failed: ' . $e->getMessage(),
+                'data'       => null,
+                'doc_entry'  => (string) $docEntry,
+            ];
+        }
+    }
+
+    /**
+     * Check if a PR detail header returned from SAP is an empty/dummy placeholder.
+     *
+     * @param array $item
+     * @return bool
+     */
+    public function isDummyDetailHeader(array $item): bool
+    {
+        $docEntry = trim((string) ($item['DocEntry'] ?? '0'));
+        $docNum = trim((string) ($item['DocNum'] ?? '0'));
+
+        $isZeroOrEmpty = function ($val) {
+            return $val === '' || $val === '0' || $val === 0;
+        };
+
+        return $isZeroOrEmpty($docEntry) && $isZeroOrEmpty($docNum);
+    }
+
+    /**
+     * Check if a PR detail line item returned from SAP is an empty/dummy placeholder.
+     *
+     * @param array $item
+     * @return bool
+     */
+    public function isDummyDetailItem(array $item): bool
+    {
+        $docEntry = trim((string) ($item['DocEntry'] ?? '0'));
+        $itemCode = trim((string) ($item['ItemCode'] ?? ''));
+
+        $isZeroOrEmpty = function ($val) {
+            return $val === '' || $val === '0' || $val === 0;
+        };
+
+        return $isZeroOrEmpty($docEntry) || $itemCode === '';
+    }
+
+    /**
      * Build SAP payload for addpr API endpoint.
      */
     public function buildSapPayload(array $payload, ?int $userId = null): array

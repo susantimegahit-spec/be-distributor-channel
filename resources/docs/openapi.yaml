@@ -14370,6 +14370,331 @@ paths:
         '200':
           description: Daftar Purchase Request yang telah di-generate berhasil diambil.
 
+  /v1/purchasing-request/detail-pr:
+    post:
+      summary: Get Detail Purchase Request dari SAP B1 (/api/GetDetailPR)
+      description: |
+        Mengambil detail dokumen Purchase Request dan baris item dari SAP B1 API (`/api/GetDetailPR`) berdasarkan DocEntry (`CustomQuery`).
+        Jika dokumen tidak ditemukan atau SAP mengembalikan placeholder dummy kosong, endpoint mengembalikan respon data not found.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - CustomQuery
+              properties:
+                CustomQuery:
+                  type: string
+                  description: DocEntry dokumen Purchase Request
+                  example: "5339"
+      responses:
+        '200':
+          description: Detail Purchase Request berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Detail Purchase Request berhasil diambil."
+                  data:
+                    type: object
+                    properties:
+                      Table1:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            DocEntry:
+                              type: string
+                              example: "5339"
+                            DocNum:
+                              type: string
+                              example: "260840020"
+                            Series:
+                              type: string
+                              example: "6493"
+                            SeriesName:
+                              type: string
+                              example: "GSK26-08"
+                            DocDate:
+                              type: string
+                              example: "20260810"
+                            DocDueDate:
+                              type: string
+                              example: "20260817"
+                            ReqDate:
+                              type: string
+                              example: "20260817"
+                            Department:
+                              type: string
+                              example: "1"
+                            DepartmentName:
+                              type: string
+                              example: "PRO"
+                            RequesterName:
+                              type: string
+                              example: "Produksi, Maintenance & Logistik"
+                            Requester:
+                              type: string
+                              example: "LOG34"
+                            ReqType:
+                              type: string
+                              example: "12"
+                            Comments:
+                              type: string
+                              example: "UNTUK CAT POMPA ALL UNIT 2 DAN ALAT BERAT"
+                            U_AddonId:
+                              type: string
+                              example: ""
+                            U_UserId:
+                              type: string
+                              example: "0"
+                            DocStatus:
+                              type: string
+                              example: "Closed"
+                      Table2:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            DocEntry:
+                              type: string
+                              example: "5339"
+                            LineNum:
+                              type: string
+                              example: "0"
+                            ItemCode:
+                              type: string
+                              example: "ISP000805"
+                            ItemName:
+                              type: string
+                              example: "THINNER"
+                            Quantity:
+                              type: string
+                              example: "20.000000"
+                            WhsCode:
+                              type: string
+                              example: "SPR04"
+                            WhsName:
+                              type: string
+                              example: "GUDANG SPAREPART - GRESIK"
+                            PQTReqDate:
+                              type: string
+                              example: "20260817"
+                            UomEntry:
+                              type: string
+                              example: "-1"
+                            UnitMsr:
+                              type: string
+                              example: "Liter"
+                            FreeTxt:
+                              type: string
+                              example: ""
+                            OcrCode:
+                              type: string
+                              example: "GSK"
+                            OcrCode2:
+                              type: string
+                              example: "GRM"
+                            OcrCode3:
+                              type: string
+                              example: "PRO"
+                            LineStatus:
+                              type: string
+                              example: "Closed"
+        '400':
+          description: Parameter DocEntry (CustomQuery) wajib diisi.
+    get:
+      summary: Get Detail Purchase Request dari SAP B1 (Query Parameter)
+      description: Mengambil detail Purchase Request dari SAP B1 via method GET dengan query param `CustomQuery`.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: CustomQuery
+          in: query
+          required: true
+          description: DocEntry dokumen Purchase Request
+          schema:
+            type: string
+            example: "5339"
+        - name: format
+          in: query
+          description: Format output respons ('sap' untuk format raw SAP)
+          schema:
+            type: string
+            example: "sap"
+      responses:
+        '200':
+          description: Detail Purchase Request berhasil diambil.
+
+  /api/GetDetailPR:
+    post:
+      summary: Direct SAP B1 Get Detail Purchase Request (/api/GetDetailPR)
+      description: Endpoint format SAP B1 untuk mengambil detail dokumen Purchase Request dan baris itemnya.
+      tags:
+        - Purchasing Request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - CustomQuery
+              properties:
+                CustomQuery:
+                  type: string
+                  description: DocEntry dokumen Purchase Request
+                  example: "5339"
+      responses:
+        '200':
+          description: Format respon native SAP B1.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ErrorCode:
+                    type: integer
+                    example: 0
+                  Message:
+                    type: string
+                    example: ""
+                  Result:
+                    type: object
+                    properties:
+                      Table1:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            DocEntry:
+                              type: string
+                              example: "5339"
+                            DocNum:
+                              type: string
+                              example: "260840020"
+                            Series:
+                              type: string
+                              example: "6493"
+                            SeriesName:
+                              type: string
+                              example: "GSK26-08"
+                            DocDate:
+                              type: string
+                              example: "20260810"
+                            DocDueDate:
+                              type: string
+                              example: "20260817"
+                            ReqDate:
+                              type: string
+                              example: "20260817"
+                            Department:
+                              type: string
+                              example: "1"
+                            DepartmentName:
+                              type: string
+                              example: "PRO"
+                            RequesterName:
+                              type: string
+                              example: "Produksi, Maintenance & Logistik"
+                            Requester:
+                              type: string
+                              example: "LOG34"
+                            ReqType:
+                              type: string
+                              example: "12"
+                            Comments:
+                              type: string
+                              example: "UNTUK CAT POMPA ALL UNIT 2 DAN ALAT BERAT"
+                            U_AddonId:
+                              type: string
+                              example: ""
+                            U_UserId:
+                              type: string
+                              example: "0"
+                            DocStatus:
+                              type: string
+                              example: "Closed"
+                      Table2:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            DocEntry:
+                              type: string
+                              example: "5339"
+                            LineNum:
+                              type: string
+                              example: "0"
+                            ItemCode:
+                              type: string
+                              example: "ISP000805"
+                            ItemName:
+                              type: string
+                              example: "THINNER"
+                            Quantity:
+                              type: string
+                              example: "20.000000"
+                            WhsCode:
+                              type: string
+                              example: "SPR04"
+                            WhsName:
+                              type: string
+                              example: "GUDANG SPAREPART - GRESIK"
+                            PQTReqDate:
+                              type: string
+                              example: "20260817"
+                            UomEntry:
+                              type: string
+                              example: "-1"
+                            UnitMsr:
+                              type: string
+                              example: "Liter"
+                            FreeTxt:
+                              type: string
+                              example: ""
+                            OcrCode:
+                              type: string
+                              example: "GSK"
+                            OcrCode2:
+                              type: string
+                              example: "GRM"
+                            OcrCode3:
+                              type: string
+                              example: "PRO"
+                            LineStatus:
+                              type: string
+                              example: "Closed"
+    get:
+      summary: Direct SAP B1 Get Detail Purchase Request via GET
+      tags:
+        - Purchasing Request
+      parameters:
+        - name: CustomQuery
+          in: query
+          required: true
+          description: DocEntry dokumen Purchase Request
+          schema:
+            type: string
+            example: "5339"
+      responses:
+        '200':
+          description: Format respon native SAP B1.
+
   /v1/purchasing-request/close-pr:
     post:
       summary: Close Purchase Request di SAP B1 (/api/ClosePR)

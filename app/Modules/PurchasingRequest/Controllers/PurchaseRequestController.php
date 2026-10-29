@@ -264,6 +264,102 @@ class PurchaseRequestController extends Controller
         ], 200);
     }
 
+    /**
+     * Get detail of Purchase Request from SAP B1 API (/api/GetDetailPR).
+     */
+    public function getDetailPR(Request $request): JsonResponse
+    {
+        $payload = $request->all();
+        $userId = $request->user()?->id;
+
+        $docEntry = $payload['CustomQuery']
+            ?? $payload['custom_query']
+            ?? $payload['CostumQuery']
+            ?? $payload['costum_query']
+            ?? $payload['DocEntry']
+            ?? $payload['doc_entry']
+            ?? $payload['id']
+            ?? $request->route('docEntry')
+            ?? $request->route('id')
+            ?? null;
+
+        $isSapFormat = $request->is('api/GetDetailPR')
+            || $request->is('GetDetailPR')
+            || $request->is('*GetDetailPR*')
+            || $request->query('format') === 'sap'
+            || $request->input('format') === 'sap';
+
+        if (empty($docEntry)) {
+            if ($isSapFormat) {
+                return response()->json([
+                    'ErrorCode' => 1,
+                    'Message'   => 'Parameter DocEntry (CustomQuery) wajib diisi.',
+                    'Result'    => null,
+                ], 400);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Parameter DocEntry (CustomQuery) wajib diisi.',
+                'data'    => null,
+            ], 400);
+        }
+
+        $payload['CustomQuery'] = (string) $docEntry;
+        $res = $this->service->getDetailPR($payload, $userId);
+
+        if ($isSapFormat) {
+            if (($res['error_code'] ?? 0) !== 0) {
+                return response()->json([
+                    'ErrorCode' => $res['error_code'],
+                    'Message'   => $res['message'] ?? 'Error from SAP GetDetailPR',
+                    'Result'    => null,
+                ], 200);
+            }
+
+            $table1 = $res['data']['Table1'] ?? [];
+            $table2 = $res['data']['Table2'] ?? [];
+
+            if (empty($table1)) {
+                return response()->json([
+                    'ErrorCode' => 0,
+                    'Message'   => 'Data not found',
+                    'Result'    => [
+                        'Table1' => [],
+                        'Table2' => [],
+                    ],
+                ], 200);
+            }
+
+            return response()->json([
+                'ErrorCode' => 0,
+                'Message'   => $res['message'] ?? '',
+                'Result'    => [
+                    'Table1' => $table1,
+                    'Table2' => $table2,
+                ],
+            ], 200);
+        }
+
+        if (!$res['success'] && ($res['error_code'] ?? 0) !== 0) {
+            return response()->json([
+                'success' => false,
+                'message' => $res['message'] ?: 'Failed to fetch detail from SAP.',
+                'data'    => null,
+            ], 400);
+        }
+
+        if (empty($res['data']['Table1'])) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Data not found.',
+                'data'    => null,
+            ], 200);
+        }
+
+        return $this->successResponse($res['data'], 'Detail Purchase Request berhasil diambil.');
+    }
+
     public function index(Request $request): JsonResponse
     {
         $filters = $request->only([
