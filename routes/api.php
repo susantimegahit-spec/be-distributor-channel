@@ -37,11 +37,11 @@ Route::prefix('v1/purchasing-request')->group(function () {
 });
 
 // Direct public vendor offer routes
-Route::get('/v1/public/quotations/{token}', [\App\Modules\PurchasingRequest\Controllers\PurchaseQuotationController::class, 'showPublic']);
-Route::post('/v1/public/quotations/{token}/offers', [\App\Modules\PurchasingRequest\Controllers\PurchaseQuotationController::class, 'submitPublicOffer']);
-Route::get('/quotation-offer/{token}', [\App\Modules\PurchasingRequest\Controllers\PurchaseQuotationController::class, 'showPublic']);
-Route::post('/quotation-offer/{token}', [\App\Modules\PurchasingRequest\Controllers\PurchaseQuotationController::class, 'submitPublicOffer']);
-Route::post('/quotation-offer/{token}/submit', [\App\Modules\PurchasingRequest\Controllers\PurchaseQuotationController::class, 'submitPublicOffer']);
+Route::get('/v1/public/quotations/{token?}', [\App\Modules\PurchasingRequest\Controllers\PurchaseQuotationController::class, 'showPublic']);
+Route::post('/v1/public/quotations/{token?}/offers', [\App\Modules\PurchasingRequest\Controllers\PurchaseQuotationController::class, 'submitPublicOffer']);
+Route::get('/quotation-offer/{token?}', [\App\Modules\PurchasingRequest\Controllers\PurchaseQuotationController::class, 'showPublic']);
+Route::post('/quotation-offer/{token?}', [\App\Modules\PurchasingRequest\Controllers\PurchaseQuotationController::class, 'submitPublicOffer']);
+Route::post('/quotation-offer/{token?}/submit', [\App\Modules\PurchasingRequest\Controllers\PurchaseQuotationController::class, 'submitPublicOffer']);
 
 Route::prefix('dashboard-layouts')->middleware('auth:sanctum')->group(function () {
     Route::get('/me', [\App\Modules\Dashboard\Controllers\DashboardLayoutController::class, 'getMyLayout']);

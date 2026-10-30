@@ -50,11 +50,11 @@ Route::prefix('v1/purchasing-request')->group(function () {
 });
 
 // Quotations direct v1 & public endpoints
-Route::get('v1/public/quotations/{token}', [PurchaseQuotationController::class, 'showPublic']);
-Route::post('v1/public/quotations/{token}/offers', [PurchaseQuotationController::class, 'submitPublicOffer']);
-Route::get('quotation-offer/{token}', [PurchaseQuotationController::class, 'showPublic']);
-Route::post('quotation-offer/{token}', [PurchaseQuotationController::class, 'submitPublicOffer']);
-Route::post('quotation-offer/{token}/submit', [PurchaseQuotationController::class, 'submitPublicOffer']);
+Route::get('v1/public/quotations/{token?}', [PurchaseQuotationController::class, 'showPublic']);
+Route::post('v1/public/quotations/{token?}/offers', [PurchaseQuotationController::class, 'submitPublicOffer']);
+Route::get('quotation-offer/{token?}', [PurchaseQuotationController::class, 'showPublic']);
+Route::post('quotation-offer/{token?}', [PurchaseQuotationController::class, 'submitPublicOffer']);
+Route::post('quotation-offer/{token?}/submit', [PurchaseQuotationController::class, 'submitPublicOffer']);
 
 Route::get('v1/document-types', [DocumentTypeController::class, 'index']);
 Route::match(['get', 'post'], 'v1/departments', [PurchaseRequestController::class, 'getDepartments']);

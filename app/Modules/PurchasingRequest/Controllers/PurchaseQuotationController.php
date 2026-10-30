@@ -164,11 +164,24 @@ class PurchaseQuotationController extends Controller
     }
 
     /**
-     * Public endpoint: retrieve quotation info by token.
+     * Public endpoint: retrieve quotation info by token or ID (path, query, or body).
      */
-    public function showPublic(string $token): JsonResponse
+    public function showPublic(Request $request, ?string $token = null): JsonResponse
     {
-        $quotation = $this->service->getQuotationByToken($token);
+        $identifier = $token 
+            ?? $request->route('token') 
+            ?? $request->query('token') 
+            ?? $request->input('token') 
+            ?? $request->query('id') 
+            ?? $request->input('id');
+
+        if (!$identifier) {
+            return $this->errorResponse('Parameter token atau id quotation wajib diisi.', null, 400);
+        }
+
+        $quotation = is_numeric($identifier)
+            ? $this->service->getQuotationById((int) $identifier)
+            : $this->service->getQuotationByToken((string) $identifier);
 
         if (!$quotation) {
             return $this->errorResponse('Request for Quotation tidak ditemukan atau token tidak valid.', null, 404);
@@ -178,12 +191,24 @@ class PurchaseQuotationController extends Controller
     }
 
     /**
-     * Public endpoint: vendor submits offer by token.
+     * Public endpoint: vendor submits offer by token or ID (path, query, or body).
      */
-    public function submitPublicOffer(SubmitQuotationOfferRequest $request, string $token): JsonResponse
+    public function submitPublicOffer(SubmitQuotationOfferRequest $request, ?string $token = null): JsonResponse
     {
+        $identifier = $token 
+            ?? $request->route('token') 
+            ?? $request->input('token') 
+            ?? $request->query('token') 
+            ?? $request->input('id') 
+            ?? $request->input('quotation_id') 
+            ?? $request->query('id');
+
+        if (!$identifier) {
+            return $this->errorResponse('Parameter token atau id quotation wajib diisi.', null, 400);
+        }
+
         $payload = $request->validated();
-        $offer = $this->service->submitOffer($token, $payload);
+        $offer = $this->service->submitOffer($identifier, $payload);
 
         if (!$offer) {
             return $this->errorResponse('Request for Quotation tidak ditemukan atau token tidak valid.', null, 404);

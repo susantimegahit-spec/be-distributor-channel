@@ -14,6 +14,10 @@ class SubmitQuotationOfferRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'token'                      => 'nullable|string|max:64',
+            'id'                         => 'nullable',
+            'quotation_id'               => 'nullable',
+
             // Vendor details nested or flat
             'vendor'                     => 'nullable|array',
             'vendor.company'             => 'required_with:vendor|string|max:255',

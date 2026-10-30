@@ -336,6 +336,17 @@ class PurchaseQuotationTest extends TestCase
         $response->assertStatus(201)
             ->assertJsonPath('data.vendor.company', 'CV Sumber Makmur')
             ->assertJsonPath('data.totalPrice', 200000);
+
+        // Also test GET and POST without token in path (via query param or JSON body)
+        $getQueryResponse = $this->getJson('/api/quotation-offer?token=' . $token);
+        $getQueryResponse->assertStatus(200)
+            ->assertJsonPath('data.token', $token);
+
+        $vendorPayload['token'] = $token;
+        $vendorPayload['vendor']['company'] = 'PT Reksa Daya';
+        $postBodyResponse = $this->postJson('/api/quotation-offer', $vendorPayload);
+        $postBodyResponse->assertStatus(201)
+            ->assertJsonPath('data.vendor.company', 'PT Reksa Daya');
     }
 }
 
