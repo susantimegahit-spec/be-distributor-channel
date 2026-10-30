@@ -14370,6 +14370,450 @@ paths:
         '200':
           description: Daftar Purchase Request yang telah di-generate berhasil diambil.
 
+  /v1/purchasing-request/detail-pr:
+    post:
+      summary: Get Detail Purchase Request dari SAP B1 (/api/GetDetailPR)
+      description: |
+        Mengambil detail dokumen Purchase Request dan baris item dari SAP B1 API (`/api/GetDetailPR`) berdasarkan DocEntry (`CustomQuery`).
+        Jika dokumen tidak ditemukan atau SAP mengembalikan placeholder dummy kosong, endpoint mengembalikan respon data not found.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - CustomQuery
+              properties:
+                CustomQuery:
+                  type: string
+                  description: DocEntry dokumen Purchase Request
+                  example: "5339"
+      responses:
+        '200':
+          description: Detail Purchase Request berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Detail Purchase Request berhasil diambil."
+                  data:
+                    type: object
+                    properties:
+                      Table1:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            DocEntry:
+                              type: string
+                              example: "5339"
+                            DocNum:
+                              type: string
+                              example: "260840020"
+                            Series:
+                              type: string
+                              example: "6493"
+                            SeriesName:
+                              type: string
+                              example: "GSK26-08"
+                            DocDate:
+                              type: string
+                              example: "20260810"
+                            DocDueDate:
+                              type: string
+                              example: "20260817"
+                            ReqDate:
+                              type: string
+                              example: "20260817"
+                            Department:
+                              type: string
+                              example: "1"
+                            DepartmentName:
+                              type: string
+                              example: "PRO"
+                            RequesterName:
+                              type: string
+                              example: "Produksi, Maintenance & Logistik"
+                            Requester:
+                              type: string
+                              example: "LOG34"
+                            ReqType:
+                              type: string
+                              example: "12"
+                            Comments:
+                              type: string
+                              example: "UNTUK CAT POMPA ALL UNIT 2 DAN ALAT BERAT"
+                            U_AddonId:
+                              type: string
+                              example: ""
+                            U_UserId:
+                              type: string
+                              example: "0"
+                            DocStatus:
+                              type: string
+                              example: "Closed"
+                      Table2:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            DocEntry:
+                              type: string
+                              example: "5339"
+                            LineNum:
+                              type: string
+                              example: "0"
+                            ItemCode:
+                              type: string
+                              example: "ISP000805"
+                            ItemName:
+                              type: string
+                              example: "THINNER"
+                            Quantity:
+                              type: string
+                              example: "20.000000"
+                            WhsCode:
+                              type: string
+                              example: "SPR04"
+                            WhsName:
+                              type: string
+                              example: "GUDANG SPAREPART - GRESIK"
+                            PQTReqDate:
+                              type: string
+                              example: "20260817"
+                            UomEntry:
+                              type: string
+                              example: "-1"
+                            UnitMsr:
+                              type: string
+                              example: "Liter"
+                            FreeTxt:
+                              type: string
+                              example: ""
+                            OcrCode:
+                              type: string
+                              example: "GSK"
+                            OcrCode2:
+                              type: string
+                              example: "GRM"
+                            OcrCode3:
+                              type: string
+                              example: "PRO"
+                            LineStatus:
+                              type: string
+                              example: "Closed"
+        '400':
+          description: Parameter DocEntry (CustomQuery) wajib diisi.
+    get:
+      summary: Get Detail Purchase Request dari SAP B1 (Query Parameter)
+      description: Mengambil detail Purchase Request dari SAP B1 via method GET dengan query param `CustomQuery`.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: CustomQuery
+          in: query
+          required: true
+          description: DocEntry dokumen Purchase Request
+          schema:
+            type: string
+            example: "5339"
+        - name: format
+          in: query
+          description: Format output respons ('sap' untuk format raw SAP)
+          schema:
+            type: string
+            example: "sap"
+      responses:
+        '200':
+          description: Detail Purchase Request berhasil diambil.
+
+  /v1/purchasing-request/detail/{docEntry}:
+    get:
+      summary: Get Detail Purchase Request dari SAP B1 via Path Param
+      description: Mengambil detail dokumen Purchase Request dan baris item dari SAP B1 berdasarkan DocEntry pada path URL.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: docEntry
+          in: path
+          required: true
+          description: DocEntry dokumen Purchase Request
+          schema:
+            type: string
+            example: "5339"
+        - name: format
+          in: query
+          required: false
+          description: Format output respons ('sap' untuk format native SAP B1)
+          schema:
+            type: string
+            example: "sap"
+      responses:
+        '200':
+          description: Detail Purchase Request berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Detail Purchase Request berhasil diambil."
+                  data:
+                    type: object
+                    properties:
+                      Table1:
+                        type: array
+                        items:
+                          type: object
+                      Table2:
+                        type: array
+                        items:
+                          type: object
+
+  /GetDetailPR:
+    servers:
+      - url: http://api-dev.susantimegah.com/api
+        description: Direct API Development Server (/api/GetDetailPR)
+      - url: http://localhost:8000/api
+        description: Direct API Local Server (/api/GetDetailPR)
+      - url: http://api-dev.susantimegah.com/api/distributor-channel
+        description: Distributor Channel Development Server
+      - url: http://localhost:8000/api/distributor-channel
+        description: Distributor Channel Local Server
+    post:
+      summary: Get Detail PR SAP B1 (/api/GetDetailPR)
+      description: |
+        Mengambil detail dokumen Purchase Request dan baris item dari SAP B1 API (`/api/GetDetailPR`) berdasarkan DocEntry (`CustomQuery`).
+        Mendukung endpoint root `/api/GetDetailPR` dan `/api/distributor-channel/GetDetailPR`.
+      tags:
+        - Purchasing Request
+        - Master SAP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - CustomQuery
+              properties:
+                CustomQuery:
+                  type: string
+                  description: DocEntry dokumen Purchase Request
+                  example: "5339"
+      responses:
+        '200':
+          description: Format respon native SAP B1 (Berhasil atau Data not found).
+          content:
+            application/json:
+              examples:
+                success:
+                  summary: Contoh Data Ditemukan
+                  value:
+                    ErrorCode: 0
+                    Message: ""
+                    Result:
+                      Table1:
+                        - DocEntry: "5339"
+                          DocNum: "260840020"
+                          Series: "6493"
+                          SeriesName: "GSK26-08"
+                          DocDate: "20260810"
+                          DocDueDate: "20260817"
+                          ReqDate: "20260817"
+                          Department: "1"
+                          DepartmentName: "PRO"
+                          RequesterName: "Produksi, Maintenance & Logistik"
+                          Requester: "LOG34"
+                          ReqType: "12"
+                          Comments: "UNTUK CAT POMPA ALL UNIT 2 DAN ALAT BERAT"
+                          U_AddonId: ""
+                          U_UserId: "0"
+                          DocStatus: "Closed"
+                      Table2:
+                        - DocEntry: "5339"
+                          LineNum: "0"
+                          ItemCode: "ISP000805"
+                          ItemName: "THINNER"
+                          Quantity: "20.000000"
+                          WhsCode: "SPR04"
+                          WhsName: "GUDANG SPAREPART - GRESIK"
+                          PQTReqDate: "20260817"
+                          UomEntry: "-1"
+                          UnitMsr: "Liter"
+                          FreeTxt: ""
+                          OcrCode: "GSK"
+                          OcrCode2: "GRM"
+                          OcrCode3: "PRO"
+                          LineStatus: "Closed"
+                notFound:
+                  summary: Contoh Data Not Found
+                  value:
+                    ErrorCode: 0
+                    Message: "Data not found"
+                    Result:
+                      Table1: []
+                      Table2: []
+              schema:
+                type: object
+                properties:
+                  ErrorCode:
+                    type: integer
+                    example: 0
+                  Message:
+                    type: string
+                    example: ""
+                  Result:
+                    type: object
+                    properties:
+                      Table1:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            DocEntry:
+                              type: string
+                              example: "5339"
+                            DocNum:
+                              type: string
+                              example: "260840020"
+                            Series:
+                              type: string
+                              example: "6493"
+                            SeriesName:
+                              type: string
+                              example: "GSK26-08"
+                            DocDate:
+                              type: string
+                              example: "20260810"
+                            DocDueDate:
+                              type: string
+                              example: "20260817"
+                            ReqDate:
+                              type: string
+                              example: "20260817"
+                            Department:
+                              type: string
+                              example: "1"
+                            DepartmentName:
+                              type: string
+                              example: "PRO"
+                            RequesterName:
+                              type: string
+                              example: "Produksi, Maintenance & Logistik"
+                            Requester:
+                              type: string
+                              example: "LOG34"
+                            ReqType:
+                              type: string
+                              example: "12"
+                            Comments:
+                              type: string
+                              example: "UNTUK CAT POMPA ALL UNIT 2 DAN ALAT BERAT"
+                            U_AddonId:
+                              type: string
+                              example: ""
+                            U_UserId:
+                              type: string
+                              example: "0"
+                            DocStatus:
+                              type: string
+                              example: "Closed"
+                      Table2:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            DocEntry:
+                              type: string
+                              example: "5339"
+                            LineNum:
+                              type: string
+                              example: "0"
+                            ItemCode:
+                              type: string
+                              example: "ISP000805"
+                            ItemName:
+                              type: string
+                              example: "THINNER"
+                            Quantity:
+                              type: string
+                              example: "20.000000"
+                            WhsCode:
+                              type: string
+                              example: "SPR04"
+                            WhsName:
+                              type: string
+                              example: "GUDANG SPAREPART - GRESIK"
+                            PQTReqDate:
+                              type: string
+                              example: "20260817"
+                            UomEntry:
+                              type: string
+                              example: "-1"
+                            UnitMsr:
+                              type: string
+                              example: "Liter"
+                            FreeTxt:
+                              type: string
+                              example: ""
+                            OcrCode:
+                              type: string
+                              example: "GSK"
+                            OcrCode2:
+                              type: string
+                              example: "GRM"
+                            OcrCode3:
+                              type: string
+                              example: "PRO"
+                            LineStatus:
+                              type: string
+                              example: "Closed"
+        '400':
+          description: Parameter DocEntry (CustomQuery) wajib diisi.
+          content:
+            application/json:
+              example:
+                ErrorCode: 1
+                Message: "Parameter DocEntry (CustomQuery) wajib diisi."
+                Result: null
+    get:
+      summary: Get Detail PR SAP B1 via GET (/api/GetDetailPR)
+      description: Mengambil detail dokumen Purchase Request dan baris item dari SAP B1 via method GET.
+      tags:
+        - Purchasing Request
+        - Master SAP
+      parameters:
+        - name: CustomQuery
+          in: query
+          required: true
+          description: DocEntry dokumen Purchase Request
+          schema:
+            type: string
+            example: "5339"
+      responses:
+        '200':
+          description: Format respon native SAP B1.
+
   /v1/purchasing-request/close-pr:
     post:
       summary: Close Purchase Request di SAP B1 (/api/ClosePR)
@@ -20683,6 +21127,14 @@ paths:
                       weigh_out_net_weight:
                         type: number
                         example: 13000.0
+                      total_weight:
+                        type: number
+                        format: float
+                        example: 13000.0
+                      overload_weight:
+                        type: number
+                        format: float
+                        example: 3000.0
                       latest_overload:
                         type: object
                       history:
@@ -20693,6 +21145,222 @@ paths:
                         type: array
                         items:
                           type: object
+                      sales_order:
+                        type: object
+                        description: Informasi Sales Order lokal dan rincian itemnya untuk referensi penyesuaian muatan
+                        properties:
+                          id:
+                            type: integer
+                            example: 101
+                          order_no:
+                            type: string
+                            example: "SO-LOG-001"
+                          doc_entry:
+                            type: integer
+                            example: 1250
+                          sap_doc_num:
+                            type: string
+                            example: "300045"
+                          po_number:
+                            type: string
+                            example: "PO-CUST-2026-0012"
+                          doc_date:
+                            type: string
+                            format: date-time
+                            example: "2026-10-16T00:00:00"
+                          doc_due_date:
+                            type: string
+                            format: date-time
+                            example: "2026-10-23T00:00:00"
+                          doc_total:
+                            type: number
+                            format: float
+                            example: 1650000.0
+                          disc_percent:
+                            type: number
+                            format: float
+                            example: 5.0
+                          comments:
+                            type: string
+                            example: "Pengiriman barang promo"
+                          lines:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                line_num:
+                                  type: integer
+                                  example: 0
+                                sales_order_detail_id:
+                                  type: integer
+                                  example: 201
+                                picklist_item_id:
+                                  type: integer
+                                  example: 501
+                                item_code:
+                                  type: string
+                                  example: "ITEM-A001"
+                                item_name:
+                                  type: string
+                                  example: "Garam Kasar Overload 50kg"
+                                quantity:
+                                  type: number
+                                  format: float
+                                  example: 200.0
+                                pick_qty:
+                                  type: number
+                                  format: float
+                                  example: 200.0
+                                uom:
+                                  type: string
+                                  example: "SAK"
+                                uom_entry:
+                                  type: integer
+                                  example: 1
+                                whs_code:
+                                  type: string
+                                  example: "VPGMN01"
+                                unit_price:
+                                  type: number
+                                  format: float
+                                  example: 25000.0
+                                line_total:
+                                  type: number
+                                  format: float
+                                  example: 5000000.0
+                                vat_group:
+                                  type: string
+                                  example: "PPN11"
+                                tax_code:
+                                  type: string
+                                  example: "PPN11"
+                                disc_percent:
+                                  type: number
+                                  format: float
+                                  example: 0.0
+                                ocr_code:
+                                  type: string
+                                  example: "DEPT-SALES"
+                                ocr_code2:
+                                  type: string
+                                  example: "DIV-RETAIL"
+                                ocr_code3:
+                                  type: string
+                                  example: "PROJ-EAST"
+                                unit_weight:
+                                  type: number
+                                  format: float
+                                  example: 50.0
+                                total_weight:
+                                  type: number
+                                  format: float
+                                  example: 10000.0
+                      adjust_payload_template:
+                        type: object
+                        description: Template payload siap pakai yang dapat langsung diedit dan dikirim ke POST /v1/logistic/picklists/{id}/adjust-overload
+                        properties:
+                          DocEntry:
+                            type: integer
+                            example: 1250
+                          NumAtCard:
+                            type: string
+                            example: "PO-CUST-2026-0012"
+                          DocDate:
+                            type: string
+                            format: date-time
+                            example: "2026-10-16T00:00:00"
+                          DocDueDate:
+                            type: string
+                            format: date-time
+                            example: "2026-10-23T00:00:00"
+                          SlpCode:
+                            type: integer
+                            example: 5
+                          CntctCode:
+                            type: integer
+                            example: 2
+                          PayToCode:
+                            type: string
+                            example: "BILL-01"
+                          Address:
+                            type: string
+                            example: "Jl. Basuki Rahmat No. 10, Surabaya"
+                          ShipToCode:
+                            type: string
+                            example: "SHIP-01"
+                          Address2:
+                            type: string
+                            example: "Jl. Rungkut Industri Raya No. 45, Surabaya"
+                          Comments:
+                            type: string
+                            example: "Update muatan overload"
+                          DiscountPercent:
+                            type: number
+                            format: float
+                            example: 5.0
+                          DocTotal:
+                            type: number
+                            format: float
+                            example: 1650000.0
+                          IdDiskon:
+                            type: string
+                            example: "PROMO-OCT-2026"
+                          AddonId:
+                            type: string
+                            example: "ADDON-WEB-0981"
+                          UserId:
+                            type: string
+                            example: "admin01"
+                          action_taken:
+                            type: string
+                            example: "Muatan dikurangi di gudang dan disesuaikan ke SAP B1 via /api/editso."
+                          Lines:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                LineNum:
+                                  type: integer
+                                  example: 0
+                                ItemCode:
+                                  type: string
+                                  example: "ITEM-A001"
+                                Quantity:
+                                  type: number
+                                  format: float
+                                  example: 140.0
+                                WhsCode:
+                                  type: string
+                                  example: "VPGMN01"
+                                UomEntry:
+                                  type: integer
+                                  example: 1
+                                UnitMsr:
+                                  type: string
+                                  example: "SAK"
+                                LineTotal:
+                                  type: number
+                                  format: float
+                                  example: 3500000.0
+                                VatGroup:
+                                  type: string
+                                  example: "PPN11"
+                                TaxCode:
+                                  type: string
+                                  example: "PPN11"
+                                DiscPrcnt:
+                                  type: number
+                                  format: float
+                                  example: 0.0
+                                OcrCode:
+                                  type: string
+                                  example: "DEPT-SALES"
+                                OcrCode2:
+                                  type: string
+                                  example: "DIV-RETAIL"
+                                OcrCode3:
+                                  type: string
+                                  example: "PROJ-EAST"
         '404':
           description: Picklist tidak ditemukan.
 
@@ -20922,22 +21590,93 @@ paths:
           application/json:
             schema:
               type: object
+              description: |
+                Mendukung full payload SAP B1 `/api/editso` maupun format ringkas logistik.
+                Jika field header tidak dikirimkan, backend otomatis mengambil data dari Sales Order yang sudah tersimpan.
               properties:
                 sales_order_id:
                   type: integer
-                  description: ID Sales Order lokal yang akan disesuaikan (opsional jika picklist hanya memiliki 1 SO)
+                  description: ID Sales Order lokal yang akan disesuaikan (opsional jika DocEntry atau picklist sudah terhubung)
                   example: 101
+                DocEntry:
+                  type: integer
+                  description: DocEntry Sales Order di SAP B1 (opsional jika sales_order_id sudah disertakan)
+                  example: 1250
+                NumAtCard:
+                  type: string
+                  description: Nomor referensi customer / PO Customer
+                  example: PO-CUST-2026-0012
+                DocDate:
+                  type: string
+                  format: date-time
+                  description: Tanggal dokumen Sales Order (format ISO)
+                  example: 2026-10-16T00:00:00
+                DocDueDate:
+                  type: string
+                  format: date-time
+                  description: Tanggal jatuh tempo / pengiriman Sales Order (format ISO)
+                  example: 2026-10-23T00:00:00
+                SlpCode:
+                  type: integer
+                  description: Kode Sales Person SAP
+                  example: 5
+                CntctCode:
+                  type: integer
+                  description: Kode kontak customer SAP
+                  example: 2
+                PayToCode:
+                  type: string
+                  description: Kode alamat penagihan SAP
+                  example: BILL-01
+                Address:
+                  type: string
+                  description: Alamat penagihan lengkap
+                  example: Jl. Basuki Rahmat No. 10, Surabaya
+                ShipToCode:
+                  type: string
+                  description: Kode alamat pengiriman SAP
+                  example: SHIP-01
+                Address2:
+                  type: string
+                  description: Alamat pengiriman lengkap
+                  example: Jl. Rungkut Industri Raya No. 45, Surabaya
+                Comments:
+                  type: string
+                  description: Catatan penyesuaian muatan pada Sales Order SAP (dapat juga menggunakan key 'comments')
+                  example: Update pengiriman parsial dan diskon promo
                 comments:
                   type: string
-                  description: Catatan penyesuaian muatan pada Sales Order
-                  example: Update pengiriman parsial karena overload
+                  description: Alias lowercase untuk Catatan penyesuaian muatan
+                  example: Update pengiriman parsial dan diskon promo
+                DiscountPercent:
+                  type: number
+                  format: float
+                  description: Persentase diskon header Sales Order
+                  example: 5.0
+                DocTotal:
+                  type: number
+                  format: float
+                  description: Total nilai dokumen Sales Order setelah diskon (opsional, dihitung otomatis jika kosong)
+                  example: 1650000.0
+                IdDiskon:
+                  type: string
+                  description: ID voucher / promo diskon
+                  example: PROMO-OCT-2026
+                AddonId:
+                  type: string
+                  description: Identifier addon pengirim
+                  example: ADDON-WEB-0981
+                UserId:
+                  type: string
+                  description: Username pengguna / operator
+                  example: admin01
                 action_taken:
                   type: string
-                  description: Catatan tindakan penanganan overload oleh petugas logistik
+                  description: Catatan tindakan penanganan overload oleh petugas logistik (disimpan di record picklist_overloads)
                   example: Muatan dikurangi 60 SAK di gudang. Sales Order disesuaikan via SAP editso.
                 lines:
                   type: array
-                  description: Daftar baris item Sales Order yang disesuaikan
+                  description: Daftar baris item Sales Order yang disesuaikan (dapat juga menggunakan key 'Lines')
                   items:
                     type: object
                     properties:
@@ -20956,7 +21695,7 @@ paths:
                         example: 10.0
                       WhsCode:
                         type: string
-                        description: Kode gudang
+                        description: Kode gudang SAP
                         example: WHS-01
                       UomEntry:
                         type: integer
@@ -20964,7 +21703,7 @@ paths:
                       UnitMsr:
                         type: string
                         description: Satuan ukuran produk
-                        example: SAK
+                        example: PCS
                       LineTotal:
                         type: number
                         format: float
@@ -20979,15 +21718,74 @@ paths:
                       TaxCode:
                         type: string
                         example: PPN11
-            example:
-              comments: Update pengiriman parsial dan diskon promo
-              action_taken: Muatan dikurangi 60 SAK di gudang. Sales Order disesuaikan via SAP editso.
-              lines:
-                - LineNum: 0
-                  ItemCode: ITEM-A001
-                  Quantity: 10.0
-                  WhsCode: WHS-01
-                  UnitMsr: SAK
+                      OcrCode:
+                        type: string
+                        example: DEPT-SALES
+                      OcrCode2:
+                        type: string
+                        example: DIV-RETAIL
+                      OcrCode3:
+                        type: string
+                        example: PROJ-EAST
+            examples:
+              full_sap_editso_payload:
+                summary: Full Payload SAP B1 editso
+                value:
+                  DocEntry: 1250
+                  NumAtCard: PO-CUST-2026-0012
+                  DocDate: 2026-10-16T00:00:00
+                  DocDueDate: 2026-10-23T00:00:00
+                  SlpCode: 5
+                  CntctCode: 2
+                  PayToCode: BILL-01
+                  Address: Jl. Basuki Rahmat No. 10, Surabaya
+                  ShipToCode: SHIP-01
+                  Address2: Jl. Rungkut Industri Raya No. 45, Surabaya
+                  Comments: Update pengiriman parsial dan diskon promo
+                  DiscountPercent: 5.0
+                  DocTotal: 1650000.0
+                  IdDiskon: PROMO-OCT-2026
+                  AddonId: ADDON-WEB-0981
+                  UserId: admin01
+                  action_taken: Muatan disesuaikan di gudang dan disinkronkan ke SAP.
+                  Lines:
+                    - LineNum: 0
+                      ItemCode: ITEM-A001
+                      Quantity: 10.0
+                      WhsCode: WHS-01
+                      UomEntry: 1
+                      UnitMsr: PCS
+                      LineTotal: 1000000.0
+                      VatGroup: PPN11
+                      TaxCode: PPN11
+                      DiscPrcnt: 0.0
+                      OcrCode: DEPT-SALES
+                      OcrCode2: DIV-RETAIL
+                      OcrCode3: PROJ-EAST
+                    - LineNum: -1
+                      ItemCode: ITEM-B002
+                      Quantity: 5.0
+                      WhsCode: WHS-01
+                      UomEntry: 1
+                      UnitMsr: PCS
+                      LineTotal: 650000.0
+                      VatGroup: PPN11
+                      TaxCode: PPN11
+                      DiscPrcnt: 0.0
+                      OcrCode: DEPT-SALES
+                      OcrCode2: DIV-RETAIL
+                      OcrCode3: PROJ-EAST
+              simplified_payload:
+                summary: Simplified Payload (Hanya baris yang disesuaikan)
+                value:
+                  comments: Update pengiriman parsial karena overload
+                  action_taken: Muatan dikurangi 60 SAK di gudang. Sales Order disesuaikan via SAP editso.
+                  lines:
+                    - LineNum: 0
+                      ItemCode: ITEM-A001
+                      Quantity: 10.0
+                      WhsCode: WHS-01
+                      UnitMsr: SAK
       responses:
         '200':
           description: Sales Order berhasil di-edit di SAP dan data muatan picklist telah disesuaikan.
@@ -27028,7 +27826,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PicklistItem'
-
 
 
 

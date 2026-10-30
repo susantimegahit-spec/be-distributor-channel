@@ -17,6 +17,7 @@ Route::match(['get', 'post'], '/GetOriginator', [\App\Modules\MasterApproval\Con
 Route::match(['get', 'post'], '/GetDepartment', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'getDepartments']);
 Route::match(['get', 'post'], '/GetDraftPR', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'getDraftPR']);
 Route::match(['get', 'post'], '/GetListPRGenerated', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'getListPRGenerated']);
+Route::match(['get', 'post'], '/GetDetailPR', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'getDetailPR']);
 Route::match(['get', 'post'], '/ClosePR', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'closePR']);
 Route::match(['get', 'post'], '/CancelPR', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'cancelPR']);
 

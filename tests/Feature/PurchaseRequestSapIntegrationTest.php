@@ -864,6 +864,213 @@ class PurchaseRequestSapIntegrationTest extends TestCase
             ->assertJsonPath('Message', 'Failed - [CancelPurchaseRequest] Parameter DocEntry is required')
             ->assertJsonPath('Result', null);
     }
+
+    public function test_get_detail_pr_direct_endpoint_success()
+    {
+        $sampleSapResponse = [
+            'ErrorCode' => 0,
+            'Message'   => '',
+            'Result'    => [
+                'Table1' => [
+                    [
+                        'DocEntry'       => '5339',
+                        'DocNum'         => '260840020',
+                        'Series'         => '6493',
+                        'SeriesName'     => 'GSK26-08',
+                        'DocDate'        => '20260810',
+                        'DocDueDate'     => '20260817',
+                        'ReqDate'        => '20260817',
+                        'Department'     => '1',
+                        'DepartmentName' => 'PRO',
+                        'RequesterName'  => 'Produksi, Maintenance & Logistik',
+                        'Requester'      => 'LOG34',
+                        'ReqType'        => '12',
+                        'Comments'       => 'UNTUK CAT POMPA ALL UNIT 2 DAN ALAT BERAT',
+                        'U_AddonId'      => '',
+                        'U_UserId'       => '0',
+                        'DocStatus'      => 'Closed',
+                    ]
+                ],
+                'Table2' => [
+                    [
+                        'DocEntry'   => '5339',
+                        'LineNum'    => '0',
+                        'ItemCode'   => 'ISP000805',
+                        'ItemName'   => 'THINNER',
+                        'Quantity'   => '20.000000',
+                        'WhsCode'    => 'SPR04',
+                        'WhsName'    => 'GUDANG SPAREPART - GRESIK',
+                        'PQTReqDate' => '20260817',
+                        'UomEntry'   => '-1',
+                        'UnitMsr'    => 'Liter',
+                        'FreeTxt'    => '',
+                        'OcrCode'    => 'GSK',
+                        'OcrCode2'   => 'GRM',
+                        'OcrCode3'   => 'PRO',
+                        'LineStatus' => 'Closed',
+                    ]
+                ]
+            ]
+        ];
+
+        Http::fake([
+            '*/api/GetDetailPR' => Http::response($sampleSapResponse, 200),
+        ]);
+
+        // Direct POST /api/GetDetailPR
+        $postResponse = $this->postJson('/api/GetDetailPR', [
+            'CustomQuery' => '5339',
+        ]);
+
+        $postResponse->assertStatus(200)
+            ->assertJsonPath('ErrorCode', 0)
+            ->assertJsonPath('Result.Table1.0.DocEntry', '5339')
+            ->assertJsonPath('Result.Table1.0.DocNum', '260840020')
+            ->assertJsonPath('Result.Table2.0.ItemCode', 'ISP000805')
+            ->assertJsonPath('Result.Table2.0.UnitMsr', 'Liter');
+
+        // Direct GET /api/GetDetailPR?CustomQuery=5339
+        $getResponse = $this->getJson('/api/GetDetailPR?CustomQuery=5339');
+
+        $getResponse->assertStatus(200)
+            ->assertJsonPath('ErrorCode', 0)
+            ->assertJsonPath('Result.Table1.0.DocEntry', '5339');
+    }
+
+    public function test_get_detail_pr_rest_endpoint_success()
+    {
+        $sampleSapResponse = [
+            'ErrorCode' => 0,
+            'Message'   => '',
+            'Result'    => [
+                'Table1' => [
+                    [
+                        'DocEntry'       => '5339',
+                        'DocNum'         => '260840020',
+                        'Department'     => '1',
+                        'DepartmentName' => 'PRO',
+                    ]
+                ],
+                'Table2' => [
+                    [
+                        'DocEntry' => '5339',
+                        'LineNum'  => '0',
+                        'ItemCode' => 'ISP000805',
+                        'ItemName' => 'THINNER',
+                        'UnitMsr'  => 'Liter',
+                    ]
+                ]
+            ]
+        ];
+
+        Http::fake([
+            '*/api/GetDetailPR' => Http::response($sampleSapResponse, 200),
+        ]);
+
+        // REST endpoint GET
+        $restResponse = $this->actingAs($this->user)->getJson('/api/distributor-channel/v1/purchasing-request/detail-pr?CustomQuery=5339');
+
+        $restResponse->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.Table1.0.DocEntry', '5339')
+            ->assertJsonPath('data.items.0.ItemCode', 'ISP000805');
+
+        // REST endpoint with path param /detail/{docEntry}
+        $pathResponse = $this->actingAs($this->user)->getJson('/api/distributor-channel/v1/purchasing-request/detail/5339');
+
+        $pathResponse->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.Table1.0.DocEntry', '5339');
+    }
+
+    public function test_get_detail_pr_validation_error_when_doc_entry_missing()
+    {
+        // Direct endpoint
+        $directResponse = $this->postJson('/api/GetDetailPR', []);
+        $directResponse->assertStatus(400)
+            ->assertJsonPath('ErrorCode', 1)
+            ->assertJsonPath('Result', null);
+
+        // REST endpoint
+        $restResponse = $this->actingAs($this->user)->postJson('/api/distributor-channel/v1/purchasing-request/detail-pr', []);
+        $restResponse->assertStatus(400)
+            ->assertJsonPath('success', false);
+    }
+
+    public function test_get_detail_pr_returns_data_not_found_when_sap_returns_dummy()
+    {
+        $dummySapResponse = [
+            'ErrorCode' => 0,
+            'Message'   => '',
+            'Result'    => [
+                'Table1' => [
+                    [
+                        'DocEntry' => '0',
+                        'DocNum'   => '0',
+                    ]
+                ],
+                'Table2' => [
+                    [
+                        'DocEntry' => '0',
+                        'ItemCode' => '',
+                    ]
+                ]
+            ]
+        ];
+
+        Http::fake([
+            '*/api/GetDetailPR' => Http::response($dummySapResponse, 200),
+        ]);
+
+        // Direct SAP format
+        $directResponse = $this->postJson('/api/GetDetailPR', [
+            'CustomQuery' => '999999',
+        ]);
+
+        $directResponse->assertStatus(200)
+            ->assertJsonPath('ErrorCode', 0)
+            ->assertJsonPath('Message', 'Data not found')
+            ->assertJsonPath('Result.Table1', [])
+            ->assertJsonPath('Result.Table2', []);
+
+        // REST format
+        $restResponse = $this->actingAs($this->user)->getJson('/api/distributor-channel/v1/purchasing-request/detail-pr?CustomQuery=999999');
+
+        $restResponse->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Data not found.')
+            ->assertJsonPath('data', null);
+    }
+
+    public function test_get_detail_pr_handles_sap_error()
+    {
+        Http::fake([
+            '*/api/GetDetailPR' => Http::response([
+                'ErrorCode' => 1,
+                'Message'   => 'SAP internal error',
+                'Result'    => null,
+            ], 200),
+        ]);
+
+        // Direct SAP format
+        $directResponse = $this->postJson('/api/GetDetailPR', [
+            'CustomQuery' => '5339',
+        ]);
+
+        $directResponse->assertStatus(200)
+            ->assertJsonPath('ErrorCode', 1)
+            ->assertJsonPath('Message', 'SAP internal error')
+            ->assertJsonPath('Result', null);
+
+        // REST format
+        $restResponse = $this->actingAs($this->user)->postJson('/api/distributor-channel/v1/purchasing-request/detail-pr', [
+            'CustomQuery' => '5339',
+        ]);
+
+        $restResponse->assertStatus(400)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'SAP internal error');
+    }
 }
 
 

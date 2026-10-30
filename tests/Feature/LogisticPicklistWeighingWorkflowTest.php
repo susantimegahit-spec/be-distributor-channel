@@ -522,6 +522,13 @@ class LogisticPicklistWeighingWorkflowTest extends TestCase
             ->assertJsonCount(1, 'data.history');
 
         $this->assertEquals(3000.0, (float) $getOverloadRes->json('data.latest_overload.overload_weight'));
+        $this->assertEquals(3000.0, (float) $getOverloadRes->json('data.overload_weight'));
+        $this->assertNotNull($getOverloadRes->json('data.sales_order'));
+        $this->assertEquals(1250, (int) $getOverloadRes->json('data.sales_order.doc_entry'));
+        $this->assertNotNull($getOverloadRes->json('data.adjust_payload_template'));
+        $this->assertEquals(1250, (int) $getOverloadRes->json('data.adjust_payload_template.DocEntry'));
+        $this->assertNotEmpty($getOverloadRes->json('data.adjust_payload_template.Lines'));
+        $this->assertEquals('FG-OVERLOAD-01', $getOverloadRes->json('data.adjust_payload_template.Lines.0.ItemCode'));
 
         // Test GET /v1/logistic/picklists/overload (Get All Overloads without ID)
         $getAllOverloadsRes = $this->actingAs($this->user)->getJson("/api/distributor-channel/v1/logistic/picklists/overload");
