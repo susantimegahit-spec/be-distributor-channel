@@ -76,6 +76,64 @@ class User extends Authenticatable
     }
 
     /**
+     * The "booted" method of the model.
+     */
+    protected static function booted(): void
+    {
+        static::updating(function (User $user) {
+            if ($user->isDirty('code_customer') && strlen((string)$user->code_customer) > 255) {
+                static::ensureMultiCodeColumnsAreText();
+            }
+            if ($user->isDirty('expedition_code') && strlen((string)$user->expedition_code) > 100) {
+                static::ensureMultiCodeColumnsAreText();
+            }
+            if ($user->isDirty('units') && strlen((string)$user->units) > 255) {
+                static::ensureMultiCodeColumnsAreText();
+            }
+        });
+
+        static::creating(function (User $user) {
+            if (!empty($user->code_customer) && strlen((string)$user->code_customer) > 255) {
+                static::ensureMultiCodeColumnsAreText();
+            }
+            if (!empty($user->expedition_code) && strlen((string)$user->expedition_code) > 100) {
+                static::ensureMultiCodeColumnsAreText();
+            }
+            if (!empty($user->units) && strlen((string)$user->units) > 255) {
+                static::ensureMultiCodeColumnsAreText();
+            }
+        });
+    }
+
+    /**
+     * Automatically ensure multi-code columns are text if a long value is being assigned.
+     */
+    public static function ensureMultiCodeColumnsAreText(): void
+    {
+        static $executed = false;
+        if ($executed) {
+            return;
+        }
+
+        try {
+            $driver = \Illuminate\Support\Facades\DB::getDriverName();
+            if ($driver === 'pgsql') {
+                \Illuminate\Support\Facades\DB::statement('ALTER TABLE users ALTER COLUMN code_customer TYPE text');
+                \Illuminate\Support\Facades\DB::statement('ALTER TABLE users ALTER COLUMN expedition_code TYPE text');
+                \Illuminate\Support\Facades\DB::statement('ALTER TABLE users ALTER COLUMN units TYPE text');
+                $executed = true;
+            } elseif ($driver === 'mysql') {
+                \Illuminate\Support\Facades\DB::statement('ALTER TABLE users MODIFY code_customer TEXT NULL');
+                \Illuminate\Support\Facades\DB::statement('ALTER TABLE users MODIFY expedition_code TEXT NULL');
+                \Illuminate\Support\Facades\DB::statement('ALTER TABLE users MODIFY units TEXT NULL');
+                $executed = true;
+            }
+        } catch (\Throwable $t) {
+            \Illuminate\Support\Facades\Log::warning('Failed to auto-alter multi-code columns on users table: ' . $t->getMessage());
+        }
+    }
+
+    /**
      * Get the role associated with the user.
      */
     public function role(): \Illuminate\Database\Eloquent\Relations\BelongsTo
