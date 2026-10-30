@@ -257,4 +257,43 @@ class UserTest extends TestCase
         $this->assertTrue($user->hasPermission('14', 'create'));
         $this->assertFalse($user->hasPermission('14', 'approve'));
     }
+
+    /**
+     * Test updating user with code_customer exceeding 255 characters (multiple customer codes).
+     */
+    public function test_update_user_with_long_code_customer_exceeding_255_chars(): void
+    {
+        $codes = [];
+        for ($i = 100; $i <= 130; $i++) {
+            $code = 'C11000' . $i;
+            Distributor::firstOrCreate(
+                ['code_customer' => $code],
+                ['name' => 'Customer ' . $i, 'status' => 1]
+            );
+            $codes[] = $code;
+        }
+
+        $longCodeCustomer = implode(',', $codes);
+        $this->assertGreaterThan(255, strlen($longCodeCustomer));
+
+        $token = $this->adminUser->createToken('test_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->putJson('/api/distributor-channel/v1/users/' . $this->adminUser->id, [
+            'name'          => 'Admin With Many Customers',
+            'code_customer' => $longCodeCustomer,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'User berhasil diperbarui.',
+            ]);
+
+        $this->assertDatabaseHas('users', [
+            'id'            => $this->adminUser->id,
+            'code_customer' => $longCodeCustomer,
+        ]);
+    }
 }

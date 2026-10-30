@@ -14540,6 +14540,55 @@ paths:
         '200':
           description: Detail Purchase Request berhasil diambil.
 
+  /v1/purchasing-request/detail/{docEntry}:
+    get:
+      summary: Get Detail Purchase Request dari SAP B1 via Path Param
+      description: Mengambil detail dokumen Purchase Request dan baris item dari SAP B1 berdasarkan DocEntry pada path URL.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: docEntry
+          in: path
+          required: true
+          description: DocEntry dokumen Purchase Request
+          schema:
+            type: string
+            example: "5339"
+        - name: format
+          in: query
+          required: false
+          description: Format output respons ('sap' untuk format native SAP B1)
+          schema:
+            type: string
+            example: "sap"
+      responses:
+        '200':
+          description: Detail Purchase Request berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Detail Purchase Request berhasil diambil."
+                  data:
+                    type: object
+                    properties:
+                      Table1:
+                        type: array
+                        items:
+                          type: object
+                      Table2:
+                        type: array
+                        items:
+                          type: object
+
   /GetDetailPR:
     servers:
       - url: http://api-dev.susantimegah.com/api
@@ -27777,7 +27826,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PicklistItem'
-
 
 
 
