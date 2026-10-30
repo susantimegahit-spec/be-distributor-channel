@@ -36,7 +36,16 @@ class UserCrudRepository implements UserCrudRepositoryInterface
      */
     public function create(array $data): User
     {
-        $user = User::create($data);
+        try {
+            $user = User::create($data);
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ($this->isStringTruncationException($e)) {
+                User::ensureMultiCodeColumnsAreText();
+                $user = User::create($data);
+            } else {
+                throw $e;
+            }
+        }
         return $user->load(['role.roleMenu', 'distributor', 'expedition']);
     }
 
@@ -51,10 +60,31 @@ class UserCrudRepository implements UserCrudRepositoryInterface
     {
         $user = User::find($id);
         if ($user) {
-            $user->update($data);
+            try {
+                $user->update($data);
+            } catch (\Illuminate\Database\QueryException $e) {
+                if ($this->isStringTruncationException($e)) {
+                    User::ensureMultiCodeColumnsAreText();
+                    $user->update($data);
+                } else {
+                    throw $e;
+                }
+            }
             return $user->load(['role.roleMenu', 'distributor', 'expedition']);
         }
         return null;
+    }
+
+    /**
+     * Check if the QueryException was caused by string truncation.
+     */
+    protected function isStringTruncationException(\Illuminate\Database\QueryException $e): bool
+    {
+        $msg = $e->getMessage();
+        return str_contains($msg, '22001')
+            || str_contains($msg, 'value too long')
+            || str_contains($msg, 'Data too long')
+            || str_contains($msg, 'right truncated');
     }
 
     /**
