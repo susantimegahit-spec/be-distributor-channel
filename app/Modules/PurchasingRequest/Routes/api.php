@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\PurchasingRequest\Controllers\DocumentTypeController;
+use App\Modules\PurchasingRequest\Controllers\PurchaseQuotationController;
 use App\Modules\PurchasingRequest\Controllers\PurchaseRequestController;
 use Illuminate\Support\Facades\Route;
 
@@ -32,7 +33,28 @@ Route::prefix('v1/purchasing-request')->group(function () {
     Route::post('/requests/{id}/status', [PurchaseRequestController::class, 'updateStatus']);
     Route::delete('/requests/{id}', [PurchaseRequestController::class, 'destroy']);
     Route::get('/document-types', [DocumentTypeController::class, 'index']);
+
+    // Request for Quotation (RFQ)
+    Route::get('/quotations', [PurchaseQuotationController::class, 'index']);
+    Route::post('/quotations', [PurchaseQuotationController::class, 'store']);
+    Route::get('/quotations/{id}', [PurchaseQuotationController::class, 'show']);
+    Route::put('/quotations/{id}', [PurchaseQuotationController::class, 'update']);
+    Route::delete('/quotations/{id}', [PurchaseQuotationController::class, 'destroy']);
+    Route::get('/quotations/{quotationId}/offers', [PurchaseQuotationController::class, 'getQuotationOffers']);
+
+    // Vendor Offers
+    Route::get('/quotation-offers', [PurchaseQuotationController::class, 'listOffers']);
+    Route::get('/quotation-offers/{id}', [PurchaseQuotationController::class, 'showOffer']);
+    Route::put('/quotation-offers/{id}', [PurchaseQuotationController::class, 'updateOffer']);
+    Route::delete('/quotation-offers/{id}', [PurchaseQuotationController::class, 'destroyOffer']);
 });
+
+// Quotations direct v1 & public endpoints
+Route::get('v1/public/quotations/{token}', [PurchaseQuotationController::class, 'showPublic']);
+Route::post('v1/public/quotations/{token}/offers', [PurchaseQuotationController::class, 'submitPublicOffer']);
+Route::get('quotation-offer/{token}', [PurchaseQuotationController::class, 'showPublic']);
+Route::post('quotation-offer/{token}', [PurchaseQuotationController::class, 'submitPublicOffer']);
+Route::post('quotation-offer/{token}/submit', [PurchaseQuotationController::class, 'submitPublicOffer']);
 
 Route::get('v1/document-types', [DocumentTypeController::class, 'index']);
 Route::match(['get', 'post'], 'v1/departments', [PurchaseRequestController::class, 'getDepartments']);

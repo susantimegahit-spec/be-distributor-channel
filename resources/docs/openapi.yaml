@@ -15371,6 +15371,390 @@ paths:
                     items:
                       $ref: '#/components/schemas/DocumentType'
 
+  /v1/purchasing-request/quotations:
+    get:
+      summary: Get Request for Quotation (RFQ) list
+      description: Mengambil daftar Request for Quotation (RFQ) yang dibuat dari PR yang disetujui, beserta jumlah penawaran vendor yang masuk.
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Cari berdasarkan nomor RFQ, judul, catatan, item code, atau item name
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [OPEN, DRAFT, CLOSED, CANCELLED]
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Tanggal awal (format YYYY-MM-DD atau YYYYMMDD)
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Tanggal akhir (format YYYY-MM-DD atau YYYYMMDD)
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Daftar Request for Quotation berhasil diambil.
+    post:
+      summary: Create Request for Quotation (RFQ)
+      description: Membuat Request for Quotation baru dengan memilih item dari Purchase Request yang disetujui, mengenerate RFQ number unik dan public token link.
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - items
+              properties:
+                title:
+                  type: string
+                  example: "Pengadaan Sparepart Kompresor"
+                notes:
+                  type: string
+                  example: "Kirim penawaran sebelum tanggal 10"
+                valid_until:
+                  type: string
+                  format: date
+                  example: "2026-11-15"
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - itemCode
+                      - itemName
+                      - quantity
+                    properties:
+                      requestId:
+                        type: string
+                        example: "261010008"
+                      requestNumber:
+                        type: string
+                        example: "261010008"
+                      itemCode:
+                        type: string
+                        example: "ISP001694"
+                      itemName:
+                        type: string
+                        example: "RUMAH FILTER KOMPRESOR"
+                      quantity:
+                        type: number
+                        example: 1
+                      unit:
+                        type: string
+                        example: "Pcs"
+                      warehouse:
+                        type: string
+                        example: "FG01"
+                      requiredDate:
+                        type: string
+                        format: date
+                        example: "2026-10-28"
+                      notes:
+                        type: string
+                        example: "Original equipment part"
+      responses:
+        '201':
+          description: Request for Quotation berhasil dibuat.
+
+  /v1/purchasing-request/quotations/{id}:
+    get:
+      summary: Get Request for Quotation detail
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Quotation ID
+      responses:
+        '200':
+          description: Detail Request for Quotation berhasil diambil.
+    put:
+      summary: Update Request for Quotation
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                notes:
+                  type: string
+                status:
+                  type: string
+                  enum: [OPEN, DRAFT, CLOSED, CANCELLED]
+                valid_until:
+                  type: string
+                  format: date
+      responses:
+        '200':
+          description: Request for Quotation berhasil diperbarui.
+    delete:
+      summary: Delete Request for Quotation
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Request for Quotation berhasil dihapus.
+
+  /v1/purchasing-request/quotations/{quotationId}/offers:
+    get:
+      summary: Get submitted offers for a specific quotation
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: quotationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Daftar penawaran vendor untuk quotation ini berhasil diambil.
+
+  /v1/purchasing-request/quotation-offers:
+    get:
+      summary: Get list of vendor offers across quotations
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [SUBMITTED, REVIEWED, ACCEPTED, REJECTED]
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Cari vendor, nama PIC, email, atau telepon
+      responses:
+        '200':
+          description: Daftar penawaran vendor berhasil diambil.
+
+  /v1/purchasing-request/quotation-offers/{id}:
+    get:
+      summary: Get vendor offer detail
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail penawaran vendor berhasil diambil.
+    put:
+      summary: Update vendor offer (status/detail)
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [SUBMITTED, REVIEWED, ACCEPTED, REJECTED]
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Penawaran vendor berhasil diperbarui.
+    delete:
+      summary: Delete vendor offer
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Penawaran vendor berhasil dihapus.
+
+  /v1/public/quotations/{token}:
+    get:
+      summary: Public endpoint to view quotation items for vendor form (/quotation-offer/{token})
+      description: Endpoint publik tanpa autentikasi yang digunakan halaman vendor `/quotation-offer/:token` untuk menampilkan nomor RFQ dan daftar item yang diminta harga.
+      tags:
+        - Public Quotation Offer
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 32-character RFQ public token
+          example: "d7fb79570180453fa657caed290cb91a"
+      responses:
+        '200':
+          description: Informasi Request for Quotation berhasil diambil.
+        '404':
+          description: Request for Quotation tidak ditemukan atau token tidak valid.
+
+  /v1/public/quotations/{token}/offers:
+    post:
+      summary: Public endpoint for vendor to submit quotation offer (/quotation-offer/{token}/submit)
+      description: Endpoint publik tanpa autentikasi yang menerima formulir penawaran harga dari vendor terpilih (nama perusahaan, PIC, email, telepon, harga satuan tiap item, lead time, dan catatan).
+      tags:
+        - Public Quotation Offer
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 32-character RFQ public token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vendor
+                - items
+              properties:
+                vendor:
+                  type: object
+                  required:
+                    - company
+                    - name
+                    - email
+                    - phone
+                  properties:
+                    company:
+                      type: string
+                      example: "PT Makmur Sentosa"
+                    name:
+                      type: string
+                      example: "Agus Pratama"
+                    email:
+                      type: string
+                      example: "agus@makmursentosa.com"
+                    phone:
+                      type: string
+                      example: "08123456789"
+                    notes:
+                      type: string
+                      example: "Harga belum termasuk PPN 11%"
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - unitPrice
+                      - leadTime
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      itemCode:
+                        type: string
+                        example: "ISP001694"
+                      itemName:
+                        type: string
+                        example: "RUMAH FILTER KOMPRESOR"
+                      quantity:
+                        type: number
+                        example: 1
+                      unit:
+                        type: string
+                        example: "Pcs"
+                      unitPrice:
+                        type: number
+                        example: 150000
+                      leadTime:
+                        type: string
+                        example: "7 hari"
+                      notes:
+                        type: string
+                        example: "Ready stock"
+      responses:
+        '201':
+          description: Penawaran harga vendor berhasil dikirim.
+
   /v1/cron-jobs:
     get:
       summary: Get Cron Job list with search and filter
@@ -26911,6 +27295,154 @@ components:
         object_type:
           type: string
           example: "17"
+
+    PurchaseQuotation:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        number:
+          type: string
+          example: "RFQ-20261030-001"
+        token:
+          type: string
+          example: "d7fb79570180453fa657caed290cb91a"
+        status:
+          type: string
+          example: "OPEN"
+        title:
+          type: string
+          example: "Pengadaan Sparepart Kompresor"
+        notes:
+          type: string
+          example: "Kirim penawaran sebelum tanggal 10"
+        valid_until:
+          type: string
+          format: date
+          example: "2026-11-15"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-10-30T10:00:00.000000Z"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseQuotationItem'
+        offers_count:
+          type: integer
+          example: 1
+
+    PurchaseQuotationItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        requestId:
+          type: string
+          example: "261010008"
+        requestNumber:
+          type: string
+          example: "261010008"
+        itemCode:
+          type: string
+          example: "ISP001694"
+        itemName:
+          type: string
+          example: "RUMAH FILTER KOMPRESOR"
+        quantity:
+          type: number
+          example: 1
+        unit:
+          type: string
+          example: "Pcs"
+        warehouse:
+          type: string
+          example: "FG01"
+        requiredDate:
+          type: string
+          format: date
+          example: "2026-10-28"
+        notes:
+          type: string
+          example: "Original equipment part"
+
+    PurchaseQuotationOffer:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        quotationId:
+          type: integer
+          example: 1
+        vendor:
+          type: object
+          properties:
+            company:
+              type: string
+              example: "PT Makmur Sentosa"
+            name:
+              type: string
+              example: "Agus Pratama"
+            email:
+              type: string
+              example: "agus@makmursentosa.com"
+            phone:
+              type: string
+              example: "08123456789"
+            notes:
+              type: string
+              example: "Harga belum termasuk PPN 11%"
+        status:
+          type: string
+          example: "SUBMITTED"
+        totalPrice:
+          type: number
+          example: 950000
+        submittedAt:
+          type: string
+          format: date-time
+          example: "2026-10-30T10:15:00.000000Z"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseQuotationOfferItem'
+
+    PurchaseQuotationOfferItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        quotationItemId:
+          type: integer
+          example: 1
+        itemCode:
+          type: string
+          example: "ISP001694"
+        itemName:
+          type: string
+          example: "RUMAH FILTER KOMPRESOR"
+        quantity:
+          type: number
+          example: 1
+        unit:
+          type: string
+          example: "Pcs"
+        unitPrice:
+          type: number
+          example: 150000
+        totalPrice:
+          type: number
+          example: 150000
+        leadTime:
+          type: string
+          example: "7 hari"
+        notes:
+          type: string
+          example: "Ready stock"
 
     ReportingTaskInput:
       type: object
