@@ -15,6 +15,7 @@ class UpdateQuotationRequest extends FormRequest
     {
         return [
             'title'                => 'nullable|string|max:255',
+            'link'                 => 'nullable|string|max:1000',
             'notes'                => 'nullable|string',
             'status'               => 'nullable|string|in:OPEN,DRAFT,CLOSED,CANCELLED',
             'valid_until'          => 'nullable|date',

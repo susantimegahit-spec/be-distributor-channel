@@ -15434,6 +15434,11 @@ paths:
                 title:
                   type: string
                   example: "Pengadaan Sparepart Kompresor"
+                link:
+                  type: string
+                  nullable: true
+                  description: Link halaman penawaran harga publik yang digenerate oleh frontend
+                  example: "https://smesta-dev.susantimegah.com/quotation-offer/d7fb79570180453fa657caed290cb91a"
                 notes:
                   type: string
                   example: "Kirim penawaran sebelum tanggal 10"
@@ -27308,6 +27313,10 @@ components:
         token:
           type: string
           example: "d7fb79570180453fa657caed290cb91a"
+        link:
+          type: string
+          nullable: true
+          example: "https://smesta-dev.susantimegah.com/quotation-offer/d7fb79570180453fa657caed290cb91a"
         status:
           type: string
           example: "OPEN"

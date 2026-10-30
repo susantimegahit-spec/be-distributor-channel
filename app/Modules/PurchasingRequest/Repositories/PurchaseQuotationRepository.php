@@ -90,6 +90,7 @@ class PurchaseQuotationRepository implements PurchaseQuotationRepositoryInterfac
             $quotation = PurchaseQuotation::create([
                 'number'      => $data['number'],
                 'token'       => $data['token'],
+                'link'        => $data['link'] ?? null,
                 'status'      => $data['status'],
                 'title'       => $data['title'] ?? null,
                 'notes'       => $data['notes'] ?? null,
@@ -125,7 +126,7 @@ class PurchaseQuotationRepository implements PurchaseQuotationRepositoryInterfac
             }
 
             $updateData = [];
-            foreach (['status', 'title', 'notes', 'valid_until', 'user_id'] as $field) {
+            foreach (['status', 'title', 'notes', 'valid_until', 'user_id', 'link'] as $field) {
                 if (array_key_exists($field, $data)) {
                     $updateData[$field] = $data[$field];
                 }

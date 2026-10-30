@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('number', 50)->unique()->index();
             $table->string('token', 64)->unique()->index();
+            $table->text('link')->nullable();
             $table->string('status', 30)->default('OPEN')->index();
             $table->string('title', 255)->nullable();
             $table->text('notes')->nullable();

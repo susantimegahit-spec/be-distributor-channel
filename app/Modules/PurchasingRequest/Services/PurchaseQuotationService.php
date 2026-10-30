@@ -53,6 +53,7 @@ class PurchaseQuotationService
         $data = [
             'number'      => $payload['number'] ?? null,
             'token'       => $payload['token'] ?? null,
+            'link'        => $payload['link'] ?? null,
             'status'      => $payload['status'] ?? 'OPEN',
             'title'       => $payload['title'] ?? null,
             'notes'       => $payload['notes'] ?? null,
@@ -69,7 +70,7 @@ class PurchaseQuotationService
     public function updateQuotation(int $id, array $payload): ?array
     {
         $data = [];
-        foreach (['status', 'title', 'notes'] as $field) {
+        foreach (['status', 'title', 'notes', 'link'] as $field) {
             if (array_key_exists($field, $payload)) {
                 $data[$field] = $payload[$field];
             }

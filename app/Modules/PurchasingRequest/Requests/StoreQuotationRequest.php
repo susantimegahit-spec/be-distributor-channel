@@ -15,6 +15,7 @@ class StoreQuotationRequest extends FormRequest
     {
         return [
             'number'               => 'nullable|string|max:50|unique:purchase_quotations,number',
+            'link'                 => 'nullable|string|max:1000',
             'title'                => 'nullable|string|max:255',
             'notes'                => 'nullable|string',
             'status'               => 'nullable|string|in:OPEN,DRAFT,CLOSED,CANCELLED',

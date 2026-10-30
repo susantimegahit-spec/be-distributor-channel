@@ -16,6 +16,7 @@ class PurchaseQuotation extends Model
     protected $fillable = [
         'number',
         'token',
+        'link',
         'status',
         'title',
         'notes',
@@ -71,6 +72,7 @@ class PurchaseQuotation extends Model
             'id'           => $this->id,
             'number'       => $this->number,
             'token'        => $this->token,
+            'link'         => $this->link,
             'status'       => $this->status,
             'title'        => $this->title,
             'notes'        => $this->notes,

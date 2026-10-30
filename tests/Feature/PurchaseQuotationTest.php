@@ -25,6 +25,7 @@ class PurchaseQuotationTest extends TestCase
         $payload = [
             'title' => 'Permintaan Penawaran Sparepart Kompresor',
             'notes' => 'Tolong kirimkan penawaran paling lambat akhir minggu',
+            'link'  => 'https://smesta-dev.susantimegah.com/quotation-offer/d7fb79570180453fa657caed290cb91a',
             'items' => [
                 [
                     'requestId'     => '261010008',
@@ -59,6 +60,7 @@ class PurchaseQuotationTest extends TestCase
                 'message' => 'Request for Quotation berhasil dibuat.',
             ])
             ->assertJsonPath('data.title', 'Permintaan Penawaran Sparepart Kompresor')
+            ->assertJsonPath('data.link', 'https://smesta-dev.susantimegah.com/quotation-offer/d7fb79570180453fa657caed290cb91a')
             ->assertJsonPath('data.status', 'OPEN')
             ->assertJsonPath('data.items.0.itemCode', 'ISP001694')
             ->assertJsonPath('data.items.0.quantity', 1)
@@ -76,6 +78,7 @@ class PurchaseQuotationTest extends TestCase
             'id'     => $data['id'],
             'number' => $data['number'],
             'token'  => $data['token'],
+            'link'   => 'https://smesta-dev.susantimegah.com/quotation-offer/d7fb79570180453fa657caed290cb91a',
             'status' => 'OPEN',
         ]);
 
