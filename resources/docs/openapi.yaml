@@ -15764,6 +15764,10 @@ paths:
                         type: number
                         description: Nominal potongan diskon dalam mata uang (dihitung otomatis jika tidak dikirim)
                         example: 15000
+                      totalPrice:
+                        type: number
+                        description: Total harga item setelah diskon (opsional dikirim dari frontend, jika tidak dikirim akan dihitung otomatis oleh sistem: qty * unitPrice - nominalDisc)
+                        example: 135000
                       leadTime:
                         type: string
                         example: "7 hari"
@@ -15778,6 +15782,100 @@ paths:
       responses:
         '201':
           description: Penawaran harga vendor berhasil dikirim.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Penawaran harga vendor berhasil dikirim."
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      quotationId:
+                        type: integer
+                        example: 1
+                      vendor:
+                        type: object
+                        properties:
+                          company:
+                            type: string
+                            example: "PT Makmur Sentosa"
+                          name:
+                            type: string
+                            example: "Agus Pratama"
+                          email:
+                            type: string
+                            example: "agus@makmursentosa.com"
+                          phone:
+                            type: string
+                            example: "08123456789"
+                          notes:
+                            type: string
+                            example: "Harga belum termasuk PPN 11%"
+                      status:
+                        type: string
+                        example: "SUBMITTED"
+                      totalPrice:
+                        type: number
+                        example: 950000
+                      submittedAt:
+                        type: string
+                        example: "2026-11-03T07:45:00.000Z"
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            quotationItemId:
+                              type: integer
+                              example: 1
+                            itemCode:
+                              type: string
+                              example: "ISP001694"
+                            itemName:
+                              type: string
+                              example: "RUMAH FILTER KOMPRESOR"
+                            quantity:
+                              type: number
+                              example: 1
+                            unit:
+                              type: string
+                              example: "Pcs"
+                            unitPrice:
+                              type: number
+                              example: 150000
+                            discountType:
+                              type: string
+                              example: "percent"
+                            discountValue:
+                              type: number
+                              example: 10
+                            nominalDisc:
+                              type: number
+                              example: 15000
+                            totalPrice:
+                              type: number
+                              example: 135000
+                            leadTime:
+                              type: string
+                              example: "7 hari"
+                            notes:
+                              type: string
+                              example: "Ready stock"
+                            attachment:
+                              type: string
+                              example: "https://bucket.s3.amazonaws.com/quotation-offers/1/items/item_1.pdf"
 
   /v1/cron-jobs:
     get:

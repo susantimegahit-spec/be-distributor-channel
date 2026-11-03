@@ -441,5 +441,58 @@ class PurchaseQuotationTest extends TestCase
         $s3Files = Storage::disk('s3')->files("quotation-offers/{$quotationId}/items");
         $this->assertCount(2, $s3Files);
     }
+
+    public function test_vendor_can_submit_offer_with_explicit_total_price_per_item()
+    {
+        Storage::fake('s3');
+        Storage::fake('public');
+
+        $quotation = PurchaseQuotation::create([
+            'number'  => 'RFQ-202611-0099',
+            'token'   => 'token-test-explicit-total-price',
+            'title'   => 'Pengadaan Mesin Pompa',
+            'user_id' => $this->user->id,
+            'status'  => 'OPEN',
+        ]);
+
+        $item = $quotation->items()->create([
+            'request_id'     => '26110001',
+            'request_number' => '26110001',
+            'item_code'      => 'PUMP001',
+            'item_name'      => 'POMPA AIR 2 INCH',
+            'quantity'       => 4,
+            'unit'           => 'Unit',
+        ]);
+
+        // Submit offer with explicit totalPrice per item
+        $response = $this->postJson('/api/v1/public/quotations/token-test-explicit-total-price/offers', [
+            'vendor' => [
+                'company' => 'CV Sumber Makmur',
+                'name'    => 'Bambang',
+                'email'   => 'bambang@sumbermakmur.com',
+                'phone'   => '081122334455',
+            ],
+            'items' => [
+                [
+                    'id'         => $item->id,
+                    'itemCode'   => 'PUMP001',
+                    'quantity'   => 4,
+                    'totalPrice' => 2000000, // Explicit 2,000,000 total (unitPrice 500,000)
+                    'leadTime'   => '3 hari',
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.totalPrice', 2000000)
+            ->assertJsonPath('data.items.0.totalPrice', 2000000)
+            ->assertJsonPath('data.items.0.unitPrice', 500000);
+
+        $this->assertDatabaseHas('purchase_quotation_offer_items', [
+            'item_code'   => 'PUMP001',
+            'total_price' => 2000000,
+            'unit_price'  => 500000,
+        ]);
+    }
 }
 

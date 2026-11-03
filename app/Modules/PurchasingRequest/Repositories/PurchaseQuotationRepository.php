@@ -217,7 +217,14 @@ class PurchaseQuotationRepository implements PurchaseQuotationRepositoryInterfac
             $quotationItemsMap = $quotation->items->keyBy('id');
 
             foreach ($offerItems as $idx => $item) {
-                $quotationItemId = $item['quotation_item_id'] ?? $item['quotationItemId'] ?? $item['id'] ?? null;
+                $quotationItemId = $item['quotation_item_id'] 
+                    ?? $item['quotationItemId'] 
+                    ?? $item['purchase_quotation_item_id'] 
+                    ?? $item['purchaseQuotationItemId'] 
+                    ?? $item['item_id'] 
+                    ?? $item['itemId'] 
+                    ?? $item['id'] 
+                    ?? null;
                 $matchedItem = $quotationItemId ? $quotationItemsMap->get($quotationItemId) : null;
 
                 $itemCode = $item['item_code'] ?? $item['itemCode'] ?? null;
@@ -227,6 +234,11 @@ class PurchaseQuotationRepository implements PurchaseQuotationRepositoryInterfac
 
                 $qty = (float) ($item['quantity'] ?? ($matchedItem?->quantity ?? 1));
                 $unitPrice = (float) ($item['unit_price'] ?? $item['unitPrice'] ?? 0);
+                $explicitTotal = $item['total_price'] ?? $item['totalPrice'] ?? null;
+
+                if ($unitPrice <= 0 && $explicitTotal !== null && (float) $explicitTotal > 0 && $qty > 0) {
+                    $unitPrice = round((float) $explicitTotal / $qty, 2);
+                }
 
                 $disc = $this->normalizeDiscountAndTotals($qty, $unitPrice, $item);
                 $lineTotal = $disc['total_price'];
@@ -314,6 +326,11 @@ class PurchaseQuotationRepository implements PurchaseQuotationRepositoryInterfac
                 foreach ($data['items'] as $idx => $item) {
                     $qty = (float) ($item['quantity'] ?? 1);
                     $unitPrice = (float) ($item['unit_price'] ?? $item['unitPrice'] ?? 0);
+                    $explicitTotal = $item['total_price'] ?? $item['totalPrice'] ?? null;
+
+                    if ($unitPrice <= 0 && $explicitTotal !== null && (float) $explicitTotal > 0 && $qty > 0) {
+                        $unitPrice = round((float) $explicitTotal / $qty, 2);
+                    }
 
                     $disc = $this->normalizeDiscountAndTotals($qty, $unitPrice, $item);
                     $lineTotal = $disc['total_price'];
