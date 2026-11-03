@@ -15750,12 +15750,31 @@ paths:
                       unitPrice:
                         type: number
                         example: 150000
+                      discountType:
+                        type: string
+                        nullable: true
+                        enum: [percent, nominal]
+                        description: Tipe diskon per item ('percent' atau 'nominal')
+                        example: "percent"
+                      discountValue:
+                        type: number
+                        description: Nilai diskon (persentase jika percent, atau nilai rupiah jika nominal)
+                        example: 10
+                      nominalDisc:
+                        type: number
+                        description: Nominal potongan diskon dalam mata uang (dihitung otomatis jika tidak dikirim)
+                        example: 15000
                       leadTime:
                         type: string
                         example: "7 hari"
                       notes:
                         type: string
                         example: "Ready stock"
+                      attachment:
+                        type: string
+                        nullable: true
+                        description: File lampiran item (mendukung file upload via multipart/form-data atau string Base64/Data URI, disimpan ke S3)
+                        example: "data:application/pdf;base64,JVBERi0xLjQK..."
       responses:
         '201':
           description: Penawaran harga vendor berhasil dikirim.
@@ -27443,15 +27462,35 @@ components:
         unitPrice:
           type: number
           example: 150000
+        discountType:
+          type: string
+          nullable: true
+          enum: [percent, nominal]
+          example: "percent"
+        discountValue:
+          type: number
+          example: 10
+        nominalDisc:
+          type: number
+          example: 15000
         totalPrice:
           type: number
-          example: 150000
+          example: 135000
         leadTime:
           type: string
           example: "7 hari"
         notes:
           type: string
           example: "Ready stock"
+        attachment:
+          type: string
+          nullable: true
+          description: URL lampiran item dari S3
+          example: "https://s3.ap-southeast-1.amazonaws.com/bucket/quotation-offers/1/items/item_1_20261103_abc12345.pdf"
+        attachmentName:
+          type: string
+          nullable: true
+          example: "brosur_filter.pdf"
 
     ReportingTaskInput:
       type: object

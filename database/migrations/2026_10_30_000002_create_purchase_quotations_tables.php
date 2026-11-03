@@ -64,9 +64,15 @@ return new class extends Migration
             $table->decimal('quantity', 18, 4)->default(1);
             $table->string('unit', 50)->nullable();
             $table->decimal('unit_price', 18, 2)->default(0);
+            $table->string('discount_type', 20)->nullable();
+            $table->decimal('discount_value', 18, 2)->default(0);
+            $table->decimal('nominal_disc', 18, 2)->default(0);
             $table->decimal('total_price', 18, 2)->default(0);
             $table->string('lead_time', 100)->nullable();
             $table->text('notes')->nullable();
+            $table->text('attachment_path')->nullable();
+            $table->string('attachment_name', 255)->nullable();
+            $table->string('attachment_mime', 100)->nullable();
             $table->timestamps();
         });
     }

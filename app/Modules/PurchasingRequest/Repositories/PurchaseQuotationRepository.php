@@ -8,7 +8,11 @@ use App\Models\PurchaseQuotationOffer;
 use App\Models\PurchaseQuotationOfferItem;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class PurchaseQuotationRepository implements PurchaseQuotationRepositoryInterface
 {
@@ -212,7 +216,7 @@ class PurchaseQuotationRepository implements PurchaseQuotationRepositoryInterfac
 
             $quotationItemsMap = $quotation->items->keyBy('id');
 
-            foreach ($offerItems as $item) {
+            foreach ($offerItems as $idx => $item) {
                 $quotationItemId = $item['quotation_item_id'] ?? $item['quotationItemId'] ?? $item['id'] ?? null;
                 $matchedItem = $quotationItemId ? $quotationItemsMap->get($quotationItemId) : null;
 
@@ -223,8 +227,16 @@ class PurchaseQuotationRepository implements PurchaseQuotationRepositoryInterfac
 
                 $qty = (float) ($item['quantity'] ?? ($matchedItem?->quantity ?? 1));
                 $unitPrice = (float) ($item['unit_price'] ?? $item['unitPrice'] ?? 0);
-                $lineTotal = (float) ($item['total_price'] ?? $item['totalPrice'] ?? ($qty * $unitPrice));
+
+                $disc = $this->normalizeDiscountAndTotals($qty, $unitPrice, $item);
+                $lineTotal = $disc['total_price'];
                 $totalPrice += $lineTotal;
+
+                $attachmentMeta = $this->storeOfferItemAttachment(
+                    $quotation->id,
+                    (int) $idx,
+                    $item['attachment'] ?? $item['file'] ?? null
+                );
 
                 $preparedItems[] = [
                     'purchase_quotation_item_id' => $matchedItem?->id,
@@ -233,9 +245,15 @@ class PurchaseQuotationRepository implements PurchaseQuotationRepositoryInterfac
                     'quantity'                   => $qty,
                     'unit'                       => $item['unit'] ?? $item['uom'] ?? ($matchedItem?->unit ?? null),
                     'unit_price'                 => $unitPrice,
+                    'discount_type'              => $disc['discount_type'],
+                    'discount_value'             => $disc['discount_value'],
+                    'nominal_disc'               => $disc['nominal_disc'],
                     'total_price'                => $lineTotal,
                     'lead_time'                  => $item['lead_time'] ?? $item['leadTime'] ?? null,
                     'notes'                      => $item['notes'] ?? null,
+                    'attachment_path'            => $attachmentMeta['path'],
+                    'attachment_name'            => $attachmentMeta['name'],
+                    'attachment_mime'            => $attachmentMeta['mime'],
                 ];
             }
 
@@ -287,25 +305,57 @@ class PurchaseQuotationRepository implements PurchaseQuotationRepositoryInterfac
             }
 
             if (isset($data['items']) && is_array($data['items'])) {
+                $existingItemsById = $offer->items->keyBy('id');
+                $existingItemsByCode = $offer->items->keyBy('item_code');
+
                 $offer->items()->delete();
                 $totalPrice = 0.0;
 
-                foreach ($data['items'] as $item) {
+                foreach ($data['items'] as $idx => $item) {
                     $qty = (float) ($item['quantity'] ?? 1);
                     $unitPrice = (float) ($item['unit_price'] ?? $item['unitPrice'] ?? 0);
-                    $lineTotal = (float) ($item['total_price'] ?? $item['totalPrice'] ?? ($qty * $unitPrice));
+
+                    $disc = $this->normalizeDiscountAndTotals($qty, $unitPrice, $item);
+                    $lineTotal = $disc['total_price'];
                     $totalPrice += $lineTotal;
 
+                    $rawAttachment = $item['attachment'] ?? $item['file'] ?? null;
+                    $itemCode = $item['item_code'] ?? $item['itemCode'] ?? '';
+                    $prevItem = isset($item['id']) ? $existingItemsById->get($item['id']) : null;
+                    if (!$prevItem && $itemCode) {
+                        $prevItem = $existingItemsByCode->get($itemCode);
+                    }
+
+                    if ($rawAttachment !== null) {
+                        $attachmentMeta = $this->storeOfferItemAttachment(
+                            (int) $offer->purchase_quotation_id,
+                            (int) $idx,
+                            $rawAttachment
+                        );
+                    } else {
+                        $attachmentMeta = [
+                            'path' => $prevItem?->attachment_path,
+                            'name' => $prevItem?->attachment_name,
+                            'mime' => $prevItem?->attachment_mime,
+                        ];
+                    }
+
                     $offer->items()->create([
-                        'purchase_quotation_item_id' => $item['quotation_item_id'] ?? $item['quotationItemId'] ?? $item['id'] ?? null,
-                        'item_code'                  => $item['item_code'] ?? $item['itemCode'] ?? '',
-                        'item_name'                  => $item['item_name'] ?? $item['itemName'] ?? '',
+                        'purchase_quotation_item_id' => $item['quotation_item_id'] ?? $item['quotationItemId'] ?? $item['id'] ?? ($prevItem?->purchase_quotation_item_id),
+                        'item_code'                  => $itemCode,
+                        'item_name'                  => $item['item_name'] ?? $item['itemName'] ?? ($prevItem?->item_name ?? ''),
                         'quantity'                   => $qty,
-                        'unit'                       => $item['unit'] ?? $item['uom'] ?? null,
+                        'unit'                       => $item['unit'] ?? $item['uom'] ?? ($prevItem?->unit ?? null),
                         'unit_price'                 => $unitPrice,
+                        'discount_type'              => $disc['discount_type'],
+                        'discount_value'             => $disc['discount_value'],
+                        'nominal_disc'               => $disc['nominal_disc'],
                         'total_price'                => $lineTotal,
                         'lead_time'                  => $item['lead_time'] ?? $item['leadTime'] ?? null,
                         'notes'                      => $item['notes'] ?? null,
+                        'attachment_path'            => $attachmentMeta['path'],
+                        'attachment_name'            => $attachmentMeta['name'],
+                        'attachment_mime'            => $attachmentMeta['mime'],
                     ]);
                 }
 
@@ -314,6 +364,168 @@ class PurchaseQuotationRepository implements PurchaseQuotationRepositoryInterfac
 
             return $offer->fresh(['items', 'quotation.items']);
         });
+    }
+
+    /**
+     * Normalize discount type ('percent' or 'nominal'), discount value, nominal discount, and net line total.
+     */
+    protected function normalizeDiscountAndTotals(float $qty, float $unitPrice, array $item): array
+    {
+        $rawType = $item['discount_type'] ?? $item['discountType'] ?? $item['tipe_diskon'] ?? null;
+        $discountType = null;
+        if (is_string($rawType) && trim($rawType) !== '') {
+            $lower = strtolower(trim($rawType));
+            if (in_array($lower, ['percent', 'percentage', 'persen', '%'], true)) {
+                $discountType = 'percent';
+            } elseif (in_array($lower, ['nominal', 'amount', 'rp', 'value'], true)) {
+                $discountType = 'nominal';
+            }
+        }
+
+        $discountValue = (float) ($item['discount_value'] ?? $item['discountValue'] ?? $item['value_diskon'] ?? 0);
+        $explicitNominal = $item['nominal_disc'] ?? $item['nominalDisc'] ?? $item['discount_amount'] ?? $item['discountAmount'] ?? null;
+
+        $grossTotal = $qty * $unitPrice;
+
+        if ($discountType === 'percent') {
+            $calculatedNominal = round($grossTotal * ($discountValue / 100), 2);
+        } elseif ($discountType === 'nominal') {
+            // Nominal discount can be passed per line or calculated; if explicit nominal_disc is provided, use it, otherwise use discount_value
+            $calculatedNominal = round($discountValue, 2);
+        } else {
+            $calculatedNominal = 0.0;
+        }
+
+        $nominalDisc = ($explicitNominal !== null && $explicitNominal !== '' && (float) $explicitNominal > 0)
+            ? round((float) $explicitNominal, 2)
+            : $calculatedNominal;
+
+        if ($discountType === null && $nominalDisc > 0) {
+            $discountType = 'nominal';
+            if ($discountValue <= 0) {
+                $discountValue = $nominalDisc;
+            }
+        }
+
+        $explicitTotal = $item['total_price'] ?? $item['totalPrice'] ?? null;
+        $netTotal = ($explicitTotal !== null && $explicitTotal !== '')
+            ? (float) $explicitTotal
+            : max(0.0, round($grossTotal - $nominalDisc, 2));
+
+        return [
+            'discount_type'  => $discountType,
+            'discount_value' => $discountValue,
+            'nominal_disc'   => $nominalDisc,
+            'total_price'    => $netTotal,
+        ];
+    }
+
+    /**
+     * Store offer item attachment to S3 (and local public disk fallback).
+     * Supports UploadedFile, Base64/Data URI strings, or existing URLs/paths.
+     */
+    protected function storeOfferItemAttachment(int $quotationId, int $index, mixed $attachment): array
+    {
+        if (empty($attachment)) {
+            return ['path' => null, 'name' => null, 'mime' => null];
+        }
+
+        $dir = "quotation-offers/{$quotationId}/items";
+        $s3Configured = !empty(config('filesystems.disks.s3.bucket'))
+            || config('filesystems.disks.s3.driver') === 'local';
+
+        // 1. UploadedFile (multipart/form-data)
+        if ($attachment instanceof UploadedFile) {
+            $origName = $attachment->getClientOriginalName() ?: ('attachment_' . ($index + 1));
+            $ext = strtolower($attachment->getClientOriginalExtension() ?: ($attachment->guessExtension() ?: 'bin'));
+            $mime = $attachment->getClientMimeType() ?: 'application/octet-stream';
+            $filename = sprintf('item_%d_%s_%s.%s', $index + 1, now()->format('YmdHis'), Str::random(8), $ext);
+            $relativePath = "{$dir}/{$filename}";
+
+            if ($s3Configured) {
+                try {
+                    Storage::disk('s3')->putFileAs($dir, $attachment, $filename, 'public');
+                } catch (\Throwable $e) {
+                    Log::warning('[PurchaseQuotation] S3 upload failed for offer item attachment: ' . $e->getMessage());
+                }
+            }
+
+            try {
+                Storage::disk('public')->putFileAs($dir, $attachment, $filename);
+            } catch (\Throwable $e) {
+                Log::warning('[PurchaseQuotation] Local public upload failed for offer item attachment: ' . $e->getMessage());
+            }
+
+            return [
+                'path' => $relativePath,
+                'name' => $origName,
+                'mime' => $mime,
+            ];
+        }
+
+        // 2. Base64 / Data URI string or existing path/URL
+        if (is_string($attachment)) {
+            $trimmed = trim($attachment);
+            if ($trimmed === '') {
+                return ['path' => null, 'name' => null, 'mime' => null];
+            }
+
+            // Already a URL or relative path
+            if (str_starts_with($trimmed, 'http://') || str_starts_with($trimmed, 'https://') || str_starts_with($trimmed, 'quotation-offers/')) {
+                return [
+                    'path' => $trimmed,
+                    'name' => basename(parse_url($trimmed, PHP_URL_PATH) ?: $trimmed),
+                    'mime' => null,
+                ];
+            }
+
+            $mime = 'application/octet-stream';
+            $ext = 'bin';
+            $base64Data = $trimmed;
+
+            if (preg_match('/^data:([a-zA-Z0-9\/\+\-\.]+);base64,(.+)$/s', $trimmed, $matches)) {
+                $mime = strtolower($matches[1]);
+                $base64Data = $matches[2];
+                $extMap = [
+                    'image/jpeg'      => 'jpg',
+                    'image/jpg'       => 'jpg',
+                    'image/png'       => 'png',
+                    'image/webp'      => 'webp',
+                    'application/pdf' => 'pdf',
+                ];
+                $ext = $extMap[$mime] ?? (explode('/', $mime)[1] ?? 'bin');
+            }
+
+            $binary = base64_decode($base64Data, true);
+            if ($binary === false || $binary === '') {
+                return ['path' => null, 'name' => null, 'mime' => null];
+            }
+
+            $filename = sprintf('item_%d_%s_%s.%s', $index + 1, now()->format('YmdHis'), Str::random(8), $ext);
+            $relativePath = "{$dir}/{$filename}";
+
+            if ($s3Configured) {
+                try {
+                    Storage::disk('s3')->put($relativePath, $binary, 'public');
+                } catch (\Throwable $e) {
+                    Log::warning('[PurchaseQuotation] S3 base64 upload failed: ' . $e->getMessage());
+                }
+            }
+
+            try {
+                Storage::disk('public')->put($relativePath, $binary);
+            } catch (\Throwable $e) {
+                Log::warning('[PurchaseQuotation] Local base64 upload failed: ' . $e->getMessage());
+            }
+
+            return [
+                'path' => $relativePath,
+                'name' => $filename,
+                'mime' => $mime,
+            ];
+        }
+
+        return ['path' => null, 'name' => null, 'mime' => null];
     }
 
     public function deleteOffer(int $id): bool

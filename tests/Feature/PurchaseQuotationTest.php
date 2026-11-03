@@ -6,6 +6,8 @@ use App\Models\PurchaseQuotation;
 use App\Models\PurchaseQuotationOffer;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PurchaseQuotationTest extends TestCase
@@ -347,6 +349,97 @@ class PurchaseQuotationTest extends TestCase
         $postBodyResponse = $this->postJson('/api/quotation-offer', $vendorPayload);
         $postBodyResponse->assertStatus(201)
             ->assertJsonPath('data.vendor.company', 'PT Reksa Daya');
+    }
+
+    public function test_vendor_offer_supports_discount_percent_nominal_and_s3_item_attachments()
+    {
+        Storage::fake('s3');
+        Storage::fake('public');
+
+        $createResponse = $this->actingAs($this->user, 'sanctum')
+            ->postJson('/api/v1/purchasing-request/quotations', [
+                'title' => 'Pengadaan Komponen & Oli',
+                'items' => [
+                    [
+                        'itemCode' => 'ISP001694',
+                        'itemName' => 'RUMAH FILTER KOMPRESOR',
+                        'quantity' => 2,
+                        'unit'     => 'Pcs',
+                    ],
+                    [
+                        'itemCode' => 'ISP000805',
+                        'itemName' => 'THINNER',
+                        'quantity' => 10,
+                        'unit'     => 'Liter',
+                    ],
+                ],
+            ]);
+
+        $token = $createResponse->json('data.token');
+        $quotationId = $createResponse->json('data.id');
+        $items = $createResponse->json('data.items');
+
+        $pdfFile = UploadedFile::fake()->create('brosur_filter.pdf', 120, 'application/pdf');
+        $base64Png = 'data:image/png;base64,' . base64_encode('fake-png-content-thinner');
+
+        // Submit offer with:
+        // Item 1: qty=2, unitPrice=250,000 (gross=500,000), discountType='percent', discountValue=10 => nominalDisc=50,000, net=450,000 + UploadedFile attachment
+        // Item 2: qty=10, unitPrice=45,000 (gross=450,000), discountType='nominal', discountValue=25,000, nominalDisc=25,000 => net=425,000 + Base64 attachment
+        $response = $this->post('/api/v1/public/quotations/' . $token . '/offers', [
+            'vendor' => [
+                'company' => 'PT Diskon & Lampiran S3',
+                'name'    => 'Rudi Hartono',
+                'email'   => 'rudi@diskons3.co.id',
+                'phone'   => '081234567890',
+                'notes'   => 'Penawaran dengan diskon dan lampiran per item',
+            ],
+            'items' => [
+                [
+                    'id'            => $items[0]['id'],
+                    'itemCode'      => 'ISP001694',
+                    'itemName'      => 'RUMAH FILTER KOMPRESOR',
+                    'quantity'      => 2,
+                    'unitPrice'     => 250000,
+                    'discountType'  => 'percent',
+                    'discountValue' => 10,
+                    'leadTime'      => '5 hari',
+                    'attachment'    => $pdfFile,
+                ],
+                [
+                    'id'            => $items[1]['id'],
+                    'itemCode'      => 'ISP000805',
+                    'itemName'      => 'THINNER',
+                    'quantity'      => 10,
+                    'unitPrice'     => 45000,
+                    'discount_type' => 'nominal',
+                    'discount_value'=> 25000,
+                    'nominal_disc'  => 25000,
+                    'leadTime'      => 'Ready stock',
+                    'attachment'    => $base64Png,
+                ],
+            ],
+        ], ['Accept' => 'application/json']);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.vendor.company', 'PT Diskon & Lampiran S3')
+            ->assertJsonPath('data.items.0.discountType', 'percent')
+            ->assertJsonPath('data.items.0.discountValue', 10)
+            ->assertJsonPath('data.items.0.nominalDisc', 50000)
+            ->assertJsonPath('data.items.0.totalPrice', 450000)
+            ->assertJsonPath('data.items.0.attachmentName', 'brosur_filter.pdf')
+            ->assertJsonPath('data.items.1.discountType', 'nominal')
+            ->assertJsonPath('data.items.1.discountValue', 25000)
+            ->assertJsonPath('data.items.1.nominalDisc', 25000)
+            ->assertJsonPath('data.items.1.totalPrice', 425000);
+
+        // Total offer price = 450,000 + 425,000 = 875,000
+        $this->assertEquals(875000, $response->json('data.totalPrice'));
+        $this->assertNotEmpty($response->json('data.items.0.attachment'));
+        $this->assertNotEmpty($response->json('data.items.1.attachment'));
+
+        // Verify files are stored in S3 disk under quotation-offers/{quotationId}/items/
+        $s3Files = Storage::disk('s3')->files("quotation-offers/{$quotationId}/items");
+        $this->assertCount(2, $s3Files);
     }
 }
 
