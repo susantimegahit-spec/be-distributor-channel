@@ -24057,6 +24057,381 @@ paths:
                 type: string
                 format: binary
 
+
+  /v1/public/psikotes/disc/tests/{token}:
+    get:
+      summary: Ambil Soal Tes & Sesi Jawaban Kandidat (Tanpa Kunci Skoring)
+      description: Endpoint publik untuk kandidat mengakses 24 nomor soal DISC beserta jawaban yang tersimpan (autosave).
+      tags:
+        - Psikotes DISC - Public Candidate
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: Token unik asesmen kandidat
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Berhasil mengambil sesi tes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Assessment session retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      assessment_id:
+                        type: integer
+                        example: 1
+                      candidate:
+                        type: object
+                        properties:
+                          full_name:
+                            type: string
+                            example: Budi Santoso
+                          email:
+                            type: string
+                            example: budi@example.com
+                          position_applied:
+                            type: string
+                            example: Sales Executive
+                      status:
+                        type: string
+                        example: in_progress
+                      completed:
+                        type: boolean
+                        example: false
+                      total_questions:
+                        type: integer
+                        example: 24
+                      questions:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            question_number:
+                              type: integer
+                              example: 1
+                            statements:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  choice:
+                                    type: integer
+                                    example: 1
+                                  text:
+                                    type: string
+                                    example: Gampangan, Mudah setuju
+                      answers:
+                        type: object
+                        additionalProperties:
+                          type: object
+                          properties:
+                            p_choice:
+                              type: integer
+                              example: 1
+                            k_choice:
+                              type: integer
+                              example: 3
+
+  /v1/public/psikotes/disc/tests/{token}/answers:
+    post:
+      summary: Autosave Jawaban Kandidat per Soal
+      description: Menyimpan pilihan Paling Sesuai (P) dan Paling Tidak Sesuai (K). Pilihan P dan K tidak boleh sama pada soal yang sama.
+      tags:
+        - Psikotes DISC - Public Candidate
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: Token asesmen kandidat
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - question_number
+              properties:
+                question_number:
+                  type: integer
+                  minimum: 1
+                  maximum: 24
+                  example: 1
+                p_choice:
+                  type: integer
+                  minimum: 1
+                  maximum: 4
+                  nullable: true
+                  example: 1
+                k_choice:
+                  type: integer
+                  minimum: 1
+                  maximum: 4
+                  nullable: true
+                  example: 3
+      responses:
+        '200':
+          description: Jawaban berhasil disimpan
+
+  /v1/public/psikotes/disc/tests/{token}/submit:
+    post:
+      summary: Submit Selesai Tes DISC & Hitung Skoring
+      description: Memvalidasi seluruh 24 soal terisi dengan P != K, lalu menghitung skoring Line 1, 2, 3 dan mencocokkan profil kepribadian.
+      tags:
+        - Psikotes DISC - Public Candidate
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: Token asesmen kandidat
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tes berhasil disubmit dan diskor
+
+  /v1/hr/psikotes/disc/questions:
+    get:
+      summary: Daftar Bank Soal DISC Beserta Kunci Skoring (HR Admin)
+      description: Mengambil seluruh 24 soal DISC lengkap dengan 4 pernyataan dan mapping kunci P/K (D, I, S, C, *).
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Berhasil mengambil bank soal
+
+  /v1/hr/psikotes/disc/questions/bulk:
+    put:
+      summary: Bulk Update Soal & Kunci DISC (HR Admin)
+      description: Mengupdate banyak soal atau kunci skoring sekaligus.
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - questions
+              properties:
+                questions:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - question_number
+                    properties:
+                      question_number:
+                        type: integer
+                        example: 1
+                      statement_1:
+                        type: string
+                      p_key_1:
+                        type: string
+                        example: S
+                      k_key_1:
+                        type: string
+                        example: S
+      responses:
+        '200':
+          description: Berhasil memperbarui soal
+
+  /v1/hr/psikotes/disc/questions/seed-default:
+    post:
+      summary: Reset Bank Soal ke Default Referensi Excel (HR Admin)
+      description: Mengembalikan 24 nomor soal dan kunci skoring ke nilai awal standar psikotes DISC.
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Berhasil reset soal
+
+  /v1/hr/psikotes/disc/questions/{number}:
+    get:
+      summary: Detail Satu Nomor Soal DISC (HR Admin)
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: number
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Berhasil mengambil detail soal
+    put:
+      summary: Update Satu Nomor Soal DISC (HR Admin)
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: number
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                statement_1:
+                  type: string
+                statement_2:
+                  type: string
+                statement_3:
+                  type: string
+                statement_4:
+                  type: string
+                p_key_1:
+                  type: string
+                p_key_2:
+                  type: string
+                p_key_3:
+                  type: string
+                p_key_4:
+                  type: string
+                k_key_1:
+                  type: string
+                k_key_2:
+                  type: string
+                k_key_3:
+                  type: string
+                k_key_4:
+                  type: string
+      responses:
+        '200':
+          description: Soal berhasil diperbarui
+
+  /v1/hr/psikotes/disc/assessments:
+    get:
+      summary: Daftar Riwayat Asesmen & Hasil Kandidat (HR Admin)
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Berhasil mengambil daftar asesmen
+    post:
+      summary: Buat Undangan Tes Kandidat Baru (HR Admin)
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - full_name
+                - email
+              properties:
+                full_name:
+                  type: string
+                  example: Budi Santoso
+                email:
+                  type: string
+                  example: budi.santoso@example.com
+                phone:
+                  type: string
+                  example: "08123456789"
+                gender:
+                  type: string
+                  example: L
+                position_applied:
+                  type: string
+                  example: Sales Executive
+                expiry_days:
+                  type: integer
+                  example: 7
+      responses:
+        '201':
+          description: Undangan berhasil dibuat
+
+  /v1/hr/psikotes/disc/assessments/{id}:
+    get:
+      summary: Detail Hasil Skoring & Profil DISC Kandidat (HR Admin)
+      description: Menampilkan grafik 3 garis (Mask, Core, Mirror), skor D-I-S-C, dan profil kepribadian lengkap.
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Berhasil mengambil detail asesmen
+
+  /v1/hr/psikotes/disc/assessments-export:
+    get:
+      summary: Export Rekap Hasil Asesmen DISC ke CSV (HR Admin)
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Berkas CSV rekapitulasi asesmen
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
 components:
   securitySchemes:
     BearerAuth:

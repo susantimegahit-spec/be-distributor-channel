@@ -49,3 +49,23 @@ Route::prefix('dashboard-layouts')->middleware('auth:sanctum')->group(function (
     Route::put('/roles/{roleId}', [\App\Modules\Dashboard\Controllers\DashboardLayoutController::class, 'saveByRole']);
     Route::delete('/roles/{roleId}', [\App\Modules\Dashboard\Controllers\DashboardLayoutController::class, 'resetByRole']);
 });
+
+// DISC Psychological Assessment (Direct API Aliases)
+Route::prefix('v1/public/psikotes/disc')->group(function () {
+    Route::get('/tests/{token}', [\App\Modules\Psikotes\Controllers\DiscPublicTestController::class, 'getTest']);
+    Route::post('/tests/{token}/answers', [\App\Modules\Psikotes\Controllers\DiscPublicTestController::class, 'saveAnswer']);
+    Route::post('/tests/{token}/submit', [\App\Modules\Psikotes\Controllers\DiscPublicTestController::class, 'submit']);
+});
+
+Route::prefix('v1/hr/psikotes/disc')->middleware('auth:sanctum')->group(function () {
+    Route::get('/questions', [\App\Modules\Psikotes\Controllers\DiscQuestionController::class, 'index']);
+    Route::put('/questions/bulk', [\App\Modules\Psikotes\Controllers\DiscQuestionController::class, 'bulkUpdate']);
+    Route::post('/questions/seed-default', [\App\Modules\Psikotes\Controllers\DiscQuestionController::class, 'seedDefault']);
+    Route::get('/questions/{number}', [\App\Modules\Psikotes\Controllers\DiscQuestionController::class, 'show']);
+    Route::put('/questions/{number}', [\App\Modules\Psikotes\Controllers\DiscQuestionController::class, 'update']);
+    Route::get('/assessments', [\App\Modules\Psikotes\Controllers\DiscAssessmentController::class, 'index']);
+    Route::post('/assessments', [\App\Modules\Psikotes\Controllers\DiscAssessmentController::class, 'store']);
+    Route::get('/assessments-export', [\App\Modules\Psikotes\Controllers\DiscAssessmentController::class, 'exportCsv']);
+    Route::get('/assessments/{id}', [\App\Modules\Psikotes\Controllers\DiscAssessmentController::class, 'show']);
+});
+
