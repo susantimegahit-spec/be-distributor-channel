@@ -9,10 +9,79 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
+        channels: __DIR__.'/../routes/channels.php',
         health: '/up',
     )
+    ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule) {
+        try {
+            // Cek apakah tabel cron_jobs sudah termigrasi
+            if (\Illuminate\Support\Facades\Schema::hasTable('cron_jobs')) {
+                $jobs = \App\Models\CronJob::where('is_active', true)->get();
+                foreach ($jobs as $job) {
+                    $logId = null;
+
+                    $schedule->command($job->command)
+                        ->cron($job->expression)
+                        ->before(function () use ($job, &$logId) {
+                            $log = \App\Models\CronJobLog::create([
+                                'cron_job_id' => $job->id,
+                                'run_at' => now(),
+                                'status' => 'running',
+                            ]);
+                            $logId = $log->id;
+                        })
+                        ->onSuccess(function () use ($job, &$logId) {
+                            $job->update([
+                                'last_run_at' => now(),
+                                'last_run_status' => 'success'
+                            ]);
+                            if ($logId) {
+                                $log = \App\Models\CronJobLog::find($logId);
+                                if ($log) {
+                                    $log->update([
+                                        'finished_at' => now(),
+                                        'status' => 'success',
+                                        'duration_seconds' => (int) abs(now()->timestamp - $log->run_at->timestamp),
+                                        'message' => 'Executed successfully via Scheduler.'
+                                    ]);
+                                }
+                            }
+                        })
+                        ->onFailure(function () use ($job, &$logId) {
+                            $job->update([
+                                'last_run_at' => now(),
+                                'last_run_status' => 'failed'
+                            ]);
+                            if ($logId) {
+                                $log = \App\Models\CronJobLog::find($logId);
+                                if ($log) {
+                                    $log->update([
+                                        'finished_at' => now(),
+                                        'status' => 'failed',
+                                        'duration_seconds' => (int) abs(now()->timestamp - $log->run_at->timestamp),
+                                        'message' => 'Execution failed.'
+                                    ]);
+                                }
+                            }
+                        });
+                }
+            } else {
+                $schedule->command('sap:sync-order-status')->everyFifteenMinutes();
+            }
+        } catch (\Throwable $e) {
+            $schedule->command('sap:sync-order-status')->everyFifteenMinutes();
+        }
+    })
     ->withMiddleware(function (Middleware $middleware) {
-        //
+        $middleware->prepend(\Illuminatech\MultipartMiddleware\MultipartFormDataParser::class);
+        $middleware->validateCsrfTokens(except: [
+            'monitoringsm/*',
+            'docs/*',
+        ]);
+        $middleware->alias([
+            'check.permission' => \App\Http\Middleware\CheckPermission::class,
+            'auth.reporting'   => \App\Http\Middleware\AuthenticateReportingApiKey::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->render(function (\Illuminate\Validation\ValidationException $e, \Illuminate\Http\Request $request) {
@@ -20,12 +89,18 @@ return Application::configure(basePath: dirname(__DIR__))
                 $errors = $e->errors();
                 $firstError = collect($errors)->flatten()->first() ?: 'Validation Error';
 
-                return response()->json([
+                $response = [
                     'success' => false,
                     'status_code' => 422,
                     'message' => $firstError,
                     'errors' => (object) [],
-                ], 200);
+                ];
+
+                if (isset($errors['active_session'])) {
+                    $response['active_session'] = true;
+                }
+
+                return response()->json($response, 200);
             }
         });
 
@@ -36,7 +111,7 @@ return Application::configure(basePath: dirname(__DIR__))
                     'status_code' => 401,
                     'message' => 'Unauthenticated.',
                     'errors' => (object) [],
-                ], 200);
+                ], 401);
             }
         });
 

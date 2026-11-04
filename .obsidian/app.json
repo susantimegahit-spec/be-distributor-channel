@@ -1,0 +1,12 @@
+{
+  "userIgnoreFilters": [
+    "vendor/**",
+    "node_modules/**",
+    "storage/**",
+    "public/**",
+    "bootstrap/**",
+    ".git/**",
+    ".phpunit.cache/**",
+    "tests/**"
+  ]
+}
