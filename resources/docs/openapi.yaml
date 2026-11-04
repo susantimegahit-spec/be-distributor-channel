@@ -24156,6 +24156,209 @@ paths:
                 format: binary
 
 
+  /v1/recruitment/auth/register:
+    post:
+      summary: Registrasi Akun Kandidat Baru
+      description: Mendaftarkan akun kandidat rekrutmen dan otomatis menginisialisasi sesi asesmen DISC.
+      tags:
+        - Recruitment Candidate Portal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - full_name
+                - email
+                - phone
+                - password
+              properties:
+                full_name:
+                  type: string
+                  example: Nadia Permata
+                email:
+                  type: string
+                  format: email
+                  example: nadia.permata@example.com
+                phone:
+                  type: string
+                  example: 081234567890
+                password:
+                  type: string
+                  minLength: 6
+                  example: password123
+                position_applied:
+                  type: string
+                  nullable: true
+                  example: Backend Engineer
+      responses:
+        '201':
+          description: Akun berhasil dibuat dan token bearer diberikan.
+        '422':
+          description: Validasi gagal (misal email sudah terdaftar).
+
+  /v1/recruitment/auth/login:
+    post:
+      summary: Login Kandidat
+      description: Masuk ke portal kandidat rekrutmen menggunakan email dan password.
+      tags:
+        - Recruitment Candidate Portal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: nadia.permata@example.com
+                password:
+                  type: string
+                  example: password123
+      responses:
+        '200':
+          description: Berhasil login dan token bearer diberikan.
+        '401':
+          description: Kredensial tidak sesuai.
+
+  /v1/recruitment/auth/me:
+    get:
+      summary: Profil Kandidat & Status Asesmen
+      description: Mengambil data profil kandidat yang sedang login beserta status asesmen rekrutmen.
+      tags:
+        - Recruitment Candidate Portal
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Data profil kandidat berhasil diambil.
+
+  /v1/recruitment/auth/logout:
+    post:
+      summary: Logout Kandidat
+      description: Mengakhiri sesi login kandidat dan mencabut token akses.
+      tags:
+        - Recruitment Candidate Portal
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Berhasil logout.
+
+  /v1/recruitment/candidate/biodata:
+    put:
+      summary: Update Profil & Formulir Biodata Kandidat
+      description: Menyimpan data formulir 5 langkah biodata kandidat (pribadi, keluarga, pendidikan, pengalaman, lainnya).
+      tags:
+        - Recruitment Candidate Portal
+      security:
+        - BearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                full_name:
+                  type: string
+                phone:
+                  type: string
+                birth_date:
+                  type: string
+                  format: date
+                gender:
+                  type: string
+                position_applied:
+                  type: string
+                avatar:
+                  type: string
+                biodata:
+                  type: object
+      responses:
+        '200':
+          description: Biodata berhasil disimpan.
+
+  /v1/recruitment/psikotes/disc/test:
+    get:
+      summary: Ambil Soal Tes DISC Kandidat (Tanpa Token URL)
+      description: Kandidat login dapat langsung mengambil 24 soal DISC dan autosave jawaban yang sudah tersimpan tanpa token di URL.
+      tags:
+        - Recruitment Candidate Portal
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Soal DISC berhasil diambil.
+
+  /v1/recruitment/psikotes/disc/answers:
+    post:
+      summary: Autosave Jawaban DISC Kandidat (Tanpa Token URL)
+      description: Menyimpan jawaban nomor soal DISC per butir secara realtime tanpa token di URL (P tidak boleh sama dengan K).
+      tags:
+        - Recruitment Candidate Portal
+      security:
+        - BearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - question_number
+              properties:
+                question_number:
+                  type: integer
+                  minimum: 1
+                  maximum: 24
+                  example: 1
+                p_choice:
+                  type: integer
+                  minimum: 1
+                  maximum: 4
+                  nullable: true
+                  example: 2
+                k_choice:
+                  type: integer
+                  minimum: 1
+                  maximum: 4
+                  nullable: true
+                  example: 4
+      responses:
+        '200':
+          description: Jawaban berhasil disimpan.
+
+  /v1/recruitment/psikotes/disc/submit:
+    post:
+      summary: Submit Akhir Tes DISC Kandidat (Tanpa Token URL)
+      description: Mengirimkan seluruh 24 jawaban soal DISC dan menjalankan kalkulasi skoring psikometrik otomatis.
+      tags:
+        - Recruitment Candidate Portal
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Tes DISC berhasil dikirim dan dinilai.
+
+  /v1/recruitment/psikotes/disc/result:
+    get:
+      summary: Ambil Hasil Asesmen DISC Kandidat
+      description: Mengambil ringkasan hasil asesmen DISC, grafik skor (Mask, Core, Mirror), dan profil kepribadian kandidat.
+      tags:
+        - Recruitment Candidate Portal
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Hasil asesmen berhasil diambil.
+
   /v1/public/psikotes/disc/tests/{token}:
     get:
       summary: Ambil Soal Tes & Sesi Jawaban Kandidat (Tanpa Kunci Skoring)

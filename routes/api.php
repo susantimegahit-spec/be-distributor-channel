@@ -50,6 +50,25 @@ Route::prefix('dashboard-layouts')->middleware('auth:sanctum')->group(function (
     Route::delete('/roles/{roleId}', [\App\Modules\Dashboard\Controllers\DashboardLayoutController::class, 'resetByRole']);
 });
 
+// Recruitment Candidate Portal & DISC Assessments (Direct API Aliases)
+Route::prefix('v1/recruitment')->group(function () {
+    Route::post('/auth/register', [\App\Modules\Psikotes\Controllers\CandidateAuthController::class, 'register']);
+    Route::post('/auth/login', [\App\Modules\Psikotes\Controllers\CandidateAuthController::class, 'login']);
+
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/auth/me', [\App\Modules\Psikotes\Controllers\CandidateAuthController::class, 'me']);
+        Route::post('/auth/logout', [\App\Modules\Psikotes\Controllers\CandidateAuthController::class, 'logout']);
+        Route::put('/candidate/biodata', [\App\Modules\Psikotes\Controllers\CandidateAuthController::class, 'updateBiodata']);
+
+        Route::prefix('psikotes/disc')->group(function () {
+            Route::get('/test', [\App\Modules\Psikotes\Controllers\DiscCandidateTestController::class, 'getTest']);
+            Route::post('/answers', [\App\Modules\Psikotes\Controllers\DiscCandidateTestController::class, 'saveAnswer']);
+            Route::post('/submit', [\App\Modules\Psikotes\Controllers\DiscCandidateTestController::class, 'submit']);
+            Route::get('/result', [\App\Modules\Psikotes\Controllers\DiscCandidateTestController::class, 'result']);
+        });
+    });
+});
+
 // DISC Psychological Assessment (Direct API Aliases)
 Route::prefix('v1/public/psikotes/disc')->group(function () {
     Route::get('/tests/{token}', [\App\Modules\Psikotes\Controllers\DiscPublicTestController::class, 'getTest']);

@@ -75,11 +75,44 @@ class DiscAssessmentService
             ]);
         }
 
+        return $this->formatAssessmentTest($assessment);
+    }
+
+    /**
+     * Get or create assessment test session for authenticated candidate (no token required).
+     */
+    public function getAssessmentForCandidate(DiscCandidate $candidate): array
+    {
+        $assessment = DiscAssessment::with(['candidate', 'answers'])
+            ->where('candidate_id', $candidate->id)
+            ->latest('id')
+            ->first();
+
+        if (!$assessment) {
+            $assessment = DiscAssessment::create([
+                'candidate_id' => $candidate->id,
+                'token'        => Str::random(40),
+                'status'       => 'in_progress',
+                'started_at'   => Carbon::now(),
+                'expires_at'   => null,
+            ]);
+            $assessment->load(['candidate', 'answers']);
+        }
+
+        return $this->formatAssessmentTest($assessment);
+    }
+
+    /**
+     * Common helper to format assessment session data for candidate.
+     */
+    protected function formatAssessmentTest(DiscAssessment $assessment): array
+    {
         // Check if already completed
         if (in_array($assessment->status, ['completed', 'scored', 'review_required'])) {
             return [
                 'assessment_id' => $assessment->id,
                 'candidate'     => [
+                    'id'               => $assessment->candidate->id,
                     'full_name'        => $assessment->candidate->full_name,
                     'email'            => $assessment->candidate->email,
                     'position_applied' => $assessment->candidate->position_applied,
@@ -107,29 +140,59 @@ class DiscAssessmentService
         })->all();
 
         return [
-            'assessment_id' => $assessment->id,
-            'candidate'     => [
+            'assessment_id'   => $assessment->id,
+            'candidate'       => [
+                'id'               => $assessment->candidate->id,
                 'full_name'        => $assessment->candidate->full_name,
                 'email'            => $assessment->candidate->email,
                 'position_applied' => $assessment->candidate->position_applied,
             ],
-            'status'        => $assessment->status,
-            'completed'     => false,
-            'started_at'    => $assessment->started_at?->toIso8601String(),
-            'expires_at'    => $assessment->expires_at?->toIso8601String(),
+            'status'          => $assessment->status,
+            'completed'       => false,
+            'started_at'      => $assessment->started_at?->toIso8601String(),
+            'expires_at'      => $assessment->expires_at?->toIso8601String(),
             'total_questions' => count($questions),
-            'questions'     => $questions,
-            'answers'       => $savedAnswers,
+            'questions'       => $questions,
+            'answers'         => $savedAnswers,
         ];
     }
 
     /**
-     * Autosave an answer for a single question.
+     * Autosave an answer for a single question by token.
      */
     public function saveAnswer(string $token, int $questionNumber, ?int $pChoice, ?int $kChoice): DiscAnswer
     {
         $assessment = DiscAssessment::where('token', $token)->firstOrFail();
 
+        return $this->executeSaveAnswer($assessment, $questionNumber, $pChoice, $kChoice);
+    }
+
+    /**
+     * Autosave an answer for authenticated candidate (no token required).
+     */
+    public function saveCandidateAnswer(DiscCandidate $candidate, int $questionNumber, ?int $pChoice, ?int $kChoice): DiscAnswer
+    {
+        $assessment = DiscAssessment::where('candidate_id', $candidate->id)
+            ->latest('id')
+            ->first();
+
+        if (!$assessment || in_array($assessment->status, ['completed', 'scored', 'review_required'])) {
+            $assessment = DiscAssessment::create([
+                'candidate_id' => $candidate->id,
+                'token'        => Str::random(40),
+                'status'       => 'in_progress',
+                'started_at'   => Carbon::now(),
+            ]);
+        }
+
+        return $this->executeSaveAnswer($assessment, $questionNumber, $pChoice, $kChoice);
+    }
+
+    /**
+     * Internal execution of saving answer.
+     */
+    protected function executeSaveAnswer(DiscAssessment $assessment, int $questionNumber, ?int $pChoice, ?int $kChoice): DiscAnswer
+    {
         if (in_array($assessment->status, ['completed', 'scored', 'review_required'])) {
             throw ValidationException::withMessages([
                 'assessment' => ['Assessment has already been submitted.'],
@@ -162,7 +225,7 @@ class DiscAssessmentService
     }
 
     /**
-     * Submit assessment and run scoring engine.
+     * Submit assessment and run scoring engine by token.
      */
     public function submitAssessment(string $token): array
     {
@@ -170,6 +233,44 @@ class DiscAssessmentService
             ->where('token', $token)
             ->firstOrFail();
 
+        return $this->executeSubmit($assessment);
+    }
+
+    /**
+     * Submit assessment and run scoring engine for authenticated candidate.
+     */
+    public function submitCandidateAssessment(DiscCandidate $candidate): array
+    {
+        $assessment = DiscAssessment::with(['candidate', 'answers'])
+            ->where('candidate_id', $candidate->id)
+            ->whereIn('status', ['in_progress', 'pending'])
+            ->latest('id')
+            ->first();
+
+        if (!$assessment) {
+            $completed = DiscAssessment::where('candidate_id', $candidate->id)
+                ->whereIn('status', ['completed', 'scored', 'review_required'])
+                ->first();
+
+            if ($completed) {
+                throw ValidationException::withMessages([
+                    'assessment' => ['Assessment has already been submitted.'],
+                ]);
+            }
+
+            throw ValidationException::withMessages([
+                'assessment' => ['No active assessment found.'],
+            ]);
+        }
+
+        return $this->executeSubmit($assessment);
+    }
+
+    /**
+     * Internal execution of submitting and scoring assessment.
+     */
+    protected function executeSubmit(DiscAssessment $assessment): array
+    {
         if (in_array($assessment->status, ['completed', 'scored', 'review_required'])) {
             throw ValidationException::withMessages([
                 'assessment' => ['Assessment has already been submitted.'],
@@ -238,6 +339,50 @@ class DiscAssessmentService
                 'status'       => $finalStatus,
             ];
         });
+    }
+
+    /**
+     * Get candidate's latest assessment result.
+     */
+    public function getCandidateResult(DiscCandidate $candidate): array
+    {
+        $assessment = DiscAssessment::with(['result.profile', 'answers'])
+            ->where('candidate_id', $candidate->id)
+            ->latest('id')
+            ->first();
+
+        if (!$assessment) {
+            throw ValidationException::withMessages([
+                'assessment' => ['Belum ada asesmen DISC untuk kandidat ini.'],
+            ]);
+        }
+
+        return [
+            'id'           => $assessment->id,
+            'status'       => $assessment->status,
+            'started_at'   => $assessment->started_at?->toIso8601String(),
+            'submitted_at' => $assessment->submitted_at?->toIso8601String(),
+            'candidate'    => [
+                'id'               => $candidate->id,
+                'full_name'        => $candidate->full_name,
+                'email'            => $candidate->email,
+                'phone'            => $candidate->phone,
+                'position_applied' => $candidate->position_applied,
+            ],
+            'result'       => $assessment->result ? [
+                'status'             => $assessment->result->status,
+                'profile_number'     => $assessment->result->profile_number,
+                'profile_title'      => $assessment->result->profile_title,
+                'dimension_code'     => $assessment->result->dimension_code,
+                'matched_rule_index' => $assessment->result->matched_rule_index,
+                'p_counts'           => $assessment->result->p_counts,
+                'k_counts'           => $assessment->result->k_counts,
+                'net_counts'         => $assessment->result->net_counts,
+                'chart_scores'       => $assessment->result->chart_scores,
+                'profile_details'    => $assessment->result->profile?->characteristics,
+            ] : null,
+            'answers_count'=> $assessment->answers->count(),
+        ];
     }
 
     /**
