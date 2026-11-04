@@ -16367,6 +16367,90 @@ paths:
         '200':
           description: Daftar Production Order (PDO) dari SAP berhasil diambil.
 
+  /v1/production/get-list-pdo-sap:
+    get:
+      summary: Get list of Production Orders (PDO) from SAP (Alias)
+      description: Alias untuk /v1/production/orders/sap-list. Mengambil daftar Production Order (PDO) dari SAP API (/api/getListPDO).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "2026-01-01"
+          description: Tanggal awal (format YYYY-MM-DD atau YYYY-M-D)
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "2026-12-31"
+          description: Tanggal akhir (format YYYY-MM-DD atau YYYY-M-D)
+        - name: whs_code
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "VRTR01"
+          description: Kode gudang asal (opsional)
+        - name: to_whs_code
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "FG01"
+          description: Kode gudang tujuan (opsional)
+        - name: unit
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "SBY-UNIT7"
+          description: Kode unit produksi (opsional)
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "RELEASED"
+          description: Status filter (PLANNED, RELEASED, CLOSED, CANCELLED, opsional)
+      responses:
+        '200':
+          description: Daftar Production Order (PDO) dari SAP berhasil diambil.
+    post:
+      summary: Get list of Production Orders (PDO) from SAP (via POST body - Alias)
+      description: Alias untuk /v1/production/orders/sap-list. Mengambil daftar Production Order (PDO) dari SAP API menggunakan JSON body.
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                from:
+                  type: string
+                  example: "2026-01-01"
+                to:
+                  type: string
+                  example: "2026-12-31"
+                whs_code:
+                  type: string
+                  example: "VRTR01"
+                to_whs_code:
+                  type: string
+                  example: "FG01"
+      responses:
+        '200':
+          description: Daftar Production Order (PDO) dari SAP berhasil diambil.
+
   /v1/production/orders/sap/{id}:
     get:
       summary: Get detail of Production Order (PDO) from SAP by ID/DocEntry/DocNum
