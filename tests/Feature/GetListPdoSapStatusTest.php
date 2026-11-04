@@ -26,7 +26,7 @@ class GetListPdoSapStatusTest extends TestCase
         ]);
     }
 
-    public function test_get_list_pdo_preserves_sap_status_and_status_name(): void
+    public function test_get_list_pdo_provides_full_status_and_status_name(): void
     {
         Http::fake([
             '*/api/getListPDO' => Http::response([
@@ -70,17 +70,24 @@ class GetListPdoSapStatusTest extends TestCase
 
         $this->assertCount(4, $data);
 
-        $this->assertEquals('P', $data[0]['Status']);
+        // Item 0: P -> PLANNED
+        $this->assertEquals('PLANNED', $data[0]['Status']);
+        $this->assertEquals('PLANNED', $data[0]['status']);
         $this->assertEquals('Planned', $data[0]['StatusName']);
 
-        $this->assertEquals('R', $data[1]['Status']);
+        // Item 1: R -> RELEASED
+        $this->assertEquals('RELEASED', $data[1]['Status']);
+        $this->assertEquals('RELEASED', $data[1]['status']);
         $this->assertEquals('Released', $data[1]['StatusName']);
 
-        $this->assertEquals('L', $data[2]['Status']);
+        // Item 2: L -> CLOSED
+        $this->assertEquals('CLOSED', $data[2]['Status']);
+        $this->assertEquals('CLOSED', $data[2]['status']);
         $this->assertEquals('Closed', $data[2]['StatusName']);
 
-        $this->assertEquals('C', $data[3]['Status']);
+        // Item 3: C -> CANCELLED
+        $this->assertEquals('CANCELLED', $data[3]['Status']);
+        $this->assertEquals('CANCELLED', $data[3]['status']);
         $this->assertEquals('Canceled', $data[3]['StatusName']);
     }
 }
-

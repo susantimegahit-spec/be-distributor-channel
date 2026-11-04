@@ -789,13 +789,13 @@ class ProductionService
         $statusFilter = null;
         if (!empty($rawStatusFilter) && !in_array($rawStatusFilter, ['ALL', 'SEMUA', 'ALL STATUS', 'NULL', 'UNDEFINED', ''])) {
             if (str_contains($rawStatusFilter, 'RELEASE') || $rawStatusFilter === 'R') {
-                $statusFilter = 'R';
+                $statusFilter = 'RELEASED';
             } elseif (str_contains($rawStatusFilter, 'PLAN') || $rawStatusFilter === 'P') {
-                $statusFilter = 'P';
+                $statusFilter = 'PLANNED';
             } elseif (str_contains($rawStatusFilter, 'CLOSE') || $rawStatusFilter === 'L') {
-                $statusFilter = 'L';
+                $statusFilter = 'CLOSED';
             } elseif (str_contains($rawStatusFilter, 'CANCEL') || $rawStatusFilter === 'C') {
-                $statusFilter = 'C';
+                $statusFilter = 'CANCELLED';
             } else {
                 $statusFilter = $rawStatusFilter;
             }
@@ -847,31 +847,32 @@ class ProductionService
             // Fallback: proceed to merge local orders
         }
 
-        // Match Status with SAP convention: P = Planned, R = Released, L = Closed, C = Canceled
+        // Status is full descriptive name (PLANNED, RELEASED, CLOSED, CANCELLED) and provide lowercase status + StatusName
         $normalizedItems = [];
         foreach ($items as $item) {
             if (!is_array($item)) continue;
             $rawS = strtoupper(trim((string) ($item['Status'] ?? $item['status'] ?? $item['ProductionOrderStatus'] ?? $item['DocStatus'] ?? '')));
             if ($rawS === 'R' || $rawS === 'RELEASE' || $rawS === 'RELEASED') {
-                $sapStatusCode = 'R';
+                $fullStatus = 'RELEASED';
                 $sapStatusName = 'Released';
             } elseif ($rawS === 'P' || $rawS === 'PLAN' || $rawS === 'PLANNED') {
-                $sapStatusCode = 'P';
+                $fullStatus = 'PLANNED';
                 $sapStatusName = 'Planned';
             } elseif ($rawS === 'L' || $rawS === 'CLOSE' || $rawS === 'CLOSED') {
-                $sapStatusCode = 'L';
+                $fullStatus = 'CLOSED';
                 $sapStatusName = 'Closed';
             } elseif ($rawS === 'C' || $rawS === 'CANCEL' || $rawS === 'CANCELLED' || $rawS === 'CANCELED') {
-                $sapStatusCode = 'C';
+                $fullStatus = 'CANCELLED';
                 $sapStatusName = 'Canceled';
             } else {
-                $sapStatusCode = $rawS ?: 'P';
+                $fullStatus = $rawS ?: 'PLANNED';
                 $sapStatusName = $item['StatusName'] ?? ($rawS ?: 'Planned');
             }
 
-            $item['Status'] = $sapStatusCode;
+            $item['Status'] = $fullStatus;
+            $item['status'] = $fullStatus;
             $item['StatusName'] = $item['StatusName'] ?? $sapStatusName;
-            unset($item['status'], $item['ProductionOrderStatus'], $item['DocStatus']);
+            unset($item['ProductionOrderStatus'], $item['DocStatus']);
 
             // Filter if status filter is active
             if ($statusFilter && $item['Status'] !== $statusFilter) {
@@ -923,13 +924,13 @@ class ProductionService
 
             if ($statusFilter) {
                 $localQuery->where(function ($q) use ($statusFilter) {
-                    if ($statusFilter === 'R') {
+                    if ($statusFilter === 'RELEASED') {
                         $q->whereIn('status', ['R', 'RELEASE', 'RELEASED']);
-                    } elseif ($statusFilter === 'P') {
+                    } elseif ($statusFilter === 'PLANNED') {
                         $q->whereIn('status', ['P', 'PLAN', 'PLANNED']);
-                    } elseif ($statusFilter === 'L') {
+                    } elseif ($statusFilter === 'CLOSED') {
                         $q->whereIn('status', ['L', 'CLOSE', 'CLOSED']);
-                    } elseif ($statusFilter === 'C') {
+                    } elseif ($statusFilter === 'CANCELLED') {
                         $q->whereIn('status', ['C', 'CANCEL', 'CANCELLED', 'CANCELED']);
                     } else {
                         $q->where('status', $statusFilter);
@@ -982,23 +983,23 @@ class ProductionService
 
                 $lRawStatus = strtoupper(trim((string) ($lOrder->status ?? '')));
                 if ($lRawStatus === 'R' || $lRawStatus === 'RELEASE' || $lRawStatus === 'RELEASED') {
-                    $lStatusCode = 'R';
+                    $lStatusFull = 'RELEASED';
                     $lStatusName = 'Released';
                 } elseif ($lRawStatus === 'P' || $lRawStatus === 'PLAN' || $lRawStatus === 'PLANNED') {
-                    $lStatusCode = 'P';
+                    $lStatusFull = 'PLANNED';
                     $lStatusName = 'Planned';
                 } elseif ($lRawStatus === 'L' || $lRawStatus === 'CLOSE' || $lRawStatus === 'CLOSED') {
-                    $lStatusCode = 'L';
+                    $lStatusFull = 'CLOSED';
                     $lStatusName = 'Closed';
                 } elseif ($lRawStatus === 'C' || $lRawStatus === 'CANCEL' || $lRawStatus === 'CANCELLED' || $lRawStatus === 'CANCELED') {
-                    $lStatusCode = 'C';
+                    $lStatusFull = 'CANCELLED';
                     $lStatusName = 'Canceled';
                 } else {
-                    $lStatusCode = $lRawStatus ?: 'P';
+                    $lStatusFull = $lRawStatus ?: 'PLANNED';
                     $lStatusName = 'Planned';
                 }
 
-                if ($statusFilter && $lStatusCode !== $statusFilter) {
+                if ($statusFilter && $lStatusFull !== $statusFilter) {
                     continue;
                 }
 
@@ -1012,7 +1013,8 @@ class ProductionService
                     'SeriesName'  => (string) ($lOrder->series_name ?? ''),
                     'ItemCode'    => (string) $lOrder->item_code,
                     'ProdName'    => (string) ($lOrder->parentItem?->item_name ?? $this->resolveItemName($lOrder->item_code)),
-                    'Status'      => $lStatusCode,
+                    'Status'      => $lStatusFull,
+                    'status'      => $lStatusFull,
                     'StatusName'  => $lStatusName,
                     'Type'        => (string) $lOrder->type,
                     'PlannedQty'  => floatval($lOrder->planned_qty),
@@ -1156,7 +1158,8 @@ class ProductionService
                 $sapStatusName = $header['StatusName'] ?? ($rawStatus ?: 'Planned');
                 $normStatus = $rawStatus ?: 'RELEASED';
             }
-            $header['Status'] = $sapStatusCode;
+            $header['Status'] = $normStatus;
+            $header['status'] = $normStatus;
             $header['StatusName'] = $header['StatusName'] ?? $sapStatusName;
 
             // Sync updated status to local database
