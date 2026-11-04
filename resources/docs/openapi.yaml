@@ -15766,7 +15766,7 @@ paths:
                         example: 15000
                       totalPrice:
                         type: number
-                        description: Total harga item setelah diskon (opsional dikirim dari frontend, jika tidak dikirim akan dihitung otomatis oleh sistem: qty * unitPrice - nominalDisc)
+                        description: "Total harga item setelah diskon (opsional dikirim dari frontend, jika tidak dikirim akan dihitung otomatis oleh sistem: qty * unitPrice - nominalDisc)"
                         example: 135000
                       leadTime:
                         type: string
