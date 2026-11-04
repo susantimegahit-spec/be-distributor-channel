@@ -29,6 +29,7 @@ class CandidateAuthController extends Controller
             'phone'            => trim($validated['phone']),
             'password'         => Hash::make($validated['password']),
             'position_applied' => $validated['position_applied'] ?? null,
+            'status'           => DiscCandidate::STATUS_PRESCREEN,
             'biodata'          => null,
         ]);
 
@@ -109,6 +110,15 @@ class CandidateAuthController extends Controller
     {
         /** @var DiscCandidate $candidate */
         $candidate = $request->user();
+
+        if (!$candidate->canAccessAssessmentsAndBiodata()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => $candidate->getAssessmentAccessDeniedMessage(),
+                'data'    => null,
+            ], 403);
+        }
+
         $validated = $request->validated();
 
         $updateData = [];
@@ -181,18 +191,20 @@ class CandidateAuthController extends Controller
         }
 
         return [
-            'id'                => $candidate->id,
-            'full_name'         => $candidate->full_name,
-            'email'             => $candidate->email,
-            'phone'             => $candidate->phone,
-            'birth_date'        => $candidate->birth_date?->format('Y-m-d'),
-            'gender'            => $candidate->gender,
-            'position_applied'  => $candidate->position_applied,
-            'avatar'            => $candidate->avatar,
-            'biodata'           => $candidate->biodata,
-            'assessment_status' => $status,
-            'created_at'        => $candidate->created_at?->toIso8601String(),
-            'updated_at'        => $candidate->updated_at?->toIso8601String(),
+            'id'                    => $candidate->id,
+            'full_name'             => $candidate->full_name,
+            'email'                 => $candidate->email,
+            'phone'                 => $candidate->phone,
+            'birth_date'            => $candidate->birth_date?->format('Y-m-d'),
+            'gender'                => $candidate->gender,
+            'position_applied'      => $candidate->position_applied,
+            'status'                => $candidate->status ?? DiscCandidate::STATUS_PRESCREEN,
+            'can_access_assessment' => $candidate->canAccessAssessmentsAndBiodata(),
+            'avatar'                => $candidate->avatar,
+            'biodata'               => $candidate->biodata,
+            'assessment_status'     => $status,
+            'created_at'            => $candidate->created_at?->toIso8601String(),
+            'updated_at'            => $candidate->updated_at?->toIso8601String(),
         ];
     }
 }

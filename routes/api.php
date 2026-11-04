@@ -88,3 +88,11 @@ Route::prefix('v1/hr/psikotes/disc')->middleware('auth:sanctum')->group(function
     Route::get('/assessments/{id}', [\App\Modules\Psikotes\Controllers\DiscAssessmentController::class, 'show']);
 });
 
+Route::prefix('v1/hr/recruitment/candidates')->middleware('auth:sanctum')->group(function () {
+    Route::get('/', [\App\Modules\Psikotes\Controllers\CandidateManagementController::class, 'index']);
+    Route::get('/{id}', [\App\Modules\Psikotes\Controllers\CandidateManagementController::class, 'show']);
+    Route::put('/{id}/status', [\App\Modules\Psikotes\Controllers\CandidateManagementController::class, 'updateStatus']);
+    Route::post('/{id}/shortlist', [\App\Modules\Psikotes\Controllers\CandidateManagementController::class, 'shortlist']);
+    Route::post('/{id}/reject', [\App\Modules\Psikotes\Controllers\CandidateManagementController::class, 'reject']);
+});
+
