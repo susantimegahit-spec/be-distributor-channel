@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
             DocumentApprovalDummySeeder::class,
             CorporateTaskManagementSeeder::class,
             LogisticSettingSeeder::class,
+            DiscReferenceSeeder::class,
         ]);
     }
 }

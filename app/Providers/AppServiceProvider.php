@@ -123,6 +123,10 @@ class AppServiceProvider extends ServiceProvider
             \App\Modules\PurchasingRequest\Repositories\PurchaseRequestRepository::class
         );
         $this->app->bind(
+            \App\Modules\PurchasingRequest\Repositories\PurchaseQuotationRepositoryInterface::class,
+            \App\Modules\PurchasingRequest\Repositories\PurchaseQuotationRepository::class
+        );
+        $this->app->bind(
             \App\Modules\PurchasingRequest\Repositories\DocumentTypeRepositoryInterface::class,
             \App\Modules\PurchasingRequest\Repositories\DocumentTypeRepository::class
         );

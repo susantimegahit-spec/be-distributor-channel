@@ -884,10 +884,14 @@ class ProductionController extends Controller
     /**
      * Cancel Production Order (PDO) on SAP (/api/cancelpdo).
      */
-    public function cancelPdoSap(Request $request): JsonResponse
+    public function cancelPdoSap(Request $request, ?string $id = null): JsonResponse
     {
         $userId = $request->user()?->id;
         $input = $request->all();
+
+        if ($id && empty($input['DocEntry']) && empty($input['doc_entry'])) {
+            $input['DocEntry'] = $id;
+        }
 
         if (empty($input['DocEntry']) && empty($input['doc_entry'])) {
             return $this->errorResponse('DocEntry wajib diisi.', [], 422);
@@ -904,10 +908,14 @@ class ProductionController extends Controller
     /**
      * Close Production Order (PDO) on SAP (/api/closepdo).
      */
-    public function closePdoSap(Request $request): JsonResponse
+    public function closePdoSap(Request $request, ?string $id = null): JsonResponse
     {
         $userId = $request->user()?->id;
         $input = $request->all();
+
+        if ($id && empty($input['DocEntry']) && empty($input['doc_entry']) && empty($input['BaseEntry']) && empty($input['base_entry']) && empty($input['id'])) {
+            $input['DocEntry'] = $id;
+        }
 
         if (empty($input['DocEntry']) && empty($input['doc_entry']) && empty($input['BaseEntry']) && empty($input['base_entry']) && empty($input['id'])) {
             return $this->errorResponse('DocEntry atau BaseEntry wajib diisi.', [], 422);

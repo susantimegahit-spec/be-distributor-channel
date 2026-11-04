@@ -1,0 +1,2262 @@
+{
+  "source": "DISC_NamaKandidat.xlsx",
+  "sheets": [
+    "DISC Test",
+    "Input",
+    "Result",
+    "Sheet3",
+    "Sheet1",
+    "Sheet3 (2)",
+    "Def"
+  ],
+  "questions": [
+    {
+      "number": 1,
+      "P": {
+        "1": "S",
+        "2": "I",
+        "3": "*",
+        "4": "C"
+      },
+      "K": {
+        "1": "S",
+        "2": "I",
+        "3": "D",
+        "4": "C"
+      },
+      "excel_cells": {
+        "P": "E6",
+        "K": "F6"
+      },
+      "statements": [
+        "Gampangan, Mudah setuju",
+        "Percaya, Mudah percaya pada orang",
+        "Petualang, Mengambil resiko",
+        "Toleran, Menghormati"
+      ]
+    },
+    {
+      "number": 2,
+      "P": {
+        "1": "C",
+        "2": "D",
+        "3": "*",
+        "4": "S"
+      },
+      "K": {
+        "1": "*",
+        "2": "D",
+        "3": "I",
+        "4": "S"
+      },
+      "excel_cells": {
+        "P": "E7",
+        "K": "F7"
+      },
+      "statements": [
+        "Lembut suara, Pendiam",
+        "Optimistik, Visioner",
+        "Pusat Perhatian, Suka gaul",
+        "Pendamai, Membawa Harmoni"
+      ]
+    },
+    {
+      "number": 3,
+      "P": {
+        "1": "I",
+        "2": "*",
+        "3": "*",
+        "4": "D"
+      },
+      "K": {
+        "1": "I",
+        "2": "C",
+        "3": "S",
+        "4": "*"
+      },
+      "excel_cells": {
+        "P": "E8",
+        "K": "F8"
+      },
+      "statements": [
+        "Menyemangati orang",
+        "Berusaha sempurna",
+        "Bagian dari kelompok",
+        "Ingin membuat tujuan"
+      ]
+    },
+    {
+      "number": 4,
+      "P": {
+        "1": "C",
+        "2": "S",
+        "3": "*",
+        "4": "D"
+      },
+      "K": {
+        "1": "C",
+        "2": "S",
+        "3": "I",
+        "4": "D"
+      },
+      "excel_cells": {
+        "P": "E9",
+        "K": "F9"
+      },
+      "statements": [
+        "Menjadi frustrasi",
+        "Menyimpan perasaan saya",
+        "Menceritakan sisi saya",
+        "Siap beroposisi"
+      ]
+    },
+    {
+      "number": 5,
+      "P": {
+        "1": "I",
+        "2": "D",
+        "3": "S",
+        "4": "*"
+      },
+      "K": {
+        "1": "*",
+        "2": "D",
+        "3": "S",
+        "4": "C"
+      },
+      "excel_cells": {
+        "P": "E10",
+        "K": "F10"
+      },
+      "statements": [
+        "Hidup, Suka bicara",
+        "Gerak cepat, Tekun",
+        "Usaha menjaga keseimbangan",
+        "Usaha mengikuti aturan"
+      ]
+    },
+    {
+      "number": 6,
+      "P": {
+        "1": "C",
+        "2": "D",
+        "3": "I",
+        "4": "S"
+      },
+      "K": {
+        "1": "*",
+        "2": "D",
+        "3": "I",
+        "4": "S"
+      },
+      "excel_cells": {
+        "P": "E11",
+        "K": "F11"
+      },
+      "statements": [
+        "Kelola waktu secara efisien",
+        "Sering terburu-buru, Merasa tertekan",
+        "Masalah sosial itu penting",
+        "Suka selesaikan apa yang saya mulai"
+      ]
+    },
+    {
+      "number": 7,
+      "P": {
+        "1": "S",
+        "2": "I",
+        "3": "*",
+        "4": "*"
+      },
+      "K": {
+        "1": "*",
+        "2": "I",
+        "3": "C",
+        "4": "D"
+      },
+      "excel_cells": {
+        "P": "E12",
+        "K": "F12"
+      },
+      "statements": [
+        "Tolak perubahan mendadak",
+        "Cenderung janji berlebihan",
+        "Tarik diri di tengah tekanan",
+        "Tidak takut bertempur"
+      ]
+    },
+    {
+      "number": 8,
+      "P": {
+        "1": "I",
+        "2": "S",
+        "3": "C",
+        "4": "D"
+      },
+      "K": {
+        "1": "I",
+        "2": "S",
+        "3": "C",
+        "4": "D"
+      },
+      "excel_cells": {
+        "P": "E13",
+        "K": "F13"
+      },
+      "statements": [
+        "Penyemangat yang baik",
+        "Pendengar yang baik",
+        "Penganalisa yang baik",
+        "Delegator yang baik"
+      ]
+    },
+    {
+      "number": 9,
+      "P": {
+        "1": "D",
+        "2": "C",
+        "3": "*",
+        "4": "*"
+      },
+      "K": {
+        "1": "D",
+        "2": "C",
+        "3": "I",
+        "4": "S"
+      },
+      "excel_cells": {
+        "P": "J6",
+        "K": "K6"
+      },
+      "statements": [
+        "Hasil adalah penting",
+        "Lakukan dengan benar, Akurasi penting",
+        "Dibuat menyenangkan",
+        "Mari kerjakan bersama"
+      ]
+    },
+    {
+      "number": 10,
+      "P": {
+        "1": "*",
+        "2": "D",
+        "3": "S",
+        "4": "I"
+      },
+      "K": {
+        "1": "C",
+        "2": "D",
+        "3": "S",
+        "4": "*"
+      },
+      "excel_cells": {
+        "P": "J7",
+        "K": "K7"
+      },
+      "statements": [
+        "Akan berjalan terus tanpa kontrol diri",
+        "Akan membeli sesuai dorongan hati",
+        "Akan menunggu, Tanpa tekanan",
+        "Akan mengusahakan  yang kuinginkan"
+      ]
+    },
+    {
+      "number": 11,
+      "P": {
+        "1": "S",
+        "2": "*",
+        "3": "D",
+        "4": "C"
+      },
+      "K": {
+        "1": "*",
+        "2": "I",
+        "3": "D",
+        "4": "C"
+      },
+      "excel_cells": {
+        "P": "J8",
+        "K": "K8"
+      },
+      "statements": [
+        "Ramah, Mudah bergabung",
+        "Unik, Bosan rutinitas",
+        "Aktif mengubah sesuatu",
+        "Ingin hal-hal yang pasti"
+      ]
+    },
+    {
+      "number": 12,
+      "P": {
+        "1": "*",
+        "2": "C",
+        "3": "I",
+        "4": "D"
+      },
+      "K": {
+        "1": "S",
+        "2": "*",
+        "3": "I",
+        "4": "D"
+      },
+      "excel_cells": {
+        "P": "J9",
+        "K": "K9"
+      },
+      "statements": [
+        "Non-konfrontasi, Menyerah",
+        "Dipenuhi hal detail",
+        "Perubahan pada menit terakhir",
+        "Menuntut, Kasar"
+      ]
+    },
+    {
+      "number": 13,
+      "P": {
+        "1": "D",
+        "2": "S",
+        "3": "I",
+        "4": "*"
+      },
+      "K": {
+        "1": "D",
+        "2": "*",
+        "3": "*",
+        "4": "C"
+      },
+      "excel_cells": {
+        "P": "J10",
+        "K": "K10"
+      },
+      "statements": [
+        "Ingin kemajuan",
+        "Puas dengan segalanya",
+        "Terbuka memperlihatkan perasaan",
+        "Rendah hati, Sederhana"
+      ]
+    },
+    {
+      "number": 14,
+      "P": {
+        "1": "C",
+        "2": "I",
+        "3": "S",
+        "4": "D"
+      },
+      "K": {
+        "1": "C",
+        "2": "I",
+        "3": "*",
+        "4": "D"
+      },
+      "excel_cells": {
+        "P": "J11",
+        "K": "K11"
+      },
+      "statements": [
+        "Tenang, Pendiam",
+        "Bahagia, Tanpa beban",
+        "Menyenangkan, Baik hati",
+        "Tak gentar, Berani"
+      ]
+    },
+    {
+      "number": 15,
+      "P": {
+        "1": "S",
+        "2": "C",
+        "3": "I",
+        "4": "D"
+      },
+      "K": {
+        "1": "S",
+        "2": "*",
+        "3": "I",
+        "4": "D"
+      },
+      "excel_cells": {
+        "P": "J12",
+        "K": "K12"
+      },
+      "statements": [
+        "Menggunakan waktu berkualitas dgn teman",
+        "Rencanakan masa depan, Bersiap",
+        "Bepergian demi petualangan baru",
+        "Menerima ganjaran atas tujuan yg dicapai"
+      ]
+    },
+    {
+      "number": 16,
+      "P": {
+        "1": "*",
+        "2": "C",
+        "3": "I",
+        "4": "S"
+      },
+      "K": {
+        "1": "D",
+        "2": "*",
+        "3": "I",
+        "4": "S"
+      },
+      "excel_cells": {
+        "P": "J13",
+        "K": "K13"
+      },
+      "statements": [
+        "Aturan perlu dipertanyakan",
+        "Aturan membuat adil",
+        "Aturan membuat bosan",
+        "Aturan membuat aman"
+      ]
+    },
+    {
+      "number": 17,
+      "P": {
+        "1": "*",
+        "2": "D",
+        "3": "S",
+        "4": "I"
+      },
+      "K": {
+        "1": "C",
+        "2": "D",
+        "3": "S",
+        "4": "*"
+      },
+      "excel_cells": {
+        "P": "O6",
+        "K": "P6"
+      },
+      "statements": [
+        "Pendidikan, Kebudayaan",
+        "Prestasi, Ganjaran",
+        "Keselamatan, keamanan",
+        "Sosial, Perkumpulan kelompok"
+      ]
+    },
+    {
+      "number": 18,
+      "P": {
+        "1": "D",
+        "2": "*",
+        "3": "*",
+        "4": "C"
+      },
+      "K": {
+        "1": "D",
+        "2": "I",
+        "3": "S",
+        "4": "*"
+      },
+      "excel_cells": {
+        "P": "O7",
+        "K": "P7"
+      },
+      "statements": [
+        "Memimpin, Pendekatan langsung",
+        "Suka bergaul, Antusias",
+        "Dapat diramal, Konsisten",
+        "Waspada, Hati-hati"
+      ]
+    },
+    {
+      "number": 19,
+      "P": {
+        "1": "D",
+        "2": "S",
+        "3": "I",
+        "4": "*"
+      },
+      "K": {
+        "1": "D",
+        "2": "*",
+        "3": "I",
+        "4": "C"
+      },
+      "excel_cells": {
+        "P": "O8",
+        "K": "P8"
+      },
+      "statements": [
+        "Tidak mudah dikalahkan",
+        "Kerjakan sesuai perintah, Ikut pimpinan",
+        "Mudah terangsang, Riang",
+        "Ingin segalanya teratur, Rapi"
+      ]
+    },
+    {
+      "number": 20,
+      "P": {
+        "1": "D",
+        "2": "S",
+        "3": "I",
+        "4": "C"
+      },
+      "K": {
+        "1": "*",
+        "2": "S",
+        "3": "I",
+        "4": "*"
+      },
+      "excel_cells": {
+        "P": "O9",
+        "K": "P9"
+      },
+      "statements": [
+        "Saya akan pimpin mereka",
+        "Saya akan melaksanakan",
+        "Saya akan meyakinkan mereka",
+        "Saya dapatkan fakta"
+      ]
+    },
+    {
+      "number": 21,
+      "P": {
+        "1": "S",
+        "2": "D",
+        "3": "I",
+        "4": "*"
+      },
+      "K": {
+        "1": "S",
+        "2": "D",
+        "3": "I",
+        "4": "C"
+      },
+      "excel_cells": {
+        "P": "O10",
+        "K": "P10"
+      },
+      "statements": [
+        "Memikirkan orang dahulu",
+        "Kompetitif, Suka tantangan",
+        "Optimis, Positif",
+        "Pemikir logis, Sistematik"
+      ]
+    },
+    {
+      "number": 22,
+      "P": {
+        "1": "S",
+        "2": "*",
+        "3": "D",
+        "4": "C"
+      },
+      "K": {
+        "1": "S",
+        "2": "I",
+        "3": "D",
+        "4": "C"
+      },
+      "excel_cells": {
+        "P": "O11",
+        "K": "P11"
+      },
+      "statements": [
+        "Menyenangkan orang, Mudah setuju",
+        "Tertawa lepas, Hidup",
+        "Berani, Tak gentar",
+        "Tenang, Pendiam"
+      ]
+    },
+    {
+      "number": 23,
+      "P": {
+        "1": "*",
+        "2": "I",
+        "3": "S",
+        "4": "*"
+      },
+      "K": {
+        "1": "D",
+        "2": "*",
+        "3": "S",
+        "4": "C"
+      },
+      "excel_cells": {
+        "P": "O12",
+        "K": "P12"
+      },
+      "statements": [
+        "Ingin otoritas lebih",
+        "Ingin kesempatan baru",
+        "Menghindari konflik",
+        "Ingin petunjuk yang jelas"
+      ]
+    },
+    {
+      "number": 24,
+      "P": {
+        "1": "*",
+        "2": "I",
+        "3": "D",
+        "4": "C"
+      },
+      "K": {
+        "1": "S",
+        "2": "I",
+        "3": "*",
+        "4": "*"
+      },
+      "excel_cells": {
+        "P": "O13",
+        "K": "P13"
+      },
+      "statements": [
+        "Dapat diandalkan, Dapata dipercaya",
+        "Kreatif, Unik",
+        "Garis dasar, Orientasi hasil",
+        "Jalankan standar yang tinggi, Akurat"
+      ]
+    }
+  ],
+  "lookup_tables": {
+    "line1": {
+      "D": {
+        "0": -6.0,
+        "1": -5.3,
+        "2": -4.0,
+        "3": -2.5,
+        "4": -1.7,
+        "5": -1.3,
+        "6": 0.0,
+        "7": 0.5,
+        "8": 1.0,
+        "9": 2.0,
+        "10": 3.0,
+        "11": 3.5,
+        "12": 4.0,
+        "13": 4.7,
+        "14": 5.3,
+        "15": 6.5,
+        "16": 7.0,
+        "17": 7.0,
+        "18": 7.0,
+        "19": 7.5,
+        "20": 7.5
+      },
+      "I": {
+        "0": -7.0,
+        "1": -4.6,
+        "2": -2.5,
+        "3": -1.3,
+        "4": 1.0,
+        "5": 3.0,
+        "6": 3.5,
+        "7": 5.3,
+        "8": 5.7,
+        "9": 6.0,
+        "10": 6.5,
+        "11": 7.0,
+        "12": 7.0,
+        "13": 7.0,
+        "14": 7.0,
+        "15": 7.0,
+        "16": 7.5,
+        "17": 7.5,
+        "18": 7.5,
+        "19": 7.5,
+        "20": 8.0
+      },
+      "S": {
+        "0": -5.7,
+        "1": -4.3,
+        "2": -3.5,
+        "3": -1.5,
+        "4": -0.7,
+        "5": 0.5,
+        "6": 1.0,
+        "7": 2.5,
+        "8": 3.0,
+        "9": 4.0,
+        "10": 4.6,
+        "11": 5.0,
+        "12": 5.7,
+        "13": 6.0,
+        "14": 6.5,
+        "15": 6.5,
+        "16": 7.0,
+        "17": 7.0,
+        "18": 7.0,
+        "19": 7.5,
+        "20": 7.5
+      },
+      "C": {
+        "0": -6.0,
+        "1": -4.7,
+        "2": -3.5,
+        "3": -1.5,
+        "4": 0.5,
+        "5": 2.0,
+        "6": 3.0,
+        "7": 5.3,
+        "8": 5.7,
+        "9": 6.0,
+        "10": 6.3,
+        "11": 6.5,
+        "12": 6.7,
+        "13": 7.0,
+        "14": 7.3,
+        "15": 7.3,
+        "16": 7.3,
+        "17": 7.5,
+        "18": 8.0,
+        "19": 8.0,
+        "20": 8.0
+      }
+    },
+    "line2": {
+      "D": {
+        "0": 7.5,
+        "1": 6.5,
+        "2": 4.3,
+        "3": 2.5,
+        "4": 1.5,
+        "5": 0.5,
+        "6": 0.0,
+        "7": -1.3,
+        "8": -1.5,
+        "9": -2.5,
+        "10": -3.0,
+        "11": -3.5,
+        "12": -4.3,
+        "13": -5.3,
+        "14": -5.7,
+        "15": -6.0,
+        "16": -6.5,
+        "17": 6.7,
+        "18": 7.0,
+        "19": -7.3,
+        "20": -7.5
+      },
+      "I": {
+        "0": 7.0,
+        "1": 6.0,
+        "2": 4.0,
+        "3": 2.5,
+        "4": 0.5,
+        "5": 0.0,
+        "6": -2.0,
+        "7": -3.5,
+        "8": -4.3,
+        "9": -5.3,
+        "10": -6.0,
+        "11": -6.5,
+        "12": -7.0,
+        "13": -7.2,
+        "14": -7.2,
+        "15": -7.2,
+        "16": -7.3,
+        "17": -7.3,
+        "18": -7.3,
+        "19": -7.5,
+        "20": -8.0
+      },
+      "S": {
+        "0": 7.5,
+        "1": 7.0,
+        "2": 6.0,
+        "3": 4.0,
+        "4": 2.5,
+        "5": 1.5,
+        "6": 0.5,
+        "7": -1.3,
+        "8": -2.0,
+        "9": -3.0,
+        "10": -4.3,
+        "11": -5.3,
+        "12": -6.0,
+        "13": -6.5,
+        "14": -6.7,
+        "15": -6.7,
+        "16": -7.0,
+        "17": -7.2,
+        "18": -7.3,
+        "19": -7.5,
+        "20": -8.0
+      },
+      "C": {
+        "0": 7.5,
+        "1": 7.0,
+        "2": 5.6,
+        "3": 4.0,
+        "4": 2.5,
+        "5": 1.5,
+        "6": 0.5,
+        "7": 0.0,
+        "8": -1.3,
+        "9": -2.5,
+        "10": -3.5,
+        "11": -5.3,
+        "12": -5.7,
+        "13": -6.0,
+        "14": -6.5,
+        "15": -7.0,
+        "16": -7.3,
+        "17": -7.5,
+        "18": -7.7,
+        "19": -7.9,
+        "20": -8.0
+      }
+    },
+    "line3": {
+      "D": {
+        "-22": -8.0,
+        "-21": -7.5,
+        "-20": -7.0,
+        "-19": -6.8,
+        "-18": -6.75,
+        "-17": -6.7,
+        "-16": -6.5,
+        "-15": -6.3,
+        "-14": -6.1,
+        "-13": -5.9,
+        "-12": -5.7,
+        "-11": -5.3,
+        "-10": -4.3,
+        "-9": -3.5,
+        "-8": -3.25,
+        "-7": -3.0,
+        "-6": -2.75,
+        "-5": -2.5,
+        "-4": -1.5,
+        "-3": -1.0,
+        "-2": -0.5,
+        "-1": -0.25,
+        "0": 0.0,
+        "1": 0.5,
+        "2": 0.7,
+        "3": 1.0,
+        "4": 1.3,
+        "5": 1.5,
+        "6": 2.0,
+        "7": 2.5,
+        "8": 3.5,
+        "9": 4.0,
+        "10": 4.7,
+        "11": 4.85,
+        "12": 5.0,
+        "13": 5.5,
+        "14": 6.0,
+        "15": 6.3,
+        "16": 6.5,
+        "17": 6.7,
+        "18": 7.0,
+        "19": 7.3,
+        "20": 7.3,
+        "21": 7.5,
+        "22": 8.0
+      },
+      "I": {
+        "-22": -8.0,
+        "-21": -8.0,
+        "-20": -8.0,
+        "-19": -8.0,
+        "-18": -7.0,
+        "-17": -6.7,
+        "-16": -6.7,
+        "-15": -6.7,
+        "-14": -6.7,
+        "-13": -6.7,
+        "-12": -6.7,
+        "-11": -6.7,
+        "-10": -6.5,
+        "-9": -6.0,
+        "-8": -5.7,
+        "-7": -4.7,
+        "-6": -4.3,
+        "-5": -3.5,
+        "-4": -3.0,
+        "-3": -2.0,
+        "-2": -1.5,
+        "-1": 0.0,
+        "0": 0.5,
+        "1": 1.0,
+        "2": 1.5,
+        "3": 3.0,
+        "4": 4.0,
+        "5": 4.3,
+        "6": 5.0,
+        "7": 5.5,
+        "8": 6.5,
+        "9": 6.7,
+        "10": 7.0,
+        "11": 7.3,
+        "12": 7.3,
+        "13": 7.3,
+        "14": 7.3,
+        "15": 7.3,
+        "16": 7.3,
+        "17": 7.3,
+        "18": 7.5,
+        "19": 8.0,
+        "20": 8.0,
+        "21": 8.0,
+        "22": 8.0
+      },
+      "S": {
+        "-22": -8.0,
+        "-21": -8.0,
+        "-20": -8.0,
+        "-19": -8.0,
+        "-18": -7.5,
+        "-17": -7.3,
+        "-16": -7.3,
+        "-15": -7.0,
+        "-14": -6.5,
+        "-13": -6.5,
+        "-12": -6.5,
+        "-11": -6.5,
+        "-10": -6.0,
+        "-9": -4.7,
+        "-8": -4.3,
+        "-7": -3.5,
+        "-6": -3.0,
+        "-5": -2.0,
+        "-4": -1.5,
+        "-3": -1.0,
+        "-2": -0.5,
+        "-1": 0.0,
+        "0": 1.0,
+        "1": 1.5,
+        "2": 2.0,
+        "3": 3.0,
+        "4": 3.5,
+        "5": 4.0,
+        "7": 4.7,
+        "8": 5.0,
+        "9": 5.5,
+        "10": 6.0,
+        "11": 6.2,
+        "12": 6.3,
+        "13": 6.5,
+        "14": 6.7,
+        "15": 7.0,
+        "16": 7.3,
+        "17": 7.3,
+        "18": 7.3,
+        "19": 7.3,
+        "20": 7.5,
+        "21": 8.0,
+        "22": 8.0
+      },
+      "C": {
+        "-22": -7.5,
+        "-21": -7.3,
+        "-20": -7.3,
+        "-19": -7.0,
+        "-18": -6.7,
+        "-17": -6.7,
+        "-16": -6.7,
+        "-15": -6.5,
+        "-14": -6.3,
+        "-13": -6.0,
+        "-12": -5.85,
+        "-11": -5.85,
+        "-10": -5.7,
+        "-9": -4.7,
+        "-8": -4.3,
+        "-7": -3.5,
+        "-6": -3.0,
+        "-5": -2.5,
+        "-4": -0.5,
+        "-3": 0.0,
+        "-2": 0.3,
+        "-1": 0.5,
+        "0": 1.5,
+        "1": 3.0,
+        "2": 4.0,
+        "3": 4.3,
+        "4": 5.5,
+        "5": 5.7,
+        "6": 6.0,
+        "7": 6.3,
+        "8": 6.5,
+        "9": 6.7,
+        "10": 7.0,
+        "11": 7.3,
+        "12": 7.3,
+        "13": 7.3,
+        "14": 7.3,
+        "15": 7.3,
+        "16": 7.3,
+        "17": 7.5,
+        "18": 8.0,
+        "19": 8.0,
+        "20": 8.0,
+        "21": 8.0,
+        "22": 8.0
+      }
+    }
+  },
+  "classification_rules": [
+    {
+      "index": 1,
+      "cell": "BH7",
+      "rule": "IF(AND(BB7<=0,BC7<=0,BD7<=0,BE7>0)=TRUE,1,0)"
+    },
+    {
+      "index": 2,
+      "cell": "BI7",
+      "rule": "IF(AND(BB7>0,BC7<=0,BD7<=0,BE7<=0)=TRUE,1,0)"
+    },
+    {
+      "index": 3,
+      "cell": "BJ7",
+      "rule": "IF(AND(BB7>0,BC7<=0,BD7<=0,BE7>0,BE7>=BB7)=TRUE,1,0)"
+    },
+    {
+      "index": 4,
+      "cell": "BK7",
+      "rule": "IF(AND(BB7>0,BC7>0,BD7<=0,BE7<=0,BC7>=BB7)=TRUE,1,0)"
+    },
+    {
+      "index": 5,
+      "cell": "BL7",
+      "rule": "IF(AND(BB7>0,BC7>0,BD7<=0,BE7>0,BC7>=BB7>=BE7)=TRUE,1,0)"
+    },
+    {
+      "index": 6,
+      "cell": "BM7",
+      "rule": "IF(AND(BB7>0,BC7>0,BD7>0,BE7<=0,BC7>=BB7>=BD7)=TRUE,1,0)"
+    },
+    {
+      "index": 7,
+      "cell": "BN7",
+      "rule": "IF(AND(BB7>0,BC7>0,BD7>0,BE7<=0,BC7>=BD7>=BB7)=TRUE,1,0)"
+    },
+    {
+      "index": 8,
+      "cell": "BO7",
+      "rule": "IF(AND(BB7>0,BC7<=0,BD7>0,BE7>0,BD7>=BB7, BB7>=BE7)=TRUE,1,0)"
+    },
+    {
+      "index": 9,
+      "cell": "BP7",
+      "rule": "IF(AND(BB7>0,BC7>0,BD7<=0,BE7<=0,BB7>=BC7)=TRUE,1,0)"
+    },
+    {
+      "index": 10,
+      "cell": "BQ7",
+      "rule": "IF(AND(BB7>0,BC7>0,BD7>0,BE7<=0,BB7>=BC7>=BD7)=TRUE,1,0)"
+    },
+    {
+      "index": 11,
+      "cell": "BR7",
+      "rule": "IF(AND(BB7>0,BC7<=0,BD7>0,BE7<=0,BB7>=BD7)=TRUE,1,0)"
+    },
+    {
+      "index": 12,
+      "cell": "BS7",
+      "rule": "IF(AND(BB7<=0,BC7>0,BD7>0,BE7>0,BE7>=BC7>=BD7)=TRUE,1,0)"
+    },
+    {
+      "index": 13,
+      "cell": "BT7",
+      "rule": "IF(AND(BB7<=0,BC7>0,BD7>0,BE7>0,BE7>=BD7>=BC7)=TRUE,1,0)"
+    },
+    {
+      "index": 14,
+      "cell": "BU7",
+      "rule": "IF(AND(BB7<=0,BC7>0,BD7>0,BE7>0,BC7>=BD7,BC7>=BE7)=TRUE,1,0)"
+    },
+    {
+      "index": 15,
+      "cell": "BV7",
+      "rule": "IF(AND(BB7<=0,BC7<=0,BD7>0,BE7<=0)=TRUE,1,0)"
+    },
+    {
+      "index": 16,
+      "cell": "BW7",
+      "rule": "IF(AND(BB7<=0,BC7<=0,BD7>0,BE7>0,BE7>=BD7)=TRUE,1,0)"
+    },
+    {
+      "index": 17,
+      "cell": "BX7",
+      "rule": "IF(AND(BB7<=0,BC7<=0,BD7>0,BE7>0,BD7>=BE7)=TRUE,1,0)"
+    },
+    {
+      "index": 18,
+      "cell": "BY7",
+      "rule": "IF(AND(BC7<=0,BD7<=0,BB7>0,BE7>0,BB7>=BE7)=TRUE,1,0)"
+    },
+    {
+      "index": 19,
+      "cell": "BZ7",
+      "rule": "IF(AND(BB7>0,BC7>0,BE7>0,BD7<=0,BB7>=BC7>=BE7)=TRUE,1,0)"
+    },
+    {
+      "index": 20,
+      "cell": "CA7",
+      "rule": "IF(AND(BB7>0,BD7>0,BC7>0,BE7<=0,BB7>=BD7>=BC7)=TRUE,1,0)"
+    },
+    {
+      "index": 21,
+      "cell": "CB7",
+      "rule": "IF(AND(BB7>0,BD7>0,BE7>0,BC7<=0,BB7>=BD7,BD7>=BE7)=TRUE,1,0)"
+    },
+    {
+      "index": 22,
+      "cell": "CC7",
+      "rule": "IF(AND(BB7>0,BC7>0,BE7>0,BD7<=0,BB7>=BE7,BE7>=BC7)=TRUE,1,0)"
+    },
+    {
+      "index": 23,
+      "cell": "CD7",
+      "rule": "IF(AND(BB7>0,BD7>0,BE7>0,BC7<=0,BB7>=BE7,BE7>=BD7)=TRUE,1,0)"
+    },
+    {
+      "index": 24,
+      "cell": "CE7",
+      "rule": "IF(AND(BB7<=0,BD7<=0,BE7<=0,BC7>0)=TRUE,1,0)"
+    },
+    {
+      "index": 25,
+      "cell": "CF7",
+      "rule": "IF(AND(BC7>0,BD7>0,BB7<=0,BE7<=0,BC7>=BD7)=TRUE,1,0)"
+    },
+    {
+      "index": 26,
+      "cell": "CG7",
+      "rule": "IF(AND(BC7>0,BE7>0,BB7<=0,BD7<=0,BC7>=BE7)=TRUE,1,0)"
+    },
+    {
+      "index": 27,
+      "cell": "CH7",
+      "rule": "IF(AND(BB7>0,BC7>0,BE7>0,BD7<=0,BC7>=BE7,BE7>=BB7)=TRUE,1,0)"
+    },
+    {
+      "index": 28,
+      "cell": "CI7",
+      "rule": "IF(AND(BB7<=0,BC7>0,BD7>0,BE7>0,BC7>=BE7,BE7>=BD7)=TRUE,1,0)"
+    },
+    {
+      "index": 29,
+      "cell": "CJ7",
+      "rule": "IF(AND(BB7>0,BC7<=0,BD7>0,BE7<=0,BD7>=BB7)=TRUE,1,0)"
+    },
+    {
+      "index": 30,
+      "cell": "CK7",
+      "rule": "IF(AND(BC7>0,BD7>0,BB7<=0,BE7<=0,BD7>=BC7)=TRUE,1,0)"
+    },
+    {
+      "index": 31,
+      "cell": "CL7",
+      "rule": "IF(AND(BB7>0,BC7>0,BD7>0,BE7<=0,BD7>=BB7,BB7>=BC7)=TRUE,1,0)"
+    },
+    {
+      "index": 32,
+      "cell": "CM7",
+      "rule": "IF(AND(BB7>0,BC7>0,BD7>0,BE7<=0,BD7>=BC7,BC7>=BB7)=TRUE,1,0)"
+    },
+    {
+      "index": 33,
+      "cell": "CN7",
+      "rule": "IF(AND(BC7>0,BD7>0,BE7>0,BB7<=0,BD7>=BC7,BC7>=BE7)=TRUE,1,0)"
+    },
+    {
+      "index": 34,
+      "cell": "CO7",
+      "rule": "IF(AND(BB7>0,BC7<=0,BD7>0,BE7>0,BD7>=BE7, BE7>=BB7)=TRUE,1,0)"
+    },
+    {
+      "index": 35,
+      "cell": "CP7",
+      "rule": "IF(AND(BC7>0,BD7>0,BE7>0,BB7<=0,BD7>=BE7,BE7>=BC7)=TRUE,1,0)"
+    },
+    {
+      "index": 36,
+      "cell": "CQ7",
+      "rule": "IF(AND(BC7>0,BE7>0,BB7<=0,BD7<=0,BE7>=BC7)=TRUE,1,0)"
+    },
+    {
+      "index": 37,
+      "cell": "CR7",
+      "rule": "IF(AND(BB7>0,BC7>0,BE7>0,BD7<=0,BE7>=BB7,BB7>=BC7)=TRUE,1,0)"
+    },
+    {
+      "index": 38,
+      "cell": "CS7",
+      "rule": "IF(AND(BB7>0,BD7>0,BE7>0,BC7<=0,BE7>=BB7,BB7>=BD7)=TRUE,1,0)"
+    },
+    {
+      "index": 39,
+      "cell": "CT7",
+      "rule": "IF(AND(BB7>0,BC7>0,BE7>0,BD7<=0,BE7>=BC7,BC7>=BB7)=TRUE,1,0)"
+    },
+    {
+      "index": 40,
+      "cell": "CU7",
+      "rule": "IF(AND(BB7>0,BD7>0,BE7>0,BC7<=0,BE7>=BD7,BD7>=BB7)=TRUE,1,0)"
+    },
+    {
+      "index": 41,
+      "cell": "CV7",
+      "rule": ""
+    },
+    {
+      "index": 42,
+      "cell": "CW7",
+      "rule": ""
+    }
+  ],
+  "definitions": [
+    {
+      "number": "1",
+      "title": "LOGICAL THINKER",
+      "rows": {
+        "3": "C",
+        "4": "LOGICAL THINKER",
+        "5": "Pendiam",
+        "6": "Anti Kritik",
+        "7": "Perfeksionis",
+        "8": "Cenderung Santai",
+        "9": "Detail",
+        "10": "Empati",
+        "11": "Rapi",
+        "12": "Organized",
+        "13": "Kaku pada Metode & Prosedur"
+      }
+    },
+    {
+      "number": "2",
+      "title": "ESTABLISHER",
+      "rows": {
+        "3": "D",
+        "4": "ESTABLISHER",
+        "5": "Individualis",
+        "6": "Ego Tinggi, Kurang Sensitif",
+        "7": "Kurang Pertimbangan",
+        "8": "Efektif",
+        "9": "High Motivation",
+        "10": "Bersemangat Tinggi",
+        "11": "Percaya Diri, cenderung Nekat",
+        "12": "Kreatif",
+        "13": "Terlalu Dominan",
+        "14": "Agresif",
+        "15": "Terlalu Dinamis",
+        "16": "Penuh Ambisi"
+      }
+    },
+    {
+      "number": "3",
+      "title": "DESIGNER",
+      "rows": {
+        "3": "D / C-D",
+        "4": "DESIGNER",
+        "5": "Sensitif",
+        "6": "Kurang Cepat",
+        "7": "Anti Tekanan ",
+        "8": "Terlalu Mandiri",
+        "9": "Kurang Percaya Orang Lain",
+        "10": "Anti Kritik",
+        "11": "Dingin",
+        "12": "Kreatif",
+        "13": "Result Oriented",
+        "14": "Suka Tantangan"
+      }
+    },
+    {
+      "number": "4",
+      "title": "NEGOTIATOR",
+      "rows": {
+        "3": "D / I-D",
+        "4": "NEGOTIATOR",
+        "5": "Suka Bergaul",
+        "6": "Anti Rutin",
+        "7": "Aktif",
+        "8": "Terlalu Percaya Diri",
+        "9": "Agresif",
+        "10": "Optimis",
+        "11": "Kurang Detail",
+        "12": "Result Oriented"
+      }
+    },
+    {
+      "number": "5",
+      "title": "CONFIDENT & DETERMINED",
+      "rows": {
+        "3": "D / I-D-C",
+        "4": "CONFIDENT & DETERMINED",
+        "5": "Pandai Memilih Orang",
+        "6": "Leader",
+        "7": "Good Interpersonal Skill",
+        "8": "Dominan",
+        "9": "Agresif",
+        "10": "Perfeksionis",
+        "11": "Good Communication Skill",
+        "12": "Aktif",
+        "13": "Need Recognition n Reward",
+        "14": "Kurang Peduli pada Aturan",
+        "15": "Terburu-buru"
+      }
+    },
+    {
+      "number": "6",
+      "title": "REFORMER",
+      "rows": {
+        "3": "D / I-D-S",
+        "4": "REFORMER",
+        "5": "Mudah Bergaul",
+        "6": "Leader",
+        "7": "Sadar Diri",
+        "8": "Butuh Pujian & Penghargaan",
+        "9": "Cepat Percaya Orang",
+        "10": "Mudah Simpati & Empati",
+        "11": "Motivator",
+        "12": "Optimis & Positif",
+        "13": "Anti Aturan",
+        "14": "Kurang Detail",
+        "15": "Terlalu Selektif"
+      }
+    },
+    {
+      "number": "7",
+      "title": "MOTIVATOR",
+      "rows": {
+        "3": "D / I-S-D",
+        "4": "MOTIVATOR",
+        "5": "Leader (Kelompok Kecil)",
+        "6": "Supporter",
+        "7": "Sosialisasi Baik",
+        "8": "Butuh Ketegasan",
+        "9": "Butuh Pujian & Penghargaan",
+        "10": "Kurang Detail",
+        "11": "Agak Kaku"
+      }
+    },
+    {
+      "number": "8",
+      "title": "INQUIRER",
+      "rows": {
+        "3": "D / S-D-C / S-C-D",
+        "4": "INQUIRER",
+        "5": "Full Self Control",
+        "6": "Sabar",
+        "7": "Penuh Pertimbangan",
+        "8": "Good Interpersonal",
+        "9": "Selektif",
+        "10": "Lambat Adaptasi",
+        "11": "Inisiatif kurang",
+        "12": "Result Oriented",
+        "13": "Kaku dan Keras Kepala",
+        "14": "Good Service",
+        "15": "Kurang dlm hal Managerial"
+      }
+    },
+    {
+      "number": "9",
+      "title": "PENGAMBIL KEPUTUSAN",
+      "rows": {
+        "3": "D-I",
+        "4": "PENGAMBIL KEPUTUSAN",
+        "5": "Pekerja Keras",
+        "6": "Leader",
+        "7": "Banyak Minat",
+        "8": "Dingin / Task Oriented",
+        "9": "Kurang Pergaulan",
+        "10": "Kontrol Emosi Kurang",
+        "11": "Suka Tantangan",
+        "12": "Cepat Bosan",
+        "13": "Anti Aturan",
+        "14": "Kurang Detail",
+        "15": "Kurang Peduli Wewenang",
+        "16": "Argumentatif"
+      }
+    },
+    {
+      "number": "10",
+      "title": "DIRECTOR",
+      "rows": {
+        "3": "D-I-S",
+        "4": "DIRECTOR",
+        "5": "Pengelola",
+        "6": "Enerjik",
+        "7": "Kurang Detail",
+        "8": "Mudah Bosan",
+        "9": "Agresif",
+        "10": "Arogan",
+        "11": "Kurang Focus"
+      }
+    },
+    {
+      "number": "11",
+      "title": "SELF-MOTIVATED",
+      "rows": {
+        "3": "D-S ",
+        "4": "SELF-MOTIVATED",
+        "5": "Objektif & Analitis",
+        "6": "Mandiri",
+        "7": "Good Planner",
+        "8": "Komitmen thd Target",
+        "9": "Menghindari Konflik"
+      }
+    },
+    {
+      "number": "12",
+      "title": "MEDIATOR",
+      "rows": {
+        "3": "I / C-I-S",
+        "4": "MEDIATOR",
+        "5": "Loyal",
+        "6": "Tight Scheduled",
+        "7": "Curious",
+        "8": "Sensitif",
+        "9": "Good Communication Skill",
+        "10": "Good Analitical Think",
+        "11": "Good Interpersonal Skill",
+        "12": "Cepat Beradaptasi",
+        "13": "Anti Kritik",
+        "14": "Not Leader",
+        "15": "Work/Play Conflict"
+      }
+    },
+    {
+      "number": "13",
+      "title": "PRACTITIONER",
+      "rows": {
+        "3": "I / C-S-I",
+        "4": "PRACTITIONER",
+        "5": "Perfeksionis",
+        "6": "Quality Oriented",
+        "7": "Scheduled",
+        "8": "Anti Kejutan",
+        "9": "Good Interpersonal Skill",
+        "10": "Terlalu Detail",
+        "11": "Sistematis",
+        "12": "Kaku / Tidak fleksibel",
+        "13": "Monoton"
+      }
+    },
+    {
+      "number": "14",
+      "title": "RESPONSIVE & THOUGHTFUL",
+      "rows": {
+        "3": "I-S-C / I-C-S",
+        "4": "RESPONSIVE & THOUGHTFUL",
+        "5": "High Energy",
+        "6": "Good Communication Skill",
+        "7": "To The Point",
+        "8": "Sensitif",
+        "9": "Banyak Bicara",
+        "10": "Need Recognation",
+        "11": "Need Socialism",
+        "12": "Anti thd Kritik",
+        "13": "Terlalu banyak bersosialisasi",
+        "14": "Leadership kurang",
+        "15": "Kurang Fokus",
+        "16": "Anti Deadline"
+      }
+    },
+    {
+      "number": "15",
+      "title": "SPECIALIST",
+      "rows": {
+        "3": "S",
+        "4": "SPECIALIST",
+        "5": "Stabil & Konsisten",
+        "6": "Terkendali",
+        "7": "Nyaman di Belakang Layar",
+        "8": "Sabar",
+        "9": "Loyal",
+        "10": "Sulit Adaptasi",
+        "11": "Process Oriented",
+        "12": "Teguh",
+        "13": "Need for Peace",
+        "14": "Anti Perubahan",
+        "15": "Sulit Menentukan Prioritas"
+      }
+    },
+    {
+      "number": "16",
+      "title": "PERFECTIONIST",
+      "rows": {
+        "3": "S / C-S",
+        "4": "PERFECTIONIST",
+        "5": "Detail & Teliti",
+        "6": "Butuh Situasi Stabil",
+        "7": "Sistematik & Prosedural",
+        "8": "Menghindari Konflik",
+        "9": "Anti Kritik",
+        "10": "Lambat Memutuskan",
+        "11": "Sulit Adaptasi",
+        "12": "Pendendam",
+        "13": "Anti Perubahan"
+      }
+    },
+    {
+      "number": "17",
+      "title": "PEACEMAKER, RESPECTFULL & ACCURATE",
+      "rows": {
+        "3": "S-C",
+        "4": "PEACEMAKER, RESPECTFULL & ACCURATE",
+        "5": "Sulit Beradaptasi",
+        "6": "Anti Kritik",
+        "7": "Pendendam",
+        "8": "Sukar Berubah",
+        "9": "Detail",
+        "10": "Empati",
+        "11": "Memikirkan Dampak ke Orang Lain",
+        "12": "Terlalu Mendalam dalam Berpikir",
+        "13": "Concern ke Data dan Fakta",
+        "14": "Introvert",
+        "15": "Loyal"
+      }
+    },
+    {
+      "number": "18",
+      "title": "CHALLENGER",
+      "rows": {
+        "3": "D-C",
+        "4": "CHALLENGER",
+        "5": "Seorang yang tekun",
+        "6": "Sensitif terhadap permasalahan",
+        "7": "Mempunyai keputusan yang kuat",
+        "8": "Kreatif  dalam memecahkan masalah",
+        "9": "Memiliki reaksi yang cepat",
+        "10": "Mampu mencari solusi permasalahan",
+        "11": "Banyak memberikan ide-ide.",
+        "12": "Usaha yang keras pada ketepatan",
+        "13": "Cenderung perfeksionis"
+      }
+    },
+    {
+      "number": "19",
+      "title": "CHANCELLOR",
+      "rows": {
+        "3": "D-I-C",
+        "4": "CHANCELLOR",
+        "5": "Seorang yang ramah secara alami",
+        "6": "Menggabungkan kesenangan dengan pekerjaan",
+        "7": "Menyukai hubungan dengan sesama",
+        "8": "Menikmati interaksi dengan sesama",
+        "9": "Dapat mengerjakan hal-hal detil",
+        "10": "Ingin melakukan segala sesuatu dengan tepat",
+        "11": "Menilai orang dan tugas secara hati-hati",
+        "12": "Sering melalaikan perencanaan yang seksama",
+        "13": "Mudah beralih kepada proyek-proyek baru"
+      }
+    },
+    {
+      "number": "20",
+      "title": "DIRECTOR",
+      "rows": {
+        "3": "D-S-I",
+        "4": "DIRECTOR",
+        "5": "Seorang yang obyektif dan analitis",
+        "6": "Ingin terlibat dalam situasi",
+        "7": "Ingin memberikan bantuan dan dukungan",
+        "8": "Termotivasi oleh target pribadi",
+        "9": "Berorientasi terhadap pekerjaannya",
+        "10": "Menyukai hubungan dengan sesama",
+        "11": "Mempunyai determinasi yang kuat",
+        "12": "Karakternya tenang",
+        "13": "Stabil dan daya tahannya tinggi",
+        "14": "Ulet dalam memulai pekerjaan",
+        "15": "Berusaha keras mencapai sasarannya",
+        "16": "Mandiri dan cermat"
+      }
+    },
+    {
+      "number": "21",
+      "title": "Director",
+      "rows": {
+        "3": "D-S-C",
+        "4": "Director",
+        "5": "Seorang yang obyektif dan analitis",
+        "6": "Ingin terlibat dalam situasi",
+        "7": "Ingin memberikan bantuan dan dukungan",
+        "8": "Termotivasi oleh target pribadi",
+        "9": "Berorientasi terhadap pekerjaannya",
+        "10": "Menyukai hubungan dengan sesama",
+        "11": "Mempunyai determinasi yang kuat",
+        "12": "Karakternya tenang",
+        "13": "Stabil dan daya tahannya tinggi",
+        "14": "Ulet dalam memulai pekerjaan",
+        "15": "Berusaha keras mencapai sasarannya",
+        "16": "Mandiri dan cermat"
+      }
+    },
+    {
+      "number": "22",
+      "title": "CHALLENGER",
+      "rows": {
+        "3": "D-C-I",
+        "4": "CHALLENGER",
+        "5": "Seorang yang tekun",
+        "6": "Sensitif terhadap permasalahan",
+        "7": "Mempunyai keputusan yang kuat",
+        "8": "Kreatif  dalam memecahkan masalah",
+        "9": "Memiliki reaksi yang cepat",
+        "10": "Mampu mencari solusi permasalahan",
+        "11": "Banyak memberikan ide-ide.",
+        "12": "Usaha yang keras pada ketepatan",
+        "13": "Cenderung perfeksionis"
+      }
+    },
+    {
+      "number": "23",
+      "title": "CHALLENGER",
+      "rows": {
+        "3": "D-C-S",
+        "4": "CHALLENGER",
+        "5": "Seorang yang tekun",
+        "6": "Sensitif terhadap permasalahan",
+        "7": "Mempunyai keputusan yang kuat",
+        "8": "Kreatif  dalam memecahkan masalah",
+        "9": "Memiliki reaksi yang cepat",
+        "10": "Mampu mencari solusi permasalahan",
+        "11": "Banyak memberikan ide-ide.",
+        "12": "Usaha yang keras pada ketepatan",
+        "13": "Cenderung perfeksionis"
+      }
+    },
+    {
+      "number": "24",
+      "title": "COMMUNICATOR",
+      "rows": {
+        "3": "I",
+        "4": "COMMUNICATOR",
+        "5": "Antusias",
+        "6": "Percaya",
+        "7": "Optimis",
+        "8": "Persuasif",
+        "9": "Bicara aktif",
+        "10": "Impulsif",
+        "11": "Emosional",
+        "12": "Ramah",
+        "13": "Inspirasional"
+      }
+    },
+    {
+      "number": "25",
+      "title": "ADVISOR",
+      "rows": {
+        "3": "I-S",
+        "4": "ADVISOR",
+        "5": "Hangat",
+        "6": "Simpati",
+        "7": "Tenang dalam situasi sosial",
+        "8": "Pendengar yang baik",
+        "9": "Demonstratif",
+        "10": "Tidak memaksakan idenya pada orang lain",
+        "11": "Kurang tegas dalam memberi perintah",
+        "12": "Menerima kritik",
+        "13": "Toleran dan sabar",
+        "14": "Penjaga damai"
+      }
+    },
+    {
+      "number": "26",
+      "title": "ASSESSOR",
+      "rows": {
+        "3": "I-C",
+        "4": "ASSESSOR",
+        "5": "Ramah",
+        "6": "Suka berteman",
+        "7": "Nyaman walapun dengan orang asing",
+        "8": "Mudah mengembangkan hubungan baru",
+        "9": "Dapat mengendalikan diri",
+        "10": "Sangat sosial",
+        "11": "Cenderung perfeksionis alamiah",
+        "12": "Mempromosikan tugas-tugas orang lain"
+      }
+    },
+    {
+      "number": "27",
+      "title": "ASSESSOR",
+      "rows": {
+        "3": "I-C-D",
+        "4": "ASSESSOR",
+        "5": "Analitis",
+        "6": "Berwatak hati-hati",
+        "7": "Ramah pada saat merasa nyaman",
+        "8": "Sangat biasa dengan orang asing",
+        "9": "Mudah mengembangkan hubungan baru",
+        "10": "Dapat mengendalikan diri",
+        "11": "Peduli dan ramah",
+        "12": "Memusatkan perhatian pada penyelesaian tugas",
+        "13": "Perfeksionis secara alami",
+        "14": "Mengisolasi dirinya jika diperlukan",
+        "15": "Mudah diramalkan",
+        "16": "Berorientasi pada kualitas"
+      }
+    },
+    {
+      "number": "28",
+      "title": "RESPONSIVE & THOUGHTFUL",
+      "rows": {
+        "3": "I-C-S",
+        "4": "RESPONSIVE & THOUGHTFUL",
+        "5": "High Energy",
+        "6": "Good Communication Skill",
+        "7": "To The Point",
+        "8": "Sensitif",
+        "9": "Banyak Bicara",
+        "10": "Need Recognation",
+        "11": "Need Socialism",
+        "12": "Anti thd Kritik",
+        "13": "Terlalu banyak bersosialisasi",
+        "14": "Leadership kurang",
+        "15": "Kurang Fokus",
+        "16": "Anti Deadline"
+      }
+    },
+    {
+      "number": "29",
+      "title": "SELF-MOTIVATED",
+      "rows": {
+        "3": "S-D",
+        "4": "SELF-MOTIVATED",
+        "5": "Objektif & Analitis",
+        "6": "Mandiri",
+        "7": "Good planner",
+        "8": "Komitmen terhadap target",
+        "9": "Menghindari konflik",
+        "10": "Ingin terlibat dalam situasi",
+        "11": "Ingin memberikan bantuan dan dukungan",
+        "12": "Termotivasi oleh target pribadi",
+        "13": "Stabil",
+        "14": "Tekun"
+      }
+    },
+    {
+      "number": "30",
+      "title": "ADVISOR",
+      "rows": {
+        "3": "S-I",
+        "4": "ADVISOR",
+        "5": "Hangat",
+        "6": "Simpati dan Pengertian",
+        "7": "Tenang dalam situasi sosial",
+        "8": "Pendengar yang baik",
+        "9": "Demonstratif",
+        "10": "Tidak memaksakan idenya pada orang lain",
+        "11": "Kurang tegas dalam memberi perintah",
+        "12": "Menerima kritik",
+        "13": "Toleran dan sabar",
+        "14": "Penjaga damai"
+      }
+    },
+    {
+      "number": "31",
+      "title": "DIRECTOR",
+      "rows": {
+        "3": "S-D-I",
+        "4": "DIRECTOR",
+        "5": "Seorang yang obyektif dan analitis",
+        "6": "Ingin terlibat dalam situasi",
+        "7": "Ingin memberikan bantuan dan dukungan",
+        "8": "Termotivasi oleh target pribadi",
+        "9": "Berorientasi terhadap pekerjaannya",
+        "10": "Menyukai hubungan dengan sesama",
+        "11": "Mempunyai determinasi yang kuat",
+        "12": "Karakternya tenang",
+        "13": "Stabil dan daya tahannya tinggi",
+        "14": "Ulet dalam memulai pekerjaan",
+        "15": "Berusaha keras mencapai sasarannya",
+        "16": "Mandiri dan cermat"
+      }
+    },
+    {
+      "number": "32",
+      "title": "ADVISOR",
+      "rows": {
+        "3": "S-I-D",
+        "4": "ADVISOR",
+        "5": "Hangat",
+        "6": "Simpati dan Pengertian",
+        "7": "Tenang dalam situasi sosial",
+        "8": "Pendengar yang baik",
+        "9": "Demonstratif",
+        "10": "Tidak memaksakan idenya pada orang lain",
+        "11": "Kurang tegas dalam memberi perintah",
+        "12": "Menerima kritik",
+        "13": "Toleran dan sabar",
+        "14": "Penjaga damai"
+      }
+    },
+    {
+      "number": "33",
+      "title": "ADVOCATE",
+      "rows": {
+        "3": "S-I-C",
+        "4": "ADVOCATE",
+        "5": "Stabil",
+        "6": "Ramah",
+        "7": "Detail ketika situasi membutuhkan",
+        "8": "Cenderung individualis",
+        "9": "Teguh pendirian",
+        "10": "Menyukai hubungan dengan orang",
+        "11": "Mendukung pihak yang lemah",
+        "12": "Ingin diterima sebagai anggota tim",
+        "13": "Ingin orang lain menyukainya",
+        "14": "Sulit membuat keputusan",
+        "15": "Moderat",
+        "16": "Cermat dan dapat diandalkan"
+      }
+    },
+    {
+      "number": "34",
+      "title": "INQUIRER",
+      "rows": {
+        "3": "S-C-D",
+        "4": "INQUIRER",
+        "5": "Seorang yang baik",
+        "6": "Sangat berorientasi pada detil",
+        "7": "Sangat teliti dalam penyelesaian tugas",
+        "8": "Sangat berhati-hati",
+        "9": "Penuh pertimbangan",
+        "10": "Lambat adaptasi",
+        "11": "Kaku dan keras kepala"
+      }
+    },
+    {
+      "number": "35",
+      "title": "ADVOCATE",
+      "rows": {
+        "3": "S-C-I",
+        "4": "ADVOCATE",
+        "5": "Stabil",
+        "6": "Ramah",
+        "7": "Detail ketika situasi membutuhkan",
+        "8": "Cenderung individualis",
+        "9": "Teguh pendirian",
+        "10": "Menyukai hubungan dengan orang",
+        "11": "Mendukung pihak yang lemah",
+        "12": "Ingin diterima sebagai anggota tim",
+        "13": "Ingin orang lain menyukainya",
+        "14": "Sulit membuat keputusan",
+        "15": "Moderat",
+        "16": "Cermat dan dapat diandalkan"
+      }
+    },
+    {
+      "number": "36",
+      "title": "ASSESSOR",
+      "rows": {
+        "3": "C-I",
+        "4": "ASSESSOR",
+        "5": "Analitis",
+        "6": "Berwatak hati-hati",
+        "7": "Ramah pada saat merasa nyaman",
+        "8": "Sangat biasa dengan orang asing",
+        "9": "Mudah mengembangkan hubungan baru",
+        "10": "Dapat mengendalikan diri",
+        "11": "Peduli dan ramah",
+        "12": "Memusatkan perhatian pada penyelesaian tugas",
+        "13": "Perfeksionis secara alami",
+        "14": "Mengisolasi dirinya jika diperlukan",
+        "15": "Mudah diramalkan",
+        "16": "Berorientasi pada kualitas"
+      }
+    },
+    {
+      "number": "37",
+      "title": "CHALLENGER",
+      "rows": {
+        "3": "C-D-I",
+        "4": "CHALLENGER",
+        "5": "Sangat berorientasi pada tugas",
+        "6": "Sensitif terhadap permasalahan",
+        "7": "Lebih mempedulikan tugas daripada orang",
+        "8": "Kukuh/keras",
+        "9": "Dingin",
+        "10": "Tidak berperasaan",
+        "11": "Menjaga jarak",
+        "12": "Membuat keputusan berdasarkan fakta",
+        "13": "Pendiam",
+        "14": "Tidak mudah percaya"
+      }
+    },
+    {
+      "number": "38",
+      "title": "CONTEMPLATOR",
+      "rows": {
+        "3": "C-D-S",
+        "4": "CONTEMPLATOR",
+        "5": "Berorientasi pada hal-hal detil",
+        "6": "Mempunyai standar tinggi untuk dirinya",
+        "7": "Logis dan analitis",
+        "8": "Ingin berbuat yang terbaik",
+        "9": "Selalu berpikir ada ruang untuk kemajuan",
+        "10": "Kompetitif",
+        "11": "Ingin menghasilkan mutu yang terbaik",
+        "12": "Mampu mencapai sasarannya",
+        "13": "Sangat memusatkan perhatian pada tugas",
+        "14": "Mantap dan dapat diandalkan"
+      }
+    },
+    {
+      "number": "39",
+      "title": "ASSESSOR",
+      "rows": {
+        "3": "C-I-D",
+        "4": "ASSESSOR",
+        "5": "Analitis",
+        "6": "Berwatak hati-hati",
+        "7": "Ramah pada saat merasa nyaman",
+        "8": "Sangat biasa dengan orang asing",
+        "9": "Mudah mengembangkan hubungan baru",
+        "10": "Dapat mengendalikan diri",
+        "11": "Peduli dan ramah",
+        "12": "Memusatkan perhatian pada penyelesaian tugas",
+        "13": "Perfeksionis secara alami",
+        "14": "Mengisolasi dirinya jika diperlukan",
+        "15": "Mudah diramalkan",
+        "16": "Berorientasi pada kualitas"
+      }
+    },
+    {
+      "number": "40",
+      "title": "PRECISIONIST",
+      "rows": {
+        "3": "C-S-D",
+        "4": "PRECISIONIST",
+        "5": "Sistematis dan Prosedural",
+        "6": "Teratur & memiliki perencanaan yang baik",
+        "7": "Teliti",
+        "8": "Fokus pada detil",
+        "9": "Bijaksana",
+        "10": "Diplomatis",
+        "11": "Jarang menentang rekan kerjanya",
+        "12": "Ia sangat berhati-hati",
+        "13": "Mengharapkan akurasi dan standard tinggi",
+        "14": "Menginginkan adanya petunjuk standard",
+        "15": "Tidak menginginkan perubahan mendadak"
+      }
+    }
+  ],
+  "excel_result_formulas": {
+    "C4": "Input!D2",
+    "C5": "Input!D3",
+    "C6": "Input!K2",
+    "M6": "HLOOKUP($CY$7,Def!$B$2:$AQ$16,3)",
+    "V6": "HLOOKUP($CY$9,Def!$B$2:$AQ$16,3)",
+    "C7": "Input!K3",
+    "M7": "HLOOKUP($CY$7,Def!$B$2:$AQ$16,4)",
+    "V7": "HLOOKUP($CY$9,Def!$B$2:$AQ$16,4)",
+    "BB7": "VLOOKUP(D10,Sheet3!$B$3:$F$23,2)",
+    "BC7": "VLOOKUP(E10,Sheet3!$B$3:$F$23,3)",
+    "BD7": "VLOOKUP(F10,Sheet3!$B$3:$F$23,4)",
+    "BE7": "VLOOKUP(G10,Sheet3!$B$3:$F$23,5)",
+    "BH7": "IF(AND(BB7<=0,BC7<=0,BD7<=0,BE7>0)=TRUE,1,0)",
+    "BI7": "IF(AND(BB7>0,BC7<=0,BD7<=0,BE7<=0)=TRUE,1,0)",
+    "BJ7": "IF(AND(BB7>0,BC7<=0,BD7<=0,BE7>0,BE7>=BB7)=TRUE,1,0)",
+    "BK7": "IF(AND(BB7>0,BC7>0,BD7<=0,BE7<=0,BC7>=BB7)=TRUE,1,0)",
+    "BL7": "IF(AND(BB7>0,BC7>0,BD7<=0,BE7>0,BC7>=BB7>=BE7)=TRUE,1,0)",
+    "BM7": "IF(AND(BB7>0,BC7>0,BD7>0,BE7<=0,BC7>=BB7>=BD7)=TRUE,1,0)",
+    "BN7": "IF(AND(BB7>0,BC7>0,BD7>0,BE7<=0,BC7>=BD7>=BB7)=TRUE,1,0)",
+    "BO7": "IF(AND(BB7>0,BC7<=0,BD7>0,BE7>0,BD7>=BB7, BB7>=BE7)=TRUE,1,0)",
+    "BP7": "IF(AND(BB7>0,BC7>0,BD7<=0,BE7<=0,BB7>=BC7)=TRUE,1,0)",
+    "BQ7": "IF(AND(BB7>0,BC7>0,BD7>0,BE7<=0,BB7>=BC7>=BD7)=TRUE,1,0)",
+    "BR7": "IF(AND(BB7>0,BC7<=0,BD7>0,BE7<=0,BB7>=BD7)=TRUE,1,0)",
+    "BS7": "IF(AND(BB7<=0,BC7>0,BD7>0,BE7>0,BE7>=BC7>=BD7)=TRUE,1,0)",
+    "BT7": "IF(AND(BB7<=0,BC7>0,BD7>0,BE7>0,BE7>=BD7>=BC7)=TRUE,1,0)",
+    "BU7": "IF(AND(BB7<=0,BC7>0,BD7>0,BE7>0,BC7>=BD7,BC7>=BE7)=TRUE,1,0)",
+    "BV7": "IF(AND(BB7<=0,BC7<=0,BD7>0,BE7<=0)=TRUE,1,0)",
+    "BW7": "IF(AND(BB7<=0,BC7<=0,BD7>0,BE7>0,BE7>=BD7)=TRUE,1,0)",
+    "BX7": "IF(AND(BB7<=0,BC7<=0,BD7>0,BE7>0,BD7>=BE7)=TRUE,1,0)",
+    "BY7": "IF(AND(BC7<=0,BD7<=0,BB7>0,BE7>0,BB7>=BE7)=TRUE,1,0)",
+    "BZ7": "IF(AND(BB7>0,BC7>0,BE7>0,BD7<=0,BB7>=BC7>=BE7)=TRUE,1,0)",
+    "CA7": "IF(AND(BB7>0,BD7>0,BC7>0,BE7<=0,BB7>=BD7>=BC7)=TRUE,1,0)",
+    "CB7": "IF(AND(BB7>0,BD7>0,BE7>0,BC7<=0,BB7>=BD7,BD7>=BE7)=TRUE,1,0)",
+    "CC7": "IF(AND(BB7>0,BC7>0,BE7>0,BD7<=0,BB7>=BE7,BE7>=BC7)=TRUE,1,0)",
+    "CD7": "IF(AND(BB7>0,BD7>0,BE7>0,BC7<=0,BB7>=BE7,BE7>=BD7)=TRUE,1,0)",
+    "CE7": "IF(AND(BB7<=0,BD7<=0,BE7<=0,BC7>0)=TRUE,1,0)",
+    "CF7": "IF(AND(BC7>0,BD7>0,BB7<=0,BE7<=0,BC7>=BD7)=TRUE,1,0)",
+    "CG7": "IF(AND(BC7>0,BE7>0,BB7<=0,BD7<=0,BC7>=BE7)=TRUE,1,0)",
+    "CH7": "IF(AND(BB7>0,BC7>0,BE7>0,BD7<=0,BC7>=BE7,BE7>=BB7)=TRUE,1,0)",
+    "CI7": "IF(AND(BB7<=0,BC7>0,BD7>0,BE7>0,BC7>=BE7,BE7>=BD7)=TRUE,1,0)",
+    "CJ7": "IF(AND(BB7>0,BC7<=0,BD7>0,BE7<=0,BD7>=BB7)=TRUE,1,0)",
+    "CK7": "IF(AND(BC7>0,BD7>0,BB7<=0,BE7<=0,BD7>=BC7)=TRUE,1,0)",
+    "CL7": "IF(AND(BB7>0,BC7>0,BD7>0,BE7<=0,BD7>=BB7,BB7>=BC7)=TRUE,1,0)",
+    "CM7": "IF(AND(BB7>0,BC7>0,BD7>0,BE7<=0,BD7>=BC7,BC7>=BB7)=TRUE,1,0)",
+    "CN7": "IF(AND(BC7>0,BD7>0,BE7>0,BB7<=0,BD7>=BC7,BC7>=BE7)=TRUE,1,0)",
+    "CO7": "IF(AND(BB7>0,BC7<=0,BD7>0,BE7>0,BD7>=BE7, BE7>=BB7)=TRUE,1,0)",
+    "CP7": "IF(AND(BC7>0,BD7>0,BE7>0,BB7<=0,BD7>=BE7,BE7>=BC7)=TRUE,1,0)",
+    "CQ7": "IF(AND(BC7>0,BE7>0,BB7<=0,BD7<=0,BE7>=BC7)=TRUE,1,0)",
+    "CR7": "IF(AND(BB7>0,BC7>0,BE7>0,BD7<=0,BE7>=BB7,BB7>=BC7)=TRUE,1,0)",
+    "CS7": "IF(AND(BB7>0,BD7>0,BE7>0,BC7<=0,BE7>=BB7,BB7>=BD7)=TRUE,1,0)",
+    "CT7": "IF(AND(BB7>0,BC7>0,BE7>0,BD7<=0,BE7>=BC7,BC7>=BB7)=TRUE,1,0)",
+    "CU7": "IF(AND(BB7>0,BD7>0,BE7>0,BC7<=0,BE7>=BD7,BD7>=BB7)=TRUE,1,0)",
+    "CY7": "MATCH(1,BH7:CW7,0)",
+    "M8": "HLOOKUP($CY$7,Def!$B$2:$AQ$16,5)",
+    "V8": "HLOOKUP($CY$9,Def!$B$2:$AQ$16,5)",
+    "M9": "HLOOKUP($CY$7,Def!$B$2:$AQ$16,6)",
+    "V9": "HLOOKUP($CY$9,Def!$B$2:$AQ$16,6)",
+    "BB9": "VLOOKUP(D11,Sheet3!$B$3:$N$23,6)",
+    "BC9": "VLOOKUP(E11,Sheet3!$B$3:$N$23,7)",
+    "BD9": "VLOOKUP(F11,Sheet3!$B$3:$N$23,8)",
+    "BE9": "VLOOKUP(G11,Sheet3!$B$3:$N$23,9)",
+    "BH9": "IF(AND(BB9<=0,BC9<=0,BD9<=0,BE9>0)=TRUE,1,0)",
+    "BI9": "IF(AND(BB9>0,BC9<=0,BD9<=0,BE9<=0)=TRUE,1,0)",
+    "BJ9": "IF(AND(BB9>0,BC9<=0,BD9<=0,BE9>0,BE9>=BB9)=TRUE,1,0)",
+    "BK9": "IF(AND(BB9>0,BC9>0,BD9<=0,BE9<=0,BC9>=BB9)=TRUE,1,0)",
+    "BL9": "IF(AND(BB9>0,BC9>0,BD9<=0,BE9>0,BC9>=BB9>=BE9)=TRUE,1,0)",
+    "BM9": "IF(AND(BB9>0,BC9>0,BD9>0,BE9<=0,BC9>=BB9>=BD9)=TRUE,1,0)",
+    "BN9": "IF(AND(BB9>0,BC9>0,BD9>0,BE9<=0,BC9>=BD9>=BB9)=TRUE,1,0)",
+    "BO9": "IF(AND(BB9>0,BC9<=0,BD9>0,BE9>0,BD9>=BB9, BB9>=BE9)=TRUE,1,0)",
+    "BP9": "IF(AND(BB9>0,BC9>0,BD9<=0,BE9<=0,BB9>=BC9)=TRUE,1,0)",
+    "BQ9": "IF(AND(BB9>0,BC9>0,BD9>0,BE9<=0,BB9>=BC9>=BD9)=TRUE,1,0)",
+    "BR9": "IF(AND(BB9>0,BC9<=0,BD9>0,BE9<=0,BB9>=BD9)=TRUE,1,0)",
+    "BS9": "IF(AND(BB9<=0,BC9>0,BD9>0,BE9>0,BE9>=BC9>=BD9)=TRUE,1,0)",
+    "BT9": "IF(AND(BB9<=0,BC9>0,BD9>0,BE9>0,BE9>=BD9>=BC9)=TRUE,1,0)",
+    "BU9": "IF(AND(BB9<=0,BC9>0,BD9>0,BE9>0,BC9>=BD9,BC9>=BE9)=TRUE,1,0)",
+    "BV9": "IF(AND(BB9<=0,BC9<=0,BD9>0,BE9<=0)=TRUE,1,0)",
+    "BW9": "IF(AND(BB9<=0,BC9<=0,BD9>0,BE9>0,BE9>=BD9)=TRUE,1,0)",
+    "BX9": "IF(AND(BB9<=0,BC9<=0,BD9>0,BE9>0,BD9>=BE9)=TRUE,1,0)",
+    "BY9": "IF(AND(BC9<=0,BD9<=0,BB9>0,BE9>0,BB9>=BE9)=TRUE,1,0)",
+    "BZ9": "IF(AND(BB9>0,BC9>0,BE9>0,BD9<=0,BB9>=BC9>=BE9)=TRUE,1,0)",
+    "CA9": "IF(AND(BB9>0,BD9>0,BC9>0,BE9<=0,BB9>=BD9>=BC9)=TRUE,1,0)",
+    "CB9": "IF(AND(BB9>0,BD9>0,BE9>0,BC9<=0,BB9>=BD9,BD9>=BE9)=TRUE,1,0)",
+    "CC9": "IF(AND(BB9>0,BC9>0,BE9>0,BD9<=0,BB9>=BE9,BE9>=BC9)=TRUE,1,0)",
+    "CD9": "IF(AND(BB9>0,BD9>0,BE9>0,BC9<=0,BB9>=BE9,BE9>=BD9)=TRUE,1,0)",
+    "CE9": "IF(AND(BB9<=0,BD9<=0,BE9<=0,BC9>0)=TRUE,1,0)",
+    "CF9": "IF(AND(BC9>0,BD9>0,BB9<=0,BE9<=0,BC9>=BD9)=TRUE,1,0)",
+    "CG9": "IF(AND(BC9>0,BE9>0,BB9<=0,BD9<=0,BC9>=BE9)=TRUE,1,0)",
+    "CH9": "IF(AND(BB9>0,BC9>0,BE9>0,BD9<=0,BC9>=BE9,BE9>=BB9)=TRUE,1,0)",
+    "CI9": "IF(AND(BB9<=0,BC9>0,BD9>0,BE9>0,BC9>=BE9,BE9>=BD9)=TRUE,1,0)",
+    "CJ9": "IF(AND(BB9>0,BC9<=0,BD9>0,BE9<=0,BD9>=BB9)=TRUE,1,0)",
+    "CK9": "IF(AND(BC9>0,BD9>0,BB9<=0,BE9<=0,BD9>=BC9)=TRUE,1,0)",
+    "CL9": "IF(AND(BB9>0,BC9>0,BD9>0,BE9<=0,BD9>=BB9,BB9>=BC9)=TRUE,1,0)",
+    "CM9": "IF(AND(BB9>0,BC9>0,BD9>0,BE9<=0,BD9>=BC9,BC9>=BB9)=TRUE,1,0)",
+    "CN9": "IF(AND(BC9>0,BD9>0,BE9>0,BB9<=0,BD9>=BC9,BC9>=BE9)=TRUE,1,0)",
+    "CO9": "IF(AND(BB9>0,BC9<=0,BD9>0,BE9>0,BD9>=BE9, BE9>=BB9)=TRUE,1,0)",
+    "CP9": "IF(AND(BC9>0,BD9>0,BE9>0,BB9<=0,BD9>=BE9,BE9>=BC9)=TRUE,1,0)",
+    "CQ9": "IF(AND(BC9>0,BE9>0,BB9<=0,BD9<=0,BE9>=BC9)=TRUE,1,0)",
+    "CR9": "IF(AND(BB9>0,BC9>0,BE9>0,BD9<=0,BE9>=BB9,BB9>=BC9)=TRUE,1,0)",
+    "CS9": "IF(AND(BB9>0,BD9>0,BE9>0,BC9<=0,BE9>=BB9,BB9>=BD9)=TRUE,1,0)",
+    "CT9": "IF(AND(BB9>0,BC9>0,BE9>0,BD9<=0,BE9>=BC9,BC9>=BB9)=TRUE,1,0)",
+    "CU9": "IF(AND(BB9>0,BD9>0,BE9>0,BC9<=0,BE9>=BD9,BD9>=BB9)=TRUE,1,0)",
+    "CY9": "MATCH(1,BH9:CW9,0)",
+    "D10": "IF(Input!C6=\"\",\"\",Input!E15+Input!J15+Input!O15)",
+    "E10": "IF(Input!C6=\"\",\"\",Input!E16+Input!J16+Input!O16)",
+    "F10": "IF(Input!C6=\"\",\"\",Input!E17+Input!J17+Input!O17)",
+    "G10": "IF(Input!C6=\"\",\"\",Input!E18+Input!J18+Input!O18)",
+    "H10": "IF(Input!C6=\"\",\"\",Input!E19+Input!J19+Input!O19)",
+    "I10": "IF(SUM(D10:H10)=24,24,\"ERR\")",
+    "M10": "HLOOKUP($CY$7,Def!$B$2:$AQ$16,7)",
+    "V10": "HLOOKUP($CY$9,Def!$B$2:$AQ$16,7)",
+    "D11": "IF(Input!C6=\"\",\"\",Input!F15+Input!K15+Input!P15)",
+    "E11": "IF(Input!C6=\"\",\"\",Input!F16+Input!K16+Input!P16)",
+    "F11": "IF(Input!C6=\"\",\"\",Input!F17+Input!K17+Input!P17)",
+    "G11": "IF(Input!C6=\"\",\"\",Input!F18+Input!K18+Input!P18)",
+    "H11": "IF(Input!C6=\"\",\"\",Input!F19+Input!K19+Input!P19)",
+    "I11": "IF(SUM(D11:H11)=24,24,\"ERR\")",
+    "M11": "HLOOKUP($CY$7,Def!$B$2:$AQ$16,8)",
+    "V11": "HLOOKUP($CY$9,Def!$B$2:$AQ$16,8)",
+    "BB11": "VLOOKUP(D12,Sheet3!$B$28:$F$72,2)",
+    "BC11": "VLOOKUP(E12,Sheet3!$B$28:$F$72,3)",
+    "BD11": "VLOOKUP(F12,Sheet3!$B$28:$F$72,4)",
+    "BE11": "VLOOKUP(G12,Sheet3!$B$28:$F$72,5)",
+    "BH11": "IF(AND(BB11<=0,BC11<=0,BD11<=0,BE11>0)=TRUE,1,0)",
+    "BI11": "IF(AND(BB11>0,BC11<=0,BD11<=0,BE11<=0)=TRUE,1,0)",
+    "BJ11": "IF(AND(BB11>0,BC11<=0,BD11<=0,BE11>0,BE11>=BB11)=TRUE,1,0)",
+    "BK11": "IF(AND(BB11>0,BC11>0,BD11<=0,BE11<=0,BC11>=BB11)=TRUE,1,0)",
+    "BL11": "IF(AND(BB11>0,BC11>0,BD11<=0,BE11>0,BC11>=BB11>=BE11)=TRUE,1,0)",
+    "BM11": "IF(AND(BB11>0,BC11>0,BD11>0,BE11<=0,BC11>=BB11>=BD11)=TRUE,1,0)",
+    "BN11": "IF(AND(BB11>0,BC11>0,BD11>0,BE11<=0,BC11>=BD11>=BB11)=TRUE,1,0)",
+    "BO11": "IF(AND(BB11>0,BC11<=0,BD11>0,BE11>0,BD11>=BB11, BB11>=BE11)=TRUE,1,0)",
+    "BP11": "IF(AND(BB11>0,BC11>0,BD11<=0,BE11<=0,BB11>=BC11)=TRUE,1,0)",
+    "BQ11": "IF(AND(BB11>0,BC11>0,BD11>0,BE11<=0,BB11>=BC11>=BD11)=TRUE,1,0)",
+    "BR11": "IF(AND(BB11>0,BC11<=0,BD11>0,BE11<=0,BB11>=BD11)=TRUE,1,0)",
+    "BS11": "IF(AND(BB11<=0,BC11>0,BD11>0,BE11>0,BE11>=BC11>=BD11)=TRUE,1,0)",
+    "BT11": "IF(AND(BB11<=0,BC11>0,BD11>0,BE11>0,BE11>=BD11>=BC11)=TRUE,1,0)",
+    "BU11": "IF(AND(BB11<=0,BC11>0,BD11>0,BE11>0,BC11>=BD11,BC11>=BE11)=TRUE,1,0)",
+    "BV11": "IF(AND(BB11<=0,BC11<=0,BD11>0,BE11<=0)=TRUE,1,0)",
+    "BW11": "IF(AND(BB11<=0,BC11<=0,BD11>0,BE11>0,BE11>=BD11)=TRUE,1,0)",
+    "BX11": "IF(AND(BB11<=0,BC11<=0,BD11>0,BE11>0,BD11>=BE11)=TRUE,1,0)",
+    "BY11": "IF(AND(BC11<=0,BD11<=0,BB11>0,BE11>0,BB11>=BE11)=TRUE,1,0)",
+    "BZ11": "IF(AND(BB11>0,BC11>0,BE11>0,BD11<=0,BB11>=BC11>=BE11)=TRUE,1,0)",
+    "CA11": "IF(AND(BB11>0,BD11>0,BC11>0,BE11<=0,BB11>=BD11>=BC11)=TRUE,1,0)",
+    "CB11": "IF(AND(BB11>0,BD11>0,BE11>0,BC11<=0,BB11>=BD11,BD11>=BE11)=TRUE,1,0)",
+    "CC11": "IF(AND(BB11>0,BC11>0,BE11>0,BD11<=0,BB11>=BE11,BE11>=BC11)=TRUE,1,0)",
+    "CD11": "IF(AND(BB11>0,BD11>0,BE11>0,BC11<=0,BB11>=BE11,BE11>=BD11)=TRUE,1,0)",
+    "CE11": "IF(AND(BB11<=0,BD11<=0,BE11<=0,BC11>0)=TRUE,1,0)",
+    "CF11": "IF(AND(BC11>0,BD11>0,BB11<=0,BE11<=0,BC11>=BD11)=TRUE,1,0)",
+    "CG11": "IF(AND(BC11>0,BE11>0,BB11<=0,BD11<=0,BC11>=BE11)=TRUE,1,0)",
+    "CH11": "IF(AND(BB11>0,BC11>0,BE11>0,BD11<=0,BC11>=BE11,BE11>=BB11)=TRUE,1,0)",
+    "CI11": "IF(AND(BB11<=0,BC11>0,BD11>0,BE11>0,BC11>=BE11,BE11>=BD11)=TRUE,1,0)",
+    "CJ11": "IF(AND(BB11>0,BC11<=0,BD11>0,BE11<=0,BD11>=BB11)=TRUE,1,0)",
+    "CK11": "IF(AND(BC11>0,BD11>0,BB11<=0,BE11<=0,BD11>=BC11)=TRUE,1,0)",
+    "CL11": "IF(AND(BB11>0,BC11>0,BD11>0,BE11<=0,BD11>=BB11,BB11>=BC11)=TRUE,1,0)",
+    "CM11": "IF(AND(BB11>0,BC11>0,BD11>0,BE11<=0,BD11>=BC11,BC11>=BB11)=TRUE,1,0)",
+    "CN11": "IF(AND(BC11>0,BD11>0,BE11>0,BB11<=0,BD11>=BC11,BC11>=BE11)=TRUE,1,0)",
+    "CO11": "IF(AND(BB11>0,BC11<=0,BD11>0,BE11>0,BD11>=BE11, BE11>=BB11)=TRUE,1,0)",
+    "CP11": "IF(AND(BC11>0,BD11>0,BE11>0,BB11<=0,BD11>=BE11,BE11>=BC11)=TRUE,1,0)",
+    "CQ11": "IF(AND(BC11>0,BE11>0,BB11<=0,BD11<=0,BE11>=BC11)=TRUE,1,0)",
+    "CR11": "IF(AND(BB11>0,BC11>0,BE11>0,BD11<=0,BE11>=BB11,BB11>=BC11)=TRUE,1,0)",
+    "CS11": "IF(AND(BB11>0,BD11>0,BE11>0,BC11<=0,BE11>=BB11,BB11>=BD11)=TRUE,1,0)",
+    "CT11": "IF(AND(BB11>0,BC11>0,BE11>0,BD11<=0,BE11>=BC11,BC11>=BB11)=TRUE,1,0)",
+    "CU11": "IF(AND(BB11>0,BD11>0,BE11>0,BC11<=0,BE11>=BD11,BD11>=BB11)=TRUE,1,0)",
+    "CY11": "MATCH(1,BH11:CW11,0)",
+    "D12": "D10-D11",
+    "E12": "E10-E11",
+    "F12": "F10-F11",
+    "G12": "G10-G11",
+    "M12": "HLOOKUP($CY$7,Def!$B$2:$AQ$16,9)",
+    "V12": "HLOOKUP($CY$9,Def!$B$2:$AQ$16,9)",
+    "M13": "HLOOKUP($CY$7,Def!$B$2:$AQ$16,10)",
+    "V13": "HLOOKUP($CY$9,Def!$B$2:$AQ$16,10)",
+    "M14": "HLOOKUP($CY$7,Def!$B$2:$AQ$16,11)",
+    "V14": "HLOOKUP($CY$9,Def!$B$2:$AQ$16,11)",
+    "M15": "HLOOKUP($CY$7,Def!$B$2:$AQ$16,12)",
+    "V15": "HLOOKUP($CY$9,Def!$B$2:$AQ$16,12)",
+    "M16": "HLOOKUP($CY$7,Def!$B$2:$AQ$16,13)",
+    "V16": "HLOOKUP($CY$9,Def!$B$2:$AQ$16,13)",
+    "M17": "HLOOKUP($CY$7,Def!$B$2:$AQ$16,14)",
+    "V17": "HLOOKUP($CY$9,Def!$B$2:$AQ$16,14)",
+    "M18": "HLOOKUP($CY$7,Def!$B$2:$AQ$16,15)",
+    "V18": "HLOOKUP($CY$9,Def!$B$2:$AQ$16,15)",
+    "M21": "HLOOKUP($CY$11,Def!$B$2:$AQ$16,3)",
+    "M22": "HLOOKUP($CY$11,Def!$B$2:$AQ$16,4)",
+    "M23": "HLOOKUP($CY$11,Def!$B$2:$AQ$16,5)",
+    "M24": "HLOOKUP($CY$11,Def!$B$2:$AQ$16,6)",
+    "M25": "HLOOKUP($CY$11,Def!$B$2:$AQ$16,7)",
+    "M26": "HLOOKUP($CY$11,Def!$B$2:$AQ$16,8)",
+    "M27": "HLOOKUP($CY$11,Def!$B$2:$AQ$16,9)",
+    "M28": "HLOOKUP($CY$11,Def!$B$2:$AQ$16,10)",
+    "M29": "HLOOKUP($CY$11,Def!$B$2:$AQ$16,11)",
+    "M30": "HLOOKUP($CY$11,Def!$B$2:$AQ$16,12)",
+    "M31": "HLOOKUP($CY$11,Def!$B$2:$AQ$16,13)",
+    "M32": "HLOOKUP($CY$11,Def!$B$2:$AQ$16,14)",
+    "M33": "HLOOKUP($CY$11,Def!$B$2:$AQ$16,15)",
+    "L44": "HLOOKUP($CY$11,Def!B20:AO22,3)",
+    "L59": "HLOOKUP($CY$11,Def!B2:AQ18,17)"
+  },
+  "excel_input_formulas": {
+    "D2": "'DISC Test'!F2",
+    "K2": "'DISC Test'!F4",
+    "D3": "'DISC Test'!F3",
+    "K3": "'DISC Test'!F5",
+    "C6": "'DISC Test'!C12",
+    "D6": "'DISC Test'!E12",
+    "E6": "IF(C6=1,\"S\",(IF(C6=2,\"I\",(IF(C6=3,\"*\",(IF(C6=4,\"C\",\"*\")))))))",
+    "F6": "IF(D6=1,\"S\",(IF(D6=2,\"I\",(IF(D6=3,\"D\",(IF(D6=4,\"C\",\"*\")))))))",
+    "H6": "'DISC Test'!J12",
+    "I6": "'DISC Test'!L12",
+    "J6": "IF(H6=1,\"D\",(IF(H6=2,\"C\",(IF(H6=3,\"*\",(IF(H6=4,\"*\",\"*\")))))))",
+    "K6": "IF(I6=1,\"D\",(IF(I6=2,\"C\",(IF(I6=3,\"I\",(IF(I6=4,\"S\",\"*\")))))))",
+    "M6": "'DISC Test'!Q12",
+    "N6": "'DISC Test'!S12",
+    "O6": "IF(M6=1,\"*\",(IF(M6=2,\"D\",(IF(M6=3,\"S\",(IF(M6=4,\"I\",\"*\")))))))",
+    "P6": "IF(N6=1,\"C\",(IF(N6=2,\"D\",(IF(N6=3,\"S\",(IF(N6=4,\"*\",\"*\")))))))",
+    "C7": "'DISC Test'!C18",
+    "D7": "'DISC Test'!E18",
+    "E7": "IF(C7=1,\"C\",(IF(C7=2,\"D\",(IF(C7=3,\"*\",(IF(C7=4,\"S\",\"*\")))))))",
+    "F7": "IF(D7=1,\"*\",(IF(D7=2,\"D\",(IF(D7=3,\"I\",(IF(D7=4,\"S\",\"*\")))))))",
+    "H7": "'DISC Test'!J18",
+    "I7": "'DISC Test'!L18",
+    "J7": "IF(H7=1,\"*\",(IF(H7=2,\"D\",(IF(H7=3,\"S\",(IF(H7=4,\"I\",\"*\")))))))",
+    "K7": "IF(I7=1,\"C\",(IF(I7=2,\"D\",(IF(I7=3,\"S\",(IF(I7=4,\"*\",\"*\")))))))",
+    "M7": "'DISC Test'!Q18",
+    "N7": "'DISC Test'!S18",
+    "O7": "IF(M7=1,\"D\",(IF(M7=2,\"*\",(IF(M7=3,\"*\",(IF(M7=4,\"C\",\"*\")))))))",
+    "P7": "IF(N7=1,\"D\",(IF(N7=2,\"I\",(IF(N7=3,\"S\",(IF(N7=4,\"*\",\"*\")))))))",
+    "C8": "'DISC Test'!C24",
+    "D8": "'DISC Test'!E24",
+    "E8": "IF(C8=1,\"I\",(IF(C8=2,\"*\",(IF(C8=3,\"*\",(IF(C8=4,\"D\",\"*\")))))))",
+    "F8": "IF(D8=1,\"I\",(IF(D8=2,\"C\",(IF(D8=3,\"S\",(IF(D8=4,\"*\",\"*\")))))))",
+    "H8": "'DISC Test'!J24",
+    "I8": "'DISC Test'!L24",
+    "J8": "IF(H8=1,\"S\",(IF(H8=2,\"*\",(IF(H8=3,\"D\",(IF(H8=4,\"C\",\"*\")))))))",
+    "K8": "IF(I8=1,\"*\",(IF(I8=2,\"I\",(IF(I8=3,\"D\",(IF(I8=4,\"C\",\"*\")))))))",
+    "M8": "'DISC Test'!Q24",
+    "N8": "'DISC Test'!S24",
+    "O8": "IF(M8=1,\"D\",(IF(M8=2,\"S\",(IF(M8=3,\"I\",(IF(M8=4,\"*\",\"*\")))))))",
+    "P8": "IF(N8=1,\"D\",(IF(N8=2,\"*\",(IF(N8=3,\"I\",(IF(N8=4,\"C\",\"*\")))))))",
+    "C9": "'DISC Test'!C30",
+    "D9": "'DISC Test'!E30",
+    "E9": "IF(C9=1,\"C\",(IF(C9=2,\"S\",(IF(C9=3,\"*\",(IF(C9=4,\"D\",\"*\")))))))",
+    "F9": "IF(D9=1,\"C\",(IF(D9=2,\"S\",(IF(D9=3,\"I\",(IF(D9=4,\"D\",\"*\")))))))",
+    "H9": "'DISC Test'!J30",
+    "I9": "'DISC Test'!L30",
+    "J9": "IF(H9=1,\"*\",(IF(H9=2,\"C\",(IF(H9=3,\"I\",(IF(H9=4,\"D\",\"*\")))))))",
+    "K9": "IF(I9=1,\"S\",(IF(I9=2,\"*\",(IF(I9=3,\"I\",(IF(I9=4,\"D\",\"*\")))))))",
+    "M9": "'DISC Test'!Q30",
+    "N9": "'DISC Test'!S30",
+    "O9": "IF(M9=1,\"D\",(IF(M9=2,\"S\",(IF(M9=3,\"I\",(IF(M9=4,\"C\",\"*\")))))))",
+    "P9": "IF(N9=1,\"*\",(IF(N9=2,\"S\",(IF(N9=3,\"I\",(IF(N9=4,\"*\",\"*\")))))))",
+    "C10": "'DISC Test'!C36",
+    "D10": "'DISC Test'!E36",
+    "E10": "IF(C10=1,\"I\",(IF(C10=2,\"D\",(IF(C10=3,\"S\",(IF(C10=4,\"*\",\"*\")))))))",
+    "F10": "IF(D10=1,\"*\",(IF(D10=2,\"D\",(IF(D10=3,\"S\",(IF(D10=4,\"C\",\"*\")))))))",
+    "H10": "'DISC Test'!J36",
+    "I10": "'DISC Test'!L36",
+    "J10": "IF(H10=1,\"D\",(IF(H10=2,\"S\",(IF(H10=3,\"I\",(IF(H10=4,\"*\",\"*\")))))))",
+    "K10": "IF(I10=1,\"D\",(IF(I10=2,\"*\",(IF(I10=3,\"*\",(IF(I10=4,\"C\",\"*\")))))))",
+    "M10": "'DISC Test'!Q36",
+    "N10": "'DISC Test'!S36",
+    "O10": "IF(M10=1,\"S\",(IF(M10=2,\"D\",(IF(M10=3,\"I\",(IF(M10=4,\"*\",\"*\")))))))",
+    "P10": "IF(N10=1,\"S\",(IF(N10=2,\"D\",(IF(N10=3,\"I\",(IF(N10=4,\"C\",\"*\")))))))",
+    "C11": "'DISC Test'!C42",
+    "D11": "'DISC Test'!E42",
+    "E11": "IF(C11=1,\"C\",(IF(C11=2,\"D\",(IF(C11=3,\"I\",(IF(C11=4,\"S\",\"*\")))))))",
+    "F11": "IF(D11=1,\"*\",(IF(D11=2,\"D\",(IF(D11=3,\"I\",(IF(D11=4,\"S\",\"*\")))))))",
+    "H11": "'DISC Test'!J42",
+    "I11": "'DISC Test'!L42",
+    "J11": "IF(H11=1,\"C\",(IF(H11=2,\"I\",(IF(H11=3,\"S\",(IF(H11=4,\"D\",\"*\")))))))",
+    "K11": "IF(I11=1,\"C\",(IF(I11=2,\"I\",(IF(I11=3,\"*\",(IF(I11=4,\"D\",\"*\")))))))",
+    "M11": "'DISC Test'!Q42",
+    "N11": "'DISC Test'!S42",
+    "O11": "IF(M11=1,\"S\",(IF(M11=2,\"*\",(IF(M11=3,\"D\",(IF(M11=4,\"C\",\"*\")))))))",
+    "P11": "IF(N11=1,\"S\",(IF(N11=2,\"I\",(IF(N11=3,\"D\",(IF(N11=4,\"C\",\"*\")))))))",
+    "C12": "'DISC Test'!C48",
+    "D12": "'DISC Test'!E48",
+    "E12": "IF(C12=1,\"S\",(IF(C12=2,\"I\",(IF(C12=3,\"*\",(IF(C12=4,\"*\",\"*\")))))))",
+    "F12": "IF(D12=1,\"*\",(IF(D12=2,\"I\",(IF(D12=3,\"C\",(IF(D12=4,\"D\",\"*\")))))))",
+    "H12": "'DISC Test'!J48",
+    "I12": "'DISC Test'!L48",
+    "J12": "IF(H12=1,\"S\",(IF(H12=2,\"C\",(IF(H12=3,\"I\",(IF(H12=4,\"D\",\"*\")))))))",
+    "K12": "IF(I12=1,\"S\",(IF(I12=2,\"*\",(IF(I12=3,\"I\",(IF(I12=4,\"D\",\"*\")))))))",
+    "M12": "'DISC Test'!Q48",
+    "N12": "'DISC Test'!S48",
+    "O12": "IF(M12=1,\"*\",(IF(M12=2,\"I\",(IF(M12=3,\"S\",(IF(M12=4,\"*\",\"*\")))))))",
+    "P12": "IF(N12=1,\"D\",(IF(N12=2,\"*\",(IF(N12=3,\"S\",(IF(N12=4,\"C\",\"*\")))))))",
+    "C13": "'DISC Test'!C54",
+    "D13": "'DISC Test'!E54",
+    "E13": "IF(C13=1,\"I\",(IF(C13=2,\"S\",(IF(C13=3,\"C\",(IF(C13=4,\"D\",\"*\")))))))",
+    "F13": "IF(D13=1,\"I\",(IF(D13=2,\"S\",(IF(D13=3,\"C\",(IF(D13=4,\"D\",\"*\")))))))",
+    "H13": "'DISC Test'!J54",
+    "I13": "'DISC Test'!L54",
+    "J13": "IF(H13=1,\"*\",(IF(H13=2,\"C\",(IF(H13=3,\"I\",(IF(H13=4,\"S\",\"*\")))))))",
+    "K13": "IF(I13=1,\"D\",(IF(I13=2,\"*\",(IF(I13=3,\"I\",(IF(I13=4,\"S\",\"*\")))))))",
+    "M13": "'DISC Test'!Q54",
+    "N13": "'DISC Test'!S54",
+    "O13": "IF(M13=1,\"*\",(IF(M13=2,\"I\",(IF(M13=3,\"D\",(IF(M13=4,\"C\",\"*\")))))))",
+    "P13": "IF(N13=1,\"S\",(IF(N13=2,\"I\",(IF(N13=3,\"*\",(IF(N13=4,\"*\",\"*\")))))))",
+    "E15": "COUNTIF($E$6:$E$13,\"D\")",
+    "F15": "COUNTIF($F$6:$F$13,\"D\")",
+    "J15": "COUNTIF($J$6:$J$13,\"D\")",
+    "K15": "COUNTIF($K$6:$K$13,\"D\")",
+    "O15": "COUNTIF($O$6:$O$13,\"D\")",
+    "P15": "COUNTIF($P$6:$P$13,\"D\")",
+    "E16": "COUNTIF($E$6:$E$13,\"I\")",
+    "F16": "COUNTIF($F$6:$F$13,\"I\")",
+    "J16": "COUNTIF($J$6:$J$13,\"I\")",
+    "K16": "COUNTIF($K$6:$K$13,\"I\")",
+    "O16": "COUNTIF($O$6:$O$13,\"I\")",
+    "P16": "COUNTIF($P$6:$P$13,\"I\")",
+    "E17": "COUNTIF($E$6:$E$13,\"S\")",
+    "F17": "COUNTIF($F$6:$F$13,\"S\")",
+    "J17": "COUNTIF($J$6:$J$13,\"S\")",
+    "K17": "COUNTIF($K$6:$K$13,\"S\")",
+    "O17": "COUNTIF($O$6:$O$13,\"S\")",
+    "P17": "COUNTIF($P$6:$P$13,\"S\")",
+    "E18": "COUNTIF($E$6:$E$13,\"C\")",
+    "F18": "COUNTIF($F$6:$F$13,\"C\")",
+    "J18": "COUNTIF($J$6:$J$13,\"C\")",
+    "K18": "COUNTIF($K$6:$K$13,\"C\")",
+    "O18": "COUNTIF($O$6:$O$13,\"C\")",
+    "P18": "COUNTIF($P$6:$P$13,\"C\")",
+    "E19": "8-(SUM(E15:E18))",
+    "F19": "8-(SUM(F15:F18))",
+    "J19": "8-(SUM(J15:J18))",
+    "K19": "8-(SUM(K15:K18))",
+    "O19": "8-(SUM(O15:O18))",
+    "P19": "8-(SUM(P15:P18))"
+  }
+}

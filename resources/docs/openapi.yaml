@@ -15371,6 +15371,512 @@ paths:
                     items:
                       $ref: '#/components/schemas/DocumentType'
 
+  /v1/purchasing-request/quotations:
+    get:
+      summary: Get Request for Quotation (RFQ) list
+      description: Mengambil daftar Request for Quotation (RFQ) yang dibuat dari PR yang disetujui, beserta jumlah penawaran vendor yang masuk.
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Cari berdasarkan nomor RFQ, judul, catatan, item code, atau item name
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [OPEN, DRAFT, CLOSED, CANCELLED]
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Tanggal awal (format YYYY-MM-DD atau YYYYMMDD)
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Tanggal akhir (format YYYY-MM-DD atau YYYYMMDD)
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Daftar Request for Quotation berhasil diambil.
+    post:
+      summary: Create Request for Quotation (RFQ)
+      description: Membuat Request for Quotation baru dengan memilih item dari Purchase Request yang disetujui, mengenerate RFQ number unik dan public token link.
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - items
+              properties:
+                title:
+                  type: string
+                  example: "Pengadaan Sparepart Kompresor"
+                link:
+                  type: string
+                  nullable: true
+                  description: Link halaman penawaran harga publik yang digenerate oleh frontend
+                  example: "https://smesta-dev.susantimegah.com/quotation-offer/d7fb79570180453fa657caed290cb91a"
+                notes:
+                  type: string
+                  example: "Kirim penawaran sebelum tanggal 10"
+                valid_until:
+                  type: string
+                  format: date
+                  example: "2026-11-15"
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - itemCode
+                      - itemName
+                      - quantity
+                    properties:
+                      requestId:
+                        type: string
+                        example: "261010008"
+                      requestNumber:
+                        type: string
+                        example: "261010008"
+                      itemCode:
+                        type: string
+                        example: "ISP001694"
+                      itemName:
+                        type: string
+                        example: "RUMAH FILTER KOMPRESOR"
+                      quantity:
+                        type: number
+                        example: 1
+                      unit:
+                        type: string
+                        example: "Pcs"
+                      warehouse:
+                        type: string
+                        example: "FG01"
+                      requiredDate:
+                        type: string
+                        format: date
+                        example: "2026-10-28"
+                      notes:
+                        type: string
+                        example: "Original equipment part"
+      responses:
+        '201':
+          description: Request for Quotation berhasil dibuat.
+
+  /v1/purchasing-request/quotations/{id}:
+    get:
+      summary: Get Request for Quotation detail
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Quotation ID
+      responses:
+        '200':
+          description: Detail Request for Quotation berhasil diambil.
+    put:
+      summary: Update Request for Quotation
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                notes:
+                  type: string
+                status:
+                  type: string
+                  enum: [OPEN, DRAFT, CLOSED, CANCELLED]
+                valid_until:
+                  type: string
+                  format: date
+      responses:
+        '200':
+          description: Request for Quotation berhasil diperbarui.
+    delete:
+      summary: Delete Request for Quotation
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Request for Quotation berhasil dihapus.
+
+  /v1/purchasing-request/quotations/{quotationId}/offers:
+    get:
+      summary: Get submitted offers for a specific quotation
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: quotationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Daftar penawaran vendor untuk quotation ini berhasil diambil.
+
+  /v1/purchasing-request/quotation-offers:
+    get:
+      summary: Get list of vendor offers across quotations
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [SUBMITTED, REVIEWED, ACCEPTED, REJECTED]
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Cari vendor, nama PIC, email, atau telepon
+      responses:
+        '200':
+          description: Daftar penawaran vendor berhasil diambil.
+
+  /v1/purchasing-request/quotation-offers/{id}:
+    get:
+      summary: Get vendor offer detail
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail penawaran vendor berhasil diambil.
+    put:
+      summary: Update vendor offer (status/detail)
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [SUBMITTED, REVIEWED, ACCEPTED, REJECTED]
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Penawaran vendor berhasil diperbarui.
+    delete:
+      summary: Delete vendor offer
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Penawaran vendor berhasil dihapus.
+
+  /v1/public/quotations/{token}:
+    get:
+      summary: Public endpoint to view quotation items for vendor form (/quotation-offer/{token})
+      description: Endpoint publik tanpa autentikasi yang digunakan halaman vendor `/quotation-offer/:token` untuk menampilkan nomor RFQ dan daftar item yang diminta harga.
+      tags:
+        - Public Quotation Offer
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 32-character RFQ public token
+          example: "d7fb79570180453fa657caed290cb91a"
+      responses:
+        '200':
+          description: Informasi Request for Quotation berhasil diambil.
+        '404':
+          description: Request for Quotation tidak ditemukan atau token tidak valid.
+
+  /v1/public/quotations/{token}/offers:
+    post:
+      summary: Public endpoint for vendor to submit quotation offer (/quotation-offer/{token}/submit)
+      description: Endpoint publik tanpa autentikasi yang menerima formulir penawaran harga dari vendor terpilih (nama perusahaan, PIC, email, telepon, harga satuan tiap item, lead time, dan catatan).
+      tags:
+        - Public Quotation Offer
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 32-character RFQ public token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vendor
+                - items
+              properties:
+                vendor:
+                  type: object
+                  required:
+                    - company
+                    - name
+                    - email
+                    - phone
+                  properties:
+                    company:
+                      type: string
+                      example: "PT Makmur Sentosa"
+                    name:
+                      type: string
+                      example: "Agus Pratama"
+                    email:
+                      type: string
+                      example: "agus@makmursentosa.com"
+                    phone:
+                      type: string
+                      example: "08123456789"
+                    notes:
+                      type: string
+                      example: "Harga belum termasuk PPN 11%"
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - unitPrice
+                      - leadTime
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      itemCode:
+                        type: string
+                        example: "ISP001694"
+                      itemName:
+                        type: string
+                        example: "RUMAH FILTER KOMPRESOR"
+                      quantity:
+                        type: number
+                        example: 1
+                      unit:
+                        type: string
+                        example: "Pcs"
+                      unitPrice:
+                        type: number
+                        example: 150000
+                      discountType:
+                        type: string
+                        nullable: true
+                        enum: [percent, nominal]
+                        description: Tipe diskon per item ('percent' atau 'nominal')
+                        example: "percent"
+                      discountValue:
+                        type: number
+                        description: Nilai diskon (persentase jika percent, atau nilai rupiah jika nominal)
+                        example: 10
+                      nominalDisc:
+                        type: number
+                        description: Nominal potongan diskon dalam mata uang (dihitung otomatis jika tidak dikirim)
+                        example: 15000
+                      totalPrice:
+                        type: number
+                        description: "Total harga item setelah diskon (opsional dikirim dari frontend, jika tidak dikirim akan dihitung otomatis oleh sistem: qty * unitPrice - nominalDisc)"
+                        example: 135000
+                      leadTime:
+                        type: string
+                        example: "7 hari"
+                      notes:
+                        type: string
+                        example: "Ready stock"
+                      attachment:
+                        type: string
+                        nullable: true
+                        description: File lampiran item (mendukung file upload via multipart/form-data atau string Base64/Data URI, disimpan ke S3)
+                        example: "data:application/pdf;base64,JVBERi0xLjQK..."
+      responses:
+        '201':
+          description: Penawaran harga vendor berhasil dikirim.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Penawaran harga vendor berhasil dikirim."
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      quotationId:
+                        type: integer
+                        example: 1
+                      vendor:
+                        type: object
+                        properties:
+                          company:
+                            type: string
+                            example: "PT Makmur Sentosa"
+                          name:
+                            type: string
+                            example: "Agus Pratama"
+                          email:
+                            type: string
+                            example: "agus@makmursentosa.com"
+                          phone:
+                            type: string
+                            example: "08123456789"
+                          notes:
+                            type: string
+                            example: "Harga belum termasuk PPN 11%"
+                      status:
+                        type: string
+                        example: "SUBMITTED"
+                      totalPrice:
+                        type: number
+                        example: 950000
+                      submittedAt:
+                        type: string
+                        example: "2026-11-03T07:45:00.000Z"
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            quotationItemId:
+                              type: integer
+                              example: 1
+                            itemCode:
+                              type: string
+                              example: "ISP001694"
+                            itemName:
+                              type: string
+                              example: "RUMAH FILTER KOMPRESOR"
+                            quantity:
+                              type: number
+                              example: 1
+                            unit:
+                              type: string
+                              example: "Pcs"
+                            unitPrice:
+                              type: number
+                              example: 150000
+                            discountType:
+                              type: string
+                              example: "percent"
+                            discountValue:
+                              type: number
+                              example: 10
+                            nominalDisc:
+                              type: number
+                              example: 15000
+                            totalPrice:
+                              type: number
+                              example: 135000
+                            leadTime:
+                              type: string
+                              example: "7 hari"
+                            notes:
+                              type: string
+                              example: "Ready stock"
+                            attachment:
+                              type: string
+                              example: "https://bucket.s3.amazonaws.com/quotation-offers/1/items/item_1.pdf"
+
   /v1/cron-jobs:
     get:
       summary: Get Cron Job list with search and filter
@@ -15834,6 +16340,90 @@ paths:
     post:
       summary: Get list of Production Orders (PDO) from SAP (via POST body)
       description: Mengambil daftar Production Order (PDO) dari SAP API menggunakan JSON body.
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                from:
+                  type: string
+                  example: "2026-01-01"
+                to:
+                  type: string
+                  example: "2026-12-31"
+                whs_code:
+                  type: string
+                  example: "VRTR01"
+                to_whs_code:
+                  type: string
+                  example: "FG01"
+      responses:
+        '200':
+          description: Daftar Production Order (PDO) dari SAP berhasil diambil.
+
+  /v1/production/get-list-pdo-sap:
+    get:
+      summary: Get list of Production Orders (PDO) from SAP (Alias)
+      description: Alias untuk /v1/production/orders/sap-list. Mengambil daftar Production Order (PDO) dari SAP API (/api/getListPDO).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "2026-01-01"
+          description: Tanggal awal (format YYYY-MM-DD atau YYYY-M-D)
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "2026-12-31"
+          description: Tanggal akhir (format YYYY-MM-DD atau YYYY-M-D)
+        - name: whs_code
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "VRTR01"
+          description: Kode gudang asal (opsional)
+        - name: to_whs_code
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "FG01"
+          description: Kode gudang tujuan (opsional)
+        - name: unit
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "SBY-UNIT7"
+          description: Kode unit produksi (opsional)
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "RELEASED"
+          description: Status filter (PLANNED, RELEASED, CLOSED, CANCELLED, opsional)
+      responses:
+        '200':
+          description: Daftar Production Order (PDO) dari SAP berhasil diambil.
+    post:
+      summary: Get list of Production Orders (PDO) from SAP (via POST body - Alias)
+      description: Alias untuk /v1/production/orders/sap-list. Mengambil daftar Production Order (PDO) dari SAP API menggunakan JSON body.
       tags:
         - Production Module
       security:
@@ -23649,6 +24239,584 @@ paths:
                 type: string
                 format: binary
 
+
+  /v1/recruitment/auth/register:
+    post:
+      summary: Registrasi Akun Kandidat Baru
+      description: Mendaftarkan akun kandidat rekrutmen dan otomatis menginisialisasi sesi asesmen DISC.
+      tags:
+        - Recruitment Candidate Portal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - full_name
+                - email
+                - phone
+                - password
+              properties:
+                full_name:
+                  type: string
+                  example: Nadia Permata
+                email:
+                  type: string
+                  format: email
+                  example: nadia.permata@example.com
+                phone:
+                  type: string
+                  example: 081234567890
+                password:
+                  type: string
+                  minLength: 6
+                  example: password123
+                position_applied:
+                  type: string
+                  nullable: true
+                  example: Backend Engineer
+      responses:
+        '201':
+          description: Akun berhasil dibuat dan token bearer diberikan.
+        '422':
+          description: Validasi gagal (misal email sudah terdaftar).
+
+  /v1/recruitment/auth/login:
+    post:
+      summary: Login Kandidat
+      description: Masuk ke portal kandidat rekrutmen menggunakan email dan password.
+      tags:
+        - Recruitment Candidate Portal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: nadia.permata@example.com
+                password:
+                  type: string
+                  example: password123
+      responses:
+        '200':
+          description: Berhasil login dan token bearer diberikan.
+        '401':
+          description: Kredensial tidak sesuai.
+
+  /v1/recruitment/auth/me:
+    get:
+      summary: Profil Kandidat & Status Asesmen
+      description: Mengambil data profil kandidat yang sedang login beserta status asesmen rekrutmen.
+      tags:
+        - Recruitment Candidate Portal
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Data profil kandidat berhasil diambil.
+
+  /v1/recruitment/auth/logout:
+    post:
+      summary: Logout Kandidat
+      description: Mengakhiri sesi login kandidat dan mencabut token akses.
+      tags:
+        - Recruitment Candidate Portal
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Berhasil logout.
+
+  /v1/recruitment/candidate/biodata:
+    put:
+      summary: Update Profil & Formulir Biodata Kandidat
+      description: Menyimpan data formulir 5 langkah biodata kandidat (pribadi, keluarga, pendidikan, pengalaman, lainnya).
+      tags:
+        - Recruitment Candidate Portal
+      security:
+        - BearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                full_name:
+                  type: string
+                phone:
+                  type: string
+                birth_date:
+                  type: string
+                  format: date
+                gender:
+                  type: string
+                position_applied:
+                  type: string
+                avatar:
+                  type: string
+                biodata:
+                  type: object
+      responses:
+        '200':
+          description: Biodata berhasil disimpan.
+
+  /v1/recruitment/psikotes/disc/test:
+    get:
+      summary: Ambil Soal Tes DISC Kandidat (Tanpa Token URL)
+      description: Kandidat login dapat langsung mengambil 24 soal DISC dan autosave jawaban yang sudah tersimpan tanpa token di URL.
+      tags:
+        - Recruitment Candidate Portal
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Soal DISC berhasil diambil.
+
+  /v1/recruitment/psikotes/disc/answers:
+    post:
+      summary: Autosave Jawaban DISC Kandidat (Tanpa Token URL)
+      description: Menyimpan jawaban nomor soal DISC per butir secara realtime tanpa token di URL (P tidak boleh sama dengan K).
+      tags:
+        - Recruitment Candidate Portal
+      security:
+        - BearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - question_number
+              properties:
+                question_number:
+                  type: integer
+                  minimum: 1
+                  maximum: 24
+                  example: 1
+                p_choice:
+                  type: integer
+                  minimum: 1
+                  maximum: 4
+                  nullable: true
+                  example: 2
+                k_choice:
+                  type: integer
+                  minimum: 1
+                  maximum: 4
+                  nullable: true
+                  example: 4
+      responses:
+        '200':
+          description: Jawaban berhasil disimpan.
+
+  /v1/recruitment/psikotes/disc/submit:
+    post:
+      summary: Submit Akhir Tes DISC Kandidat (Tanpa Token URL)
+      description: Mengirimkan seluruh 24 jawaban soal DISC dan menjalankan kalkulasi skoring psikometrik otomatis.
+      tags:
+        - Recruitment Candidate Portal
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Tes DISC berhasil dikirim dan dinilai.
+
+  /v1/recruitment/psikotes/disc/result:
+    get:
+      summary: Ambil Hasil Asesmen DISC Kandidat
+      description: Mengambil ringkasan hasil asesmen DISC, grafik skor (Mask, Core, Mirror), dan profil kepribadian kandidat.
+      tags:
+        - Recruitment Candidate Portal
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Hasil asesmen berhasil diambil.
+
+  /v1/public/psikotes/disc/tests/{token}:
+    get:
+      summary: Ambil Soal Tes & Sesi Jawaban Kandidat (Tanpa Kunci Skoring)
+      description: Endpoint publik untuk kandidat mengakses 24 nomor soal DISC beserta jawaban yang tersimpan (autosave).
+      tags:
+        - Psikotes DISC - Public Candidate
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: Token unik asesmen kandidat
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Berhasil mengambil sesi tes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Assessment session retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      assessment_id:
+                        type: integer
+                        example: 1
+                      candidate:
+                        type: object
+                        properties:
+                          full_name:
+                            type: string
+                            example: Budi Santoso
+                          email:
+                            type: string
+                            example: budi@example.com
+                          position_applied:
+                            type: string
+                            example: Sales Executive
+                      status:
+                        type: string
+                        example: in_progress
+                      completed:
+                        type: boolean
+                        example: false
+                      total_questions:
+                        type: integer
+                        example: 24
+                      questions:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            question_number:
+                              type: integer
+                              example: 1
+                            statements:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  choice:
+                                    type: integer
+                                    example: 1
+                                  text:
+                                    type: string
+                                    example: Gampangan, Mudah setuju
+                      answers:
+                        type: object
+                        additionalProperties:
+                          type: object
+                          properties:
+                            p_choice:
+                              type: integer
+                              example: 1
+                            k_choice:
+                              type: integer
+                              example: 3
+
+  /v1/public/psikotes/disc/tests/{token}/answers:
+    post:
+      summary: Autosave Jawaban Kandidat per Soal
+      description: Menyimpan pilihan Paling Sesuai (P) dan Paling Tidak Sesuai (K). Pilihan P dan K tidak boleh sama pada soal yang sama.
+      tags:
+        - Psikotes DISC - Public Candidate
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: Token asesmen kandidat
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - question_number
+              properties:
+                question_number:
+                  type: integer
+                  minimum: 1
+                  maximum: 24
+                  example: 1
+                p_choice:
+                  type: integer
+                  minimum: 1
+                  maximum: 4
+                  nullable: true
+                  example: 1
+                k_choice:
+                  type: integer
+                  minimum: 1
+                  maximum: 4
+                  nullable: true
+                  example: 3
+      responses:
+        '200':
+          description: Jawaban berhasil disimpan
+
+  /v1/public/psikotes/disc/tests/{token}/submit:
+    post:
+      summary: Submit Selesai Tes DISC & Hitung Skoring
+      description: Memvalidasi seluruh 24 soal terisi dengan P != K, lalu menghitung skoring Line 1, 2, 3 dan mencocokkan profil kepribadian.
+      tags:
+        - Psikotes DISC - Public Candidate
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: Token asesmen kandidat
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tes berhasil disubmit dan diskor
+
+  /v1/hr/psikotes/disc/questions:
+    get:
+      summary: Daftar Bank Soal DISC Beserta Kunci Skoring (HR Admin)
+      description: Mengambil seluruh 24 soal DISC lengkap dengan 4 pernyataan dan mapping kunci P/K (D, I, S, C, *).
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Berhasil mengambil bank soal
+
+  /v1/hr/psikotes/disc/questions/bulk:
+    put:
+      summary: Bulk Update Soal & Kunci DISC (HR Admin)
+      description: Mengupdate banyak soal atau kunci skoring sekaligus.
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - questions
+              properties:
+                questions:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - question_number
+                    properties:
+                      question_number:
+                        type: integer
+                        example: 1
+                      statement_1:
+                        type: string
+                      p_key_1:
+                        type: string
+                        example: S
+                      k_key_1:
+                        type: string
+                        example: S
+      responses:
+        '200':
+          description: Berhasil memperbarui soal
+
+  /v1/hr/psikotes/disc/questions/seed-default:
+    post:
+      summary: Reset Bank Soal ke Default Referensi Excel (HR Admin)
+      description: Mengembalikan 24 nomor soal dan kunci skoring ke nilai awal standar psikotes DISC.
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Berhasil reset soal
+
+  /v1/hr/psikotes/disc/questions/{number}:
+    get:
+      summary: Detail Satu Nomor Soal DISC (HR Admin)
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: number
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Berhasil mengambil detail soal
+    put:
+      summary: Update Satu Nomor Soal DISC (HR Admin)
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: number
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                statement_1:
+                  type: string
+                statement_2:
+                  type: string
+                statement_3:
+                  type: string
+                statement_4:
+                  type: string
+                p_key_1:
+                  type: string
+                p_key_2:
+                  type: string
+                p_key_3:
+                  type: string
+                p_key_4:
+                  type: string
+                k_key_1:
+                  type: string
+                k_key_2:
+                  type: string
+                k_key_3:
+                  type: string
+                k_key_4:
+                  type: string
+      responses:
+        '200':
+          description: Soal berhasil diperbarui
+
+  /v1/hr/psikotes/disc/assessments:
+    get:
+      summary: Daftar Riwayat Asesmen & Hasil Kandidat (HR Admin)
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Berhasil mengambil daftar asesmen
+    post:
+      summary: Buat Undangan Tes Kandidat Baru (HR Admin)
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - full_name
+                - email
+              properties:
+                full_name:
+                  type: string
+                  example: Budi Santoso
+                email:
+                  type: string
+                  example: budi.santoso@example.com
+                phone:
+                  type: string
+                  example: "08123456789"
+                gender:
+                  type: string
+                  example: L
+                position_applied:
+                  type: string
+                  example: Sales Executive
+                expiry_days:
+                  type: integer
+                  example: 7
+      responses:
+        '201':
+          description: Undangan berhasil dibuat
+
+  /v1/hr/psikotes/disc/assessments/{id}:
+    get:
+      summary: Detail Hasil Skoring & Profil DISC Kandidat (HR Admin)
+      description: Menampilkan grafik 3 garis (Mask, Core, Mirror), skor D-I-S-C, dan profil kepribadian lengkap.
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Berhasil mengambil detail asesmen
+
+  /v1/hr/psikotes/disc/assessments-export:
+    get:
+      summary: Export Rekap Hasil Asesmen DISC ke CSV (HR Admin)
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Berkas CSV rekapitulasi asesmen
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
 components:
   securitySchemes:
     BearerAuth:
@@ -26911,6 +28079,178 @@ components:
         object_type:
           type: string
           example: "17"
+
+    PurchaseQuotation:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        number:
+          type: string
+          example: "RFQ-20261030-001"
+        token:
+          type: string
+          example: "d7fb79570180453fa657caed290cb91a"
+        link:
+          type: string
+          nullable: true
+          example: "https://smesta-dev.susantimegah.com/quotation-offer/d7fb79570180453fa657caed290cb91a"
+        status:
+          type: string
+          example: "OPEN"
+        title:
+          type: string
+          example: "Pengadaan Sparepart Kompresor"
+        notes:
+          type: string
+          example: "Kirim penawaran sebelum tanggal 10"
+        valid_until:
+          type: string
+          format: date
+          example: "2026-11-15"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-10-30T10:00:00.000000Z"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseQuotationItem'
+        offers_count:
+          type: integer
+          example: 1
+
+    PurchaseQuotationItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        requestId:
+          type: string
+          example: "261010008"
+        requestNumber:
+          type: string
+          example: "261010008"
+        itemCode:
+          type: string
+          example: "ISP001694"
+        itemName:
+          type: string
+          example: "RUMAH FILTER KOMPRESOR"
+        quantity:
+          type: number
+          example: 1
+        unit:
+          type: string
+          example: "Pcs"
+        warehouse:
+          type: string
+          example: "FG01"
+        requiredDate:
+          type: string
+          format: date
+          example: "2026-10-28"
+        notes:
+          type: string
+          example: "Original equipment part"
+
+    PurchaseQuotationOffer:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        quotationId:
+          type: integer
+          example: 1
+        vendor:
+          type: object
+          properties:
+            company:
+              type: string
+              example: "PT Makmur Sentosa"
+            name:
+              type: string
+              example: "Agus Pratama"
+            email:
+              type: string
+              example: "agus@makmursentosa.com"
+            phone:
+              type: string
+              example: "08123456789"
+            notes:
+              type: string
+              example: "Harga belum termasuk PPN 11%"
+        status:
+          type: string
+          example: "SUBMITTED"
+        totalPrice:
+          type: number
+          example: 950000
+        submittedAt:
+          type: string
+          format: date-time
+          example: "2026-10-30T10:15:00.000000Z"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseQuotationOfferItem'
+
+    PurchaseQuotationOfferItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        quotationItemId:
+          type: integer
+          example: 1
+        itemCode:
+          type: string
+          example: "ISP001694"
+        itemName:
+          type: string
+          example: "RUMAH FILTER KOMPRESOR"
+        quantity:
+          type: number
+          example: 1
+        unit:
+          type: string
+          example: "Pcs"
+        unitPrice:
+          type: number
+          example: 150000
+        discountType:
+          type: string
+          nullable: true
+          enum: [percent, nominal]
+          example: "percent"
+        discountValue:
+          type: number
+          example: 10
+        nominalDisc:
+          type: number
+          example: 15000
+        totalPrice:
+          type: number
+          example: 135000
+        leadTime:
+          type: string
+          example: "7 hari"
+        notes:
+          type: string
+          example: "Ready stock"
+        attachment:
+          type: string
+          nullable: true
+          description: URL lampiran item dari S3
+          example: "https://s3.ap-southeast-1.amazonaws.com/bucket/quotation-offers/1/items/item_1_20261103_abc12345.pdf"
+        attachmentName:
+          type: string
+          nullable: true
+          example: "brosur_filter.pdf"
 
     ReportingTaskInput:
       type: object
