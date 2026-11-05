@@ -20,9 +20,15 @@ Route::match(['get', 'post'], '/GetListPRGenerated', [\App\Modules\PurchasingReq
 Route::match(['get', 'post'], '/GetDetailPR', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'getDetailPR']);
 Route::match(['get', 'post'], '/ClosePR', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'closePR']);
 Route::match(['get', 'post'], '/CancelPR', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'cancelPR']);
+Route::match(['get', 'post'], '/addpr', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'addPR']);
+Route::match(['get', 'post'], '/AddPR', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'addPR']);
+Route::match(['get', 'post'], '/api/addpr', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'addPR']);
+Route::match(['get', 'post'], '/api/AddPR', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'addPR']);
 
 // Purchasing Quotations & Offers (RFQ)
 Route::prefix('v1/purchasing-request')->group(function () {
+    Route::match(['get', 'post'], '/addpr', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'addPR']);
+    Route::match(['get', 'post'], '/AddPR', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'addPR']);
     Route::get('/quotations', [\App\Modules\PurchasingRequest\Controllers\PurchaseQuotationController::class, 'index']);
     Route::post('/quotations', [\App\Modules\PurchasingRequest\Controllers\PurchaseQuotationController::class, 'store']);
     Route::get('/quotations/{id}', [\App\Modules\PurchasingRequest\Controllers\PurchaseQuotationController::class, 'show']);

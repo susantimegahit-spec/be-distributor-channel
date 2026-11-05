@@ -27,7 +27,8 @@ Route::prefix('v1/purchasing-request')->group(function () {
     Route::get('/requests', [PurchaseRequestController::class, 'index']);
     Route::post('/requests', [PurchaseRequestController::class, 'store']);
     Route::post('/add-pr', [PurchaseRequestController::class, 'store']);
-    Route::post('/addpr', [PurchaseRequestController::class, 'store']);
+    Route::match(['get', 'post'], '/addpr', [PurchaseRequestController::class, 'addPR']);
+    Route::match(['get', 'post'], '/AddPR', [PurchaseRequestController::class, 'addPR']);
     Route::get('/requests/{id}', [PurchaseRequestController::class, 'show']);
     Route::put('/requests/{id}', [PurchaseRequestController::class, 'update']);
     Route::post('/requests/{id}/status', [PurchaseRequestController::class, 'updateStatus']);
@@ -71,4 +72,8 @@ Route::match(['get', 'post'], 'v1/close-pr', [PurchaseRequestController::class, 
 Route::match(['get', 'post'], 'v1/cancel-pr', [PurchaseRequestController::class, 'cancelPR']);
 Route::match(['get', 'post'], 'ClosePR', [PurchaseRequestController::class, 'closePR']);
 Route::match(['get', 'post'], 'CancelPR', [PurchaseRequestController::class, 'cancelPR']);
+Route::post('v1/add-pr', [PurchaseRequestController::class, 'store']);
+Route::match(['get', 'post'], 'v1/addpr', [PurchaseRequestController::class, 'addPR']);
+Route::match(['get', 'post'], 'addpr', [PurchaseRequestController::class, 'addPR']);
+Route::match(['get', 'post'], 'AddPR', [PurchaseRequestController::class, 'addPR']);
 

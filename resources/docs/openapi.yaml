@@ -14892,6 +14892,178 @@ paths:
                     nullable: true
                     example: null
 
+  /api/addpr:
+    post:
+      summary: Fast Add Purchase Request ke SAP B1 (/api/addpr)
+      description: |
+        Menambahkan dokumen Purchase Request secara langsung ke SAP B1 (`http://103.18.133.187:3100/api/addpr`)
+        dengan pemrosesan in-memory berkecepatan tinggi, tanpa bottleneck query database berulang.
+        Pencatatan ke database lokal dilakukan secara non-blocking di latar belakang.
+      tags:
+        - Purchasing Request
+        - Master SAP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - Lines
+              properties:
+                Series:
+                  type: integer
+                  example: 0
+                DocDate:
+                  type: string
+                  format: date
+                  example: "2026-11-05"
+                DocDueDate:
+                  type: string
+                  format: date
+                  example: "2026-11-12"
+                TaxDate:
+                  type: string
+                  format: date
+                  example: "2026-11-05"
+                ReqDate:
+                  type: string
+                  format: date
+                  example: "2026-11-10"
+                Department:
+                  type: integer
+                  example: 1
+                Branch:
+                  type: integer
+                  example: 1
+                Requester:
+                  type: string
+                  example: "1"
+                RequesterName:
+                  type: string
+                  example: "John Doe"
+                DocType:
+                  type: string
+                  example: "I"
+                Comments:
+                  type: string
+                  example: "Permintaan Pembelian Bahan Baku"
+                Total:
+                  type: number
+                  example: 250000
+                DocTotal:
+                  type: number
+                  example: 250000
+                AddonId:
+                  type: string
+                  example: "PORTAL_PURCHASING"
+                UserId:
+                  type: string
+                  example: "admin"
+                Lines:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - ItemCode
+                      - Quantity
+                    properties:
+                      ItemCode:
+                        type: string
+                        example: "RM-GARAM-01"
+                      Quantity:
+                        type: number
+                        example: 100
+                      WhsCode:
+                        type: string
+                        example: "WHS-RAW"
+                      PQTReqDate:
+                        type: string
+                        format: date
+                        example: "2026-11-10"
+                      PriceBefDisc:
+                        type: number
+                        example: 2500
+                      UnitPrice:
+                        type: number
+                        example: 2500
+                      Total:
+                        type: number
+                        example: 250000
+                      LineTotal:
+                        type: number
+                        example: 250000
+                      UnitMsr:
+                        type: string
+                        example: "Kg"
+                      FreeTxt:
+                        type: string
+                        example: "Krosok Kualitas A"
+                      OcrCode:
+                        type: string
+                        example: "CAB01"
+                      OcrCode2:
+                        type: string
+                        example: "BU01"
+                      OcrCode3:
+                        type: string
+                        example: "DEPT01"
+                      TaxCode:
+                        type: string
+                        example: "PPN11"
+                      UomEntry:
+                        type: integer
+                        example: 1
+            example:
+              Series: 0
+              DocDate: "2026-11-05"
+              DocDueDate: "2026-11-12"
+              TaxDate: "2026-11-05"
+              ReqDate: "2026-11-10"
+              Department: 1
+              Branch: 1
+              Requester: "1"
+              RequesterName: "John Doe"
+              DocType: "I"
+              Comments: "Permintaan Pembelian Bahan Baku"
+              Total: 250000
+              DocTotal: 250000
+              AddonId: "PORTAL_PURCHASING"
+              UserId: "admin"
+              Lines:
+                - ItemCode: "RM-GARAM-01"
+                  Quantity: 100
+                  WhsCode: "WHS-RAW"
+                  PQTReqDate: "2026-11-10"
+                  PriceBefDisc: 2500
+                  UnitPrice: 2500
+                  Total: 250000
+                  LineTotal: 250000
+                  UnitMsr: "Kg"
+                  FreeTxt: "Krosok Kualitas A"
+                  OcrCode: "CAB01"
+                  OcrCode2: "BU01"
+                  OcrCode3: "DEPT01"
+                  TaxCode: "PPN11"
+                  UomEntry: 1
+      responses:
+        '200':
+          description: Respon langsung dari SAP B1.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ErrorCode:
+                    type: integer
+                    example: 0
+                  Message:
+                    type: string
+                    example: "Success - [AddPurchaseRequest] DocNum: 1000105 (DocEntry: 105)"
+              example:
+                ErrorCode: 0
+                Message: "Success - [AddPurchaseRequest] DocNum: 1000105 (DocEntry: 105)"
+
   /v1/purchasing-request/requests:
     get:
       summary: Get Purchase Request list

@@ -265,6 +265,20 @@ class PurchaseRequestController extends Controller
     }
 
     /**
+     * Fast Add Purchase Request to SAP B1 (/api/addpr, /addpr, /v1/purchasing-request/addpr).
+     * Bypasses slow bottlenecks, redundant DB queries, and heavy Eloquent relation hydration.
+     */
+    public function addPR(Request $request): JsonResponse
+    {
+        $payload = $request->all();
+        $userId = $request->user()?->id;
+
+        $res = $this->service->addPR($payload, $userId);
+
+        return response()->json($res, 200);
+    }
+
+    /**
      * Get detail of Purchase Request from SAP B1 API (/api/GetDetailPR).
      */
     public function getDetailPR(Request $request): JsonResponse

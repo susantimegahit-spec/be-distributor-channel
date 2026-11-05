@@ -931,4 +931,225 @@ class PurchaseRequestService
     {
         return $this->repository->delete($id);
     }
+
+    /**
+     * Fast Add Purchase Request directly to SAP B1 (/api/addpr).
+     * Bypasses slow bottlenecks, redundant DB queries, and heavy Eloquent relation hydration.
+     *
+     * @param array $payload
+     * @param int|null $userId
+     * @return array
+     */
+    public function addPR(array $payload, ?int $userId = null): array
+    {
+        $linesInput = $payload['Lines'] ?? $payload['lines'] ?? $payload['details'] ?? [];
+        if (empty($linesInput) || !is_array($linesInput)) {
+            return [
+                'ErrorCode' => 1,
+                'Message'   => 'Failed - [AddPurchaseRequest] Parameter Lines is required and must not be empty',
+            ];
+        }
+
+        $sapLines = [];
+        $calculatedTotal = 0;
+
+        foreach ($linesInput as $line) {
+            $itemCode = (string) ($line['ItemCode'] ?? $line['item_code'] ?? '');
+            if ($itemCode === '') {
+                return [
+                    'ErrorCode' => 1,
+                    'Message'   => 'Failed - [AddPurchaseRequest] ItemCode in each line is required',
+                ];
+            }
+
+            $qty = floatval($line['Quantity'] ?? $line['quantity'] ?? 1);
+            $unitPrice = floatval($line['UnitPrice'] ?? $line['unit_price'] ?? $line['PriceBefDisc'] ?? $line['price_bef_disc'] ?? 0);
+            $priceBefDisc = floatval($line['PriceBefDisc'] ?? $line['price_bef_disc'] ?? $unitPrice);
+            $lineTotal = floatval($line['LineTotal'] ?? $line['line_total'] ?? $line['Total'] ?? $line['total'] ?? ($qty * $unitPrice));
+            $calculatedTotal += $lineTotal;
+
+            $sapLine = [
+                'ItemCode'     => $itemCode,
+                'Quantity'     => $qty,
+                'WhsCode'      => (string) ($line['WhsCode'] ?? $line['whs_code'] ?? $line['warehouse_code'] ?? 'WHS-RAW'),
+                'PQTReqDate'   => (string) ($line['PQTReqDate'] ?? $line['pqt_req_date'] ?? $line['required_date'] ?? $payload['ReqDate'] ?? $payload['req_date'] ?? date('Y-m-d')),
+                'PriceBefDisc' => $priceBefDisc,
+                'UnitPrice'    => $unitPrice,
+                'Total'        => $lineTotal,
+                'LineTotal'    => $lineTotal,
+                'UnitMsr'      => (string) ($line['UnitMsr'] ?? $line['unit_msr'] ?? $line['uom'] ?? 'Kg'),
+                'FreeTxt'      => (string) ($line['FreeTxt'] ?? $line['free_txt'] ?? $line['remarks'] ?? ''),
+                'OcrCode'      => (string) ($line['OcrCode'] ?? $line['ocr_code'] ?? 'CAB01'),
+                'OcrCode2'     => (string) ($line['OcrCode2'] ?? $line['ocr_code2'] ?? $line['ocr_code_2'] ?? 'BU01'),
+                'OcrCode3'     => (string) ($line['OcrCode3'] ?? $line['ocr_code3'] ?? $line['ocr_code_3'] ?? 'DEPT01'),
+                'TaxCode'      => (string) ($line['TaxCode'] ?? $line['tax_code'] ?? 'PPN11'),
+                'UomEntry'     => isset($line['UomEntry']) ? (int) $line['UomEntry'] : (isset($line['uom_entry']) ? (int) $line['uom_entry'] : 1),
+            ];
+
+            if (isset($line['UomCode']) || isset($line['uom_code'])) {
+                $sapLine['UomCode'] = (string) ($line['UomCode'] ?? $line['uom_code']);
+            }
+
+            $sapLines[] = $sapLine;
+        }
+
+        $docDate = (string) ($payload['DocDate'] ?? $payload['doc_date'] ?? date('Y-m-d'));
+        $reqDate = (string) ($payload['ReqDate'] ?? $payload['req_date'] ?? $payload['required_date'] ?? $docDate);
+        $docDueDate = (string) ($payload['DocDueDate'] ?? $payload['doc_due_date'] ?? $docDate);
+        $taxDate = (string) ($payload['TaxDate'] ?? $payload['tax_date'] ?? $docDate);
+        $total = floatval($payload['Total'] ?? $payload['total'] ?? $payload['DocTotal'] ?? $payload['doc_total'] ?? $calculatedTotal);
+        $docTotal = floatval($payload['DocTotal'] ?? $payload['doc_total'] ?? $total);
+
+        $sapPayload = [
+            'Series'        => isset($payload['Series']) ? (int) $payload['Series'] : (isset($payload['series']) ? (int) $payload['series'] : 0),
+            'DocDate'       => $docDate,
+            'DocDueDate'    => $docDueDate,
+            'TaxDate'       => $taxDate,
+            'ReqDate'       => $reqDate,
+            'Department'    => isset($payload['Department']) ? (int) $payload['Department'] : (isset($payload['department']) ? (int) $payload['department'] : 1),
+            'Branch'        => isset($payload['Branch']) ? (int) $payload['Branch'] : (isset($payload['branch']) ? (int) $payload['branch'] : 1),
+            'Requester'     => (string) ($payload['Requester'] ?? $payload['requester'] ?? '1'),
+            'RequesterName' => (string) ($payload['RequesterName'] ?? $payload['requester_name'] ?? 'John Doe'),
+            'DocType'       => (string) ($payload['DocType'] ?? $payload['doc_type'] ?? 'I'),
+            'Comments'      => (string) ($payload['Comments'] ?? $payload['comments'] ?? $payload['remarks'] ?? ''),
+            'Total'         => $total,
+            'DocTotal'      => $docTotal,
+            'AddonId'       => (string) ($payload['AddonId'] ?? $payload['addon_id'] ?? 'PORTAL_PURCHASING'),
+            'UserId'        => (string) ($payload['UserId'] ?? $payload['user_id'] ?? 'admin'),
+            'Lines'         => $sapLines,
+        ];
+
+        $sapUrl = rtrim(config('services.sap.url') ?: env('SAP_API_URL', 'http://103.18.133.187:3100'), '/');
+
+        try {
+            $response = Http::timeout(30)->post("{$sapUrl}/api/addpr", $sapPayload);
+
+            if ($response->successful()) {
+                $body = $response->json();
+                $errorCode = (int) ($body['ErrorCode'] ?? 0);
+                $message = (string) ($body['Message'] ?? ($errorCode === 0 ? 'Success - [AddPurchaseRequest]' : 'Failed - [AddPurchaseRequest]'));
+
+                if ($errorCode === 0) {
+                    $this->asyncRecordPurchaseRequest($sapPayload, $body, $userId);
+                }
+
+                $result = [
+                    'ErrorCode' => $errorCode,
+                    'Message'   => $message,
+                ];
+
+                if (isset($body['Result']) && $body['Result'] !== null) {
+                    $result['Result'] = $body['Result'];
+                }
+
+                return $result;
+            }
+
+            return [
+                'ErrorCode' => 1,
+                'Message'   => 'Failed - [AddPurchaseRequest] SAP service returned HTTP ' . $response->status(),
+            ];
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to call SAP addpr: ' . $e->getMessage(), [
+                'payload' => $sapPayload,
+            ]);
+
+            return [
+                'ErrorCode' => 1,
+                'Message'   => 'Failed - [AddPurchaseRequest] ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Non-blocking background record of successfully created Purchase Request in local database.
+     */
+    protected function asyncRecordPurchaseRequest(array $sapPayload, array $sapResponse, ?int $userId = null): void
+    {
+        $callback = function () use ($sapPayload, $sapResponse, $userId) {
+            try {
+                $docEntry = null;
+                $docNum = null;
+
+                if (isset($sapResponse['Result'])) {
+                    if (is_numeric($sapResponse['Result'])) {
+                        $docEntry = (int) $sapResponse['Result'];
+                    } elseif (is_array($sapResponse['Result'])) {
+                        $docEntry = $sapResponse['Result']['DocEntry'] ?? null;
+                        $docNum = $sapResponse['Result']['DocNum'] ?? null;
+                    }
+                }
+
+                $message = $sapResponse['Message'] ?? '';
+                if (!$docEntry && preg_match('/DocEntr(?:y|ies):\s*([0-9]+)/i', $message, $mEntry)) {
+                    $docEntry = (int) $mEntry[1];
+                }
+                if (!$docNum && preg_match('/DocNum(?:s)?:\s*([A-Za-z0-9_-]+)/i', $message, $mNum)) {
+                    $docNum = (string) $mNum[1];
+                }
+
+                $headerData = [
+                    'pr_number'      => $docNum ? (string) $docNum : ('PR-' . ($docEntry ?: date('YmdHis'))),
+                    'sap_doc_entry'  => $docEntry ? (int) $docEntry : null,
+                    'sap_doc_num'    => $docNum ? (string) $docNum : null,
+                    'series'         => (string) $sapPayload['Series'],
+                    'department'     => (string) $sapPayload['Department'],
+                    'cost_center'    => (string) ($sapPayload['Lines'][0]['OcrCode'] ?? 'CAB01'),
+                    'doc_date'       => $sapPayload['DocDate'],
+                    'req_date'       => $sapPayload['ReqDate'],
+                    'required_date'  => $sapPayload['ReqDate'],
+                    'doc_due_date'   => $sapPayload['DocDueDate'],
+                    'requester'      => (string) $sapPayload['Requester'],
+                    'requester_name' => (string) $sapPayload['RequesterName'],
+                    'status'         => 'SUBMITTED',
+                    'comments'       => (string) $sapPayload['Comments'],
+                    'remarks'        => (string) $sapPayload['Comments'],
+                    'total_amount'   => (float) $sapPayload['Total'],
+                    'user_id'        => (string) $sapPayload['UserId'],
+                    'addon_id'       => (string) $sapPayload['AddonId'],
+                    'created_by'     => $userId,
+                    'updated_by'     => $userId,
+                ];
+
+                $pr = PurchaseRequest::create($headerData);
+
+                $detailsToInsert = [];
+                $now = now();
+
+                foreach ($sapPayload['Lines'] as $line) {
+                    $detailsToInsert[] = [
+                        'purchase_request_id' => $pr->id,
+                        'item_code'           => $line['ItemCode'],
+                        'item_description'    => $line['ItemCode'],
+                        'pqt_req_date'        => $line['PQTReqDate'],
+                        'quantity'            => $line['Quantity'],
+                        'unit_price'          => $line['UnitPrice'],
+                        'line_total'          => $line['LineTotal'],
+                        'whs_code'            => $line['WhsCode'],
+                        'unit_msr'            => $line['UnitMsr'],
+                        'uom'                 => $line['UnitMsr'],
+                        'uom_entry'           => (string) $line['UomEntry'],
+                        'free_txt'            => $line['FreeTxt'],
+                        'ocr_code'            => $line['OcrCode'],
+                        'ocr_code2'           => $line['OcrCode2'],
+                        'ocr_code3'           => $line['OcrCode3'],
+                        'created_at'          => $now,
+                        'updated_at'          => $now,
+                    ];
+                }
+
+                if (!empty($detailsToInsert)) {
+                    \App\Models\PurchaseRequestDetail::insert($detailsToInsert);
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Async PR recording skipped/failed: ' . $e->getMessage());
+            }
+        };
+
+        if (app()->runningInConsole() || app()->runningUnitTests()) {
+            $callback();
+        } else {
+            app()->terminating($callback);
+        }
+    }
 }
