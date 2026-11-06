@@ -13,6 +13,15 @@ class ProductionOrderItem extends Model
     protected $connection = 'pgsql_production';
     protected $table = 'production.production_order_items';
 
+    public function getTable()
+    {
+        $conn = config('database.connections.' . ($this->connection ?: config('database.default')));
+        if (($conn['driver'] ?? '') === 'sqlite' || config('database.default') === 'sqlite') {
+            return 'production_order_items';
+        }
+        return parent::getTable();
+    }
+
     protected $fillable = [
         'production_order_id',
         'line_num',

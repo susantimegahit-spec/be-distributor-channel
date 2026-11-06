@@ -101,6 +101,7 @@ abstract class TestCase extends BaseTestCase
             if ($needsMigration) {
                 $this->artisan('migrate', ['--database' => 'sqlite', '--force' => true]);
                 $this->artisan('migrate', ['--database' => 'pgsql_ekspedisi', '--path' => 'database/migrations/ekspedisi', '--force' => true]);
+                $this->artisan('migrate', ['--database' => 'pgsql_production', '--path' => 'database/migrations/production', '--force' => true]);
                 \Illuminate\Foundation\Testing\RefreshDatabaseState::$migrated = true;
             }
         }

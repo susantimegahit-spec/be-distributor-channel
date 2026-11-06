@@ -14,6 +14,15 @@ class ProductionOrder extends Model
     protected $connection = 'pgsql_production';
     protected $table = 'production.production_orders';
 
+    public function getTable()
+    {
+        $conn = config('database.connections.' . ($this->connection ?: config('database.default')));
+        if (($conn['driver'] ?? '') === 'sqlite' || config('database.default') === 'sqlite') {
+            return 'production_orders';
+        }
+        return parent::getTable();
+    }
+
     protected $fillable = [
         'doc_entry',
         'doc_num',
