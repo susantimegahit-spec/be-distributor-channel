@@ -96,6 +96,10 @@ Route::prefix('v1/logistic/picklists')->middleware('auth:sanctum')->group(functi
     Route::post('/{id}/save-draft', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'saveDraft']);
     Route::post('/{id}/signatures', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'saveSignatures']);
     Route::get('/{id}/signatures/{signatureId}/preview', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'previewSignature']);
+    Route::post('/{id}/attachments', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'saveGoodsAttachments']);
+    Route::post('/{id}/goods-attachments', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'saveGoodsAttachments']);
+    Route::get('/{id}/goods-attachments/{attachmentId}/preview', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'previewGoodsAttachment']);
+    Route::delete('/{id}/goods-attachments/{attachmentId}', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'deleteGoodsAttachment']);
     Route::get('/{id}/items/{itemId}/label-photos/{photoId}/preview', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'previewLabelPhoto']);
     Route::post('/{id}/items/{itemId}/start-time', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'startItemTime']);
     Route::post('/{id}/items/{itemId}/start', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'startItemTime']);
@@ -113,3 +117,4 @@ Route::prefix('v1/logistic/worker-management')->middleware('auth:sanctum')->grou
 // Direct public preview for picklist signatures and label photos (allows standard <img> tag rendering without Bearer token header)
 Route::get('v1/logistic/picklists/{id}/signatures/{signatureId}/preview', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'previewSignature']);
 Route::get('v1/logistic/picklists/{id}/items/{itemId}/label-photos/{photoId}/preview', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'previewLabelPhoto']);
+Route::get('v1/logistic/picklists/{id}/goods-attachments/{attachmentId}/preview', [\App\Modules\Ekspedisi\Controllers\PicklistController::class, 'previewGoodsAttachment']);

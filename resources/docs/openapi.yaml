@@ -21615,6 +21615,76 @@ paths:
                         type: array
                         items:
                           type: object
+                      barang_masuk:
+                        type: array
+                        description: Daftar foto barang masuk (incoming goods) yang tersimpan di S3
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 10
+                            picklist_id:
+                              type: integer
+                              example: 1
+                            category:
+                              type: string
+                              example: "barang_masuk"
+                            category_label:
+                              type: string
+                              example: "Barang Masuk"
+                            file_name:
+                              type: string
+                              example: "truk_masuk_1.jpg"
+                            attachment_url:
+                              type: string
+                              description: Public URL atau AWS S3 URL langsung ke file gambar
+                              example: "https://my-bucket.s3.ap-southeast-1.amazonaws.com/ekspedisi/picklists/1/goods/barang_masuk/1730876400_abc.jpg"
+                            preview_url:
+                              type: string
+                              description: URL streaming preview foto (dapat diakses langsung pada tag img tanpa token)
+                              example: "/api/distributor-channel/v1/logistic/picklists/1/goods-attachments/10/preview"
+                            caption:
+                              type: string
+                              nullable: true
+                              example: "Kondisi muatan saat tiba di gudang"
+                            created_at:
+                              type: string
+                              format: date-time
+                      barang_keluar:
+                        type: array
+                        description: Daftar foto barang keluar (outgoing goods) yang tersimpan di S3
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 11
+                            picklist_id:
+                              type: integer
+                              example: 1
+                            category:
+                              type: string
+                              example: "barang_keluar"
+                            category_label:
+                              type: string
+                              example: "Barang Keluar"
+                            file_name:
+                              type: string
+                              example: "truk_keluar_1.jpg"
+                            attachment_url:
+                              type: string
+                              example: "https://my-bucket.s3.ap-southeast-1.amazonaws.com/ekspedisi/picklists/1/goods/barang_keluar/1730876500_xyz.jpg"
+                            preview_url:
+                              type: string
+                              example: "/api/distributor-channel/v1/logistic/picklists/1/goods-attachments/11/preview"
+                            caption:
+                              type: string
+                              nullable: true
+                              example: "Kondisi barang saat siap diberangkatkan"
+                            created_at:
+                              type: string
+                              format: date-time
         '404':
           description: Picklist not found.
 
@@ -22987,6 +23057,163 @@ paths:
           description: Binary file gambar tanda tangan (image/png).
         '404':
           description: Tanda tangan tidak ditemukan.
+
+  /v1/logistic/picklists/{id}/attachments:
+    post:
+      summary: Upload Foto Dokumentasi Barang Masuk & Barang Keluar (Multi-file ke AWS S3)
+      description: |
+        Endpoint terpadu (1 API) untuk mengunggah multi-foto **Barang Masuk** (`barang_masuk`) dan **Barang Keluar** (`barang_keluar`) pada suatu Picklist.
+        Semua file otomatis disimpan ke AWS S3 (dengan fallback penyimpanan lokal) dan dapat diunggah via:
+        1. **Multipart Form-Data**: menggunakan field key `barang_masuk[]` dan `barang_keluar[]`.
+        2. **JSON Payload**: menggunakan array string/objek berformat Base64 Data URL (`data:image/jpeg;base64,...`).
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Picklist
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                barang_masuk:
+                  type: array
+                  description: Multi-upload berkas foto barang masuk
+                  items:
+                    type: string
+                    format: binary
+                barang_keluar:
+                  type: array
+                  description: Multi-upload berkas foto barang keluar
+                  items:
+                    type: string
+                    format: binary
+                notes:
+                  type: string
+                  description: Catatan tambahan opsional
+          application/json:
+            schema:
+              type: object
+              properties:
+                barang_masuk:
+                  type: array
+                  description: Multi-foto barang masuk dalam format Base64 atau objek file
+                  items:
+                    type: object
+                    required:
+                      - file
+                    properties:
+                      file:
+                        type: string
+                        description: Data URL Base64 (`data:image/jpeg;base64,...`) atau raw base64
+                      file_name:
+                        type: string
+                        example: "kondisi_truk_masuk.jpg"
+                      caption:
+                        type: string
+                        example: "Muatan saat baru tiba di gudang"
+                barang_keluar:
+                  type: array
+                  description: Multi-foto barang keluar dalam format Base64 atau objek file
+                  items:
+                    type: object
+                    required:
+                      - file
+                    properties:
+                      file:
+                        type: string
+                        description: Data URL Base64 (`data:image/jpeg;base64,...`) atau raw base64
+                      file_name:
+                        type: string
+                        example: "kondisi_truk_keluar.jpg"
+                      caption:
+                        type: string
+                        example: "Muatan selesai disegel siap berangkat"
+      responses:
+        '200':
+          description: Foto berhasil diunggah dan disimpan ke AWS S3.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Goods attachments saved successfully"
+                  data:
+                    type: object
+                    properties:
+                      barang_masuk:
+                        type: array
+                        items:
+                          type: object
+                      barang_keluar:
+                        type: array
+                        items:
+                          type: object
+        '404':
+          description: Picklist tidak ditemukan.
+        '422':
+          description: Validasi berkas gagal.
+
+  /v1/logistic/picklists/{id}/goods-attachments/{attachmentId}/preview:
+    get:
+      summary: Direct Public Preview Foto Barang Masuk / Keluar
+      description: Streaming preview file foto barang masuk/keluar dari S3/storage tanpa Authorization header.
+      tags:
+        - Logistic - Picklist
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: attachmentId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Binary file gambar (image/jpeg, image/png).
+        '404':
+          description: Foto tidak ditemukan.
+
+  /v1/logistic/picklists/{id}/goods-attachments/{attachmentId}:
+    delete:
+      summary: Hapus Foto Barang Masuk / Keluar
+      description: Menghapus data foto barang masuk/keluar dan file fisiknya dari AWS S3.
+      tags:
+        - Logistic - Picklist
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: attachmentId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Foto berhasil dihapus.
+        '404':
+          description: Picklist atau foto tidak ditemukan.
 
   /v1/logistic/picklists/{id}/items/{itemId}/label-photos/{photoId}/preview:
     get:

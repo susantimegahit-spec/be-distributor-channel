@@ -9,6 +9,7 @@ use App\Models\LogisticSetting;
 use App\Models\Picklist;
 use App\Models\PicklistItem;
 use App\Models\PicklistItemLabelPhoto;
+use App\Models\PicklistGoodsAttachment;
 use App\Models\PicklistOverload;
 use App\Models\PicklistSignature;
 use App\Models\PicklistWorker;
@@ -153,6 +154,7 @@ class PicklistService
             'updater:id,name,username',
             'signatures.creator:id,name',
             'workers',
+            'goodsAttachments.creator:id,name',
         ])->find($id);
 
         if (!$picklist) {
@@ -1303,10 +1305,11 @@ class PicklistService
 
         $picklist->update($picklistUpdate);
 
-        // 5. Save inspection / handover signatures and workers if provided
+        // 5. Save inspection / handover signatures, workers, and goods attachments if provided
         $savedSignatures = $this->savePicklistSignatures($picklist, $payload, $userId);
         $savedWorkers = $this->savePicklistWorkers($picklist, $payload, $userId);
-        $freshPicklist = $picklist->fresh(['items.salesOrder', 'creator', 'updater', 'signatures', 'workers']);
+        $savedAttachments = $this->savePicklistGoodsAttachments($picklist, $payload, $userId);
+        $freshPicklist = $picklist->fresh(['items.salesOrder', 'creator', 'updater', 'signatures', 'workers', 'goodsAttachments']);
 
         return [
             'picklist_id'       => $picklist->id,
@@ -1807,6 +1810,7 @@ class PicklistService
                 try {
                     $this->savePicklistSignatures($picklist, $sigPayload, $userId);
                     $this->savePicklistWorkers($picklist, $sigPayload, $userId);
+                    $this->savePicklistGoodsAttachments($picklist, $sigPayload, $userId);
                 } catch (\Throwable $e) {
                     \Illuminate\Support\Facades\Log::warning("Failed to save signatures/workers for Picklist #{$picklist->id}: " . $e->getMessage());
                 }
@@ -2156,6 +2160,366 @@ class PicklistService
         }
 
         return $saved;
+    }
+
+    /**
+     * Save / upload goods attachments (barang masuk & barang keluar) for a picklist.
+     *
+     * @param Picklist $picklist
+     * @param array $payload
+     * @param int|null $userId
+     * @return array
+     */
+    public function savePicklistGoodsAttachments(Picklist $picklist, array $payload, ?int $userId = null): array
+    {
+        // 0. Unwrap nested payload if wrapped in 'data'
+        if (isset($payload['data']) && is_array($payload['data'])) {
+            $payload = array_merge($payload['data'], $payload);
+        }
+
+        $rawIn = $payload['barang_masuk']
+            ?? $payload['barangMasuk']
+            ?? $payload['photos_in']
+            ?? $payload['incoming_photos']
+            ?? $payload['goods_in']
+            ?? $payload['items_in']
+            ?? $payload['masuk']
+            ?? null;
+
+        $rawOut = $payload['barang_keluar']
+            ?? $payload['barangKeluar']
+            ?? $payload['photos_out']
+            ?? $payload['outgoing_photos']
+            ?? $payload['goods_out']
+            ?? $payload['items_out']
+            ?? $payload['keluar']
+            ?? null;
+
+        $captionsIn = $payload['caption_barang_masuk'] ?? $payload['captions_in'] ?? $payload['caption_in'] ?? [];
+        $captionsOut = $payload['caption_barang_keluar'] ?? $payload['captions_out'] ?? $payload['caption_out'] ?? [];
+
+        // Also check if sent as a generic array with category / type
+        $rawGeneric = $payload['attachments']
+            ?? $payload['goods_attachments']
+            ?? $payload['photos']
+            ?? $payload['lampiran']
+            ?? null;
+
+        if (is_array($rawGeneric)) {
+            foreach ($rawGeneric as $item) {
+                if (!is_array($item)) continue;
+                $cat = strtolower(trim((string) ($item['category'] ?? $item['type'] ?? 'in')));
+                if (in_array($cat, ['barang_masuk', 'masuk', 'in', 'incoming'])) {
+                    $rawIn = is_array($rawIn) ? array_merge($rawIn, [$item]) : [$item];
+                } else {
+                    $rawOut = is_array($rawOut) ? array_merge($rawOut, [$item]) : [$item];
+                }
+            }
+        }
+
+        $savedIn = [];
+        $savedOut = [];
+
+        // Process Barang Masuk
+        if ($rawIn !== null) {
+            $normalizedIn = $this->normalizeGoodsAttachmentList($rawIn, $captionsIn);
+            $currentOrder = (int) PicklistGoodsAttachment::where('picklist_id', $picklist->id)
+                ->where('category', PicklistGoodsAttachment::CATEGORY_IN)
+                ->max('sort_order');
+
+            foreach ($normalizedIn as $item) {
+                $currentOrder++;
+                $stored = $this->storeGoodsAttachmentImage(
+                    $picklist->id,
+                    PicklistGoodsAttachment::CATEGORY_IN,
+                    $currentOrder,
+                    $item['file'],
+                    $item['file_name']
+                );
+
+                if ($stored) {
+                    $record = PicklistGoodsAttachment::create([
+                        'picklist_id' => $picklist->id,
+                        'category'    => PicklistGoodsAttachment::CATEGORY_IN,
+                        'file_path'   => $stored['path'],
+                        'file_name'   => $stored['name'] ?? $item['file_name'],
+                        'file_size'   => $stored['size'] ?? null,
+                        'mime_type'   => $stored['mime'] ?? null,
+                        'caption'     => $item['caption'] ?? null,
+                        'sort_order'  => (int) ($item['sort_order'] ?? $currentOrder),
+                        'created_by'  => $userId,
+                    ]);
+                    $savedIn[] = $record;
+                }
+            }
+        }
+
+        // Process Barang Keluar
+        if ($rawOut !== null) {
+            $normalizedOut = $this->normalizeGoodsAttachmentList($rawOut, $captionsOut);
+            $currentOrder = (int) PicklistGoodsAttachment::where('picklist_id', $picklist->id)
+                ->where('category', PicklistGoodsAttachment::CATEGORY_OUT)
+                ->max('sort_order');
+
+            foreach ($normalizedOut as $item) {
+                $currentOrder++;
+                $stored = $this->storeGoodsAttachmentImage(
+                    $picklist->id,
+                    PicklistGoodsAttachment::CATEGORY_OUT,
+                    $currentOrder,
+                    $item['file'],
+                    $item['file_name']
+                );
+
+                if ($stored) {
+                    $record = PicklistGoodsAttachment::create([
+                        'picklist_id' => $picklist->id,
+                        'category'    => PicklistGoodsAttachment::CATEGORY_OUT,
+                        'file_path'   => $stored['path'],
+                        'file_name'   => $stored['name'] ?? $item['file_name'],
+                        'file_size'   => $stored['size'] ?? null,
+                        'mime_type'   => $stored['mime'] ?? null,
+                        'caption'     => $item['caption'] ?? null,
+                        'sort_order'  => (int) ($item['sort_order'] ?? $currentOrder),
+                        'created_by'  => $userId,
+                    ]);
+                    $savedOut[] = $record;
+                }
+            }
+        }
+
+        return [
+            'barang_masuk'  => $savedIn,
+            'barang_keluar' => $savedOut,
+            'total'         => count($savedIn) + count($savedOut),
+        ];
+    }
+
+    /**
+     * Normalize mixed goods attachment list into structured array of files and captions.
+     *
+     * @param mixed $items
+     * @param mixed $captions
+     * @return array
+     */
+    protected function normalizeGoodsAttachmentList(mixed $items, mixed $captions = []): array
+    {
+        $normalized = [];
+        if (!is_array($items)) {
+            $items = [$items];
+        }
+
+        foreach ($items as $idx => $item) {
+            if ($item instanceof \Illuminate\Http\UploadedFile) {
+                $caption = is_array($captions) ? ($captions[$idx] ?? null) : (is_string($captions) ? $captions : null);
+                $normalized[] = [
+                    'file'       => $item,
+                    'file_name'  => $item->getClientOriginalName(),
+                    'caption'    => $caption,
+                    'sort_order' => $idx + 1,
+                ];
+            } elseif (is_string($item)) {
+                $caption = is_array($captions) ? ($captions[$idx] ?? null) : (is_string($captions) ? $captions : null);
+                $normalized[] = [
+                    'file'       => $item,
+                    'file_name'  => null,
+                    'caption'    => $caption,
+                    'sort_order' => $idx + 1,
+                ];
+            } elseif (is_array($item)) {
+                $fileData = $item['image']
+                    ?? $item['file']
+                    ?? $item['data']
+                    ?? $item['photo']
+                    ?? $item['attachment']
+                    ?? $item['base64']
+                    ?? $item['uri']
+                    ?? $item['url']
+                    ?? null;
+
+                if ($fileData) {
+                    $caption = $item['caption']
+                        ?? $item['notes']
+                        ?? $item['description']
+                        ?? $item['keterangan']
+                        ?? (is_array($captions) ? ($captions[$idx] ?? null) : null);
+
+                    $normalized[] = [
+                        'file'       => $fileData,
+                        'file_name'  => $item['file_name'] ?? $item['filename'] ?? $item['name'] ?? null,
+                        'caption'    => $caption,
+                        'sort_order' => (int) ($item['sort_order'] ?? ($idx + 1)),
+                    ];
+                }
+            }
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Store goods attachment image (Base64 data URI, raw base64, or UploadedFile) to public disk and S3.
+     *
+     * @param int $picklistId
+     * @param string $category
+     * @param int $index
+     * @param mixed $fileData
+     * @param string|null $originalName
+     * @return array|null
+     */
+    protected function storeGoodsAttachmentImage(
+        int $picklistId,
+        string $category,
+        int $index,
+        mixed $fileData,
+        ?string $originalName = null
+    ): ?array {
+        $dir = 'goods-attachments/picklists';
+        $timestamp = time() . '_' . substr(md5(uniqid()), 0, 6);
+        $s3Bucket = config('filesystems.disks.s3.bucket');
+        $preferS3 = !empty($s3Bucket);
+
+        // Case A: UploadedFile instance
+        if ($fileData instanceof \Illuminate\Http\UploadedFile) {
+            $ext = $fileData->getClientOriginalExtension() ?: 'jpg';
+            $filename = "{$dir}/pkl_{$picklistId}_{$category}_{$index}_{$timestamp}.{$ext}";
+            $name = $originalName ?: $fileData->getClientOriginalName();
+            $mime = $fileData->getMimeType() ?: 'image/jpeg';
+            $size = (int) ($fileData->getSize() ?: 0);
+
+            try {
+                if (!Storage::disk('public')->exists($dir)) {
+                    Storage::disk('public')->makeDirectory($dir);
+                }
+                Storage::disk('public')->putFileAs($dir, $fileData, basename($filename));
+            } catch (\Throwable $e) {
+                Log::warning("Failed to store goods attachment locally: " . $e->getMessage());
+            }
+
+            if ($preferS3) {
+                try {
+                    Storage::disk('s3')->putFileAs($dir, $fileData, basename($filename), 'public');
+                } catch (\Throwable $e) {
+                    Log::warning("Failed to store goods attachment #{$picklistId} to S3: " . $e->getMessage());
+                }
+            }
+
+            return [
+                'path' => $filename,
+                'name' => $name,
+                'mime' => $mime,
+                'size' => $size,
+            ];
+        }
+
+        // Case B: Base64 String or URL
+        if (is_string($fileData)) {
+            $str = trim($fileData);
+            if (empty($str)) {
+                return null;
+            }
+
+            if (str_starts_with($str, 'goods-attachments/picklists/') || str_starts_with($str, 'http://') || str_starts_with($str, 'https://')) {
+                return [
+                    'path' => $str,
+                    'name' => $originalName ?: basename($str),
+                    'mime' => 'image/jpeg',
+                    'size' => 0,
+                ];
+            }
+
+            if (str_starts_with($str, 'data%3A') || str_contains($str, '%2C')) {
+                $str = urldecode($str);
+            }
+
+            $ext = 'jpg';
+            $mime = 'image/jpeg';
+            $binary = false;
+
+            if (preg_match('/^data:image\/([a-zA-Z0-9\+\-\.]+);base64,(.+)$/is', $str, $matches)) {
+                $rawExt = strtolower($matches[1]);
+                $ext = match ($rawExt) {
+                    'jpeg' => 'jpg',
+                    'svg+xml' => 'svg',
+                    default => $rawExt,
+                };
+                $mime = "image/{$matches[1]}";
+                $cleanB64 = str_replace([' ', "\r", "\n", "\t"], ['+', '', '', ''], trim($matches[2]));
+                $binary = base64_decode($cleanB64);
+            } else {
+                $cleanB64 = str_replace([' ', "\r", "\n", "\t"], ['+', '', '', ''], $str);
+                $binary = base64_decode($cleanB64);
+            }
+
+            if ($binary === false || empty($binary)) {
+                return null;
+            }
+
+            $size = strlen($binary);
+            $filename = "{$dir}/pkl_{$picklistId}_{$category}_{$index}_{$timestamp}.{$ext}";
+            $name = $originalName ?: "pkl_{$picklistId}_{$category}_{$index}.{$ext}";
+
+            try {
+                if (!Storage::disk('public')->exists($dir)) {
+                    Storage::disk('public')->makeDirectory($dir);
+                }
+                Storage::disk('public')->put($filename, $binary);
+            } catch (\Throwable $e) {
+                Log::warning("Failed to store goods attachment locally: " . $e->getMessage());
+            }
+
+            if ($preferS3) {
+                try {
+                    Storage::disk('s3')->put($filename, $binary, 'public');
+                } catch (\Throwable $e) {
+                    Log::warning("Failed to store goods attachment #{$picklistId} to S3: " . $e->getMessage());
+                }
+            }
+
+            return [
+                'path' => $filename,
+                'name' => $name,
+                'mime' => $mime,
+                'size' => $size,
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * Delete a goods attachment by ID.
+     *
+     * @param int $picklistId
+     * @param int $attachmentId
+     * @param int|null $userId
+     * @return bool
+     */
+    public function deletePicklistGoodsAttachment(int $picklistId, int $attachmentId, ?int $userId = null): bool
+    {
+        $attachment = PicklistGoodsAttachment::where('picklist_id', $picklistId)->find($attachmentId);
+        if (!$attachment) {
+            return false;
+        }
+
+        $path = $attachment->file_path;
+        if (!empty($path)) {
+            try {
+                if (Storage::disk('public')->exists($path)) {
+                    Storage::disk('public')->delete($path);
+                }
+            } catch (\Throwable $e) {
+            }
+
+            try {
+                if (config('filesystems.disks.s3.bucket') && Storage::disk('s3')->exists($path)) {
+                    Storage::disk('s3')->delete($path);
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+
+        return (bool) $attachment->delete();
     }
 
     /**
@@ -2654,9 +3018,10 @@ class PicklistService
         $picklist->updated_by = $userId;
         $picklist->save();
 
-        // 2. Save signatures and workers if provided
+        // 2. Save signatures, workers, and goods attachments if provided
         $savedSignatures = $this->savePicklistSignatures($picklist, $payload, $userId);
         $savedWorkers = $this->savePicklistWorkers($picklist, $payload, $userId);
+        $savedAttachments = $this->savePicklistGoodsAttachments($picklist, $payload, $userId);
 
         // 3. Process item checklists
         $lines = $payload['items'] ?? $payload['Lines'] ?? $payload['lines'] ?? [];

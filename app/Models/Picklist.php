@@ -127,6 +127,8 @@ class Picklist extends Model
         'checker_signature',
         'driver_signature',
         'total_lembur',
+        'barang_masuk',
+        'barang_keluar',
     ];
 
     /**
@@ -217,6 +219,36 @@ class Picklist extends Model
     public function signatures(): HasMany
     {
         return $this->hasMany(PicklistSignature::class, 'picklist_id')->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
+     * Get all goods attachments (barang masuk & barang keluar) for this picklist.
+     */
+    public function goodsAttachments(): HasMany
+    {
+        return $this->hasMany(PicklistGoodsAttachment::class, 'picklist_id')->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
+     * Filtered list of incoming goods attachments (barang masuk).
+     */
+    public function getBarangMasukAttribute()
+    {
+        if ($this->relationLoaded('goodsAttachments')) {
+            return $this->goodsAttachments->where('category', PicklistGoodsAttachment::CATEGORY_IN)->values();
+        }
+        return $this->goodsAttachments()->where('category', PicklistGoodsAttachment::CATEGORY_IN)->get();
+    }
+
+    /**
+     * Filtered list of outgoing goods attachments (barang keluar).
+     */
+    public function getBarangKeluarAttribute()
+    {
+        if ($this->relationLoaded('goodsAttachments')) {
+            return $this->goodsAttachments->where('category', PicklistGoodsAttachment::CATEGORY_OUT)->values();
+        }
+        return $this->goodsAttachments()->where('category', PicklistGoodsAttachment::CATEGORY_OUT)->get();
     }
 
     /**

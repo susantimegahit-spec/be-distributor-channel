@@ -395,6 +395,130 @@ class PicklistController extends Controller
     }
 
     /**
+     * Save / upload goods attachments (barang masuk & barang keluar) for a picklist.
+     */
+    public function saveGoodsAttachments(Request $request, int $id): JsonResponse
+    {
+        try {
+            $picklist = Picklist::find($id);
+            if (!$picklist) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Picklist with ID #{$id} not found.",
+                ], 404);
+            }
+
+            $user = $request->user();
+            $payload = $request->all();
+            if ($request->allFiles()) {
+                foreach ($request->allFiles() as $key => $file) {
+                    $payload[$key] = $file;
+                }
+            }
+
+            $result = $this->picklistService->savePicklistGoodsAttachments($picklist, $payload, $user?->id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Goods attachments saved successfully.',
+                'data'    => $result,
+            ], 200);
+        } catch (\Throwable $e) {
+            $statusCode = ($e->getCode() >= 400 && $e->getCode() < 600) ? (int) $e->getCode() : 400;
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $statusCode);
+        }
+    }
+
+    /**
+     * Preview / stream goods attachment image directly.
+     */
+    public function previewGoodsAttachment(int $id, int $attachmentId)
+    {
+        $attachment = \App\Models\PicklistGoodsAttachment::where('picklist_id', $id)->find($attachmentId);
+        if (!$attachment) {
+            abort(404, 'Goods attachment record not found.');
+        }
+
+        $path = $attachment->file_path;
+        if (empty($path)) {
+            abort(404, 'Attachment file path is empty.');
+        }
+
+        // 1. If stored as Data URI directly
+        if (str_starts_with($path, 'data:image/')) {
+            $parts = explode(',', $path, 2);
+            $mime = 'image/png';
+            if (preg_match('/^data:(image\/[a-zA-Z0-9\+\-\.]+);/i', $parts[0], $m)) {
+                $mime = $m[1];
+            }
+            $binary = base64_decode($parts[1] ?? '');
+            return response($binary, 200, [
+                'Content-Type'  => $mime,
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+
+        // 2. Check S3
+        if (config('filesystems.disks.s3.bucket') && \Illuminate\Support\Facades\Storage::disk('s3')->exists($path)) {
+            $mime = \Illuminate\Support\Facades\Storage::disk('s3')->mimeType($path) ?: ($attachment->mime_type ?: 'image/jpeg');
+            return response(\Illuminate\Support\Facades\Storage::disk('s3')->get($path), 200, [
+                'Content-Type'  => $mime,
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+
+        // 3. Check public storage disk
+        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($path)) {
+            $mime = \Illuminate\Support\Facades\Storage::disk('public')->mimeType($path) ?: ($attachment->mime_type ?: 'image/jpeg');
+            return response(\Illuminate\Support\Facades\Storage::disk('public')->get($path), 200, [
+                'Content-Type'  => $mime,
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+
+        $publicPath = public_path('storage/' . $path);
+        if (file_exists($publicPath)) {
+            $mime = mime_content_type($publicPath) ?: ($attachment->mime_type ?: 'image/jpeg');
+            return response(file_get_contents($publicPath), 200, [
+                'Content-Type'  => $mime,
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+
+        abort(404, 'Goods attachment file not found on disk or S3.');
+    }
+
+    /**
+     * Delete a goods attachment.
+     */
+    public function deleteGoodsAttachment(Request $request, int $id, int $attachmentId): JsonResponse
+    {
+        try {
+            $deleted = $this->picklistService->deletePicklistGoodsAttachment($id, $attachmentId, $request->user()?->id);
+            if (!$deleted) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Goods attachment not found or could not be deleted.',
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Goods attachment deleted successfully.',
+            ], 200);
+        } catch (\Throwable $e) {
+            $statusCode = ($e->getCode() >= 400 && $e->getCode() < 600) ? (int) $e->getCode() : 400;
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $statusCode);
+        }
+    }
+
+    /**
      * Direct Add Delivery Order (DO) in SAP B1 with raw payload or sales_order_id, or save draft progress.
      */
     public function directAddDo(Request $request): JsonResponse
