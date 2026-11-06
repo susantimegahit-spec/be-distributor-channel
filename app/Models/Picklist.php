@@ -234,10 +234,14 @@ class Picklist extends Model
      */
     public function getBarangMasukAttribute()
     {
-        if ($this->relationLoaded('goodsAttachments')) {
-            return $this->goodsAttachments->where('category', PicklistGoodsAttachment::CATEGORY_IN)->values();
+        try {
+            if ($this->relationLoaded('goodsAttachments')) {
+                return $this->goodsAttachments->where('category', PicklistGoodsAttachment::CATEGORY_IN)->values();
+            }
+            return $this->goodsAttachments()->where('category', PicklistGoodsAttachment::CATEGORY_IN)->get();
+        } catch (\Throwable) {
+            return collect();
         }
-        return $this->goodsAttachments()->where('category', PicklistGoodsAttachment::CATEGORY_IN)->get();
     }
 
     /**
@@ -245,10 +249,14 @@ class Picklist extends Model
      */
     public function getBarangKeluarAttribute()
     {
-        if ($this->relationLoaded('goodsAttachments')) {
-            return $this->goodsAttachments->where('category', PicklistGoodsAttachment::CATEGORY_OUT)->values();
+        try {
+            if ($this->relationLoaded('goodsAttachments')) {
+                return $this->goodsAttachments->where('category', PicklistGoodsAttachment::CATEGORY_OUT)->values();
+            }
+            return $this->goodsAttachments()->where('category', PicklistGoodsAttachment::CATEGORY_OUT)->get();
+        } catch (\Throwable) {
+            return collect();
         }
-        return $this->goodsAttachments()->where('category', PicklistGoodsAttachment::CATEGORY_OUT)->get();
     }
 
     /**

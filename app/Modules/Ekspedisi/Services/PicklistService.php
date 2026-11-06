@@ -154,7 +154,7 @@ class PicklistService
             'updater:id,name,username',
             'signatures.creator:id,name',
             'workers',
-            'goodsAttachments.creator:id,name',
+            'goodsAttachments',
         ])->find($id);
 
         if (!$picklist) {
