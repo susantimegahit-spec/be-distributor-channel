@@ -391,6 +391,9 @@ class ProductionController extends Controller
         if ($request->has('PostingDate') && !$request->has('post_date')) {
             $request->merge(['post_date' => $request->input('PostingDate')]);
         }
+        if ($request->has('StartDate') && !$request->has('start_date')) {
+            $request->merge(['start_date' => $request->input('StartDate')]);
+        }
         if ($request->has('DueDate') && !$request->has('due_date')) {
             $request->merge(['due_date' => $request->input('DueDate')]);
         }
@@ -488,9 +491,9 @@ class ProductionController extends Controller
             'warehouse' => $whs,
             'priority' => $request->input('priority', 100),
             'project' => $request->input('project'),
-            'post_date' => $request->input('post_date'),
-            'start_date' => $request->input('start_date'),
-            'due_date' => $request->input('due_date'),
+            'post_date' => !empty($request->input('post_date')) ? date('Y-m-d', strtotime($request->input('post_date'))) : null,
+            'start_date' => !empty($request->input('start_date')) ? date('Y-m-d', strtotime($request->input('start_date'))) : (!empty($request->input('post_date')) ? date('Y-m-d', strtotime($request->input('post_date'))) : null),
+            'due_date' => !empty($request->input('due_date')) ? date('Y-m-d', strtotime($request->input('due_date'))) : null,
             'origin_type' => $request->input('origin_type'),
             'origin_num' => $request->input('origin_num'),
             'card_code' => $request->input('card_code'),
@@ -562,20 +565,22 @@ class ProductionController extends Controller
         }
 
         $postDate = $input['post_date'] ?? $input['PostingDate'] ?? null;
+        $startDate = $input['start_date'] ?? $input['StartDate'] ?? null;
         $dueDate = $input['due_date'] ?? $input['DueDate'] ?? null;
         $plannedQty = $input['planned_qty'] ?? $input['PlannedQty'] ?? $input['quantity'] ?? $input['qty'] ?? null;
         $status = $input['status'] ?? $input['Status'] ?? null;
         $comments = $input['comments'] ?? $input['remarks'] ?? $input['Remarks'] ?? null;
         $shift = $input['u_shift'] ?? $input['shift'] ?? $input['Shift'] ?? null;
-        $unit = $input['u_unit'] ?? $input['unit'] ?? $input['Unit'] ?? $input['uom'] ?? $input['Uom'] ?? $input['UOM'] ?? null;
+        $unit = !empty($input['u_unit']) ? $input['u_unit'] : (!empty($input['Unit']) ? $input['Unit'] : ($input['unit'] ?? $input['uom'] ?? $input['Uom'] ?? $input['UOM'] ?? null));
         $bomId = $input['production_bom_id'] ?? $input['bom_id'] ?? $input['Bomid'] ?? null;
 
         $data = [];
         if ($itemCode !== null) $data['item_code'] = $itemCode;
         if ($whs !== null) $data['warehouse'] = $whs;
         if ($ocrCode !== null) $data['ocr_code'] = $ocrCode;
-        if ($postDate !== null) $data['post_date'] = date('Y-m-d', strtotime($postDate));
-        if ($dueDate !== null) $data['due_date'] = date('Y-m-d', strtotime($dueDate));
+        if ($postDate !== null && $postDate !== '') $data['post_date'] = date('Y-m-d', strtotime($postDate));
+        if ($startDate !== null && $startDate !== '') $data['start_date'] = date('Y-m-d', strtotime($startDate));
+        if ($dueDate !== null && $dueDate !== '') $data['due_date'] = date('Y-m-d', strtotime($dueDate));
         if ($plannedQty !== null) $data['planned_qty'] = floatval($plannedQty);
         if ($status !== null) {
             $statusStr = strtoupper(trim((string)$status));
@@ -691,6 +696,12 @@ class ProductionController extends Controller
         }
         if (isset($input['post_date']) && !isset($input['PostingDate'])) {
             $input['PostingDate'] = $input['post_date'];
+        }
+        if (isset($input['start_date']) && !isset($input['StartDate'])) {
+            $input['StartDate'] = $input['start_date'];
+        }
+        if (isset($input['StartDate']) && !isset($input['start_date'])) {
+            $input['start_date'] = $input['StartDate'];
         }
         if (isset($input['due_date']) && !isset($input['DueDate'])) {
             $input['DueDate'] = $input['due_date'];

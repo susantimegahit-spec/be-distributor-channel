@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Psikotes\Controllers\CandidateAuthController;
+use App\Modules\Psikotes\Controllers\CandidateManagementController;
 use App\Modules\Psikotes\Controllers\DiscAssessmentController;
 use App\Modules\Psikotes\Controllers\DiscCandidateTestController;
 use App\Modules\Psikotes\Controllers\DiscPublicTestController;
@@ -50,4 +51,13 @@ Route::prefix('v1/hr/psikotes/disc')->middleware('auth:sanctum')->group(function
     Route::post('/assessments', [DiscAssessmentController::class, 'store']);
     Route::get('/assessments-export', [DiscAssessmentController::class, 'exportCsv']);
     Route::get('/assessments/{id}', [DiscAssessmentController::class, 'show']);
+});
+
+// Admin HR Candidate Management & Recruitment Pipeline
+Route::prefix('v1/hr/recruitment/candidates')->middleware('auth:sanctum')->group(function () {
+    Route::get('/', [CandidateManagementController::class, 'index']);
+    Route::get('/{id}', [CandidateManagementController::class, 'show']);
+    Route::put('/{id}/status', [CandidateManagementController::class, 'updateStatus']);
+    Route::post('/{id}/shortlist', [CandidateManagementController::class, 'shortlist']);
+    Route::post('/{id}/reject', [CandidateManagementController::class, 'reject']);
 });

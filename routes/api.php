@@ -20,9 +20,15 @@ Route::match(['get', 'post'], '/GetListPRGenerated', [\App\Modules\PurchasingReq
 Route::match(['get', 'post'], '/GetDetailPR', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'getDetailPR']);
 Route::match(['get', 'post'], '/ClosePR', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'closePR']);
 Route::match(['get', 'post'], '/CancelPR', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'cancelPR']);
+Route::match(['get', 'post'], '/addpr', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'addPR']);
+Route::match(['get', 'post'], '/AddPR', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'addPR']);
+Route::match(['get', 'post'], '/api/addpr', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'addPR']);
+Route::match(['get', 'post'], '/api/AddPR', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'addPR']);
 
 // Purchasing Quotations & Offers (RFQ)
 Route::prefix('v1/purchasing-request')->group(function () {
+    Route::match(['get', 'post'], '/addpr', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'addPR']);
+    Route::match(['get', 'post'], '/AddPR', [\App\Modules\PurchasingRequest\Controllers\PurchaseRequestController::class, 'addPR']);
     Route::get('/quotations', [\App\Modules\PurchasingRequest\Controllers\PurchaseQuotationController::class, 'index']);
     Route::post('/quotations', [\App\Modules\PurchasingRequest\Controllers\PurchaseQuotationController::class, 'store']);
     Route::get('/quotations/{id}', [\App\Modules\PurchasingRequest\Controllers\PurchaseQuotationController::class, 'show']);
@@ -86,5 +92,13 @@ Route::prefix('v1/hr/psikotes/disc')->middleware('auth:sanctum')->group(function
     Route::post('/assessments', [\App\Modules\Psikotes\Controllers\DiscAssessmentController::class, 'store']);
     Route::get('/assessments-export', [\App\Modules\Psikotes\Controllers\DiscAssessmentController::class, 'exportCsv']);
     Route::get('/assessments/{id}', [\App\Modules\Psikotes\Controllers\DiscAssessmentController::class, 'show']);
+});
+
+Route::prefix('v1/hr/recruitment/candidates')->middleware('auth:sanctum')->group(function () {
+    Route::get('/', [\App\Modules\Psikotes\Controllers\CandidateManagementController::class, 'index']);
+    Route::get('/{id}', [\App\Modules\Psikotes\Controllers\CandidateManagementController::class, 'show']);
+    Route::put('/{id}/status', [\App\Modules\Psikotes\Controllers\CandidateManagementController::class, 'updateStatus']);
+    Route::post('/{id}/shortlist', [\App\Modules\Psikotes\Controllers\CandidateManagementController::class, 'shortlist']);
+    Route::post('/{id}/reject', [\App\Modules\Psikotes\Controllers\CandidateManagementController::class, 'reject']);
 });
 

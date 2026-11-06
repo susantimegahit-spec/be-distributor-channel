@@ -9,6 +9,11 @@ class Item extends Model
 {
     use HasFactory;
 
+    public function getConnectionName()
+    {
+        return config('database.default') === 'sqlite' ? 'sqlite' : 'pgsql';
+    }
+
     protected $fillable = [
         'item_code',
         'item_name',

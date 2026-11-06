@@ -9,6 +9,11 @@ class OcrCode extends Model
 {
     use HasFactory;
 
+    public function getConnectionName()
+    {
+        return config('database.default') === 'sqlite' ? 'sqlite' : 'pgsql';
+    }
+
     protected $fillable = [
         'ocr_code',
         'ocr_name',

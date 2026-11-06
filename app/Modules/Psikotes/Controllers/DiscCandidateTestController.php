@@ -22,6 +22,15 @@ class DiscCandidateTestController extends Controller
     {
         /** @var DiscCandidate $candidate */
         $candidate = $request->user();
+
+        if (!$candidate->canAccessAssessmentsAndBiodata()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => $candidate->getAssessmentAccessDeniedMessage(),
+                'data'    => null,
+            ], 403);
+        }
+
         $data = $this->assessmentService->getAssessmentForCandidate($candidate);
 
         return response()->json([
@@ -38,6 +47,15 @@ class DiscCandidateTestController extends Controller
     {
         /** @var DiscCandidate $candidate */
         $candidate = $request->user();
+
+        if (!$candidate->canAccessAssessmentsAndBiodata()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => $candidate->getAssessmentAccessDeniedMessage(),
+                'data'    => null,
+            ], 403);
+        }
+
         $validated = $request->validated();
 
         $answer = $this->assessmentService->saveCandidateAnswer(
@@ -65,6 +83,15 @@ class DiscCandidateTestController extends Controller
     {
         /** @var DiscCandidate $candidate */
         $candidate = $request->user();
+
+        if (!$candidate->canAccessAssessmentsAndBiodata()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => $candidate->getAssessmentAccessDeniedMessage(),
+                'data'    => null,
+            ], 403);
+        }
+
         $result = $this->assessmentService->submitCandidateAssessment($candidate);
 
         return response()->json([
@@ -84,6 +111,15 @@ class DiscCandidateTestController extends Controller
     {
         /** @var DiscCandidate $candidate */
         $candidate = $request->user();
+
+        if (!$candidate->canAccessAssessmentsAndBiodata()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => $candidate->getAssessmentAccessDeniedMessage(),
+                'data'    => null,
+            ], 403);
+        }
+
         $result = $this->assessmentService->getCandidateResult($candidate);
 
         return response()->json([

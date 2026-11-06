@@ -310,6 +310,7 @@ class ProductionService
                     'PlannedQty'  => floatval($updatedOrder->planned_qty),
                     'PostingDate' => $updatedOrder->post_date ? date('Y-m-d\TH:i:s', strtotime($updatedOrder->post_date)) : date('Y-m-d\TH:i:s'),
                     'DueDate'     => $updatedOrder->due_date ? date('Y-m-d\TH:i:s', strtotime($updatedOrder->due_date)) : date('Y-m-d\TH:i:s'),
+                    'StartDate'   => $updatedOrder->start_date ? date('Y-m-d\TH:i:s', strtotime($updatedOrder->start_date)) : ($updatedOrder->post_date ? date('Y-m-d\TH:i:s', strtotime($updatedOrder->post_date)) : date('Y-m-d\TH:i:s')),
                     'WhsCode'     => (string) $updatedOrder->warehouse,
                     'Remarks'     => (string) $updatedOrder->comments,
                     'Shift'       => $mapShift($updatedOrder->u_shift),
@@ -594,7 +595,7 @@ class ProductionService
             'planned_qty'       => $plannedQty,
             'warehouse'         => $whs,
             'post_date'         => date('Y-m-d', strtotime($postDate)),
-            'start_date'        => isset($data['start_date']) ? date('Y-m-d', strtotime($data['start_date'])) : date('Y-m-d', strtotime($postDate)),
+            'start_date'        => !empty($data['start_date']) || !empty($data['StartDate']) ? date('Y-m-d', strtotime($data['start_date'] ?? $data['StartDate'])) : date('Y-m-d', strtotime($postDate)),
             'due_date'          => date('Y-m-d', strtotime($dueDate)),
             'comments'          => $comments,
             'u_shift'           => $shift,
@@ -615,12 +616,17 @@ class ProductionService
 
         // 2. Jika status adalah RELEASED, tembak ke SAP /api/addpdo
         if ($status === 'RELEASED') {
+            $sapStartDate = !empty($data['StartDate']) || !empty($data['start_date']) 
+                ? (strtotime($data['StartDate'] ?? $data['start_date']) ? date('Y-m-d\TH:i:s', strtotime($data['StartDate'] ?? $data['start_date'])) : ($data['StartDate'] ?? $data['start_date']))
+                : (strtotime($postDate) ? date('Y-m-d\TH:i:s', strtotime($postDate)) : $postDate);
+
             $sapPayload = [
                 'ItemCode'    => $itemCode,
                 'Series'      => $localData['series'],
                 'PlannedQty'  => $plannedQty,
                 'PostingDate' => $postDate,
                 'DueDate'     => $dueDate,
+                'StartDate'   => $sapStartDate,
                 'WhsCode'     => $whs,
                 'Remarks'     => $comments,
                 'Shift'       => $shift,

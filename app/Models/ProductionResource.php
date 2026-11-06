@@ -19,6 +19,15 @@ class ProductionResource extends Model
      */
     protected $table = 'production.production_resources';
 
+    public function getTable()
+    {
+        $conn = config('database.connections.' . ($this->connection ?: config('database.default')));
+        if (($conn['driver'] ?? '') === 'sqlite' || config('database.default') === 'sqlite') {
+            return 'production_resources';
+        }
+        return parent::getTable();
+    }
+
     /**
      * The attributes that are mass assignable.
      */

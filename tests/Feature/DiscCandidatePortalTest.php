@@ -145,6 +145,7 @@ class DiscCandidatePortalTest extends TestCase
             'email'     => 'ahmad@example.com',
             'phone'     => '082233445566',
             'password'  => Hash::make('password123'),
+            'status'    => DiscCandidate::STATUS_SHORTLIST,
         ]);
 
         Sanctum::actingAs($candidate);
@@ -186,6 +187,7 @@ class DiscCandidatePortalTest extends TestCase
             'email'     => 'rina@example.com',
             'phone'     => '081334455667',
             'password'  => Hash::make('password123'),
+            'status'    => DiscCandidate::STATUS_SHORTLIST,
         ]);
 
         Sanctum::actingAs($candidate);
@@ -246,6 +248,7 @@ class DiscCandidatePortalTest extends TestCase
             'email'     => 'gita@example.com',
             'phone'     => '081999888777',
             'password'  => Hash::make('password123'),
+            'status'    => DiscCandidate::STATUS_SHORTLIST,
         ]);
 
         Sanctum::actingAs($candidate);
