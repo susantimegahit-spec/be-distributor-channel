@@ -13,10 +13,20 @@ class ProductionReceiptItem extends Model
     protected $connection = 'pgsql_production';
     protected $table = 'production.production_receipt_items';
 
+    public function getTable()
+    {
+        $conn = config('database.connections.' . ($this->connection ?: config('database.default')));
+        if (($conn['driver'] ?? '') === 'sqlite' || config('database.default') === 'sqlite') {
+            return 'production_receipt_items';
+        }
+        return parent::getTable();
+    }
+
     protected $fillable = [
         'production_receipt_id',
         'production_order_id',
         'line_num',
+        'sort_order',
         'base_type',
         'base_entry',
         'base_line',
@@ -31,9 +41,10 @@ class ProductionReceiptItem extends Model
     ];
 
     protected $casts = [
-        'quantity'  => 'decimal:4',
-        'line_num'  => 'integer',
-        'base_type' => 'integer',
+        'quantity'   => 'decimal:4',
+        'line_num'   => 'integer',
+        'sort_order' => 'integer',
+        'base_type'  => 'integer',
     ];
 
     public function receipt(): BelongsTo

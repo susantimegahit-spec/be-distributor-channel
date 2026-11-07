@@ -1,0 +1,4352 @@
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    AddDoPayload:
+      type: object
+      description: Payload untuk Add Delivery Order. Semua field bersifat opsional kecuali disebutkan lain.
+      properties:
+        is_draft:
+          type: boolean
+          description: Jika true, sistem hanya menyimpan checklist & signature tanpa mengirim DO ke SAP. Status picklist menjadi IN_PROGRESS.
+          example: false
+        Series:
+          type: integer
+          description: Nomor Series DO di SAP. Default mengambil dari picklist atau SO.
+          example: 75
+        NumAtCard:
+          type: string
+          description: Nomor PO Customer / Order No
+          example: "PO-CUST-001"
+        DocDate:
+          type: string
+          format: date-time
+          description: Tanggal dokumen
+          example: "2026-09-24T00:00:00"
+        DocDueDate:
+          type: string
+          format: date-time
+          description: Tanggal jatuh tempo pengiriman
+          example: "2026-09-24T00:00:00"
+        TaxDate:
+          type: string
+          format: date-time
+          description: Tanggal pajak
+          example: "2026-09-24T00:00:00"
+        Comments:
+          type: string
+          description: Catatan pengiriman
+          example: "Pengiriman parsial SO tahap 1"
+        NoPol:
+          type: string
+          description: Nomor polisi kendaraan
+          example: "B 1234 ABC"
+        KodeEkspedisi:
+          type: string
+          description: Kode ekspedisi
+          example: "JNE"
+        NamaEkspedisi:
+          type: string
+          description: Nama vendor ekspedisi
+          example: "JNE Trucking"
+        Sopir:
+          type: string
+          description: Nama supir / driver
+          example: "Budi Santoso"
+        NamaChecker:
+          type: string
+          description: Nama staf checker gudang. Multi-checker dipisah garis miring (contoh "ROCHIM/NANANG").
+          example: "ROCHIM/NANANG"
+        Noseal:
+          type: string
+          description: Nomor segel pengiriman
+          example: "12345"
+        CardCode:
+          type: string
+          description: Opsional. Otomatis diambil dari Sales Order asal.
+          example: "C20000"
+        Lines:
+          type: array
+          description: Data baris pengiriman. Jika dikosongkan, sistem auto-generate dari picklist items.
+          items:
+            type: object
+            required:
+              - BaseEntry
+              - BaseLine
+              - Quantity
+            properties:
+              id:
+                type: integer
+                description: ID baris picklist item (picklist_items.id).
+                example: 10
+              BaseEntry:
+                type: integer
+                description: DocEntry dari Sales Order SAP
+                example: 1052
+              BaseLine:
+                type: integer
+                description: LineNum dari Sales Order (index mulai dari 0)
+                example: 0
+              Quantity:
+                type: number
+                description: Jumlah barang dikirim
+                example: 5.0
+              checked_qty:
+                type: number
+                description: Jumlah kuantitas barang yang diverifikasi checker
+                example: 5.0
+              checked_by_checker:
+                type: string
+                description: Nama staf checker yang memverifikasi item ini
+                example: "ROCHIM"
+              start_time:
+                type: string
+                format: date-time
+                description: Waktu mulai pemeriksaan oleh checker (KPI)
+                example: "2026-10-14T09:00:00"
+              end_time:
+                type: string
+                format: date-time
+                description: Waktu selesai pemeriksaan oleh checker (KPI)
+                example: "2026-10-14T09:25:00"
+              labels:
+                type: array
+                description: |
+                  Daftar label kemasan produk beserta tanggal produksi untuk item ini.
+                  Satu baris item dapat memiliki lebih dari satu batch/tanggal produksi dan lebih dari satu foto label.
+                items:
+                  type: object
+                  properties:
+                    production_date:
+                      type: string
+                      format: date
+                      description: Tanggal produksi barang fisik yang tertera pada kemasan/label produk
+                      example: "2026-10-10"
+                    label_photos:
+                      type: array
+                      description: Daftar foto label produk / kemasan untuk tanggal produksi ini. Mendukung Base64 Data URI (`data:image/jpeg;base64,...`) atau upload file.
+                      items:
+                        type: string
+                        example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
+              WhsCode:
+                type: string
+                description: Kode gudang
+                example: "01"
+              OcrCode:
+                type: string
+                description: Kode cabang (Cost Center 1)
+                example: "SBY"
+              OcrCode2:
+                type: string
+                description: Kode unit (Cost Center 2)
+                example: "GRM"
+              OcrCode3:
+                type: string
+                description: Kode departemen (Cost Center 3)
+                example: "MKT"
+              is_checked:
+                type: boolean
+                description: |
+                  Status centang item ini oleh checker. Digunakan saat `is_draft: true` untuk menandai item mana saja yang sudah diverifikasi.
+                  Jika tidak dikirim, default false. Item yang belum is_checked tidak dikirim ke SAP saat finalisasi DO.
+                example: true
+        signatures:
+          type: array
+          description: |
+            Tanda tangan Checker dan Supir. Dikirim bersamaan di endpoint add-do ini — tidak perlu endpoint POST /signatures terpisah.
+            Mendukung format Base64 Data URL (`data:image/png;base64,...`) maupun multipart/form-data file upload.
+          items:
+            type: object
+            required:
+              - signer_type
+              - signer_name
+              - signature
+            properties:
+              signer_type:
+                type: string
+                enum: [checker, driver, supervisor]
+                description: Tipe penandatangan
+                example: "checker"
+              signer_role_title:
+                type: string
+                description: Label jabatan (misal "Checker 1 (Gudang)", "Supir")
+                example: "Checker 1 (Gudang)"
+              signer_name:
+                type: string
+                description: Nama penandatangan
+                example: "ROCHIM"
+              signature:
+                type: string
+                description: Data gambar tanda tangan dalam format Base64 Data URL
+                example: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA..."
+              notes:
+                type: string
+                description: Catatan pemeriksaan opsional
+                example: "Barang lengkap dan sesuai fisik"
+              signed_at:
+                type: string
+                format: date-time
+                description: Waktu tanda tangan
+        workers:
+          type: array
+          description: |
+            Daftar tenaga kerja (worker/kuli bongkar muat) yang mengangkut barang.
+            Sistem secara otomatis menghitung tarif lembur (overtime fee) berdasarkan master data loading rates dikalikan berat/qty yang diangkut.
+          items:
+            type: object
+            required:
+              - item_code
+              - qty
+            properties:
+              item_code:
+                type: string
+                description: Kode item produk yang diangkut
+                example: "SKU-LOAD-01"
+              worker_name:
+                type: string
+                nullable: true
+                description: Nama worker / kuli (opsional)
+                example: "Pak Budi"
+              qty:
+                type: number
+                description: Berat atau kuantitas barang yang diangkut
+                example: 500
+              rate:
+                type: number
+                nullable: true
+                description: Override tarif lembur per satuan (opsional, jika tidak diisi maka diambil otomatis dari master data loading_rates)
+                example: 1500
+              notes:
+                type: string
+                nullable: true
+                description: Catatan tambahan
+    MasterApproval:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: DRAFT
+        label:
+          type: string
+          example: DRAFT
+        action:
+          type: string
+          example: create draft
+        notification_type:
+          type: string
+          example: none
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-06-18T13:45:01+07:00"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-06-18T13:45:01+07:00"
+
+    SuccessMessageResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Success
+        data:
+          type: object
+          nullable: true
+          example: null
+
+    CustomerShipto:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        card_code:
+          type: string
+          example: "C110000001"
+        name:
+          type: string
+          example: "124, TK"
+        alias:
+          type: string
+          nullable: true
+          example: "Toko Sidoarjo Central"
+        address:
+          type: string
+          example: "Alamat Kirim"
+        city:
+          type: string
+          example: "SIDOARJO"
+        street:
+          type: string
+          example: "PS BLURU KIDUL NO 124"
+        transport_mode:
+          type: string
+          nullable: true
+          enum: [D, L, U]
+          description: "Kode moda transportasi: D (Darat), L (Laut), U (Udara)"
+          example: "D"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-25T08:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-25T08:00:00.000000Z"
+
+    LoginSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Login berhasil.
+        data:
+          type: object
+          properties:
+            user:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  example: 1
+                name:
+                  type: string
+                  example: Administrator PT Susanti Megah
+                username:
+                  type: string
+                  example: admin
+                email:
+                  type: string
+                  example: admin@susantimegah.com
+                role_id:
+                  type: integer
+                  example: 5
+                role_name:
+                  type: string
+                  example: administrator
+                code_customer:
+                  type: string
+                  example: C110000411
+                id_distributor:
+                  type: integer
+                  nullable: true
+                  example: 1
+                name_distributor:
+                  type: string
+                  nullable: true
+                  example: PT XYZ
+                expedition_code:
+                  type: string
+                  nullable: true
+                  example: EXP0001
+                id_expedition:
+                  type: integer
+                  nullable: true
+                  example: 1
+                name_expedition:
+                  type: string
+                  nullable: true
+                  example: PT Jalur Nugraha Ekakurir
+                is_active:
+                  type: boolean
+                  example: true
+                originator:
+                  type: string
+                  nullable: true
+                  example: "PR_ORIGINATOR_01"
+                stage:
+                  type: string
+                  nullable: true
+                  example: "OM"
+                accessible_systems:
+                  type: array
+                  items:
+                    type: string
+                  example: ["distributor", "ekspedisi"]
+                has_custom_override:
+                  type: boolean
+                  example: true
+                actions:
+                  type: array
+                  items:
+                    type: object
+                  example:
+                    - menu_key: "sales-order"
+                      actions:
+                        create: false
+                        read: true
+                        update: false
+                        delete: false
+                        approve: false
+                        export: true
+                custom_permissions:
+                  type: array
+                  items:
+                    type: object
+                  example:
+                    - menu_key: "sales-order"
+                      actions:
+                        create: false
+                        read: true
+                        update: false
+                        delete: false
+                        approve: false
+                        export: true
+            menu:
+              type: array
+              items:
+                type: object
+              example:
+                - id: "customer-portal.order"
+                  title: "Order"
+            actions:
+              type: array
+              items:
+                type: object
+              example:
+                - menu_key: "sales-order"
+                  actions:
+                    create: false
+                    read: true
+                    update: false
+                    delete: false
+                    approve: false
+                    export: true
+            permissions:
+              type: array
+              items:
+                type: object
+              example:
+                - menu_key: "sales-order"
+                  actions:
+                    create: false
+                    read: true
+                    update: false
+                    delete: false
+                    approve: false
+                    export: true
+            permissions_map:
+              type: object
+              example:
+                sales-order:
+                  create: false
+                  read: true
+                  update: false
+                  delete: false
+                  approve: false
+                  export: true
+            access_token:
+              type: string
+              example: 1|laravel_sanctum_token_string_here
+            token_type:
+              type: string
+              example: Bearer
+
+    RefreshTokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Token berhasil diperbarui.
+        data:
+          type: object
+          properties:
+            access_token:
+              type: string
+              example: 2|new_laravel_sanctum_token_string_here
+            token_type:
+              type: string
+              example: Bearer
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        status_code:
+          type: integer
+          example: 422
+        message:
+          type: string
+          example: Error message description.
+        errors:
+          type: object
+          example: {}
+
+    Role:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: distributor
+        is_active:
+          type: boolean
+          example: true
+        accessible_systems:
+          type: array
+          items:
+            type: string
+          example: ["distributor", "ekspedisi"]
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-06-05T08:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-06-05T08:00:00.000000Z"
+        role_menu:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            role_id:
+              type: integer
+              example: 1
+            approval_id:
+              type: integer
+              nullable: true
+              example: 3
+            menu:
+              type: array
+              items:
+                type: object
+              example: []
+            is_active:
+              type: boolean
+              example: true
+            created_at:
+              type: string
+              format: date-time
+              example: "2026-06-05T08:00:00.000000Z"
+            updated_at:
+              type: string
+              format: date-time
+              example: "2026-06-05T08:00:00.000000Z"
+
+    RoleListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Daftar role berhasil diambil.
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+
+    RoleResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Detail role berhasil diambil.
+        data:
+          $ref: '#/components/schemas/Role'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 2
+        name:
+          type: string
+          example: Budi Santoso
+        username:
+          type: string
+          example: budis
+        email:
+          type: string
+          example: budi@susantimegah.com
+        role_id:
+          type: integer
+          example: 5
+        code_customer:
+          type: string
+          nullable: true
+          example: C110000411
+        expedition_code:
+          type: string
+          nullable: true
+          example: EXP0001
+        is_active:
+          type: boolean
+          example: true
+        originator:
+          type: string
+          nullable: true
+          example: "PR_ORIGINATOR_01"
+        stage:
+          type: string
+          nullable: true
+          example: "OM"
+        accessible_systems:
+          type: array
+          items:
+            type: string
+          example: ["distributor", "ekspedisi"]
+        has_custom_override:
+          type: boolean
+          example: true
+        actions:
+          type: array
+          items:
+            type: object
+          example:
+            - menu_key: "sales-order"
+              actions:
+                create: false
+                read: true
+                update: false
+                delete: false
+                approve: false
+                export: true
+        permissions:
+          type: array
+          items:
+            type: object
+          example:
+            - menu_key: "sales-order"
+              actions:
+                create: false
+                read: true
+                update: false
+                delete: false
+                approve: false
+                export: true
+        permissions_map:
+          type: object
+          example:
+            sales-order:
+              create: false
+              read: true
+              update: false
+              delete: false
+              approve: false
+              export: true
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-06-05T08:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-06-05T08:00:00.000000Z"
+        role:
+          $ref: '#/components/schemas/Role'
+        distributor:
+          $ref: '#/components/schemas/Distributor'
+        expedition:
+          $ref: '#/components/schemas/Expedition'
+
+    UserListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Daftar user berhasil diambil.
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+
+    UserResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Detail user berhasil diambil.
+        data:
+          $ref: '#/components/schemas/User'
+
+    Distributor:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        code_customer:
+          type: string
+          example: C110000411
+        name:
+          type: string
+          example: PT XYZ
+        address:
+          type: string
+          nullable: true
+          example: Jl. Dummy No. 123, Jakarta
+        phone:
+          type: string
+          nullable: true
+          example: 021-12345678
+        email:
+          type: string
+          nullable: true
+          example: info@xyz.com
+        mail_address:
+          type: string
+          nullable: true
+          example: JL DSN GEBRUKAN DESA SRIKATON
+        contact_person:
+          type: string
+          nullable: true
+          example: SAKTI SETIA SANTOSA, PT.
+        sub_group:
+          type: string
+          nullable: true
+          example: Distributor
+        depo:
+          type: string
+          nullable: true
+          example: TULUNGAGUNG
+        bank_code:
+          type: string
+          nullable: true
+          example: BCA
+        bank_name:
+          type: string
+          nullable: true
+          example: Bank Central Asia
+        client_bank_name:
+          type: string
+          nullable: true
+          example: PT SAKTI SETIA SANTOSA
+        account_bank_number:
+          type: string
+          nullable: true
+          example: "9755182391"
+        status:
+          type: integer
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-06-08T08:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-06-08T08:00:00.000000Z"
+
+    DistributorListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Daftar distributor berhasil diambil.
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Distributor'
+
+    DistributorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Detail distributor berhasil diambil.
+        data:
+          $ref: '#/components/schemas/Distributor'
+
+    Item:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        item_code:
+          type: string
+          example: A26
+        item_name:
+          type: string
+          example: TOP 250 M @ 10 KG / BAL
+        suom_entry:
+          type: integer
+          nullable: true
+          example: 4
+        sal_unit_msr:
+          type: string
+          nullable: true
+          example: Bal
+        per_kg:
+          type: string
+          nullable: true
+          example: "10.0000"
+        iuom_entry:
+          type: integer
+          nullable: true
+          example: -1
+        invntry_uom:
+          type: string
+          nullable: true
+          example: "Pcs"
+        puom_entry:
+          type: integer
+          nullable: true
+          example: 0
+        pur_pack_msr:
+          type: string
+          nullable: true
+          example: ""
+        prchse_item:
+          type: string
+          nullable: true
+          example: "Y"
+        sell_item:
+          type: string
+          nullable: true
+          example: "Y"
+        invnt_item:
+          type: string
+          nullable: true
+          example: "Y"
+        itms_grp_cod:
+          type: string
+          nullable: true
+          example: "105"
+        brand:
+          type: string
+          nullable: true
+          example: KAPAL
+        status:
+          type: integer
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-06-09T08:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-06-09T08:00:00.000000Z"
+
+    SalesEmployee:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        slp_code:
+          type: integer
+          example: 28
+        slp_name:
+          type: string
+          example: ANDAR WARDANA
+        status:
+          type: integer
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-06-09T08:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-06-09T08:00:00.000000Z"
+
+    SalesDistributorMapping:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        code_customer:
+          type: string
+          example: "C110000411"
+        slp_code:
+          type: integer
+          example: 28
+        status:
+          type: integer
+          enum: [0, 1]
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        distributor:
+          $ref: '#/components/schemas/Distributor'
+        sales_employee:
+          $ref: '#/components/schemas/SalesEmployee'
+
+    Vat:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        code:
+          type: string
+          example: S2
+        name:
+          type: string
+          example: PPN Sales 0%
+        rate:
+          type: string
+          example: "0.000000"
+        status:
+          type: integer
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-06-09T08:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-06-09T08:00:00.000000Z"
+
+    Warehouse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        whs_code:
+          type: string
+          example: FG05
+        whs_name:
+          type: string
+          example: BARANG JADI - BANJARMASIN
+        status:
+          type: integer
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-06-09T08:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-06-09T08:00:00.000000Z"
+
+    SaveSalesOrderRequest:
+      oneOf:
+        - $ref: '#/components/schemas/SalesOrderWorkflowRequest'
+        - $ref: '#/components/schemas/SalesOrderDraftUpdateRequest'
+
+    SalesOrderWorkflowRequest:
+      type: object
+      required:
+        - action
+      properties:
+        action:
+          type: string
+          enum: [submit, approve, reject]
+          description: Aksi alur persetujuan (submit dari draft, approve ke tahap berikutnya, atau reject kembali ke tahap sebelumnya).
+          example: approve
+        notes:
+          type: string
+          description: Catatan persetujuan (opsional) atau alasan penolakan (wajib jika action adalah reject).
+          example: Dokumen disetujui.
+
+    SalesOrderDraftUpdateRequest:
+      type: object
+      required:
+        - card_code
+        - doc_date
+        - slp_code
+        - lines
+      properties:
+        action:
+          type: string
+          enum: [submit, approve, reject]
+          description: Aksi alur persetujuan (submit, approve, atau reject).
+          example: submit
+        card_code:
+          type: string
+          example: C110003074
+        po_number:
+          type: string
+          example: PO1212-ABC
+        doc_date:
+          type: string
+          format: date
+          example: "2026-02-25"
+        doc_due_date:
+          type: string
+          format: date
+          example: "2026-02-25"
+        eta_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-03-04"
+        slp_code:
+          type: integer
+          example: 0
+        cntct_code:
+          type: integer
+          example: -1
+        pay_to_code:
+          type: string
+          example: ALAMAT PENAGIHAN
+        address:
+          type: string
+          example: "KOMPLEK PURI MUTIARA BLOK B 5-6, SUNTER\r\n14350 JAKARTA UTARA\r\nINDONESIA"
+        ship_to_code:
+          type: string
+          example: ALAMAT KIRIM
+        address2:
+          type: string
+          example: "KOMPLEK PURI MUTIARA BLOK B 5-6, SUNTER\r\n14350 JAKARTA UTARA\r\nINDONESIA"
+        comments:
+          type: string
+          example: Test ADD
+        id_discount:
+          type: string
+          example: "260310699"
+        use_balance:
+          type: integer
+          enum: [0, 1]
+          description: Flag to indicate if the distributor uses their reward balance (1 for true, 0 for false)
+          example: 1
+        series:
+          type: integer
+          nullable: true
+          example: 4185
+        series_name:
+          type: string
+          nullable: true
+          example: "SBY26-01"
+        status:
+          type: string
+          enum: [DRAFT, WAITING_APPROVAL]
+          example: DRAFT
+        attachment:
+          type: string
+          format: binary
+          description: File attachment PDF (max 1MB)
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/SaveSalesOrderDetailRequest'
+
+    SaveSalesOrderDetailRequest:
+      type: object
+      required:
+        - item_code
+        - quantity
+        - unit_price
+        - line_total
+      properties:
+        item_code:
+          type: string
+          example: E65
+        quantity:
+          type: number
+          example: 3000000
+        unit_msr:
+          type: string
+          example: Kg
+        uom_entry:
+          type: integer
+          example: 1
+        whs_code:
+          type: string
+          example: FG04
+        unit_price:
+          type: number
+          example: 124500000.00
+        disc_percent:
+          type: number
+          example: 0
+        vat_group:
+          type: string
+          example: S1
+        line_total:
+          type: number
+          example: 124500000.00
+        free_text:
+          type: string
+          example: ""
+        ocr_code:
+          type: string
+          example: SBY
+        ocr_code2:
+          type: string
+          example: GRM
+        ocr_code3:
+          type: string
+          example: MKT
+
+    SalesOrderDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        sales_order_id:
+          type: integer
+          example: 1
+        item_code:
+          type: string
+          example: E65
+        quantity:
+          type: string
+          example: "3000000.0000"
+        unit_msr:
+          type: string
+          example: Kg
+        uom_entry:
+          type: integer
+          example: 1
+        whs_code:
+          type: string
+          example: FG04
+        unit_price:
+          type: string
+          example: "124500000.00"
+        disc_percent:
+          type: string
+          example: "0.00"
+        vat_group:
+          type: string
+          example: S1
+        line_total:
+          type: string
+          example: "124500000.00"
+        free_text:
+          type: string
+          nullable: true
+          example: ""
+        ocr_code:
+          type: string
+          nullable: true
+          example: SBY
+        ocr_code2:
+          type: string
+          nullable: true
+          example: GRM
+        ocr_code3:
+          type: string
+          nullable: true
+          example: MKT
+        item_name:
+          type: string
+          nullable: true
+          example: "TOP 250 M @ 10 KG / BAL"
+        whs_name:
+          type: string
+          nullable: true
+          example: "Finished Goods 04"
+        vat_name:
+          type: string
+          nullable: true
+          example: "PPN 11%"
+        ocr_name:
+          type: string
+          nullable: true
+          example: "Surabaya"
+        ocr_name2:
+          type: string
+          nullable: true
+          example: "Garam"
+        ocr_name3:
+          type: string
+          nullable: true
+          example: "Marketing"
+
+    SalesOrder:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        order_no:
+          type: string
+          example: SO-20260608-0001
+        distributor_id:
+          type: integer
+          example: 1
+        card_code:
+          type: string
+          example: C110003074
+        customer_name:
+          type: string
+          example: PT XYZ
+        po_number:
+          type: string
+          nullable: true
+          example: PO1212-ABC
+        doc_date:
+          type: string
+          format: date
+          example: "2026-02-25"
+        doc_due_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-02-25"
+        eta_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-03-04"
+        slp_code:
+          type: integer
+          nullable: true
+          example: 0
+        sales_employee_name:
+          type: string
+          nullable: true
+          example: "John Doe"
+        depo:
+          type: string
+          nullable: true
+          example: "DEPO SURABAYA"
+        cntct_code:
+          type: integer
+          example: -1
+        pay_to_code:
+          type: string
+          nullable: true
+          example: ALAMAT PENAGIHAN
+        address:
+          type: string
+          nullable: true
+          example: "KOMPLEK PURI MUTIARA BLOK B 5-6, SUNTER"
+        ship_to_code:
+          type: string
+          nullable: true
+          example: ALAMAT KIRIM
+        address2:
+          type: string
+          nullable: true
+          example: "KOMPLEK PURI MUTIARA BLOK B 5-6, SUNTER"
+        disc_percent:
+          type: string
+          example: "0.00"
+        doc_total:
+          type: string
+          example: "124500000.00"
+        DocTotal:
+          type: number
+          example: 72423000.00
+        comments:
+          type: string
+          nullable: true
+          example: Test ADD
+        id_discount:
+          type: string
+          nullable: true
+          example: "260310699"
+        use_balance:
+          type: integer
+          enum: [0, 1]
+          description: Flag to indicate if the distributor uses their reward balance (1 for true, 0 for false)
+          example: 1
+        series:
+          type: integer
+          nullable: true
+          example: 4185
+        series_name:
+          type: string
+          nullable: true
+          example: "SBY26-01"
+        status:
+          type: string
+          example: DRAFT
+        sap_doc_entry:
+          type: integer
+          nullable: true
+        sap_doc_num:
+          type: string
+          nullable: true
+        sap_error:
+          type: string
+          nullable: true
+        sap_discount_code:
+          type: string
+          nullable: true
+        submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+        integrated_at:
+          type: string
+          format: date-time
+          nullable: true
+        delivery_date:
+          type: string
+          format: date-time
+          nullable: true
+        arrived_date:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-06-08T08:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-06-08T08:00:00.000000Z"
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalesOrderDetail'
+        sap_discount:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+              example: 1
+            discount_code:
+              type: string
+              example: "20260314001"
+            card_code:
+              type: string
+              example: "C110003074"
+            card_name:
+              type: string
+              example: "LESAFFRE SARI"
+            total_so:
+              type: string
+              example: "0.00"
+            user_id:
+              type: integer
+              nullable: true
+              example: 5
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    example: 1
+                  sap_discount_header_id:
+                    type: integer
+                    example: 1
+                  type_discount:
+                    type: string
+                    example: "Diskon Item"
+                  percentage:
+                    type: string
+                    example: "0.00"
+                  total_discount:
+                    type: string
+                    example: "3000000.00"
+                  remarks:
+                    type: string
+                    nullable: true
+                    example: "DISC SEMARAK AWAL THN"
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalesOrderAttachment'
+
+    SalesOrderAttachment:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        sales_order_id:
+          type: integer
+          example: 1
+        file_name:
+          type: string
+          example: "invoice.pdf"
+        file_path:
+          type: string
+          example: "attachments/order/20260617_SO-20260617-1234.pdf"
+        file_type:
+          type: string
+          example: "application/pdf"
+        file_size:
+          type: integer
+          example: 512000
+        uploaded_by:
+          type: integer
+          nullable: true
+          example: 2
+        file_url:
+          type: string
+          example: "http://localhost:8000/storage/attachments/order/20260617_SO-20260617-1234.pdf"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    SalesOrderResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Detail sales order berhasil diambil.
+        data:
+          $ref: '#/components/schemas/SalesOrder'
+
+    SalesOrderListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Daftar sales order berhasil diambil.
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalesOrder'
+
+    DistributorItemPrice:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        code_customer:
+          type: string
+          example: C110000411
+        customer_name:
+          type: string
+          nullable: true
+          example: PT XYZ
+        depo:
+          type: string
+          nullable: true
+          example: DEPO SURABAYA
+        item_code:
+          type: string
+          example: A26
+        item_name:
+          type: string
+          nullable: true
+          example: TOP 250 M @ 10 KG / BAL
+        price:
+          type: string
+          example: "12500.00"
+        created_by:
+          type: integer
+          nullable: true
+          example: 1
+        updated_by:
+          type: integer
+          nullable: true
+          example: 1
+        status:
+          type: integer
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-06-09T08:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-06-09T08:00:00.000000Z"
+
+    DistributorItemPriceListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Daftar harga item distributor berhasil diambil.
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/DistributorItemPrice'
+
+    DistributorItemPriceResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Detail harga item distributor berhasil diambil.
+        data:
+          $ref: '#/components/schemas/DistributorItemPrice'
+
+    CreateDistributorItemPriceRequest:
+      type: object
+      required:
+        - code_customer
+        - item_code
+        - price
+      properties:
+        code_customer:
+          type: string
+          example: C110000411
+        item_code:
+          type: string
+          example: A26
+        price:
+          type: number
+          example: 12500.00
+        status:
+          type: integer
+          example: 1
+
+    UpdateDistributorItemPriceRequest:
+      type: object
+      properties:
+        code_customer:
+          type: string
+          example: C110000411
+        item_code:
+          type: string
+          example: A26
+        price:
+          type: number
+          example: 13000.00
+        status:
+          type: integer
+          example: 1
+
+    Program:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        program_code:
+          type: string
+          example: PRG202606
+        program_name:
+          type: string
+          example: Program Garam Juni 2026
+        start_date:
+          type: string
+          format: date
+          example: "2026-06-01"
+        end_date:
+          type: string
+          format: date
+          example: "2026-06-30"
+        description:
+          type: string
+          nullable: true
+          example: Deskripsi program...
+        status:
+          type: string
+          example: ACTIVE
+        code_customer:
+          type: string
+          nullable: true
+          description: Kode customer/distributor (bisa berupa multiple kode yang dipisahkan koma, misal "CUST01,CUST02")
+          example: C110000411,CUST01
+        item_names:
+          type: string
+          example: "TOP 250 M @ 10 KG / BAL, KOP 250 M @ 10 KG / BAL"
+
+    ProgramDetail:
+      allOf:
+        - $ref: '#/components/schemas/Program'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  item_code:
+                    type: string
+                  item_name:
+                    type: string
+            strata:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  customer_type:
+                    type: string
+                    example: GT
+                  min_qty_kg:
+                    type: number
+                    example: 3.00
+                  max_qty_kg:
+                    type: number
+                    nullable: true
+                    example: 199.00
+                  harga_program_per_kg:
+                    type: number
+                    example: 7700.00
+                  diskon_per_kg:
+                    type: number
+                    example: 200.00
+
+    StoreProgramRequest:
+      type: object
+      required:
+        - program_name
+        - start_date
+        - end_date
+        - items
+        - strata
+      properties:
+        program_code:
+          type: string
+          example: PRG202606
+        program_name:
+          type: string
+          example: Program Garam Juni 2026
+        start_date:
+          type: string
+          format: date
+          example: "2026-06-01"
+        end_date:
+          type: string
+          format: date
+          example: "2026-06-30"
+        description:
+          type: string
+          example: Deskripsi...
+        code_customer:
+          type: string
+          nullable: true
+          description: Kode customer/distributor (bisa berupa array atau string yang dipisahkan koma, misal "CUST01,CUST02")
+          example: C110000411,CUST01
+        items:
+          type: array
+          items:
+            type: string
+          example: ["A26", "B26.B"]
+        strata:
+          type: array
+          items:
+            type: object
+            required:
+              - customer_type
+              - min_qty_kg
+              - harga_program_per_kg
+              - diskon_per_kg
+            properties:
+              customer_type:
+                type: string
+                enum: [GT, MT]
+                example: GT
+              min_qty_kg:
+                type: number
+                example: 3
+              max_qty_kg:
+                type: number
+                nullable: true
+                example: 199
+              harga_program_per_kg:
+                type: number
+                example: 7700
+              diskon_per_kg:
+                type: number
+                example: 200
+
+    UploadResponse:
+      type: object
+      properties:
+        batch_id:
+          type: integer
+          example: 1
+        batch_no:
+          type: string
+          example: UPLOAD-20260612-001
+        total_rows:
+          type: integer
+          example: 105
+        processed_rows:
+          type: integer
+          example: 100
+        invalid_rows:
+          type: integer
+          example: 5
+        total_diskon:
+          type: number
+          example: 2500000.00
+
+    UploadBatch:
+      type: object
+      properties:
+        batch_id:
+          type: integer
+          example: 1
+        id:
+          type: integer
+          example: 1
+        batch_no:
+          type: string
+          example: UPLOAD-20260612-001
+        file_name:
+          type: string
+          example: transaksi_juni.xlsx
+        uploaded_by:
+          type: string
+          example: admin
+        uploaded_at:
+          type: string
+          format: date-time
+          example: "2026-06-13T11:32:00.000000Z"
+        code_customer:
+          type: string
+          nullable: true
+          example: C110000411
+        customer_name:
+          type: string
+          nullable: true
+          example: PT XYZ
+        name_customer:
+          type: string
+          nullable: true
+          example: PT XYZ
+        depo:
+          type: string
+          nullable: true
+          example: DEPO SURABAYA
+        total_rows:
+          type: integer
+          example: 105
+        valid_rows:
+          type: integer
+          example: 100
+        invalid_rows:
+          type: integer
+          example: 5
+        approved_rows:
+          type: integer
+          example: 80
+        pending_rows:
+          type: integer
+          example: 20
+        item_not_found_rows:
+          type: integer
+          example: 2
+        program_not_found_rows:
+          type: integer
+          example: 2
+        strata_not_found_rows:
+          type: integer
+          example: 1
+        total_diskon:
+          type: number
+          example: 2500000.00
+
+    UploadBatchDetail:
+      type: object
+      properties:
+        batch_id:
+          type: integer
+          example: 1
+        batch_no:
+          type: string
+          example: UPLOAD-20260612-001
+        file_name:
+          type: string
+          example: transaksi_juni.xlsx
+        uploaded_by:
+          type: string
+          example: admin
+        uploaded_at:
+          type: string
+          format: date-time
+          example: "2026-06-13T11:32:00.000000Z"
+        distributor_ref_no:
+          type: string
+          nullable: true
+          example: CLM-DIST-202610-001
+        depo:
+          type: string
+          nullable: true
+          example: DEPO SURABAYA
+        total_rows:
+          type: integer
+          example: 105
+        valid_rows:
+          type: integer
+          example: 100
+        invalid_rows:
+          type: integer
+          example: 5
+        approved_rows:
+          type: integer
+          example: 80
+        pending_rows:
+          type: integer
+          example: 20
+        item_not_found_rows:
+          type: integer
+          example: 2
+        program_not_found_rows:
+          type: integer
+          example: 2
+        strata_not_found_rows:
+          type: integer
+          example: 1
+        total_diskon:
+          type: number
+          example: 2500000.00
+
+    CalculationResult:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        customer_code:
+          type: string
+          example: C110000411
+        customer_name:
+          type: string
+          example: DUA JAYA, CV
+        depo:
+          type: string
+          nullable: true
+          example: DEPO SURABAYA
+        distributor_customer_code:
+          type: string
+          nullable: true
+          example: CUST-SM-001
+        distributor_customer_name:
+          type: string
+          nullable: true
+          example: TOKO MAKMUR JAYA
+        address:
+          type: string
+          nullable: true
+          example: JL. RAYA RUNGKUT INDUSTRI NO. 10
+        city:
+          type: string
+          nullable: true
+          example: SURABAYA
+        district:
+          type: string
+          nullable: true
+          example: RUNGKUT
+        salesman_name:
+          type: string
+          nullable: true
+          example: BUDI SANTOSO
+        item_code:
+          type: string
+          example: A26
+        item_name:
+          type: string
+          example: TOP 250 M @ 10 KG / BAL
+        item_category:
+          type: string
+          nullable: true
+          example: REGULER
+        qty_kg:
+          type: number
+          example: 100.00
+        sell_price_per_kg:
+          type: number
+          example: 6400.00
+        customer_type:
+          type: string
+          example: GT
+        transaction_type:
+          type: string
+          nullable: true
+          example: KREDIT
+        channel:
+          type: string
+          nullable: true
+          example: RETAIL
+        invoice_no:
+          type: string
+          nullable: true
+          example: INV-2026-001
+        dpp:
+          type: number
+          nullable: true
+          example: 18675000.00
+        diskon_1:
+          type: number
+          nullable: true
+          example: 100000.00
+        diskon_2:
+          type: number
+          nullable: true
+          example: 0.00
+        diskon_3:
+          type: number
+          nullable: true
+          example: 0.00
+        diskon_4:
+          type: number
+          nullable: true
+          example: 0.00
+        diskon_5:
+          type: number
+          nullable: true
+          example: 0.00
+        ppn:
+          type: number
+          nullable: true
+          example: 2043250.00
+        net:
+          type: number
+          nullable: true
+          example: 20618250.00
+        harga_program_per_kg:
+          type: number
+          example: 7700.00
+        diskon_per_kg:
+          type: number
+          example: 200.00
+        total_diskon:
+          type: number
+          example: 20000.00
+        transaction_date:
+          type: string
+          format: date
+          example: "2026-06-12"
+        status:
+          type: string
+          example: VALID_PROGRAM
+        desc_status:
+          type: string
+          example: VALID
+
+    Withdraw:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        withdraw_no:
+          type: string
+          example: WD-20260702-001
+        customer_code:
+          type: string
+          example: C110000411
+        batch_id:
+          type: integer
+          nullable: true
+          example: 1
+        lines:
+          type: array
+          nullable: true
+          items:
+            type: object
+            properties:
+              batch_id:
+                type: integer
+                example: 1
+              amount:
+                type: number
+                example: 200000.00
+        code_customer:
+          type: string
+          nullable: true
+          example: C110000411
+        customer_name:
+          type: string
+          nullable: true
+          example: PT XYZ
+        name_customer:
+          type: string
+          nullable: true
+          example: PT XYZ
+        depo:
+          type: string
+          nullable: true
+          example: DEPO SURABAYA
+        amount:
+          type: number
+          example: 250000.00
+        status:
+          type: string
+          example: PENDING
+        transfer_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-07-02"
+        created_by:
+          type: string
+          example: distributor
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-02T09:05:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-02T09:05:00.000000Z"
+
+    Province:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 35
+        name:
+          type: string
+          example: JAWA TIMUR
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-02T09:05:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-02T09:05:00.000000Z"
+
+    Regency:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 3578
+        province_id:
+          type: integer
+          example: 35
+        name:
+          type: string
+          example: KOTA SURABAYA
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-02T09:05:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-02T09:05:00.000000Z"
+
+    District:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 3578080
+        regency_id:
+          type: integer
+          example: 3578
+        name:
+          type: string
+          example: RUNGKUT
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-02T09:05:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-02T09:05:00.000000Z"
+
+    Village:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 3578080001
+        district_id:
+          type: integer
+          example: 3578080
+        name:
+          type: string
+          example: KALIRUNGKUT
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-02T09:05:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-02T09:05:00.000000Z"
+
+    Expedition:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        expedition_code:
+          type: string
+          example: JNE
+        expedition_name:
+          type: string
+          example: PT Jalur Nugraha Ekakurir
+        address:
+          type: string
+          nullable: true
+          example: Jl. Raya Bandara Juanda No. 12
+        city:
+          type: string
+          nullable: true
+          example: Sidoarjo
+        province:
+          type: string
+          nullable: true
+          example: Jawa Timur
+        postal_code:
+          type: string
+          nullable: true
+          example: 61253
+        pic_name:
+          type: string
+          nullable: true
+          example: Budi Santoso
+        pic_phone:
+          type: string
+          nullable: true
+          example: 081234567890
+        email:
+          type: string
+          nullable: true
+          example: budi@jne.co.id
+        npwp:
+          type: string
+          nullable: true
+          example: 01.234.567.8-012.000
+        vehicle_type:
+          type: string
+          nullable: true
+          example: Box Medium
+        transport_mode:
+          type: string
+          nullable: true
+          example: Darat
+        status:
+          type: string
+          example: ACTIVE
+        sap_vendor_code:
+          type: string
+          nullable: true
+          description: Kode CardCode Vendor di SAP Business One (contoh VN10001)
+          example: "VN10001"
+        created_by:
+          type: integer
+          nullable: true
+          example: 1
+        updated_by:
+          type: integer
+          nullable: true
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-23T08:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-23T08:00:00.000000Z"
+
+    ExpeditionRate:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        sap_vendor_code:
+          type: string
+          nullable: true
+          description: Kode CardCode Vendor di SAP Business One (contoh VN10001)
+          example: "VN10001"
+        expedition_id:
+          type: integer
+          example: 1
+        warehouse_id:
+          type: integer
+          nullable: true
+          example: 1
+        destination_id:
+          type: integer
+          nullable: true
+          example: 3578080
+        transport_mode:
+          type: string
+          nullable: true
+          example: Darat
+        service_type:
+          type: string
+          nullable: true
+          example: REGULER
+        min_tonnage:
+          type: number
+          example: 1.00
+        max_tonnage:
+          type: number
+          example: 10.00
+        price:
+          type: number
+          example: 1500000.00
+        eta_days:
+          type: integer
+          nullable: true
+          example: 3
+        min_shipment_qty:
+          type: number
+          example: 100.00
+        max_shipment_qty:
+          type: number
+          example: 5000.00
+        valid_from:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-01-01"
+        valid_until:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-12-31"
+        status:
+          type: string
+          example: ACTIVE
+        remarks:
+          type: string
+          nullable: true
+          example: Tarif khusus area Jawa Timur
+        upload_batch_id:
+          type: string
+          nullable: true
+          example: BATCH-20260723-01
+        created_by:
+          type: integer
+          nullable: true
+          example: 1
+        updated_by:
+          type: integer
+          nullable: true
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-23T08:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-23T08:00:00.000000Z"
+        expedition:
+          $ref: '#/components/schemas/Expedition'
+        destination:
+          $ref: '#/components/schemas/CustomerShipto'
+
+    ProductionBom:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        code:
+          type: string
+          example: ILP000117
+        product_name:
+          type: string
+          nullable: true
+          example: TAMPAR JUMBO
+        qty:
+          type: string
+          example: "1.0000"
+        to_whs:
+          type: string
+          nullable: true
+          example: WHS01
+        type:
+          type: string
+          example: P
+        alternate:
+          type: integer
+          example: 1
+        ocr_code:
+          type: string
+          nullable: true
+          example: CAB01
+        ocr_code2:
+          type: string
+          nullable: true
+          example: BU01
+        ocr_code3:
+          type: string
+          nullable: true
+          example: DEPT01
+        u_shift:
+          type: string
+          nullable: true
+          example: Shift 1
+        u_unit:
+          type: string
+          nullable: true
+          example: Unit A
+        comments:
+          type: string
+          nullable: true
+          example: BOM Garam JUMBO
+        is_active:
+          type: boolean
+          example: true
+        sap_doc_entry:
+          type: integer
+          nullable: true
+          example: 123
+        sap_doc_num:
+          type: string
+          nullable: true
+          example: "456"
+        created_by:
+          type: integer
+          nullable: true
+          example: 2
+        updated_by:
+          type: integer
+          nullable: true
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-17T09:05:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-17T09:05:00.000000Z"
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductionBomItem'
+
+    ProductionBomItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        production_bom_id:
+          type: integer
+          example: 1
+        father:
+          type: string
+          example: ILP000117
+        child_num:
+          type: integer
+          example: 0
+        type:
+          type: string
+          example: Item
+        code:
+          type: string
+          example: RAW001
+        product_name:
+          type: string
+          nullable: true
+          example: GARAM KASAR
+        quantity:
+          type: string
+          example: "0.5000"
+        warehouse:
+          type: string
+          nullable: true
+          example: WHS01
+        issue_mthd:
+          type: string
+          example: B
+        ocr_code:
+          type: string
+          nullable: true
+          example: CAB01
+        ocr_code2:
+          type: string
+          nullable: true
+          example: BU01
+        ocr_code3:
+          type: string
+          nullable: true
+          example: DEPT01
+        ocr_name:
+          type: string
+          nullable: true
+          example: Cabang Utama
+        ocr_name2:
+          type: string
+          nullable: true
+          example: Business Unit Salt
+        ocr_name3:
+          type: string
+          nullable: true
+          example: Dept Pack
+        uom:
+          type: string
+          nullable: true
+          example: Roll
+        comments:
+          type: string
+          nullable: true
+          example: Bahan penolong
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-17T09:05:00.000000Z"
+
+    ProductionOrder:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        doc_entry:
+          type: integer
+          nullable: true
+          example: 12345
+        doc_num:
+          type: string
+          nullable: true
+          example: "260210422"
+        series:
+          type: string
+          nullable: true
+          example: "SBY26-02"
+        prod_order_no:
+          type: string
+          example: "260210422"
+        status:
+          type: string
+          example: "Closed"
+        type:
+          type: string
+          example: "Special"
+        item_code:
+          type: string
+          example: "B26"
+        product_name:
+          type: string
+          nullable: true
+          example: "KOP 250 M @ 10 KG / BAL"
+        planned_qty:
+          type: string
+          example: "7500.0000"
+        cmplt_qty:
+          type: string
+          example: "6318.0000"
+        rjct_qty:
+          type: string
+          example: "0.0000"
+        warehouse:
+          type: string
+          example: "PRD01-05"
+        warehouse_name:
+          type: string
+          nullable: true
+          example: "GUDANG PRODUKSI SURABAYA"
+        priority:
+          type: integer
+          example: 100
+        project:
+          type: string
+          nullable: true
+          example: null
+        post_date:
+          type: string
+          format: date
+          example: "2026-02-19"
+        start_date:
+          type: string
+          format: date
+          example: "2026-02-19"
+        due_date:
+          type: string
+          format: date
+          example: "2026-02-19"
+        origin_type:
+          type: string
+          nullable: true
+          example: "Sales Order"
+        origin_num:
+          type: string
+          nullable: true
+          example: null
+        card_code:
+          type: string
+          nullable: true
+          example: null
+        ocr_code:
+          type: string
+          nullable: true
+          example: "SBY"
+        ocr_code2:
+          type: string
+          nullable: true
+          example: "GRM"
+        ocr_code3:
+          type: string
+          nullable: true
+          example: "PRO"
+        ocr_name:
+          type: string
+          nullable: true
+          example: "Surabaya & Madura"
+        ocr_name2:
+          type: string
+          nullable: true
+          example: "Garam"
+        ocr_name3:
+          type: string
+          nullable: true
+          example: "Produksi"
+        u_shift:
+          type: string
+          nullable: true
+          example: "All"
+        u_unit:
+          type: string
+          nullable: true
+          example: "SBY-UNIT5"
+        comments:
+          type: string
+          nullable: true
+          example: null
+        act_item_cost:
+          type: string
+          example: "230103979.0300"
+        act_res_cost:
+          type: string
+          example: "34875360.0000"
+        act_add_cost:
+          type: string
+          example: "0.0000"
+        act_prod_cost:
+          type: string
+          example: "269446206.7800"
+        act_by_prod_cost:
+          type: string
+          example: "0.0000"
+        total_variance:
+          type: string
+          example: "-4466867.7500"
+        jrnl_memo:
+          type: string
+          nullable: true
+          example: "Production Order - D22"
+        ref_doc:
+          type: string
+          nullable: true
+          example: null
+        act_close_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-02-19"
+        overdue:
+          type: integer
+          nullable: true
+          example: null
+        created_by:
+          type: integer
+          nullable: true
+          example: 1
+        updated_by:
+          type: integer
+          nullable: true
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-27T13:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-27T13:00:00.000000Z"
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductionOrderItem'
+
+    ProductionOrderItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        production_order_id:
+          type: integer
+          example: 1
+        line_num:
+          type: integer
+          example: 0
+        item_code:
+          type: string
+          example: "RM-001"
+        product_name:
+          type: string
+          nullable: true
+          example: "GARAM KASAR"
+        type:
+          type: string
+          example: "Item"
+        base_qty:
+          type: string
+          example: "1.0000"
+        planned_qty:
+          type: string
+          example: "10.0000"
+        issued_qty:
+          type: string
+          example: "0.0000"
+        available_qty:
+          type: string
+          example: "0.0000"
+        warehouse:
+          type: string
+          nullable: true
+          example: "PRD01-05"
+        warehouse_name:
+          type: string
+          nullable: true
+          example: "GUDANG PRODUKSI SURABAYA"
+        issue_mthd:
+          type: string
+          example: "B"
+        ocr_code:
+          type: string
+          nullable: true
+          example: "SBY"
+        ocr_code2:
+          type: string
+          nullable: true
+          example: "GRM"
+        ocr_code3:
+          type: string
+          nullable: true
+          example: "PRO"
+        ocr_name:
+          type: string
+          nullable: true
+          example: "Surabaya & Madura"
+        ocr_name2:
+          type: string
+          nullable: true
+          example: "Garam"
+        ocr_name3:
+          type: string
+          nullable: true
+          example: "Produksi"
+        uom:
+          type: string
+          nullable: true
+          example: "KG"
+        comments:
+          type: string
+          nullable: true
+          example: null
+        base_entry:
+          type: integer
+          nullable: true
+          example: null
+        base_type:
+          type: integer
+          nullable: true
+          example: null
+        base_line:
+          type: integer
+          nullable: true
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-27T13:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-27T13:00:00.000000Z"
+
+    ProductionResource:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        res_code:
+          type: string
+          example: DLC.KOP.BLR.001
+        res_name:
+          type: string
+          example: TKL GARAM KAPAL BLR/  KG
+        unit_of_msr:
+          type: string
+          nullable: true
+          example: KG
+        is_active:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-17T09:05:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-17T09:05:00.000000Z"
+
+    ProductionItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        item_code:
+          type: string
+          example: ILP000117
+        item_name:
+          type: string
+          example: TAMPAR JUMBO
+        i_uom_entry:
+          type: integer
+          nullable: true
+          example: -1
+        invntry_uom:
+          type: string
+          nullable: true
+          example: Roll
+        is_active:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-17T09:05:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-17T09:05:00.000000Z"
+
+    SalesReturn:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        return_no:
+          type: string
+          example: RET/202607/0001
+        sales_order_id:
+          type: integer
+          example: 142
+        distributor_id:
+          type: integer
+          example: 12
+        card_code:
+          type: string
+          example: C110001240
+        customer_name:
+          type: string
+          example: PT Distributor Utama Baru
+        reason:
+          type: string
+          nullable: true
+          example: Barang rusak saat pengiriman fisik
+        doc_total:
+          type: number
+          example: 2500000.00
+        status:
+          type: string
+          example: SUBMITTED
+        sap_doc_num:
+          type: string
+          nullable: true
+          example: null
+        sap_doc_entry:
+          type: integer
+          nullable: true
+          example: null
+        sap_error:
+          type: string
+          nullable: true
+          example: null
+        submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-07-21T10:30:00.000000Z"
+        approved_by:
+          type: integer
+          nullable: true
+          example: null
+        approved_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        rejected_by:
+          type: integer
+          nullable: true
+          example: null
+        rejected_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        reject_reason:
+          type: string
+          nullable: true
+          example: null
+        created_by:
+          type: integer
+          example: 5
+        updated_by:
+          type: integer
+          example: 5
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-21T10:30:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-21T10:30:00.000000Z"
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalesReturnDetail'
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalesReturnAttachment'
+
+    SalesReturnDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        sales_return_id:
+          type: integer
+          example: 1
+        sales_order_id:
+          type: integer
+          example: 142
+        sales_order_no:
+          type: string
+          example: "260710018"
+        sales_order_detail_id:
+          type: integer
+          example: 1043
+        item_code:
+          type: string
+          example: ITEM001
+        quantity:
+          type: number
+          example: 5.0
+        do_quantity:
+          type: number
+          example: 10.0
+        unit_msr:
+          type: string
+          nullable: true
+          example: Box
+        uom_entry:
+          type: integer
+          nullable: true
+          example: 5
+        unit_price:
+          type: number
+          example: 500000.00
+        line_total:
+          type: number
+          example: 2500000.00
+        reason:
+          type: string
+          nullable: true
+          example: Pecah di dalam kardus
+        do_num:
+          type: string
+          nullable: true
+          example: "260710002"
+        do_date:
+          type: string
+          nullable: true
+          format: date
+          example: "2026-07-21"
+        baseline:
+          type: integer
+          nullable: true
+          example: 0
+        status:
+          type: string
+          example: "waiting_admin_sales"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-21T10:30:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-21T10:30:00.000000Z"
+
+    SalesReturnAttachment:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        sales_return_id:
+          type: integer
+          example: 1
+        file_name:
+          type: string
+          example: damage_evidence.jpg
+        file_path:
+          type: string
+          example: returns/1782398239_damage.jpg
+        file_url:
+          type: string
+          example: http://localhost/storage/returns/1782398239_damage.jpg
+        file_type:
+          type: string
+          example: image/jpeg
+        file_size:
+          type: integer
+          example: 190000
+        uploaded_by:
+          type: integer
+          nullable: true
+          example: 5
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-21T10:30:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-21T10:30:00.000000Z"
+
+    WarehouseOrigin:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        whs_name_origin:
+          type: string
+          example: "Gudang Asal Jakarta"
+        whs_code:
+          type: string
+          example: "WHS01"
+        whs_name:
+          type: string
+          example: "Gudang Utama Surabaya"
+        street:
+          type: string
+          nullable: true
+          example: "Jl. Sudirman No. 100"
+        status:
+          type: string
+          example: "ACTIVE"
+        created_by:
+          type: integer
+          nullable: true
+          example: 5
+        updated_by:
+          type: integer
+          nullable: true
+          example: 5
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-07-25T10:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-25T10:00:00.000000Z"
+
+    MasterBudget:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        budget_code:
+          type: string
+          example: BDG-2026-001
+        department:
+          type: string
+          example: FINANCE
+        cost_center:
+          type: string
+          nullable: true
+          example: CC-FIN-01
+        budget_category:
+          type: string
+          nullable: true
+          example: OPERATIONAL
+        budget_amount:
+          type: number
+          example: 50000000
+        used_amount:
+          type: number
+          example: 10000000
+        remaining_amount:
+          type: number
+          example: 40000000
+        period_month:
+          type: integer
+          nullable: true
+          example: 8
+        period_year:
+          type: integer
+          example: 2026
+        status:
+          type: string
+          example: ACTIVE
+        description:
+          type: string
+          nullable: true
+          example: Budget Operasional Q3
+        created_by:
+          type: integer
+          nullable: true
+          example: 1
+        updated_by:
+          type: integer
+          nullable: true
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-08-05T10:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-08-05T10:00:00.000000Z"
+
+    PurchaseRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        pr_number:
+          type: string
+          example: PR-2026-001
+        department:
+          type: string
+          example: FINANCE
+        cost_center:
+          type: string
+          example: CC-FIN-01
+        requester_id:
+          type: integer
+          nullable: true
+          example: 1
+        requester_name:
+          type: string
+          nullable: true
+          example: John Doe
+        doc_date:
+          type: string
+          format: date
+          example: "2026-08-05"
+        required_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-08-15"
+        total_amount:
+          type: number
+          example: 15000000
+        status:
+          type: string
+          example: DRAFT
+        remarks:
+          type: string
+          nullable: true
+          example: Pengadaan Perlengkapan Kantor
+        created_by:
+          type: integer
+          nullable: true
+          example: 1
+        updated_by:
+          type: integer
+          nullable: true
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-08-05T10:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-08-05T10:00:00.000000Z"
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseRequestDetail'
+
+    PurchaseRequestDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        purchase_request_id:
+          type: integer
+          example: 1
+        master_budget_id:
+          type: integer
+          nullable: true
+          example: 1
+        item_code:
+          type: string
+          nullable: true
+          example: ITEM-001
+        item_description:
+          type: string
+          example: Laptop ThinkPad T14
+        quantity:
+          type: number
+          example: 1
+        uom:
+          type: string
+          nullable: true
+          example: UNIT
+        unit_price:
+          type: number
+          example: 15000000
+        total_price:
+          type: number
+          example: 15000000
+        remarks:
+          type: string
+          nullable: true
+          example: Specs Core i7, RAM 16GB
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-08-05T10:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-08-05T10:00:00.000000Z"
+
+    CronJob:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Sync Master Products
+        command:
+          type: string
+          example: sync:master-products
+        expression:
+          type: string
+          example: "0 0 * * *"
+        description:
+          type: string
+          nullable: true
+          example: Sinkronisasi master produk otomatis setiap tengah malam.
+        is_active:
+          type: boolean
+          example: true
+        last_run_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-08-06T00:00:00.000000Z"
+        last_run_status:
+          type: string
+          nullable: true
+          example: success
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-08-01T10:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-08-06T00:00:00.000000Z"
+
+    CronJobLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        cron_job_id:
+          type: integer
+          example: 1
+        run_at:
+          type: string
+          format: date-time
+          example: "2026-08-06T00:00:00.000000Z"
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-08-06T00:00:05.000000Z"
+        status:
+          type: string
+          example: success
+        duration_seconds:
+          type: integer
+          example: 5
+        message:
+          type: string
+          nullable: true
+          example: Executed successfully via manual trigger.
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-08-06T00:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-08-06T00:00:05.000000Z"
+
+    DocumentType:
+      type: object
+      properties:
+        code:
+          type: string
+          example: ORDR
+        name:
+          type: string
+          example: Sales Order
+        object_type:
+          type: string
+          example: "17"
+
+    PurchaseQuotation:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        number:
+          type: string
+          example: "RFQ-20261030-001"
+        token:
+          type: string
+          example: "d7fb79570180453fa657caed290cb91a"
+        link:
+          type: string
+          nullable: true
+          example: "https://smesta-dev.susantimegah.com/quotation-offer/d7fb79570180453fa657caed290cb91a"
+        status:
+          type: string
+          example: "OPEN"
+        title:
+          type: string
+          example: "Pengadaan Sparepart Kompresor"
+        notes:
+          type: string
+          example: "Kirim penawaran sebelum tanggal 10"
+        valid_until:
+          type: string
+          format: date
+          example: "2026-11-15"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-10-30T10:00:00.000000Z"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseQuotationItem'
+        offers_count:
+          type: integer
+          example: 1
+
+    PurchaseQuotationItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        requestId:
+          type: string
+          example: "261010008"
+        requestNumber:
+          type: string
+          example: "261010008"
+        itemCode:
+          type: string
+          example: "ISP001694"
+        itemName:
+          type: string
+          example: "RUMAH FILTER KOMPRESOR"
+        quantity:
+          type: number
+          example: 1
+        unit:
+          type: string
+          example: "Pcs"
+        warehouse:
+          type: string
+          example: "FG01"
+        requiredDate:
+          type: string
+          format: date
+          example: "2026-10-28"
+        notes:
+          type: string
+          example: "Original equipment part"
+
+    PurchaseQuotationOffer:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        quotationId:
+          type: integer
+          example: 1
+        vendor:
+          type: object
+          properties:
+            company:
+              type: string
+              example: "PT Makmur Sentosa"
+            name:
+              type: string
+              example: "Agus Pratama"
+            email:
+              type: string
+              example: "agus@makmursentosa.com"
+            phone:
+              type: string
+              example: "08123456789"
+            notes:
+              type: string
+              example: "Harga belum termasuk PPN 11%"
+        status:
+          type: string
+          example: "SUBMITTED"
+        totalPrice:
+          type: number
+          example: 950000
+        submittedAt:
+          type: string
+          format: date-time
+          example: "2026-10-30T10:15:00.000000Z"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseQuotationOfferItem'
+
+    PurchaseQuotationOfferItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        quotationItemId:
+          type: integer
+          example: 1
+        itemCode:
+          type: string
+          example: "ISP001694"
+        itemName:
+          type: string
+          example: "RUMAH FILTER KOMPRESOR"
+        quantity:
+          type: number
+          example: 1
+        unit:
+          type: string
+          example: "Pcs"
+        unitPrice:
+          type: number
+          example: 150000
+        discountType:
+          type: string
+          nullable: true
+          enum: [percent, nominal]
+          example: "percent"
+        discountValue:
+          type: number
+          example: 10
+        nominalDisc:
+          type: number
+          example: 15000
+        totalPrice:
+          type: number
+          example: 135000
+        leadTime:
+          type: string
+          example: "7 hari"
+        notes:
+          type: string
+          example: "Ready stock"
+        attachment:
+          type: string
+          nullable: true
+          description: URL lampiran item dari S3
+          example: "https://s3.ap-southeast-1.amazonaws.com/bucket/quotation-offers/1/items/item_1_20261103_abc12345.pdf"
+        attachmentName:
+          type: string
+          nullable: true
+          example: "brosur_filter.pdf"
+
+    ReportingTaskInput:
+      type: object
+      required:
+        - task_id
+      properties:
+        task_id:
+          type: string
+          example: "8678abc123"
+        task_name:
+          type: string
+          example: "Develop Production Module API"
+        space_id:
+          type: string
+          example: "901201928"
+        space_name:
+          type: string
+          example: "Engineering"
+        folder_name:
+          type: string
+          example: "Backend Services"
+        list_name:
+          type: string
+          example: "Sprint 3 Backlog"
+        assignee:
+          type: string
+          example: "Sanjay Firmansyah"
+        timeline:
+          type: string
+          example: "Sprint 3"
+        start_date:
+          type: string
+          example: "2026-08-19 09:00:00"
+        due_date:
+          type: string
+          example: "2026-08-25 18:00:00"
+        priority:
+          type: string
+          example: "high"
+        task_type:
+          type: string
+          example: "Feature"
+        created_by:
+          type: string
+          example: "Manager"
+        comment:
+          type: string
+          example: "Integration with SAP B1 is in progress."
+        status:
+          type: string
+          example: "in progress"
+
+    ReportingTask:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        task_id:
+          type: string
+          example: "8678abc123"
+        task_name:
+          type: string
+          example: "Develop Production Module API"
+        space_id:
+          type: string
+          example: "901201928"
+        space_name:
+          type: string
+          example: "Engineering"
+        folder_name:
+          type: string
+          example: "Backend Services"
+        list_name:
+          type: string
+          example: "Sprint 3 Backlog"
+        assignee:
+          type: string
+          example: "Sanjay Firmansyah"
+        timeline:
+          type: string
+          example: "Sprint 3"
+        start_date:
+          type: string
+          format: date-time
+          example: "2026-08-19T09:00:00.000000Z"
+        due_date:
+          type: string
+          format: date-time
+          example: "2026-08-25T18:00:00.000000Z"
+        priority:
+          type: string
+          example: "high"
+        task_type:
+          type: string
+          example: "Feature"
+        created_by:
+          type: string
+          example: "Manager"
+        comment:
+          type: string
+          example: "Integration with SAP B1 is in progress."
+        status:
+          type: string
+          example: "in progress"
+        synced_at:
+          type: string
+          format: date-time
+          example: "2026-08-19T11:40:00.000000Z"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    VendorDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        vendor_code:
+          type: string
+          example: VND-202609-0001
+        vendor_type:
+          type: string
+          example: EXPEDITION
+        company_name:
+          type: string
+          example: PT Cepat Aman Logistik
+        company_email:
+          type: string
+          example: contact@cepataman.com
+        company_phone:
+          type: string
+          nullable: true
+          example: 021-5551234
+        company_npwp:
+          type: string
+          nullable: true
+          example: 01.234.567.8-901.000
+        nik:
+          type: string
+          nullable: true
+          example: "3173010101900001"
+        address:
+          type: string
+          nullable: true
+          example: Jl. Daan Mogot KM 12
+        province:
+          type: string
+          nullable: true
+          description: Kode ID provinsi
+          example: "31"
+        province_name:
+          type: string
+          nullable: true
+          description: Nama provinsi ter-resolve
+          example: DKI JAKARTA
+        city:
+          type: string
+          nullable: true
+          description: Kode ID kabupaten / kota
+          example: "3173"
+        city_name:
+          type: string
+          nullable: true
+          description: Nama kabupaten / kota ter-resolve
+          example: KOTA ADM. JAKARTA BARAT
+        regencies:
+          type: string
+          nullable: true
+          description: Kode ID kabupaten / kota
+          example: "3173"
+        regency_name:
+          type: string
+          nullable: true
+          description: Nama kabupaten / kota ter-resolve
+          example: KOTA ADM. JAKARTA BARAT
+        regencies_name:
+          type: string
+          nullable: true
+          description: Nama kabupaten / kota ter-resolve
+          example: KOTA ADM. JAKARTA BARAT
+        district:
+          type: string
+          nullable: true
+          description: Kode ID kecamatan
+          example: "317301"
+        district_name:
+          type: string
+          nullable: true
+          description: Nama kecamatan ter-resolve
+          example: CENGKARENG
+        village:
+          type: string
+          nullable: true
+          description: Kode ID desa / kelurahan
+          example: "3173011001"
+        village_name:
+          type: string
+          nullable: true
+          description: Nama desa / kelurahan ter-resolve
+          example: CENGKARENG BARAT
+        region_info:
+          type: object
+          nullable: true
+          description: Keterangan terstruktur id dan name seluruh tingkatan wilayah administratif
+          properties:
+            village:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: "3173011001"
+                name:
+                  type: string
+                  example: CENGKARENG BARAT
+            district:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: "317301"
+                name:
+                  type: string
+                  example: CENGKARENG
+            regency:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: "3173"
+                name:
+                  type: string
+                  example: KOTA ADM. JAKARTA BARAT
+            province:
+              type: object
+              properties:
+                id:
+                  type: string
+                  example: "31"
+                name:
+                  type: string
+                  example: DKI JAKARTA
+        postal_code:
+          type: string
+          nullable: true
+          example: "11840"
+        pic_name:
+          type: string
+          example: Hendro Wijaya
+        pic_phone:
+          type: string
+          example: 081298765432
+        pic_email:
+          type: string
+          nullable: true
+          example: hendro@cepataman.com
+        terms_agreed:
+          type: boolean
+          example: true
+        registration_status:
+          type: string
+          example: APPROVED
+        legal_approval_status:
+          type: string
+          example: APPROVED
+        sap_vendor_code:
+          type: string
+          nullable: true
+          example: VN10001
+        documents:
+          type: array
+          items:
+            type: object
+        users:
+          type: array
+          items:
+            type: object
+        approval_histories:
+          type: array
+          items:
+            type: object
+
+    LogisticOrderListItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 101
+        doc_num:
+          type: string
+          example: "SO-2026-00045"
+        doc_entry:
+          type: integer
+          nullable: true
+          example: 98124
+        customer_id:
+          type: integer
+          example: 5
+        customer_shipto_id:
+          type: integer
+          nullable: true
+          example: 12
+        doc_date:
+          type: string
+          format: date
+          example: "2026-09-14"
+        doc_due_date:
+          type: string
+          format: date
+          example: "2026-09-17"
+        req_due_date:
+          type: string
+          format: date
+          example: "2026-09-17"
+        eta_date:
+          type: string
+          format: date
+          example: "2026-09-20"
+        status:
+          type: string
+          example: ORDER_APPROVED
+        logistic_status:
+          type: string
+          example: PENDING
+        proposed_delivery_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-09-19"
+        proposed_eta_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-09-22"
+        logistic_notes:
+          type: string
+          nullable: true
+          example: "Armada wingbox siap."
+        logistic_action_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-09-14T10:00:00.000000Z"
+        logistic_action_by:
+          type: integer
+          nullable: true
+          example: 3
+        benchmark_lead_time_days:
+          type: integer
+          example: 3
+        calculated_lead_time_days:
+          type: integer
+          example: 3
+        is_urgent:
+          type: boolean
+          example: false
+        can_logistic_action:
+          type: boolean
+          example: true
+        can_sales_approve:
+          type: boolean
+          example: false
+        customer:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 5
+            name:
+              type: string
+              example: PT Maju Jaya Bersama
+            code_customer:
+              type: string
+              example: C110000100
+        customer_shipto:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+              example: 12
+            name:
+              type: string
+              example: Gudang Distribusi Solo
+            city:
+              type: string
+              example: SURAKARTA
+        latest_logistic_log:
+          $ref: '#/components/schemas/LogisticOrderLog'
+
+    LogisticOrderLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        sales_order_id:
+          type: integer
+          example: 101
+        action:
+          type: string
+          example: APPROVE_SCHEDULE
+        previous_status:
+          type: string
+          nullable: true
+          example: PENDING
+        new_status:
+          type: string
+          example: APPROVED
+        proposed_delivery_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-09-17"
+        proposed_eta_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-09-20"
+        notes:
+          type: string
+          nullable: true
+          example: "Armada wingbox siap berangkat sesuai jadwal."
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-09-14T10:30:00.000000Z"
+        user:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+              example: 3
+            name:
+              type: string
+              example: Tim Logistik
+            username:
+              type: string
+              example: logistic_user
+
+    MasterLeadtimeItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        warehouse_origin_id:
+          type: integer
+          nullable: true
+          example: 1
+        origin_warehouse_code:
+          type: string
+          nullable: true
+          example: "WHS-SUB"
+        origin_warehouse_name:
+          type: string
+          example: "Gudang Utama Surabaya Waru"
+        origin_city:
+          type: string
+          nullable: true
+          example: "SURABAYA"
+        destination_id:
+          type: integer
+          nullable: true
+          example: 12
+        destination_regency_id:
+          type: integer
+          nullable: true
+          example: 3578
+        destination_code:
+          type: string
+          nullable: true
+          example: "DEST-BDG"
+        destination_name:
+          type: string
+          example: "Gudang Distributor Bandung"
+        destination_city:
+          type: string
+          nullable: true
+          example: "BANDUNG"
+        destination_province:
+          type: string
+          nullable: true
+          example: "JAWA BARAT"
+        avg_lead_time_days:
+          type: number
+          format: float
+          example: 2.50
+        min_lead_time_days:
+          type: number
+          format: float
+          nullable: true
+          example: 2.00
+        max_lead_time_days:
+          type: number
+          format: float
+          nullable: true
+          example: 3.00
+        lead_time_unit:
+          type: string
+          example: "DAYS"
+        transport_mode:
+          type: string
+          example: "LAND"
+        distance_km:
+          type: number
+          format: float
+          nullable: true
+          example: 680.00
+        status:
+          type: string
+          example: "ACTIVE"
+        remarks:
+          type: string
+          nullable: true
+          example: "Truk Fuso reguler via tol Trans Jawa"
+        created_by:
+          type: integer
+          nullable: true
+          example: 1
+        updated_by:
+          type: integer
+          nullable: true
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-09-14T10:00:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-09-14T10:00:00.000000Z"
+
+    HrisEmployee:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 4
+        nik:
+          type: string
+          example: "EMP-2026-0042"
+        user_id:
+          type: integer
+          nullable: true
+          example: null
+        full_name:
+          type: string
+          example: "Siti Rahmawati"
+        nickname:
+          type: string
+          nullable: true
+          example: "Siti"
+        email_office:
+          type: string
+          example: "siti.rahmawati@susantimegah.com"
+        phone_number:
+          type: string
+          nullable: true
+          example: "081234567890"
+        telegram_chat_id:
+          type: string
+          nullable: true
+          example: null
+        department_id:
+          type: integer
+          example: 1
+        division_id:
+          type: integer
+          nullable: true
+          example: null
+        position_id:
+          type: integer
+          example: 1
+        direct_supervisor_id:
+          type: integer
+          nullable: true
+          example: null
+        employment_status:
+          type: string
+          example: "PERMANENT"
+        join_date:
+          type: string
+          format: date
+          example: "2026-10-01"
+        resign_date:
+          type: string
+          format: date
+          nullable: true
+          example: null
+        is_active:
+          type: boolean
+          example: true
+        avatar_url:
+          type: string
+          nullable: true
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-10-03T02:43:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-10-03T02:43:00.000000Z"
+        department:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            dept_code:
+              type: string
+              example: "IT"
+            dept_name:
+              type: string
+              example: "Information Technology"
+        position:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            position_code:
+              type: string
+              example: "STAFF"
+            position_name:
+              type: string
+              example: "Staff"
+
+    HrisPosition:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        position_code:
+          type: string
+          example: "STAFF"
+        position_name:
+          type: string
+          example: "Staff"
+        level_grade:
+          type: integer
+          example: 1
+        description:
+          type: string
+          nullable: true
+          example: "Staff pelaksana"
+        is_active:
+          type: boolean
+          example: true
+
+    PicklistItemLabelPhoto:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        picklist_id:
+          type: integer
+          example: 1
+        picklist_item_id:
+          type: integer
+          example: 10
+        photo_path:
+          type: string
+          example: "label_photos/pkl_1_item_10_670ca123.jpg"
+        file_name:
+          type: string
+          example: "label_item_10.jpg"
+        file_size:
+          type: integer
+          example: 204850
+        mime_type:
+          type: string
+          example: "image/jpeg"
+        caption:
+          type: string
+          nullable: true
+          example: "Foto label karung batch 001"
+        production_date:
+          type: string
+          format: date
+          nullable: true
+          description: Tanggal produksi barang fisik yang tertera pada kemasan/label ini
+          example: "2026-10-10"
+        photo_url:
+          type: string
+          example: "http://localhost:8000/storage/label_photos/pkl_1_item_10_670ca123.jpg"
+        preview_url:
+          type: string
+          description: Public streaming proxy URL untuk preview langsung di browser atau tag <img> tanpa Bearer header
+          example: "/api/distributor-channel/v1/logistic/picklists/1/items/10/label-photos/1/preview"
+        created_by:
+          type: integer
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-10-14T09:15:00.000000Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-10-14T09:15:00.000000Z"
+
+    PicklistItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 10
+        picklist_id:
+          type: integer
+          example: 1
+        sales_order_id:
+          type: integer
+          example: 1
+        sales_order_detail_id:
+          type: integer
+          example: 10
+        item_code:
+          type: string
+          example: "FG-GARAM-001"
+        item_name:
+          type: string
+          example: "Garam Halus 250gr"
+        whs_code:
+          type: string
+          example: "01"
+        ordered_qty:
+          type: number
+          example: 10.0
+        pick_qty:
+          type: number
+          example: 10.0
+        checked_qty:
+          type: number
+          example: 10.0
+        is_checked:
+          type: boolean
+          example: true
+        checked_by_checker:
+          type: string
+          example: "ROCHIM"
+        unit_weight:
+          type: number
+          example: 0.25
+        total_weight:
+          type: number
+          example: 2.5
+        uom:
+          type: string
+          description: Satuan ukuran item (Unit of Measure)
+          example: "KG"
+        start_time:
+          type: string
+          format: date-time
+          nullable: true
+          description: Waktu mulai pemeriksaan oleh checker (KPI)
+          example: "2026-10-14T09:00:00"
+        end_time:
+          type: string
+          format: date-time
+          nullable: true
+          description: Waktu selesai pemeriksaan oleh checker (KPI)
+          example: "2026-10-14T09:25:00"
+        production_date:
+          type: string
+          format: date
+          nullable: true
+          description: Tanggal produksi barang fisik
+          example: "2026-10-10"
+        labels:
+          type: array
+          description: Daftar label kemasan produk yang dikelompokkan per tanggal produksi beserta foto labelnya
+          items:
+            type: object
+            properties:
+              production_date:
+                type: string
+                format: date
+                nullable: true
+                description: Tanggal produksi untuk label ini
+                example: "2026-10-10"
+              label_photos:
+                type: array
+                description: Daftar foto label kemasan untuk tanggal produksi ini
+                items:
+                  $ref: '#/components/schemas/PicklistItemLabelPhoto'
+        label_photos:
+          type: array
+          description: Daftar seluruh foto label kemasan yang diunggah checker untuk item ini
+          items:
+            $ref: '#/components/schemas/PicklistItemLabelPhoto'
+
+    Picklist:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        picklist_no:
+          type: string
+          example: "PKL-20261014-0001"
+        shipping_type:
+          type: string
+          enum: [internal, external, pickup]
+          example: "internal"
+        posting_date:
+          type: string
+          format: date
+          example: "2026-10-14"
+        due_date:
+          type: string
+          format: date
+          example: "2026-10-14"
+        delivery_order_no:
+          type: string
+          nullable: true
+          example: "20260088"
+        total_weight_limit:
+          type: number
+          description: Batas kapasitas berat armada (KG)
+          example: 10000.00
+        weigh_in_weight:
+          type: number
+          nullable: true
+          description: Berat kosong kendaraan (Tare Weight) dalam KG
+          example: 8500.00
+        weigh_in_ticket_no:
+          type: string
+          nullable: true
+          example: "TMB-IN-20261014-0012"
+        weigh_in_operator_name:
+          type: string
+          nullable: true
+          example: "Bambang Supriyadi"
+        weigh_in_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-10-14T08:45:00.000000Z"
+        weigh_in_notes:
+          type: string
+          nullable: true
+          example: "Truk colt diesel kondisi kosong"
+        weigh_out_weight:
+          type: number
+          nullable: true
+          description: Berat kotor kendaraan + muatan (Gross Weight) dalam KG
+          example: 17500.00
+        weigh_out_ticket_no:
+          type: string
+          nullable: true
+          example: "TMB-OUT-20261014-0045"
+        weigh_out_operator_name:
+          type: string
+          nullable: true
+          example: "Bambang Supriyadi"
+        weigh_out_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-10-14T10:30:00.000000Z"
+        weigh_out_notes:
+          type: string
+          nullable: true
+          example: "Muatan sesuai toleransi, segel terpasang"
+        net_weight:
+          type: number
+          nullable: true
+          description: Berat bersih muatan (Gross - Tare) dalam KG
+          example: 9000.00
+        weight_check_status:
+          type: string
+          enum: [pending, sesuai, overload]
+          example: "sesuai"
+        status:
+          type: string
+          enum: [open, weigh_in, inprogress, weigh_out, complete, canceled]
+          example: "complete"
+        license_plate:
+          type: string
+          nullable: true
+          example: "L 9123 AB"
+        driver_name:
+          type: string
+          nullable: true
+          example: "SLAMET"
+        checker_name:
+          type: string
+          nullable: true
+          example: "ROCHIM/NANANG"
+        seal_number:
+          type: string
+          nullable: true
+          example: "SEAL-12345"
+        do_doc_entry:
+          type: string
+          nullable: true
+          example: "1052"
+        do_doc_num:
+          type: string
+          nullable: true
+          example: "20260088"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PicklistItem'
+
+
+

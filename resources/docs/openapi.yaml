@@ -17468,6 +17468,11 @@ paths:
                       UoMEntry:
                         type: integer
                         example: 1
+                      sort_order:
+                        type: integer
+                        nullable: true
+                        description: Urutan penomoran baris sesuai centang/pilihan user (misal 1, 2, 3...). Backend akan mengurutkan Lines sesuai angka ini sebelum dikirim ke SAP B1.
+                        example: 1
                       OcrCode:
                         type: string
                         example: "DEPT-PROD"
@@ -17647,6 +17652,11 @@ paths:
                         example: "FG-01"
                       UoMEntry:
                         type: integer
+                        example: 1
+                      sort_order:
+                        type: integer
+                        nullable: true
+                        description: Urutan penomoran baris sesuai centang/pilihan user (misal 1, 2, 3...). Backend akan mengurutkan Lines sesuai angka ini sebelum dikirim ke SAP B1.
                         example: 1
                       OcrCode:
                         type: string

@@ -141,6 +141,19 @@
     </div>
     
     <div class="header-controls">
+      <!-- Filter Modul Dropdown (Default: Semua Modul Jadi 1) -->
+      <select id="module-selector" class="control-btn" onchange="switchModuleSpec(this.value)" title="Pilih Tampilan Modul Dokumentasi" style="padding: 5px 10px; outline: none;">
+        <option value="/docs/openapi.yaml">📚 Semua Modul (Jadi 1 - Full API)</option>
+        <option value="/docs/modules/production.yaml">🏭 Modul Production</option>
+        <option value="/docs/modules/logistic-ekspedisi.yaml">🚚 Modul Logistic &amp; Ekspedisi</option>
+        <option value="/docs/modules/sales-orders.yaml">🛒 Modul Sales Orders &amp; CMO</option>
+        <option value="/docs/modules/purchasing-vendor.yaml">📦 Modul Purchasing &amp; Vendor</option>
+        <option value="/docs/modules/claims-programs.yaml">🎁 Modul Claims &amp; Programs</option>
+        <option value="/docs/modules/hr-recruitment.yaml">👥 Modul HR &amp; Recruitment</option>
+        <option value="/docs/modules/task-reporting.yaml">📊 Modul Task &amp; Reporting</option>
+        <option value="/docs/modules/master-auth-core.yaml">🔐 Modul Master, Auth &amp; Core</option>
+      </select>
+
       <!-- Expand / Collapse Sidebar -->
       <button class="control-btn" onclick="toggleNavStyle('expanded')" title="Buka Semua Kategori Modul">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
@@ -212,6 +225,14 @@
   > </rapi-doc>
 
   <script>
+    // Ganti file spec modul yang ditampilkan (Default: Semua Modul Jadi 1 /docs/openapi.yaml)
+    function switchModuleSpec(specUrl) {
+      const apiDocs = document.getElementById('api-docs');
+      if (apiDocs && specUrl) {
+        apiDocs.setAttribute('spec-url', specUrl);
+      }
+    }
+
     // Toggle expand/collapse all kategori modul
     function toggleNavStyle(style) {
       const apiDocs = document.getElementById('api-docs');

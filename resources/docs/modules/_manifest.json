@@ -1,0 +1,2203 @@
+{
+    "source_total_lines": 29805,
+    "total_paths": 366,
+    "generated_at": "2026-11-07T02:01:16+00:00",
+    "order": [
+        {
+            "index": 0,
+            "path": "/task-management/dashboard/summary",
+            "module": "task-reporting",
+            "lines": 321
+        },
+        {
+            "index": 1,
+            "path": "/v1/task-management/dashboard/summary",
+            "module": "task-reporting",
+            "lines": 12
+        },
+        {
+            "index": 2,
+            "path": "/task-management/dashboard/team-view",
+            "module": "task-reporting",
+            "lines": 232
+        },
+        {
+            "index": 3,
+            "path": "/task-management/dashboard/team-view/{employeeId}",
+            "module": "task-reporting",
+            "lines": 18
+        },
+        {
+            "index": 4,
+            "path": "/task-management/team-view",
+            "module": "task-reporting",
+            "lines": 11
+        },
+        {
+            "index": 5,
+            "path": "/task-management/tasks/{id}/reassign",
+            "module": "task-reporting",
+            "lines": 43
+        },
+        {
+            "index": 6,
+            "path": "/task-management/tasks",
+            "module": "task-reporting",
+            "lines": 120
+        },
+        {
+            "index": 7,
+            "path": "/task-management/tasks/{id}",
+            "module": "task-reporting",
+            "lines": 75
+        },
+        {
+            "index": 8,
+            "path": "/task-management/tasks/{id}/status",
+            "module": "task-reporting",
+            "lines": 30
+        },
+        {
+            "index": 9,
+            "path": "/task-management/tasks/metrics",
+            "module": "task-reporting",
+            "lines": 17
+        },
+        {
+            "index": 10,
+            "path": "/task-management/workspaces",
+            "module": "task-reporting",
+            "lines": 11
+        },
+        {
+            "index": 11,
+            "path": "/task-management/spaces",
+            "module": "task-reporting",
+            "lines": 52
+        },
+        {
+            "index": 12,
+            "path": "/task-management/folders",
+            "module": "task-reporting",
+            "lines": 44
+        },
+        {
+            "index": 13,
+            "path": "/task-management/folders/{id}",
+            "module": "task-reporting",
+            "lines": 19
+        },
+        {
+            "index": 14,
+            "path": "/task-management/lists",
+            "module": "task-reporting",
+            "lines": 51
+        },
+        {
+            "index": 15,
+            "path": "/task-management/lists/{id}",
+            "module": "task-reporting",
+            "lines": 44
+        },
+        {
+            "index": 16,
+            "path": "/task-management/checklists",
+            "module": "task-reporting",
+            "lines": 25
+        },
+        {
+            "index": 17,
+            "path": "/task-management/checklists/{id}/items",
+            "module": "task-reporting",
+            "lines": 34
+        },
+        {
+            "index": 18,
+            "path": "/task-management/checklist-items/{id}/toggle",
+            "module": "task-reporting",
+            "lines": 17
+        },
+        {
+            "index": 19,
+            "path": "/task-management/time-tracking/start",
+            "module": "task-reporting",
+            "lines": 25
+        },
+        {
+            "index": 20,
+            "path": "/task-management/time-tracking/{id}/stop",
+            "module": "task-reporting",
+            "lines": 17
+        },
+        {
+            "index": 21,
+            "path": "/task-management/time-tracking/manual",
+            "module": "task-reporting",
+            "lines": 31
+        },
+        {
+            "index": 22,
+            "path": "/task-management/tasks/{taskId}/comments",
+            "module": "task-reporting",
+            "lines": 50
+        },
+        {
+            "index": 23,
+            "path": "/task-management/master/statuses",
+            "module": "task-reporting",
+            "lines": 16
+        },
+        {
+            "index": 24,
+            "path": "/task-management/master/priorities",
+            "module": "task-reporting",
+            "lines": 11
+        },
+        {
+            "index": 25,
+            "path": "/task-management/master/task-types",
+            "module": "task-reporting",
+            "lines": 11
+        },
+        {
+            "index": 26,
+            "path": "/task-management/master/departments",
+            "module": "task-reporting",
+            "lines": 11
+        },
+        {
+            "index": 27,
+            "path": "/task-management/master/positions",
+            "module": "task-reporting",
+            "lines": 64
+        },
+        {
+            "index": 28,
+            "path": "/task-management/master/positions/{id}",
+            "module": "task-reporting",
+            "lines": 19
+        },
+        {
+            "index": 29,
+            "path": "/task-management/positions",
+            "module": "task-reporting",
+            "lines": 20
+        },
+        {
+            "index": 30,
+            "path": "/task-management/positions/{id}",
+            "module": "task-reporting",
+            "lines": 17
+        },
+        {
+            "index": 31,
+            "path": "/task-management/master/employees",
+            "module": "task-reporting",
+            "lines": 126
+        },
+        {
+            "index": 32,
+            "path": "/task-management/master/employees/{id}",
+            "module": "task-reporting",
+            "lines": 32
+        },
+        {
+            "index": 33,
+            "path": "/task-management/employees",
+            "module": "task-reporting",
+            "lines": 46
+        },
+        {
+            "index": 34,
+            "path": "/task-management/employees/{id}",
+            "module": "task-reporting",
+            "lines": 28
+        },
+        {
+            "index": 35,
+            "path": "/v1/production/change-products",
+            "module": "production",
+            "lines": 156
+        },
+        {
+            "index": 36,
+            "path": "/v1/production/change-products/{id}",
+            "module": "production",
+            "lines": 117
+        },
+        {
+            "index": 37,
+            "path": "/v1/production/change-products/{id}/post",
+            "module": "production",
+            "lines": 20
+        },
+        {
+            "index": 38,
+            "path": "/v1/production/add-cp",
+            "module": "production",
+            "lines": 105
+        },
+        {
+            "index": 39,
+            "path": "/v1/notifications/telegram/test",
+            "module": "master-auth-core",
+            "lines": 67
+        },
+        {
+            "index": 40,
+            "path": "/v1/notifications/telegram/connect-link",
+            "module": "master-auth-core",
+            "lines": 47
+        },
+        {
+            "index": 41,
+            "path": "/v1/notifications/telegram/recipients",
+            "module": "master-auth-core",
+            "lines": 82
+        },
+        {
+            "index": 42,
+            "path": "/v1/notifications/telegram/recipients/{id}",
+            "module": "master-auth-core",
+            "lines": 18
+        },
+        {
+            "index": 43,
+            "path": "/v1/telegram/webhook",
+            "module": "master-auth-core",
+            "lines": 16
+        },
+        {
+            "index": 44,
+            "path": "/v1/master-units",
+            "module": "master-auth-core",
+            "lines": 111
+        },
+        {
+            "index": 45,
+            "path": "/v1/master-units/{id}",
+            "module": "master-auth-core",
+            "lines": 82
+        },
+        {
+            "index": 46,
+            "path": "/v1/warehouses",
+            "module": "master-auth-core",
+            "lines": 129
+        },
+        {
+            "index": 47,
+            "path": "/v1/warehouses/{id}",
+            "module": "master-auth-core",
+            "lines": 82
+        },
+        {
+            "index": 48,
+            "path": "/v1/warehouses/sync",
+            "module": "master-auth-core",
+            "lines": 12
+        },
+        {
+            "index": 49,
+            "path": "/v1/sales-orders/sync-from-sap",
+            "module": "sales-orders",
+            "lines": 62
+        },
+        {
+            "index": 50,
+            "path": "/v1/document-approval/document-types",
+            "module": "purchasing-vendor",
+            "lines": 91
+        },
+        {
+            "index": 51,
+            "path": "/v1/document-approval/document-types/{idOrCode}",
+            "module": "purchasing-vendor",
+            "lines": 72
+        },
+        {
+            "index": 52,
+            "path": "/v1/document-approval/document-types/{id}/toggle-status",
+            "module": "purchasing-vendor",
+            "lines": 17
+        },
+        {
+            "index": 53,
+            "path": "/v1/document-approval/document-types/{id}/attachment",
+            "module": "purchasing-vendor",
+            "lines": 29
+        },
+        {
+            "index": 54,
+            "path": "/v1/document-approval/approvals",
+            "module": "master-auth-core",
+            "lines": 42
+        },
+        {
+            "index": 55,
+            "path": "/v1/document-approval/approvals/{id}",
+            "module": "master-auth-core",
+            "lines": 19
+        },
+        {
+            "index": 56,
+            "path": "/v1/document-approval/approvals/{id}/approve",
+            "module": "master-auth-core",
+            "lines": 27
+        },
+        {
+            "index": 57,
+            "path": "/v1/document-approval/approvals/{id}/reject",
+            "module": "master-auth-core",
+            "lines": 29
+        },
+        {
+            "index": 58,
+            "path": "/v1/document-approval/approvals/{id}/revise",
+            "module": "master-auth-core",
+            "lines": 29
+        },
+        {
+            "index": 59,
+            "path": "/v1/document-approval/preview/{typeCode}/{docEntry}",
+            "module": "master-auth-core",
+            "lines": 23
+        },
+        {
+            "index": 60,
+            "path": "/v1/external/customer-monthly-orders",
+            "module": "sales-orders",
+            "lines": 103
+        },
+        {
+            "index": 61,
+            "path": "/v1/external/customer-monthly-orders/distributors",
+            "module": "sales-orders",
+            "lines": 44
+        },
+        {
+            "index": 62,
+            "path": "/v1/external/customer-monthly-orders/items",
+            "module": "sales-orders",
+            "lines": 60
+        },
+        {
+            "index": 63,
+            "path": "/v1/external/claims",
+            "module": "claims-programs",
+            "lines": 236
+        },
+        {
+            "index": 64,
+            "path": "/v1/external/claims/batches",
+            "module": "claims-programs",
+            "lines": 86
+        },
+        {
+            "index": 65,
+            "path": "/v1/external/claims/batches/{identifier}",
+            "module": "claims-programs",
+            "lines": 154
+        },
+        {
+            "index": 66,
+            "path": "/v1/external/claims/programs",
+            "module": "claims-programs",
+            "lines": 83
+        },
+        {
+            "index": 67,
+            "path": "/v1/sales-dashboard/upload",
+            "module": "sales-orders",
+            "lines": 50
+        },
+        {
+            "index": 68,
+            "path": "/v1/sales-dashboard/raw-data",
+            "module": "sales-orders",
+            "lines": 49
+        },
+        {
+            "index": 69,
+            "path": "/v1/sales-dashboard/bulk",
+            "module": "sales-orders",
+            "lines": 34
+        },
+        {
+            "index": 70,
+            "path": "/v1/sales-dashboard/sync-so-do",
+            "module": "sales-orders",
+            "lines": 31
+        },
+        {
+            "index": 71,
+            "path": "/v1/sales-dashboard/sync",
+            "module": "sales-orders",
+            "lines": 64
+        },
+        {
+            "index": 72,
+            "path": "/v1/sales-dashboard/comparison",
+            "module": "sales-orders",
+            "lines": 85
+        },
+        {
+            "index": 73,
+            "path": "/v1/sales-dashboard/{id}",
+            "module": "sales-orders",
+            "lines": 62
+        },
+        {
+            "index": 74,
+            "path": "/v1/sales-returns/do-by-so",
+            "module": "sales-orders",
+            "lines": 61
+        },
+        {
+            "index": 75,
+            "path": "/v1/sales-returns",
+            "module": "sales-orders",
+            "lines": 118
+        },
+        {
+            "index": 76,
+            "path": "/v1/sales-returns/{id}",
+            "module": "sales-orders",
+            "lines": 31
+        },
+        {
+            "index": 77,
+            "path": "/v1/sales-returns/{id}/approve",
+            "module": "sales-orders",
+            "lines": 18
+        },
+        {
+            "index": 78,
+            "path": "/v1/sales-returns/{id}/reject",
+            "module": "sales-orders",
+            "lines": 30
+        },
+        {
+            "index": 79,
+            "path": "/v1/pi-settings",
+            "module": "claims-programs",
+            "lines": 61
+        },
+        {
+            "index": 80,
+            "path": "/v1/claims/balance-ledger",
+            "module": "claims-programs",
+            "lines": 114
+        },
+        {
+            "index": 81,
+            "path": "/v1/claims/balance-ledger/adjustment",
+            "module": "claims-programs",
+            "lines": 102
+        },
+        {
+            "index": 82,
+            "path": "/v1/claims/balance-ledger/approved-claims",
+            "module": "claims-programs",
+            "lines": 84
+        },
+        {
+            "index": 83,
+            "path": "/v1/sales-orders/{id}/pdf",
+            "module": "sales-orders",
+            "lines": 24
+        },
+        {
+            "index": 84,
+            "path": "/v1/sales-orders/{id}/invoices",
+            "module": "sales-orders",
+            "lines": 53
+        },
+        {
+            "index": 85,
+            "path": "/v1/auth/login",
+            "module": "master-auth-core",
+            "lines": 36
+        },
+        {
+            "index": 86,
+            "path": "/v1/auth/logout",
+            "module": "master-auth-core",
+            "lines": 22
+        },
+        {
+            "index": 87,
+            "path": "/v1/auth/refresh",
+            "module": "master-auth-core",
+            "lines": 22
+        },
+        {
+            "index": 88,
+            "path": "/v1/auth/change-password",
+            "module": "master-auth-core",
+            "lines": 48
+        },
+        {
+            "index": 89,
+            "path": "/v1/notifications/device-token",
+            "module": "master-auth-core",
+            "lines": 90
+        },
+        {
+            "index": 90,
+            "path": "/v1/notifications",
+            "module": "master-auth-core",
+            "lines": 71
+        },
+        {
+            "index": 91,
+            "path": "/v1/notifications/read-all",
+            "module": "master-auth-core",
+            "lines": 22
+        },
+        {
+            "index": 92,
+            "path": "/v1/master-approvals",
+            "module": "master-auth-core",
+            "lines": 33
+        },
+        {
+            "index": 93,
+            "path": "/v1/master-approvals/stages",
+            "module": "master-auth-core",
+            "lines": 117
+        },
+        {
+            "index": 94,
+            "path": "/v1/master-approvals/approvals",
+            "module": "master-auth-core",
+            "lines": 105
+        },
+        {
+            "index": 95,
+            "path": "/v1/master-approvals/approve-sap",
+            "module": "master-auth-core",
+            "lines": 62
+        },
+        {
+            "index": 96,
+            "path": "/v1/production/boms/import",
+            "module": "production",
+            "lines": 98
+        },
+        {
+            "index": 97,
+            "path": "/v1/production/boms/upload-excel",
+            "module": "production",
+            "lines": 29
+        },
+        {
+            "index": 98,
+            "path": "/v1/roles",
+            "module": "master-auth-core",
+            "lines": 78
+        },
+        {
+            "index": 99,
+            "path": "/v1/roles/{id}",
+            "module": "master-auth-core",
+            "lines": 136
+        },
+        {
+            "index": 100,
+            "path": "/v1/roles/{id}/menu",
+            "module": "master-auth-core",
+            "lines": 127
+        },
+        {
+            "index": 101,
+            "path": "/v1/roles/my-permissions",
+            "module": "master-auth-core",
+            "lines": 36
+        },
+        {
+            "index": 102,
+            "path": "/v1/roles/{id}/permissions",
+            "module": "master-auth-core",
+            "lines": 105
+        },
+        {
+            "index": 103,
+            "path": "/v1/users",
+            "module": "master-auth-core",
+            "lines": 146
+        },
+        {
+            "index": 104,
+            "path": "/v1/users/{id}",
+            "module": "master-auth-core",
+            "lines": 199
+        },
+        {
+            "index": 105,
+            "path": "/v1/users/{id}/custom-permissions",
+            "module": "master-auth-core",
+            "lines": 125
+        },
+        {
+            "index": 106,
+            "path": "/v1/discounts/sap",
+            "module": "sales-orders",
+            "lines": 95
+        },
+        {
+            "index": 107,
+            "path": "/v1/discounts/types",
+            "module": "sales-orders",
+            "lines": 61
+        },
+        {
+            "index": 108,
+            "path": "/v1/discounts/types/sync",
+            "module": "sales-orders",
+            "lines": 52
+        },
+        {
+            "index": 109,
+            "path": "/v1/distributors",
+            "module": "master-auth-core",
+            "lines": 29
+        },
+        {
+            "index": 110,
+            "path": "/v1/distributors/sync",
+            "module": "master-auth-core",
+            "lines": 22
+        },
+        {
+            "index": 111,
+            "path": "/v1/distributors/addresses",
+            "module": "master-auth-core",
+            "lines": 67
+        },
+        {
+            "index": 112,
+            "path": "/v1/distributors/ocr-codes",
+            "module": "master-auth-core",
+            "lines": 95
+        },
+        {
+            "index": 113,
+            "path": "/v1/distributors/ocr-codes/sync",
+            "module": "master-auth-core",
+            "lines": 63
+        },
+        {
+            "index": 114,
+            "path": "/v1/distributors/shiptos",
+            "module": "master-auth-core",
+            "lines": 56
+        },
+        {
+            "index": 115,
+            "path": "/v1/distributors/shiptos/sync",
+            "module": "master-auth-core",
+            "lines": 41
+        },
+        {
+            "index": 116,
+            "path": "/v1/distributors/shiptos/upload",
+            "module": "master-auth-core",
+            "lines": 53
+        },
+        {
+            "index": 117,
+            "path": "/v1/distributors/{id}",
+            "module": "master-auth-core",
+            "lines": 35
+        },
+        {
+            "index": 118,
+            "path": "/v1/items",
+            "module": "master-auth-core",
+            "lines": 77
+        },
+        {
+            "index": 119,
+            "path": "/v1/items/sync",
+            "module": "master-auth-core",
+            "lines": 39
+        },
+        {
+            "index": 120,
+            "path": "/v1/vats",
+            "module": "master-auth-core",
+            "lines": 40
+        },
+        {
+            "index": 121,
+            "path": "/v1/vats/sync",
+            "module": "master-auth-core",
+            "lines": 39
+        },
+        {
+            "index": 122,
+            "path": "/v1/sales-employees",
+            "module": "sales-orders",
+            "lines": 46
+        },
+        {
+            "index": 123,
+            "path": "/v1/sales-employees/sync",
+            "module": "sales-orders",
+            "lines": 39
+        },
+        {
+            "index": 124,
+            "path": "/v1/sales-orders/max-discount",
+            "module": "sales-orders",
+            "lines": 36
+        },
+        {
+            "index": 125,
+            "path": "/v1/sales-orders/series",
+            "module": "sales-orders",
+            "lines": 55
+        },
+        {
+            "index": 126,
+            "path": "/v1/sales-orders/credit-limit",
+            "module": "sales-orders",
+            "lines": 67
+        },
+        {
+            "index": 127,
+            "path": "/v1/sales-orders/dashboard",
+            "module": "sales-orders",
+            "lines": 114
+        },
+        {
+            "index": 128,
+            "path": "/v1/dashboard/admin/summary",
+            "module": "master-auth-core",
+            "lines": 92
+        },
+        {
+            "index": 129,
+            "path": "/v1/dashboard/admin/charts",
+            "module": "master-auth-core",
+            "lines": 80
+        },
+        {
+            "index": 130,
+            "path": "/v1/dashboard/distributor/summary",
+            "module": "master-auth-core",
+            "lines": 92
+        },
+        {
+            "index": 131,
+            "path": "/v1/dashboard/distributor/charts",
+            "module": "master-auth-core",
+            "lines": 66
+        },
+        {
+            "index": 132,
+            "path": "/v1/sales-orders/check-eta",
+            "module": "sales-orders",
+            "lines": 44
+        },
+        {
+            "index": 133,
+            "path": "/v1/customer-monthly-orders/reports/by-depo",
+            "module": "sales-orders",
+            "lines": 76
+        },
+        {
+            "index": 134,
+            "path": "/v1/customer-monthly-orders/reports/by-year",
+            "module": "sales-orders",
+            "lines": 90
+        },
+        {
+            "index": 135,
+            "path": "/v1/customer-monthly-orders/reports/detail-export",
+            "module": "sales-orders",
+            "lines": 74
+        },
+        {
+            "index": 136,
+            "path": "/v1/customer-monthly-orders",
+            "module": "sales-orders",
+            "lines": 73
+        },
+        {
+            "index": 137,
+            "path": "/v1/customer-monthly-orders/{id}",
+            "module": "sales-orders",
+            "lines": 76
+        },
+        {
+            "index": 138,
+            "path": "/v1/customer-monthly-orders/{id}/post-to-so",
+            "module": "sales-orders",
+            "lines": 26
+        },
+        {
+            "index": 139,
+            "path": "/v1/sales-orders",
+            "module": "sales-orders",
+            "lines": 88
+        },
+        {
+            "index": 140,
+            "path": "/v1/sales-orders/{id}",
+            "module": "sales-orders",
+            "lines": 121
+        },
+        {
+            "index": 141,
+            "path": "/v1/sales-orders/{id}/post-sap",
+            "module": "sales-orders",
+            "lines": 62
+        },
+        {
+            "index": 142,
+            "path": "/v1/sales-orders/{id}/sync-sap",
+            "module": "sales-orders",
+            "lines": 44
+        },
+        {
+            "index": 143,
+            "path": "/v1/sales-orders/{id}/arrive",
+            "module": "sales-orders",
+            "lines": 44
+        },
+        {
+            "index": 144,
+            "path": "/v1/sales-orders/{id}/cancel",
+            "module": "sales-orders",
+            "lines": 44
+        },
+        {
+            "index": 145,
+            "path": "/v1/sales-orders/sync-all",
+            "module": "sales-orders",
+            "lines": 33
+        },
+        {
+            "index": 146,
+            "path": "/v1/sales-orders/{id}/submit",
+            "module": "sales-orders",
+            "lines": 35
+        },
+        {
+            "index": 147,
+            "path": "/v1/sales-orders/{id}/approve",
+            "module": "sales-orders",
+            "lines": 45
+        },
+        {
+            "index": 148,
+            "path": "/v1/sales-orders/{id}/reject",
+            "module": "sales-orders",
+            "lines": 47
+        },
+        {
+            "index": 149,
+            "path": "/v1/sales-orders/{id}/save-discounts",
+            "module": "sales-orders",
+            "lines": 68
+        },
+        {
+            "index": 150,
+            "path": "/v1/sales-orders/{id}/email-action",
+            "module": "sales-orders",
+            "lines": 58
+        },
+        {
+            "index": 151,
+            "path": "/v1/sales-orders/{id}/email-reject",
+            "module": "sales-orders",
+            "lines": 43
+        },
+        {
+            "index": 152,
+            "path": "/v1/distributor-item-prices",
+            "module": "sales-orders",
+            "lines": 80
+        },
+        {
+            "index": 153,
+            "path": "/v1/distributor-item-prices/{id}",
+            "module": "sales-orders",
+            "lines": 115
+        },
+        {
+            "index": 154,
+            "path": "/v1/claims/template-excel",
+            "module": "claims-programs",
+            "lines": 23
+        },
+        {
+            "index": 155,
+            "path": "/v1/claims/programs",
+            "module": "claims-programs",
+            "lines": 86
+        },
+        {
+            "index": 156,
+            "path": "/v1/claims/programs/{id}",
+            "module": "claims-programs",
+            "lines": 78
+        },
+        {
+            "index": 157,
+            "path": "/v1/claims/items",
+            "module": "claims-programs",
+            "lines": 31
+        },
+        {
+            "index": 158,
+            "path": "/v1/claims/dashboard",
+            "module": "claims-programs",
+            "lines": 25
+        },
+        {
+            "index": 159,
+            "path": "/v1/claims/upload",
+            "module": "claims-programs",
+            "lines": 30
+        },
+        {
+            "index": 160,
+            "path": "/v1/claims/batches",
+            "module": "claims-programs",
+            "lines": 49
+        },
+        {
+            "index": 161,
+            "path": "/v1/claims/batches/{id}",
+            "module": "claims-programs",
+            "lines": 57
+        },
+        {
+            "index": 162,
+            "path": "/v1/claims/results",
+            "module": "claims-programs",
+            "lines": 43
+        },
+        {
+            "index": 163,
+            "path": "/v1/claims/results/export",
+            "module": "claims-programs",
+            "lines": 38
+        },
+        {
+            "index": 164,
+            "path": "/v1/claims/results/verify",
+            "module": "claims-programs",
+            "lines": 42
+        },
+        {
+            "index": 165,
+            "path": "/v1/claims/reward-summary",
+            "module": "claims-programs",
+            "lines": 46
+        },
+        {
+            "index": 166,
+            "path": "/v1/claims/withdraws",
+            "module": "claims-programs",
+            "lines": 112
+        },
+        {
+            "index": 167,
+            "path": "/v1/claims/withdraws/{id}/status",
+            "module": "claims-programs",
+            "lines": 53
+        },
+        {
+            "index": 168,
+            "path": "/v1/ekspedisi/wilayah/provinces",
+            "module": "logistic-ekspedisi",
+            "lines": 29
+        },
+        {
+            "index": 169,
+            "path": "/v1/ekspedisi/wilayah/regencies",
+            "module": "logistic-ekspedisi",
+            "lines": 36
+        },
+        {
+            "index": 170,
+            "path": "/v1/ekspedisi/wilayah/districts",
+            "module": "logistic-ekspedisi",
+            "lines": 36
+        },
+        {
+            "index": 171,
+            "path": "/v1/ekspedisi/wilayah/villages",
+            "module": "logistic-ekspedisi",
+            "lines": 36
+        },
+        {
+            "index": 172,
+            "path": "/v1/ekspedisi/nama-ekspedisi",
+            "module": "logistic-ekspedisi",
+            "lines": 56
+        },
+        {
+            "index": 173,
+            "path": "/v1/ekspedisi/nama-checker",
+            "module": "logistic-ekspedisi",
+            "lines": 81
+        },
+        {
+            "index": 174,
+            "path": "/v1/ekspedisi/kendaraan",
+            "module": "logistic-ekspedisi",
+            "lines": 59
+        },
+        {
+            "index": 175,
+            "path": "/v1/ekspedisi/sopir",
+            "module": "logistic-ekspedisi",
+            "lines": 59
+        },
+        {
+            "index": 176,
+            "path": "/v1/ekspedisi/expeditions/upload",
+            "module": "logistic-ekspedisi",
+            "lines": 56
+        },
+        {
+            "index": 177,
+            "path": "/v1/ekspedisi/rates/upload",
+            "module": "logistic-ekspedisi",
+            "lines": 56
+        },
+        {
+            "index": 178,
+            "path": "/v1/ekspedisi/expeditions",
+            "module": "logistic-ekspedisi",
+            "lines": 132
+        },
+        {
+            "index": 179,
+            "path": "/v1/ekspedisi/expeditions/{id}",
+            "module": "logistic-ekspedisi",
+            "lines": 153
+        },
+        {
+            "index": 180,
+            "path": "/v1/ekspedisi/rates/rank",
+            "module": "logistic-ekspedisi",
+            "lines": 144
+        },
+        {
+            "index": 181,
+            "path": "/v1/ekspedisi/rates",
+            "module": "logistic-ekspedisi",
+            "lines": 172
+        },
+        {
+            "index": 182,
+            "path": "/v1/ekspedisi/rates/{id}",
+            "module": "logistic-ekspedisi",
+            "lines": 164
+        },
+        {
+            "index": 183,
+            "path": "/v1/ekspedisi/rates/{id}/approve",
+            "module": "logistic-ekspedisi",
+            "lines": 31
+        },
+        {
+            "index": 184,
+            "path": "/v1/ekspedisi/rates/{id}/reject",
+            "module": "logistic-ekspedisi",
+            "lines": 29
+        },
+        {
+            "index": 185,
+            "path": "/v1/ekspedisi/rates/bulk-approve",
+            "module": "logistic-ekspedisi",
+            "lines": 29
+        },
+        {
+            "index": 186,
+            "path": "/v1/sales-distributors",
+            "module": "sales-orders",
+            "lines": 114
+        },
+        {
+            "index": 187,
+            "path": "/v1/sales-distributors/{id}",
+            "module": "sales-orders",
+            "lines": 120
+        },
+        {
+            "index": 188,
+            "path": "/v1/sync/all",
+            "module": "master-auth-core",
+            "lines": 109
+        },
+        {
+            "index": 189,
+            "path": "/v1/production/resources",
+            "module": "production",
+            "lines": 36
+        },
+        {
+            "index": 190,
+            "path": "/v1/production/resources/sync",
+            "module": "production",
+            "lines": 31
+        },
+        {
+            "index": 191,
+            "path": "/v1/production/items",
+            "module": "production",
+            "lines": 36
+        },
+        {
+            "index": 192,
+            "path": "/v1/production/items/sync",
+            "module": "production",
+            "lines": 31
+        },
+        {
+            "index": 193,
+            "path": "/v1/production/boms",
+            "module": "production",
+            "lines": 111
+        },
+        {
+            "index": 194,
+            "path": "/v1/production/boms/{id}",
+            "module": "production",
+            "lines": 104
+        },
+        {
+            "index": 195,
+            "path": "/v1/production/orders",
+            "module": "production",
+            "lines": 164
+        },
+        {
+            "index": 196,
+            "path": "/v1/production/orders/sap",
+            "module": "production",
+            "lines": 148
+        },
+        {
+            "index": 197,
+            "path": "/v1/production/orders/{id}",
+            "module": "production",
+            "lines": 153
+        },
+        {
+            "index": 198,
+            "path": "/v1/ekspedisi/origins",
+            "module": "logistic-ekspedisi",
+            "lines": 102
+        },
+        {
+            "index": 199,
+            "path": "/v1/ekspedisi/origins/{id}",
+            "module": "logistic-ekspedisi",
+            "lines": 115
+        },
+        {
+            "index": 200,
+            "path": "/v1/ekspedisi/origins/upload",
+            "module": "logistic-ekspedisi",
+            "lines": 53
+        },
+        {
+            "index": 201,
+            "path": "/v1/warehouses/search-bin",
+            "module": "master-auth-core",
+            "lines": 54
+        },
+        {
+            "index": 202,
+            "path": "/v1/warehouses/search-qty-bin",
+            "module": "master-auth-core",
+            "lines": 64
+        },
+        {
+            "index": 203,
+            "path": "/v1/warehouses/inventory-transfer",
+            "module": "master-auth-core",
+            "lines": 223
+        },
+        {
+            "index": 204,
+            "path": "/v1/warehouses/inventory-transfer/get-by-id",
+            "module": "master-auth-core",
+            "lines": 104
+        },
+        {
+            "index": 205,
+            "path": "/v1/warehouses/inventory-transfer/cancel",
+            "module": "master-auth-core",
+            "lines": 47
+        },
+        {
+            "index": 206,
+            "path": "/v1/budgeting/master-budgets",
+            "module": "purchasing-vendor",
+            "lines": 158
+        },
+        {
+            "index": 207,
+            "path": "/v1/budgeting/master-budgets/{id}",
+            "module": "purchasing-vendor",
+            "lines": 145
+        },
+        {
+            "index": 208,
+            "path": "/v1/purchasing-request/series",
+            "module": "purchasing-vendor",
+            "lines": 42
+        },
+        {
+            "index": 209,
+            "path": "/GetDepartment",
+            "module": "purchasing-vendor",
+            "lines": 51
+        },
+        {
+            "index": 210,
+            "path": "/v1/purchasing-request/departments",
+            "module": "purchasing-vendor",
+            "lines": 45
+        },
+        {
+            "index": 211,
+            "path": "/v1/purchasing-request/items",
+            "module": "purchasing-vendor",
+            "lines": 20
+        },
+        {
+            "index": 212,
+            "path": "/v1/purchasing-request/draft-pr",
+            "module": "purchasing-vendor",
+            "lines": 135
+        },
+        {
+            "index": 213,
+            "path": "/v1/purchasing-request/generated",
+            "module": "purchasing-vendor",
+            "lines": 105
+        },
+        {
+            "index": 214,
+            "path": "/v1/purchasing-request/detail-pr",
+            "module": "purchasing-vendor",
+            "lines": 170
+        },
+        {
+            "index": 215,
+            "path": "/v1/purchasing-request/detail/{docEntry}",
+            "module": "purchasing-vendor",
+            "lines": 49
+        },
+        {
+            "index": 216,
+            "path": "/GetDetailPR",
+            "module": "purchasing-vendor",
+            "lines": 225
+        },
+        {
+            "index": 217,
+            "path": "/v1/purchasing-request/close-pr",
+            "module": "purchasing-vendor",
+            "lines": 39
+        },
+        {
+            "index": 218,
+            "path": "/v1/purchasing-request/cancel-pr",
+            "module": "purchasing-vendor",
+            "lines": 39
+        },
+        {
+            "index": 219,
+            "path": "/api/addpr",
+            "module": "purchasing-vendor",
+            "lines": 172
+        },
+        {
+            "index": 220,
+            "path": "/v1/purchasing-request/requests",
+            "module": "purchasing-vendor",
+            "lines": 169
+        },
+        {
+            "index": 221,
+            "path": "/v1/purchasing-request/add-pr",
+            "module": "purchasing-vendor",
+            "lines": 14
+        },
+        {
+            "index": 222,
+            "path": "/v1/purchasing-request/requests/{id}",
+            "module": "purchasing-vendor",
+            "lines": 178
+        },
+        {
+            "index": 223,
+            "path": "/v1/purchasing-request/requests/{id}/status",
+            "module": "purchasing-vendor",
+            "lines": 52
+        },
+        {
+            "index": 224,
+            "path": "/v1/document-types",
+            "module": "purchasing-vendor",
+            "lines": 33
+        },
+        {
+            "index": 225,
+            "path": "/v1/purchasing-request/document-types",
+            "module": "purchasing-vendor",
+            "lines": 33
+        },
+        {
+            "index": 226,
+            "path": "/v1/purchasing-request/quotations",
+            "module": "purchasing-vendor",
+            "lines": 116
+        },
+        {
+            "index": 227,
+            "path": "/v1/purchasing-request/quotations/{id}",
+            "module": "purchasing-vendor",
+            "lines": 68
+        },
+        {
+            "index": 228,
+            "path": "/v1/purchasing-request/quotations/{quotationId}/offers",
+            "module": "purchasing-vendor",
+            "lines": 18
+        },
+        {
+            "index": 229,
+            "path": "/v1/purchasing-request/quotation-offers",
+            "module": "purchasing-vendor",
+            "lines": 23
+        },
+        {
+            "index": 230,
+            "path": "/v1/purchasing-request/quotation-offers/{id}",
+            "module": "purchasing-vendor",
+            "lines": 62
+        },
+        {
+            "index": 231,
+            "path": "/v1/public/quotations/{token}",
+            "module": "purchasing-vendor",
+            "lines": 20
+        },
+        {
+            "index": 232,
+            "path": "/v1/public/quotations/{token}/offers",
+            "module": "purchasing-vendor",
+            "lines": 199
+        },
+        {
+            "index": 233,
+            "path": "/v1/cron-jobs",
+            "module": "task-reporting",
+            "lines": 91
+        },
+        {
+            "index": 234,
+            "path": "/v1/cron-jobs/logs/all",
+            "module": "task-reporting",
+            "lines": 56
+        },
+        {
+            "index": 235,
+            "path": "/v1/cron-jobs/{id}",
+            "module": "task-reporting",
+            "lines": 123
+        },
+        {
+            "index": 236,
+            "path": "/v1/cron-jobs/{id}/run",
+            "module": "task-reporting",
+            "lines": 35
+        },
+        {
+            "index": 237,
+            "path": "/v1/cron-jobs/{id}/logs",
+            "module": "task-reporting",
+            "lines": 33
+        },
+        {
+            "index": 238,
+            "path": "/v1/production/orders/sap-list",
+            "module": "production",
+            "lines": 152
+        },
+        {
+            "index": 239,
+            "path": "/v1/production/get-list-pdo-sap",
+            "module": "production",
+            "lines": 84
+        },
+        {
+            "index": 240,
+            "path": "/v1/production/orders/sap/{id}",
+            "module": "production",
+            "lines": 258
+        },
+        {
+            "index": 241,
+            "path": "/v1/production/orders/sap/detail",
+            "module": "production",
+            "lines": 25
+        },
+        {
+            "index": 242,
+            "path": "/v1/production/receipts/sap-list",
+            "module": "production",
+            "lines": 112
+        },
+        {
+            "index": 243,
+            "path": "/v1/production/receipts/sap/{id}",
+            "module": "production",
+            "lines": 108
+        },
+        {
+            "index": 244,
+            "path": "/v1/production/receipts/sap/detail",
+            "module": "production",
+            "lines": 25
+        },
+        {
+            "index": 245,
+            "path": "/v1/production/issues/sap-list",
+            "module": "production",
+            "lines": 112
+        },
+        {
+            "index": 246,
+            "path": "/v1/production/issues/sap/{id}",
+            "module": "production",
+            "lines": 108
+        },
+        {
+            "index": 247,
+            "path": "/v1/production/issues/sap/detail",
+            "module": "production",
+            "lines": 25
+        },
+        {
+            "index": 248,
+            "path": "/v1/production/add-issue-prod-sap",
+            "module": "production",
+            "lines": 116
+        },
+        {
+            "index": 249,
+            "path": "/v1/warehouses/stock-by-item",
+            "module": "master-auth-core",
+            "lines": 63
+        },
+        {
+            "index": 250,
+            "path": "/v1/production/add-receipt-prod-sap",
+            "module": "production",
+            "lines": 122
+        },
+        {
+            "index": 251,
+            "path": "/v1/production/orders/sap/cancel",
+            "module": "production",
+            "lines": 49
+        },
+        {
+            "index": 252,
+            "path": "/v1/production/orders/sap/close",
+            "module": "production",
+            "lines": 49
+        },
+        {
+            "index": 253,
+            "path": "/v1/production/close-pdo-sap",
+            "module": "production",
+            "lines": 28
+        },
+        {
+            "index": 254,
+            "path": "/v1/production/closepdo",
+            "module": "production",
+            "lines": 28
+        },
+        {
+            "index": 255,
+            "path": "/v1/production/inventory-transfer/sap/cancel",
+            "module": "production",
+            "lines": 49
+        },
+        {
+            "index": 256,
+            "path": "/v1/production/issues/sap/edit-comment",
+            "module": "production",
+            "lines": 55
+        },
+        {
+            "index": 257,
+            "path": "/v1/production/receipts/sap/edit-remarks",
+            "module": "production",
+            "lines": 55
+        },
+        {
+            "index": 258,
+            "path": "/v1/production/get-unit",
+            "module": "production",
+            "lines": 42
+        },
+        {
+            "index": 259,
+            "path": "/v1/reporting/tasks/sync",
+            "module": "task-reporting",
+            "lines": 49
+        },
+        {
+            "index": 260,
+            "path": "/v1/reporting/tasks",
+            "module": "task-reporting",
+            "lines": 41
+        },
+        {
+            "index": 261,
+            "path": "/v1/reporting/tasks/all",
+            "module": "task-reporting",
+            "lines": 68
+        },
+        {
+            "index": 262,
+            "path": "/v1/reporting/tasks/summary",
+            "module": "task-reporting",
+            "lines": 10
+        },
+        {
+            "index": 263,
+            "path": "/v1/reporting/dashboard",
+            "module": "task-reporting",
+            "lines": 97
+        },
+        {
+            "index": 264,
+            "path": "/v1/reporting/filters",
+            "module": "task-reporting",
+            "lines": 12
+        },
+        {
+            "index": 265,
+            "path": "/v1/reporting/filters/spaces",
+            "module": "task-reporting",
+            "lines": 12
+        },
+        {
+            "index": 266,
+            "path": "/v1/reporting/filters/folders",
+            "module": "task-reporting",
+            "lines": 18
+        },
+        {
+            "index": 267,
+            "path": "/v1/reporting/filters/lists",
+            "module": "task-reporting",
+            "lines": 21
+        },
+        {
+            "index": 268,
+            "path": "/v1/reporting/filters/assignees",
+            "module": "task-reporting",
+            "lines": 12
+        },
+        {
+            "index": 269,
+            "path": "/v1/reporting/filters/statuses",
+            "module": "task-reporting",
+            "lines": 12
+        },
+        {
+            "index": 270,
+            "path": "/v1/reporting/filters/priorities",
+            "module": "task-reporting",
+            "lines": 12
+        },
+        {
+            "index": 271,
+            "path": "/v1/reporting/filters/task-types",
+            "module": "task-reporting",
+            "lines": 12
+        },
+        {
+            "index": 272,
+            "path": "/customer-monthly-orders/{id}/post-to-so",
+            "module": "sales-orders",
+            "lines": 44
+        },
+        {
+            "index": 273,
+            "path": "/vendor-portal/ping",
+            "module": "purchasing-vendor",
+            "lines": 10
+        },
+        {
+            "index": 274,
+            "path": "/vendor-portal/test",
+            "module": "purchasing-vendor",
+            "lines": 9
+        },
+        {
+            "index": 275,
+            "path": "/vendor-portal/register",
+            "module": "purchasing-vendor",
+            "lines": 153
+        },
+        {
+            "index": 276,
+            "path": "/vendor-portal/check-email",
+            "module": "purchasing-vendor",
+            "lines": 18
+        },
+        {
+            "index": 277,
+            "path": "/vendor-portal/templates",
+            "module": "purchasing-vendor",
+            "lines": 56
+        },
+        {
+            "index": 278,
+            "path": "/vendor-portal/templates/{slug}",
+            "module": "purchasing-vendor",
+            "lines": 26
+        },
+        {
+            "index": 279,
+            "path": "/vendor-portal/documents/{documentId}/reupload",
+            "module": "purchasing-vendor",
+            "lines": 48
+        },
+        {
+            "index": 280,
+            "path": "/vendor-portal/login",
+            "module": "purchasing-vendor",
+            "lines": 32
+        },
+        {
+            "index": 281,
+            "path": "/vendor-portal/me",
+            "module": "purchasing-vendor",
+            "lines": 78
+        },
+        {
+            "index": 282,
+            "path": "/vendor-portal/change-password",
+            "module": "purchasing-vendor",
+            "lines": 39
+        },
+        {
+            "index": 283,
+            "path": "/vendor-portal/logout",
+            "module": "purchasing-vendor",
+            "lines": 12
+        },
+        {
+            "index": 284,
+            "path": "/vendor-portal/rates/headers",
+            "module": "purchasing-vendor",
+            "lines": 46
+        },
+        {
+            "index": 285,
+            "path": "/vendor-portal/rates/headers/{batchId}",
+            "module": "purchasing-vendor",
+            "lines": 21
+        },
+        {
+            "index": 286,
+            "path": "/vendor-portal/rates",
+            "module": "purchasing-vendor",
+            "lines": 136
+        },
+        {
+            "index": 287,
+            "path": "/vendor-portal/rates/upload",
+            "module": "purchasing-vendor",
+            "lines": 45
+        },
+        {
+            "index": 288,
+            "path": "/vendor-portal/rates/template",
+            "module": "purchasing-vendor",
+            "lines": 17
+        },
+        {
+            "index": 289,
+            "path": "/vendor-management/registrations",
+            "module": "purchasing-vendor",
+            "lines": 40
+        },
+        {
+            "index": 290,
+            "path": "/vendor-management/registrations/{id}",
+            "module": "purchasing-vendor",
+            "lines": 31
+        },
+        {
+            "index": 291,
+            "path": "/vendor-management/registrations/{id}/approve",
+            "module": "purchasing-vendor",
+            "lines": 83
+        },
+        {
+            "index": 292,
+            "path": "/vendor-management/registrations/{id}/reject",
+            "module": "purchasing-vendor",
+            "lines": 56
+        },
+        {
+            "index": 293,
+            "path": "/vendor-management/registrations/{id}/request-revision",
+            "module": "purchasing-vendor",
+            "lines": 38
+        },
+        {
+            "index": 294,
+            "path": "/vendor-management/documents/{documentId}/verify",
+            "module": "purchasing-vendor",
+            "lines": 81
+        },
+        {
+            "index": 295,
+            "path": "/vendor-management/documents/{documentId}/preview",
+            "module": "purchasing-vendor",
+            "lines": 32
+        },
+        {
+            "index": 296,
+            "path": "/vendor-management/rates/headers",
+            "module": "purchasing-vendor",
+            "lines": 58
+        },
+        {
+            "index": 297,
+            "path": "/vendor-management/rates/headers/{batchId}",
+            "module": "purchasing-vendor",
+            "lines": 25
+        },
+        {
+            "index": 298,
+            "path": "/vendor-management/rates",
+            "module": "purchasing-vendor",
+            "lines": 66
+        },
+        {
+            "index": 299,
+            "path": "/v1/ekspedisi/leadtimes",
+            "module": "logistic-ekspedisi",
+            "lines": 197
+        },
+        {
+            "index": 300,
+            "path": "/v1/ekspedisi/leadtimes/{id}",
+            "module": "logistic-ekspedisi",
+            "lines": 155
+        },
+        {
+            "index": 301,
+            "path": "/v1/master-approvals/originators",
+            "module": "master-auth-core",
+            "lines": 93
+        },
+        {
+            "index": 302,
+            "path": "/v1/master-approvals/by-owner",
+            "module": "master-auth-core",
+            "lines": 201
+        },
+        {
+            "index": 303,
+            "path": "/v1/master-approvals/detail-by-object",
+            "module": "master-auth-core",
+            "lines": 181
+        },
+        {
+            "index": 304,
+            "path": "/v1/logistic/orders/dashboard",
+            "module": "logistic-ekspedisi",
+            "lines": 122
+        },
+        {
+            "index": 305,
+            "path": "/v1/logistic/orders",
+            "module": "logistic-ekspedisi",
+            "lines": 88
+        },
+        {
+            "index": 306,
+            "path": "/v1/logistic/orders/{id}/reschedule",
+            "module": "logistic-ekspedisi",
+            "lines": 63
+        },
+        {
+            "index": 307,
+            "path": "/v1/logistic/orders/{id}/approve",
+            "module": "logistic-ekspedisi",
+            "lines": 60
+        },
+        {
+            "index": 308,
+            "path": "/v1/logistic/orders/{id}/inventory-transfer",
+            "module": "logistic-ekspedisi",
+            "lines": 87
+        },
+        {
+            "index": 309,
+            "path": "/v1/logistic/orders/{id}/logs",
+            "module": "logistic-ekspedisi",
+            "lines": 41
+        },
+        {
+            "index": 310,
+            "path": "/v1/logistic/picklists/series",
+            "module": "logistic-ekspedisi",
+            "lines": 47
+        },
+        {
+            "index": 311,
+            "path": "/v1/logistic/picklists/available-orders",
+            "module": "logistic-ekspedisi",
+            "lines": 18
+        },
+        {
+            "index": 312,
+            "path": "/v1/logistic/picklists",
+            "module": "logistic-ekspedisi",
+            "lines": 182
+        },
+        {
+            "index": 313,
+            "path": "/v1/logistic/picklists/{id}",
+            "module": "logistic-ekspedisi",
+            "lines": 32
+        },
+        {
+            "index": 314,
+            "path": "/v1/logistic/worker-management/picklists",
+            "module": "logistic-ekspedisi",
+            "lines": 170
+        },
+        {
+            "index": 315,
+            "path": "/v1/logistic/worker-management/picklists/{id}",
+            "module": "logistic-ekspedisi",
+            "lines": 233
+        },
+        {
+            "index": 316,
+            "path": "/v1/logistic/picklists/{id}/status",
+            "module": "logistic-ekspedisi",
+            "lines": 34
+        },
+        {
+            "index": 317,
+            "path": "/v1/logistic/picklists/{id}/weigh-in",
+            "module": "logistic-ekspedisi",
+            "lines": 66
+        },
+        {
+            "index": 318,
+            "path": "/v1/logistic/picklists/{id}/weigh-out",
+            "module": "logistic-ekspedisi",
+            "lines": 59
+        },
+        {
+            "index": 319,
+            "path": "/v1/logistic/picklists/{id}/weigh-out/reject",
+            "module": "logistic-ekspedisi",
+            "lines": 55
+        },
+        {
+            "index": 320,
+            "path": "/v1/logistic/picklists/{id}/overload",
+            "module": "logistic-ekspedisi",
+            "lines": 294
+        },
+        {
+            "index": 321,
+            "path": "/v1/logistic/picklists/overload",
+            "module": "logistic-ekspedisi",
+            "lines": 197
+        },
+        {
+            "index": 322,
+            "path": "/v1/logistic/picklists/{id}/adjust-overload",
+            "module": "logistic-ekspedisi",
+            "lines": 341
+        },
+        {
+            "index": 323,
+            "path": "/v1/logistic/picklists/{id}/add-do",
+            "module": "logistic-ekspedisi",
+            "lines": 248
+        },
+        {
+            "index": 324,
+            "path": "/v1/logistic/picklists/{id}/signatures",
+            "module": "logistic-ekspedisi",
+            "lines": 51
+        },
+        {
+            "index": 325,
+            "path": "/v1/logistic/picklists/{id}/signatures/{signatureId}/preview",
+            "module": "logistic-ekspedisi",
+            "lines": 25
+        },
+        {
+            "index": 326,
+            "path": "/v1/logistic/picklists/{id}/attachments",
+            "module": "logistic-ekspedisi",
+            "lines": 109
+        },
+        {
+            "index": 327,
+            "path": "/v1/logistic/picklists/{id}/goods-attachments/{attachmentId}/preview",
+            "module": "logistic-ekspedisi",
+            "lines": 23
+        },
+        {
+            "index": 328,
+            "path": "/v1/logistic/picklists/{id}/goods-attachments/{attachmentId}",
+            "module": "logistic-ekspedisi",
+            "lines": 25
+        },
+        {
+            "index": 329,
+            "path": "/v1/logistic/picklists/{id}/items/{itemId}/label-photos/{photoId}/preview",
+            "module": "logistic-ekspedisi",
+            "lines": 33
+        },
+        {
+            "index": 330,
+            "path": "/v1/logistic/picklists/{id}/items/{itemId}/start-time",
+            "module": "logistic-ekspedisi",
+            "lines": 105
+        },
+        {
+            "index": 331,
+            "path": "/v1/logistic/picklists/{id}/save-draft",
+            "module": "logistic-ekspedisi",
+            "lines": 199
+        },
+        {
+            "index": 332,
+            "path": "/v1/logistic/picklists/add-do",
+            "module": "logistic-ekspedisi",
+            "lines": 295
+        },
+        {
+            "index": 333,
+            "path": "/v1/logistic/picklists/save-draft",
+            "module": "logistic-ekspedisi",
+            "lines": 178
+        },
+        {
+            "index": 334,
+            "path": "/v1/dashboard-layouts/me",
+            "module": "master-auth-core",
+            "lines": 76
+        },
+        {
+            "index": 335,
+            "path": "/v1/dashboard-layouts/roles/{roleId}",
+            "module": "master-auth-core",
+            "lines": 198
+        },
+        {
+            "index": 336,
+            "path": "/v1/ekspedisi/loading-rate-types",
+            "module": "logistic-ekspedisi",
+            "lines": 63
+        },
+        {
+            "index": 337,
+            "path": "/v1/ekspedisi/loading-rate-types/{id}",
+            "module": "logistic-ekspedisi",
+            "lines": 71
+        },
+        {
+            "index": 338,
+            "path": "/v1/ekspedisi/loading-rates",
+            "module": "logistic-ekspedisi",
+            "lines": 84
+        },
+        {
+            "index": 339,
+            "path": "/v1/ekspedisi/loading-rates/{id}",
+            "module": "logistic-ekspedisi",
+            "lines": 69
+        },
+        {
+            "index": 340,
+            "path": "/v1/ekspedisi/loading-rates/upload",
+            "module": "logistic-ekspedisi",
+            "lines": 35
+        },
+        {
+            "index": 341,
+            "path": "/v1/ekspedisi/loading-rates/template",
+            "module": "logistic-ekspedisi",
+            "lines": 18
+        },
+        {
+            "index": 342,
+            "path": "/v1/recruitment/auth/register",
+            "module": "hr-recruitment",
+            "lines": 42
+        },
+        {
+            "index": 343,
+            "path": "/v1/recruitment/auth/login",
+            "module": "hr-recruitment",
+            "lines": 29
+        },
+        {
+            "index": 344,
+            "path": "/v1/recruitment/auth/me",
+            "module": "hr-recruitment",
+            "lines": 12
+        },
+        {
+            "index": 345,
+            "path": "/v1/recruitment/auth/logout",
+            "module": "hr-recruitment",
+            "lines": 12
+        },
+        {
+            "index": 346,
+            "path": "/v1/recruitment/candidate/biodata",
+            "module": "hr-recruitment",
+            "lines": 36
+        },
+        {
+            "index": 347,
+            "path": "/v1/recruitment/psikotes/disc/test",
+            "module": "hr-recruitment",
+            "lines": 14
+        },
+        {
+            "index": 348,
+            "path": "/v1/recruitment/psikotes/disc/answers",
+            "module": "hr-recruitment",
+            "lines": 40
+        },
+        {
+            "index": 349,
+            "path": "/v1/recruitment/psikotes/disc/submit",
+            "module": "hr-recruitment",
+            "lines": 12
+        },
+        {
+            "index": 350,
+            "path": "/v1/recruitment/psikotes/disc/result",
+            "module": "hr-recruitment",
+            "lines": 12
+        },
+        {
+            "index": 351,
+            "path": "/v1/public/psikotes/disc/tests/{token}",
+            "module": "hr-recruitment",
+            "lines": 85
+        },
+        {
+            "index": 352,
+            "path": "/v1/public/psikotes/disc/tests/{token}/answers",
+            "module": "hr-recruitment",
+            "lines": 43
+        },
+        {
+            "index": 353,
+            "path": "/v1/public/psikotes/disc/tests/{token}/submit",
+            "module": "hr-recruitment",
+            "lines": 17
+        },
+        {
+            "index": 354,
+            "path": "/v1/hr/psikotes/disc/questions",
+            "module": "hr-recruitment",
+            "lines": 12
+        },
+        {
+            "index": 355,
+            "path": "/v1/hr/psikotes/disc/questions/bulk",
+            "module": "hr-recruitment",
+            "lines": 39
+        },
+        {
+            "index": 356,
+            "path": "/v1/hr/psikotes/disc/questions/seed-default",
+            "module": "hr-recruitment",
+            "lines": 12
+        },
+        {
+            "index": 357,
+            "path": "/v1/hr/psikotes/disc/questions/{number}",
+            "module": "hr-recruitment",
+            "lines": 63
+        },
+        {
+            "index": 358,
+            "path": "/v1/hr/psikotes/disc/assessments",
+            "module": "hr-recruitment",
+            "lines": 61
+        },
+        {
+            "index": 359,
+            "path": "/v1/hr/psikotes/disc/assessments/{id}",
+            "module": "hr-recruitment",
+            "lines": 18
+        },
+        {
+            "index": 360,
+            "path": "/v1/hr/psikotes/disc/assessments-export",
+            "module": "hr-recruitment",
+            "lines": 25
+        },
+        {
+            "index": 361,
+            "path": "/v1/hr/recruitment/candidates",
+            "module": "hr-recruitment",
+            "lines": 115
+        },
+        {
+            "index": 362,
+            "path": "/v1/hr/recruitment/candidates/{id}",
+            "module": "hr-recruitment",
+            "lines": 21
+        },
+        {
+            "index": 363,
+            "path": "/v1/hr/recruitment/candidates/{id}/status",
+            "module": "hr-recruitment",
+            "lines": 39
+        },
+        {
+            "index": 364,
+            "path": "/v1/hr/recruitment/candidates/{id}/shortlist",
+            "module": "hr-recruitment",
+            "lines": 21
+        },
+        {
+            "index": 365,
+            "path": "/v1/hr/recruitment/candidates/{id}/reject",
+            "module": "hr-recruitment",
+            "lines": 21
+        }
+    ]
+}

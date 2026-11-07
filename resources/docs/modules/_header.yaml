@@ -1,0 +1,15 @@
+openapi: 3.0.3
+info:
+  title: SMESTA
+  description: |
+    <div style="margin-bottom: 28px; padding: 12px 0;">
+      <img src="/docs/logo-smesta-transparent.png" alt="SMESTA Logo" style="max-height: 140px; width: auto; object-fit: contain;" />
+    </div>
+
+    Dokumentasi API Backend Distributor Channel menggunakan Laravel 12.
+  version: 1.0.0
+servers:
+  - url: http://api-dev.susantimegah.com/api/distributor-channel
+    description: Development Server
+  - url: http://localhost:8000/api/distributor-channel
+    description: Local Server

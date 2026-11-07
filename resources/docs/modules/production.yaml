@@ -1,0 +1,2963 @@
+openapi: 3.0.3
+info:
+  title: "SMESTA API - Modul Production (BOM, PDO, Issue, Receipt, Change Product)"
+  description: |
+    Dokumentasi API Modular SMESTA (Bagian dari `resources/docs/openapi.yaml`).
+    Edit file ini secara langsung agar ringan di IDE, lalu jalankan `php artisan docs:openapi bundle` untuk menyatukan kembali ke `openapi.yaml`.
+  version: 1.0.0
+servers:
+  - url: https://api-sm-connect.susantimegah.com/api/distributor-channel
+    description: Production Server
+  - url: http://api-dev.susantimegah.com/api/distributor-channel
+    description: Development Server
+  - url: http://localhost:8000/api/distributor-channel
+    description: Local Server
+paths:
+  /v1/production/change-products:
+
+    get:
+      summary: Daftar Transaksi Change Product
+      description: Mengambil seluruh riwayat transaksi Change Product (penggantian item lama ke item baru) beserta status sinkronisasi SAP.
+      tags:
+        - Production - Change Product
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          description: Pencarian berdasarkan nomor dokumen CP, comments, addon_id, atau item code
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Filter status transaksi (DRAFT, COMPLETE, CANCELLED)
+          schema:
+            type: string
+            enum: [DRAFT, COMPLETE, CANCELLED]
+        - name: sap_status
+          in: query
+          description: Filter status sinkronisasi SAP (PENDING, SYNCED, FAILED)
+          schema:
+            type: string
+            enum: [PENDING, SYNCED, FAILED]
+        - name: date_from
+          in: query
+          description: Filter tanggal dokumen mulai (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          description: Filter tanggal dokumen akhir (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Data transaksi Change Product berhasil diambil.
+    post:
+      summary: Buat Draft / Simpan & Posting Transaksi Change Product
+      description: |
+        Menyimpan transaksi Change Product baru. Default berstatus **DRAFT**.
+        Jika parameter `post_now: true` dikirimkan, backend akan langsung memproses ke SAP B1 (`POST /api/AddCP`), mengambil nomor GI (Goods Issue) dan GR (Goods Receipt), lalu mengubah status menjadi **COMPLETE**.
+      tags:
+        - Production - Change Product
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - docDate
+                - oldLines
+                - newLines
+              properties:
+                docDate:
+                  type: string
+                  format: date-time
+                  example: "2026-09-01T00:00:00"
+                docDueDate:
+                  type: string
+                  format: date-time
+                  example: "2026-09-01T00:00:00"
+                comments:
+                  type: string
+                  example: "Change product 4 item lama menjadi 2 item baru"
+                shift:
+                  type: string
+                  example: "1"
+                unit:
+                  type: string
+                  example: "UNIT-A"
+                addonId:
+                  type: string
+                  example: "ADDON-CP-001"
+                userId:
+                  type: string
+                  example: "105"
+                post_now:
+                  type: boolean
+                  description: Jika true, langsung diposting ke SAP saat disimpan
+                  example: false
+                oldLines:
+                  type: array
+                  description: Daftar item lama yang dikeluarkan (Goods Issue)
+                  items:
+                    type: object
+                    required:
+                      - itemCode
+                      - quantity
+                      - fromWhsCode
+                    properties:
+                      itemCode:
+                        type: string
+                        example: "OLD-01"
+                      quantity:
+                        type: number
+                        example: 10.0
+                      fromWhsCode:
+                        type: string
+                        example: "PRD01-01"
+                      ocrCode:
+                        type: string
+                        example: "CC-PROD"
+                      ocrCode2:
+                        type: string
+                        example: "DEPT-MFG"
+                      ocrCode3:
+                        type: string
+                        example: "LINE-01"
+                newLines:
+                  type: array
+                  description: Daftar item baru yang dimasukkan (Goods Receipt)
+                  items:
+                    type: object
+                    required:
+                      - itemCode
+                      - quantity
+                      - toWhsCode
+                    properties:
+                      itemCode:
+                        type: string
+                        example: "NEW-01"
+                      quantity:
+                        type: number
+                        example: 12.0
+                      toWhsCode:
+                        type: string
+                        example: "FG01"
+                      ocrCode:
+                        type: string
+                        example: "CC-PROD"
+                      ocrCode2:
+                        type: string
+                        example: "DEPT-MFG"
+                      ocrCode3:
+                        type: string
+                        example: "LINE-01"
+                      valueAllocationPercent:
+                        type: number
+                        example: 0
+      responses:
+        '201':
+          description: Transaksi Change Product berhasil disimpan.
+        '422':
+          description: Validasi payload gagal.
+        '500':
+          description: Terjadi kesalahan server atau integrasi SAP gagal.
+
+  /v1/production/change-products/{id}:
+    get:
+      summary: Detail Transaksi Change Product
+      description: Mengambil detail satu transaksi Change Product berdasarkan ID, termasuk detail oldLines dan newLines serta nomor GI / GR jika sudah COMPLETE.
+      tags:
+        - Production - Change Product
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail transaksi Change Product berhasil diambil.
+        '404':
+          description: Data tidak ditemukan.
+    put:
+      summary: Update Draft Transaksi Change Product
+      description: Memperbarui data transaksi Change Product. Hanya diizinkan jika status masih **DRAFT**.
+      tags:
+        - Production - Change Product
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                docDate:
+                  type: string
+                  format: date-time
+                docDueDate:
+                  type: string
+                  format: date-time
+                comments:
+                  type: string
+                shift:
+                  type: string
+                unit:
+                  type: string
+                addonId:
+                  type: string
+                userId:
+                  type: string
+                post_now:
+                  type: boolean
+                oldLines:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      itemCode:
+                        type: string
+                      quantity:
+                        type: number
+                      fromWhsCode:
+                        type: string
+                      ocrCode:
+                        type: string
+                      ocrCode2:
+                        type: string
+                      ocrCode3:
+                        type: string
+                newLines:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      itemCode:
+                        type: string
+                      quantity:
+                        type: number
+                      toWhsCode:
+                        type: string
+                      ocrCode:
+                        type: string
+                      ocrCode2:
+                        type: string
+                      ocrCode3:
+                        type: string
+                      valueAllocationPercent:
+                        type: number
+      responses:
+        '200':
+          description: Data Change Product berhasil diperbarui.
+        '400':
+          description: Data berstatus COMPLETE tidak dapat diubah.
+    delete:
+      summary: Hapus Draft Transaksi Change Product
+      description: Menghapus transaksi Change Product. Hanya diizinkan jika status masih **DRAFT**.
+      tags:
+        - Production - Change Product
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Transaksi Change Product berhasil dihapus.
+        '400':
+          description: Data berstatus COMPLETE tidak dapat dihapus.
+
+  /v1/production/change-products/{id}/post:
+    post:
+      summary: Posting Draft Change Product ke SAP (/api/AddCP)
+      description: Mengirim transaksi Change Product berstatus **DRAFT** ke SAP B1. Setelah sukses, nomor GI (Issue Entry) dan GR (Receipt Entry) akan dicatat dan status transaksi berubah menjadi **COMPLETE**.
+      tags:
+        - Production - Change Product
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Berhasil diposting ke SAP dan status berubah COMPLETE.
+        '500':
+          description: Gagal diposting ke SAP.
+
+  /v1/production/add-cp:
+    post:
+      summary: Direct Save & Post Change Product ke SAP (Alias)
+      description: Endpoint praktis untuk langsung menyimpan dan mengeksekusi posting Change Product ke SAP dalam satu panggilan.
+      tags:
+        - Production - Change Product
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - docDate
+                - oldLines
+                - newLines
+              properties:
+                docDate:
+                  type: string
+                  format: date-time
+                  example: "2026-09-01T00:00:00"
+                docDueDate:
+                  type: string
+                  format: date-time
+                  example: "2026-09-01T00:00:00"
+                comments:
+                  type: string
+                  example: "Change product 4 item lama menjadi 2 item baru"
+                shift:
+                  type: string
+                  example: "1"
+                unit:
+                  type: string
+                  example: "UNIT-A"
+                addonId:
+                  type: string
+                  example: "ADDON-CP-001"
+                userId:
+                  type: string
+                  example: "105"
+                oldLines:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - itemCode
+                      - quantity
+                      - fromWhsCode
+                    properties:
+                      itemCode:
+                        type: string
+                        example: "OLD-01"
+                      quantity:
+                        type: number
+                        example: 10.0
+                      fromWhsCode:
+                        type: string
+                        example: "PRD01-01"
+                      ocrCode:
+                        type: string
+                        example: "CC-PROD"
+                      ocrCode2:
+                        type: string
+                        example: "DEPT-MFG"
+                      ocrCode3:
+                        type: string
+                        example: "LINE-01"
+                newLines:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - itemCode
+                      - quantity
+                      - toWhsCode
+                    properties:
+                      itemCode:
+                        type: string
+                        example: "NEW-01"
+                      quantity:
+                        type: number
+                        example: 12.0
+                      toWhsCode:
+                        type: string
+                        example: "FG01"
+                      ocrCode:
+                        type: string
+                        example: "CC-PROD"
+                      ocrCode2:
+                        type: string
+                        example: "DEPT-MFG"
+                      ocrCode3:
+                        type: string
+                        example: "LINE-01"
+                      valueAllocationPercent:
+                        type: number
+                        example: 0
+      responses:
+        '201':
+          description: Berhasil diposting ke SAP.
+        '500':
+          description: Gagal diposting ke SAP.
+
+  /v1/production/boms/import:
+    post:
+      summary: Import BOMs from Flat JSON Rows Array
+      description: Mengimpor data master Bill of Material (BOM) dari format array objek flat Excel (1 baris per komponen) yang dikirim oleh Frontend. Backend secara otomatis mengelompokkan baris berdasarkan 'BOM ID' atau 'Prod ItemCode' ke dalam Header BOM (`production_boms`) dan Detail Komponen (`production_bom_items`).
+      tags:
+        - Production BOM
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rows
+              properties:
+                rows:
+                  type: array
+                  description: Array of flat Excel row objects
+                  items:
+                    type: object
+                    properties:
+                      BOM ID:
+                        type: string
+                        example: "1"
+                      Prod ItemCode:
+                        type: string
+                        example: "A07"
+                      Prod ItemName:
+                        type: string
+                        example: "GARAMI 200 M @ 4 KG/BAL"
+                      Alternative BOM:
+                        type: integer
+                        example: 1
+                      BOM Header Qty:
+                        type: number
+                        example: 1
+                      Prod Warehouse:
+                        type: string
+                        example: "PRD01-05"
+                      Line No:
+                        type: integer
+                        example: 1
+                      Component Type:
+                        type: string
+                        enum: [Item, Resource]
+                        example: "Item"
+                      Component ItemCode:
+                        type: string
+                        example: "RAW-SALT-01"
+                      Component ItemName:
+                        type: string
+                        example: "Garam Curah Halus"
+                      Component Qty BOM:
+                        type: number
+                        example: 4.05
+                      Component Warehouse:
+                        type: string
+                        example: "RAW-01"
+                      Issue Method:
+                        type: string
+                        enum: [B, M]
+                        example: "B"
+      responses:
+        '200':
+          description: Data BOM berhasil diimpor
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Berhasil memproses 1 BOM (1 dibuat, 0 diperbarui) dengan 7 detail komponen."
+                  data:
+                    type: object
+                    properties:
+                      total_boms:
+                        type: integer
+                        example: 1
+                      total_boms_created:
+                        type: integer
+                        example: 1
+                      total_boms_updated:
+                        type: integer
+                        example: 0
+                      total_items_created:
+                        type: integer
+                        example: 7
+        '422':
+          description: Payload kosong atau tidak valid
+        '500':
+          description: Gagal mengimpor data ke database
+
+  /v1/production/boms/upload-excel:
+    post:
+      summary: Upload & Import BOMs from Excel / CSV File
+      description: Mengunggah file spreadsheet Excel (.xlsx, .xls, .csv) untuk diimpor ke dalam master Header BOM dan Detail Komponen.
+      tags:
+        - Production BOM
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File Excel (.xlsx, .xls, .csv) max 10MB.
+      responses:
+        '200':
+          description: File Excel berhasil diparse dan data BOM berhasil disimpan
+        '422':
+          description: File tidak valid atau kosong
+        '500':
+          description: Gagal membaca file atau error database
+
+  /v1/production/resources:
+    get:
+      summary: Get list of production resources
+      description: Mendapatkan daftar semua resource produksi yang disinkronisasi dari SAP.
+      tags:
+        - Production
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Pencarian berdasarkan kode atau nama resource.
+      responses:
+        '200':
+          description: Daftar resource produksi berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar resource produksi berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductionResource'
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/production/resources/sync:
+    post:
+      summary: Sync production resources from SAP
+      description: Sinkronisasi data master resource produksi dari SAP.
+      tags:
+        - Production
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Data resource produksi berhasil disinkronisasi dari SAP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data resource produksi berhasil disinkronisasi dari SAP.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductionResource'
+        '401':
+          description: Tidak terautentikasi
+        '500':
+          description: Gagal sinkronisasi data dari SAP
+
+  /v1/production/items:
+    get:
+      summary: Get list of production items
+      description: Mendapatkan daftar semua item produksi yang disinkronisasi dari SAP.
+      tags:
+        - Production
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Pencarian berdasarkan kode atau nama item.
+      responses:
+        '200':
+          description: Daftar item produksi berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar item produksi berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductionItem'
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/production/items/sync:
+    post:
+      summary: Sync production items from SAP
+      description: Sinkronisasi data master item produksi dari SAP.
+      tags:
+        - Production
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Data item produksi berhasil disinkronisasi dari SAP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data item produksi berhasil disinkronisasi dari SAP.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductionItem'
+        '401':
+          description: Tidak terautentikasi
+        '500':
+          description: Gagal sinkronisasi data dari SAP
+
+  /v1/production/boms:
+    get:
+      summary: Get all production BOMs
+      description: Mendapatkan daftar Bill of Material (BOM) produksi.
+      tags:
+        - Production BOM
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Cari berdasarkan kode produk atau komentar
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan kode produk spesifik
+      responses:
+        '200':
+          description: Daftar Bill of Material berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar Bill of Material berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductionBom'
+
+    post:
+      summary: Create a new production BOM
+      description: Membuat rancangan Bill of Material (BOM) baru beserta detail komponennya.
+      tags:
+        - Production BOM
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+                - qty
+                - to_whs
+                - details
+              properties:
+                code:
+                  type: string
+                  example: "ILP000117"
+                  description: Parent Product Code
+                qty:
+                  type: number
+                  example: 1.0
+                  description: Base Quantity
+                to_whs:
+                  type: string
+                  example: "WHS01"
+                  description: Receipt Warehouse Code
+                alternate:
+                  type: integer
+                  example: 1
+                  description: BOM Alternate Version
+                comments:
+                  type: string
+                  example: "BOM Garam JUMBO"
+                details:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - type
+                      - code
+                      - quantity
+                    properties:
+                      type:
+                        type: string
+                        enum: [Item, Resource, "4", "290"]
+                        example: "Item"
+                      code:
+                        type: string
+                        example: "RAW001"
+                      quantity:
+                        type: number
+                        example: 0.5
+                      warehouse:
+                        type: string
+                        example: "WHS01"
+                      issue_mthd:
+                        type: string
+                        enum: [B, M]
+                        example: "B"
+                      comments:
+                        type: string
+                        example: "Bahan penolong"
+      responses:
+        '201':
+          description: Bill of Material berhasil dibuat.
+
+  /v1/production/boms/{id}:
+    get:
+      summary: Get details of a production BOM
+      description: Mendapatkan detail lengkap Bill of Material beserta list komponennya.
+      tags:
+        - Production BOM
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail Bill of Material berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Detail Bill of Material berhasil diambil.
+                  data:
+                    $ref: '#/components/schemas/ProductionBom'
+
+    put:
+      summary: Update a production BOM
+      description: Memperbarui kuantitas target, gudang, atau memperbarui daftar komponen BOM.
+      tags:
+        - Production BOM
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                qty:
+                  type: number
+                  example: 2.0
+                to_whs:
+                  type: string
+                  example: "WHS02"
+                comments:
+                  type: string
+                  example: "Komentar revisi"
+                details:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - type
+                      - code
+                      - quantity
+                    properties:
+                      type:
+                        type: string
+                        enum: [Item, Resource, "4", "290"]
+                        example: "Resource"
+                      code:
+                        type: string
+                        example: "RES-001"
+                      quantity:
+                        type: number
+                        example: 1.2
+                      issue_mthd:
+                        type: string
+                        enum: [B, M]
+                        example: "M"
+      responses:
+        '200':
+          description: Bill of Material berhasil diperbarui.
+
+    delete:
+      summary: Delete a production BOM
+      description: Menghapus data Bill of Material beserta detail komponennya.
+      tags:
+        - Production BOM
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Bill of Material berhasil dihapus.
+
+  /v1/production/orders:
+    get:
+      summary: Get all production orders
+      description: Mendapatkan daftar Production Order.
+      tags:
+        - Production Order
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Cari berdasarkan no production order, kode produk, atau komentar
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan status (PLANNED, RELEASED, CLOSED, CANCELLED)
+        - name: item_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan kode produk utama
+      responses:
+        '200':
+          description: Daftar Production Order berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar Production Order berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductionOrder'
+
+    post:
+      summary: Create a new production order
+      description: Membuat Production Order baru beserta komponennya.
+      tags:
+        - Production Order
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - item_code
+                - planned_qty
+                - warehouse
+                - post_date
+                - details
+              properties:
+                prod_order_no:
+                  type: string
+                  example: "260210422"
+                item_code:
+                  type: string
+                  example: "B26"
+                planned_qty:
+                  type: number
+                  example: 3.0
+                warehouse:
+                  type: string
+                  example: "PRD01-05"
+                post_date:
+                  type: string
+                  format: date
+                  example: "2026-02-19"
+                due_date:
+                  type: string
+                  format: date
+                  example: "2026-02-19"
+                start_date:
+                  type: string
+                  format: date
+                  example: "2026-02-19"
+                status:
+                  type: string
+                  example: "PLANNED"
+                type:
+                  type: string
+                  example: "Special"
+                series:
+                  type: integer
+                  example: 5638
+                series_name:
+                  type: string
+                  description: "Nama Series penomoran dokumen (e.g. SBY26-08)"
+                  example: "SBY26-08"
+                uom:
+                  type: string
+                  description: "Satuan Unit of Measure (UoM) produk header"
+                  example: "BAL"
+                priority:
+                  type: integer
+                  example: 100
+                origin_type:
+                  type: string
+                  example: "Sales Order"
+                u_shift:
+                  type: string
+                  example: "All"
+                u_unit:
+                  type: string
+                  example: "SBY-UNIT5"
+                comments:
+                  type: string
+                  example: "Catatan order produksi"
+                details:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - item_code
+                      - planned_qty
+                    properties:
+                      type:
+                        type: string
+                        example: "Item"
+                      item_code:
+                        type: string
+                        example: "RM-001"
+                      uom:
+                        type: string
+                        example: "KG"
+                      base_qty:
+                        type: number
+                        example: 1.0
+                      planned_qty:
+                        type: number
+                        example: 10.0
+                      warehouse:
+                        type: string
+                        example: "PRD01-05"
+                      issue_mthd:
+                        type: string
+                        example: "B"
+                      ocr_code:
+                        type: string
+                        example: "SBY"
+                      ocr_code2:
+                        type: string
+                        example: "GRM"
+                      ocr_code3:
+                        type: string
+                        example: "PRO"
+      responses:
+        '201':
+          description: Production Order berhasil dibuat.
+
+  /v1/production/orders/sap:
+    post:
+      summary: Submit Production Order (PDO) to SAP
+      description: Mengirim data Production Order (PDO) secara langsung ke API SAP (`http://103.18.133.187:3100/api/addpdo`) dan menyimpan series_name serta UOM ke DB lokal.
+      tags:
+        - Production Order
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ItemCode
+                - PlannedQty
+                - Lines
+              properties:
+                ItemCode:
+                  type: string
+                  example: "FG_SPECIAL_01"
+                Series:
+                  type: integer
+                  example: 15
+                series:
+                  type: integer
+                  example: 15
+                SeriesName:
+                  type: string
+                  example: "SBY26-08"
+                series_name:
+                  type: string
+                  example: "SBY26-08"
+                Uom:
+                  type: string
+                  example: "BAL"
+                uom:
+                  type: string
+                  example: "BAL"
+                PlannedQty:
+                  type: number
+                  example: 100.0
+                PostingDate:
+                  type: string
+                  example: "2026-07-31T00:00:00"
+                DueDate:
+                  type: string
+                  example: "2026-08-10T00:00:00"
+                WhsCode:
+                  type: string
+                  example: "01"
+                Status:
+                  type: string
+                  description: "Status PDO: PLANNED (hanya simpan lokal) atau RELEASED (simpan lokal & kirim ke SAP)"
+                  example: "PLANNED"
+                status:
+                  type: string
+                  example: "PLANNED"
+                Remarks:
+                  type: string
+                  example: "Pembuatan barang spesial via API"
+                Shift:
+                  type: string
+                  example: "Shift 1"
+                Unit:
+                  type: string
+                  example: "Unit1"
+                Bomid:
+                  type: string
+                  example: "1312"
+                UserId:
+                  type: string
+                  example: "12"
+                AddonId:
+                  type: string
+                  example: "2"
+                Lines:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - ItemType
+                      - ItemCode
+                      - BaseQty
+                    properties:
+                      ItemType:
+                        type: string
+                        description: "I = Item, R = Resource, T = Text"
+                        example: "I"
+                      ItemCode:
+                        type: string
+                        example: "RM001"
+                      Uom:
+                        type: string
+                        example: "KG"
+                      uom:
+                        type: string
+                        example: "KG"
+                      BaseQty:
+                        type: number
+                        example: 2.5
+                      WhsCode:
+                        type: string
+                        example: "01"
+                      IssueMethod:
+                        type: string
+                        description: "M = Manual, B = Backflush"
+                        example: "M"
+                      OcrCode:
+                        type: string
+                        example: "CC01"
+                      OcrCode2:
+                        type: string
+                        example: "DP01"
+                      OcrCode3:
+                        type: string
+                        example: ""
+      responses:
+        '200':
+          description: Production Order (PDO) berhasil dikirim ke SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Production Order (PDO) berhasil dikirim ke SAP.
+                  data:
+                    type: object
+                    properties:
+                      payload:
+                        type: object
+                      sap_response:
+                        type: object
+                        properties:
+                          ErrorCode:
+                            type: integer
+                            example: 0
+                          Message:
+                            type: string
+                            example: "Success create PDO"
+
+
+  /v1/production/orders/{id}:
+    get:
+      summary: Get details of a production order
+      description: Mendapatkan detail lengkap Production Order beserta daftar komponennya.
+      tags:
+        - Production Order
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail Production Order berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Detail Production Order berhasil diambil.
+                  data:
+                    $ref: '#/components/schemas/ProductionOrder'
+
+    put:
+      summary: Update a production order
+      description: Memperbarui data header Production Order (item, qty, status, series, series_name, uom, dll.) beserta daftar komponen detailnya.
+      tags:
+        - Production Order
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID lokal Production Order atau SAP DocEntry
+          example: "6697"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                item_code:
+                  type: string
+                  example: "A07"
+                planned_qty:
+                  type: number
+                  example: 120.0
+                warehouse:
+                  type: string
+                  example: "PRD01-05"
+                series:
+                  type: integer
+                  example: 5638
+                series_name:
+                  type: string
+                  example: "SBY26-08"
+                uom:
+                  type: string
+                  example: "BAL"
+                status:
+                  type: string
+                  example: "RELEASED"
+                post_date:
+                  type: string
+                  format: date
+                  example: "2026-08-28"
+                due_date:
+                  type: string
+                  format: date
+                  example: "2026-08-30"
+                u_shift:
+                  type: string
+                  example: "C"
+                u_unit:
+                  type: string
+                  example: "SBY-UNIT7"
+                comments:
+                  type: string
+                  example: "Perubahan jadwal produksi"
+                production_bom_id:
+                  type: integer
+                  example: 12
+                ocr_code:
+                  type: string
+                  example: "SBY"
+                ocr_code2:
+                  type: string
+                  example: "GRM"
+                ocr_code3:
+                  type: string
+                  example: "PRO"
+                details:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        example: "Item"
+                      item_code:
+                        type: string
+                        example: "RM-001"
+                      uom:
+                        type: string
+                        example: "KG"
+                      base_qty:
+                        type: number
+                        example: 6.06
+                      planned_qty:
+                        type: number
+                        example: 727.2
+                      warehouse:
+                        type: string
+                        example: "PRD01-05"
+                      issue_mthd:
+                        type: string
+                        example: "M"
+                      ocr_code:
+                        type: string
+                        example: "SBY"
+      responses:
+        '200':
+          description: Production Order berhasil diperbarui.
+
+    delete:
+      summary: Delete a production order
+      description: Menghapus data Production Order.
+      tags:
+        - Production Order
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Production Order berhasil dihapus.
+
+  /v1/production/orders/sap-list:
+    get:
+      summary: Get list of Production Orders (PDO) from SAP
+      description: Mengambil daftar Production Order (PDO) dari SAP API (/api/getListPDO).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "2026-01-01"
+          description: Tanggal awal (format YYYY-MM-DD atau YYYY-M-D)
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "2026-12-31"
+          description: Tanggal akhir (format YYYY-MM-DD atau YYYY-M-D)
+        - name: whs_code
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "VRTR01"
+          description: Kode gudang asal (opsional)
+        - name: to_whs_code
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "FG01"
+          description: Kode gudang tujuan (opsional)
+        - name: unit
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "SBY-UNIT7"
+          description: Kode unit produksi (opsional)
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "RELEASED"
+          description: Status filter (PLANNED, RELEASED, CLOSED, CANCELLED, opsional)
+      responses:
+        '200':
+          description: Daftar Production Order (PDO) dari SAP berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar Production Order (PDO) dari SAP berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        DocEntry:
+                          type: string
+                          example: "6692"
+                        DocNum:
+                          type: string
+                          example: "260810254"
+                        StartDate:
+                          type: string
+                          example: "20260813"
+                        start_date:
+                          type: string
+                          example: "20260813"
+                        PostDate:
+                          type: string
+                          example: "20260813"
+                        DueDate:
+                          type: string
+                          example: "20260813"
+                        SeriesName:
+                          type: string
+                          example: "SBY26-08"
+                        series_name:
+                          type: string
+                          example: "SBY26-08"
+                        ItemCode:
+                          type: string
+                          example: "B26"
+                        ProdName:
+                          type: string
+                          example: "KOP 250 M @ 10 KG / BAL"
+                        PlannedQty:
+                          type: string
+                          example: "50.000000"
+                        Status:
+                          type: string
+                          example: "P"
+                        StatusName:
+                          type: string
+                          example: "Planned"
+                        CardCode:
+                          type: string
+                          example: ""
+                        U_Shift:
+                          type: string
+                          example: "X"
+                        U_Unit:
+                          type: string
+                          example: "GRM"
+                        Comments:
+                          type: string
+                          example: ""
+
+    post:
+      summary: Get list of Production Orders (PDO) from SAP (via POST body)
+      description: Mengambil daftar Production Order (PDO) dari SAP API menggunakan JSON body.
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                from:
+                  type: string
+                  example: "2026-01-01"
+                to:
+                  type: string
+                  example: "2026-12-31"
+                whs_code:
+                  type: string
+                  example: "VRTR01"
+                to_whs_code:
+                  type: string
+                  example: "FG01"
+      responses:
+        '200':
+          description: Daftar Production Order (PDO) dari SAP berhasil diambil.
+
+  /v1/production/get-list-pdo-sap:
+    get:
+      summary: Get list of Production Orders (PDO) from SAP (Alias)
+      description: Alias untuk /v1/production/orders/sap-list. Mengambil daftar Production Order (PDO) dari SAP API (/api/getListPDO).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "2026-01-01"
+          description: Tanggal awal (format YYYY-MM-DD atau YYYY-M-D)
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "2026-12-31"
+          description: Tanggal akhir (format YYYY-MM-DD atau YYYY-M-D)
+        - name: whs_code
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "VRTR01"
+          description: Kode gudang asal (opsional)
+        - name: to_whs_code
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "FG01"
+          description: Kode gudang tujuan (opsional)
+        - name: unit
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "SBY-UNIT7"
+          description: Kode unit produksi (opsional)
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "RELEASED"
+          description: Status filter (PLANNED, RELEASED, CLOSED, CANCELLED, opsional)
+      responses:
+        '200':
+          description: Daftar Production Order (PDO) dari SAP berhasil diambil.
+    post:
+      summary: Get list of Production Orders (PDO) from SAP (via POST body - Alias)
+      description: Alias untuk /v1/production/orders/sap-list. Mengambil daftar Production Order (PDO) dari SAP API menggunakan JSON body.
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                from:
+                  type: string
+                  example: "2026-01-01"
+                to:
+                  type: string
+                  example: "2026-12-31"
+                whs_code:
+                  type: string
+                  example: "VRTR01"
+                to_whs_code:
+                  type: string
+                  example: "FG01"
+      responses:
+        '200':
+          description: Daftar Production Order (PDO) dari SAP berhasil diambil.
+
+  /v1/production/orders/sap/{id}:
+    get:
+      summary: Get detail of Production Order (PDO) from SAP by ID/DocEntry/DocNum
+      description: Mengambil detail header dan line item Production Order (PDO) dari SAP API (/api/getPDObyId).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "6692"
+          description: DocEntry atau DocNum dari Production Order (PDO)
+      responses:
+        '200':
+          description: Detail Production Order (PDO) dari SAP berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Production Order detail retrieved successfully from SAP."
+                  data:
+                    type: object
+                    properties:
+                      header:
+                        type: object
+                        description: Header data dokumen Production Order dari SAP
+                        properties:
+                          DocEntry:
+                            type: integer
+                            example: 6692
+                          DocNum:
+                            type: string
+                            example: "20260012"
+                          Series:
+                            type: integer
+                            example: 15
+                          SeriesName:
+                            type: string
+                            example: "PDO26-01"
+                          ItemCode:
+                            type: string
+                            example: "FG00124"
+                          ProdName:
+                            type: string
+                            example: "Garam Halus Beryodium 250gr (Sak 50kg)"
+                          Status:
+                            type: string
+                            enum: [PLANNED, RELEASED, CLOSED, CANCELLED]
+                            example: "RELEASED"
+                          Type:
+                            type: string
+                            example: "S"
+                          PlannedQty:
+                            type: number
+                            format: float
+                            example: 1000.0
+                          CmpltQty:
+                            type: number
+                            format: float
+                            example: 500.0
+                          RjctQty:
+                            type: number
+                            format: float
+                            example: 0.0
+                          StartDate:
+                            type: string
+                            format: date-time
+                            example: "2026-09-24T00:00:00"
+                          PostDate:
+                            type: string
+                            format: date-time
+                            example: "2026-09-24T00:00:00"
+                          DueDate:
+                            type: string
+                            format: date-time
+                            example: "2026-09-25T00:00:00"
+                          WhsCode:
+                            type: string
+                            example: "FG01"
+                          Uom:
+                            type: string
+                            description: Satuan ukuran produk jadi (Unit of Measure)
+                            example: "SAK"
+                          Shift:
+                            type: string
+                            description: Shift kerja produksi (A = Shift 1, B = Shift 2, C = Shift 3)
+                            example: "A"
+                          Unit:
+                            type: string
+                            description: Unit bisnis / plant produksi
+                            example: "GRM"
+                          Remarks:
+                            type: string
+                            nullable: true
+                            example: "Produksi Garam Halus Shift Pagi"
+                          OcrCode:
+                            type: string
+                            nullable: true
+                            example: "SBY"
+                          OcrCode2:
+                            type: string
+                            nullable: true
+                            example: "GRM"
+                          OcrCode3:
+                            type: string
+                            nullable: true
+                            example: "PRD"
+                      items:
+                        type: array
+                        description: Daftar baris bahan baku & resource yang dialokasikan untuk Production Order
+                        items:
+                          type: object
+                          properties:
+                            LineNum:
+                              type: integer
+                              example: 0
+                            ItemType:
+                              type: string
+                              description: "Tipe item: I = Item / Bahan Baku, R = Resource / Mesin, T = Text"
+                              example: "I"
+                            ItemCode:
+                              type: string
+                              example: "RAW001"
+                            ItemName:
+                              type: string
+                              example: "Garam Kasar Cuci Kering Grade A"
+                            BaseQty:
+                              type: number
+                              format: float
+                              example: 1.02
+                            PlannedQty:
+                              type: number
+                              format: float
+                              example: 1020.0
+                            IssuedQty:
+                              type: number
+                              format: float
+                              example: 510.0
+                            Uom:
+                              type: string
+                              description: Satuan ukuran bahan / resource (Unit of Measure)
+                              example: "KG"
+                            Unit:
+                              type: string
+                              description: Satuan ukuran bahan / resource
+                              example: "KG"
+                            WhsCode:
+                              type: string
+                              example: "RM01"
+                            IssueMethod:
+                              type: string
+                              description: "Metode pengeluaran: M = Manual, B = Backflush"
+                              example: "M"
+                            OcrCode:
+                              type: string
+                              nullable: true
+                              example: "SBY"
+                            OcrCode2:
+                              type: string
+                              nullable: true
+                              example: "GRM"
+                            OcrCode3:
+                              type: string
+                              nullable: true
+                              example: "PRD"
+                      raw:
+                        type: object
+                        description: Data raw asli dari response SAP endpoint /api/getPDObyId
+              example:
+                success: true
+                message: "Production Order detail retrieved successfully from SAP."
+                data:
+                  header:
+                    DocEntry: 6692
+                    DocNum: "20260012"
+                    Series: 15
+                    SeriesName: "PDO26-01"
+                    ItemCode: "FG00124"
+                    ProdName: "Garam Halus Beryodium 250gr (Sak 50kg)"
+                    Status: "RELEASED"
+                    Type: "S"
+                    PlannedQty: 1000.0
+                    CmpltQty: 500.0
+                    RjctQty: 0.0
+                    StartDate: "2026-09-24T00:00:00"
+                    PostDate: "2026-09-24T00:00:00"
+                    DueDate: "2026-09-25T00:00:00"
+                    WhsCode: "FG01"
+                    Uom: "SAK"
+                    Shift: "A"
+                    Unit: "GRM"
+                    Remarks: "Produksi Garam Halus Shift Pagi"
+                    OcrCode: "SBY"
+                    OcrCode2: "GRM"
+                    OcrCode3: "PRD"
+                  items:
+                    - LineNum: 0
+                      ItemType: "I"
+                      ItemCode: "RAW001"
+                      ItemName: "Garam Kasar Cuci Kering Grade A"
+                      BaseQty: 1.02
+                      PlannedQty: 1020.0
+                      IssuedQty: 510.0
+                      Uom: "KG"
+                      Unit: "KG"
+                      WhsCode: "RM01"
+                      IssueMethod: "M"
+                      OcrCode: "SBY"
+                      OcrCode2: "GRM"
+                      OcrCode3: "PRD"
+                    - LineNum: 1
+                      ItemType: "I"
+                      ItemCode: "PK0001"
+                      ItemName: "Karung Sak 50kg Susanti"
+                      BaseQty: 1.0
+                      PlannedQty: 1000.0
+                      IssuedQty: 500.0
+                      Uom: "PCS"
+                      Unit: "PCS"
+                      WhsCode: "PK01"
+                      IssueMethod: "M"
+                      OcrCode: "SBY"
+                      OcrCode2: "GRM"
+                      OcrCode3: "PRD"
+                    - LineNum: 2
+                      ItemType: "R"
+                      ItemCode: "RES-LINE-01"
+                      ItemName: "Mesin Kemas Otomatis Line 1"
+                      BaseQty: 0.05
+                      PlannedQty: 50.0
+                      IssuedQty: 25.0
+                      Uom: "JAM"
+                      Unit: "JAM"
+                      WhsCode: "FG01"
+                      IssueMethod: "B"
+                      OcrCode: "SBY"
+                      OcrCode2: "GRM"
+                      OcrCode3: "PRD"
+                  raw:
+                    ErrorCode: 0
+                    Message: "Success"
+        '401':
+          description: Tidak terautentikasi.
+        '422':
+          description: Parameter identifier / custom_query tidak valid.
+        '500':
+          description: Gagal menghubungi API SAP.
+
+  /v1/production/orders/sap/detail:
+    post:
+      summary: Get detail of Production Order (PDO) from SAP (via POST body)
+      description: Mengambil detail Production Order (PDO) dari SAP API menggunakan JSON body CustomQuery.
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - custom_query
+              properties:
+                custom_query:
+                  type: string
+                  example: "6692"
+                  description: Identifier DocEntry atau DocNum (CustomQuery)
+      responses:
+        '200':
+          description: Detail Production Order (PDO) dari SAP berhasil diambil.
+
+  /v1/production/receipts/sap-list:
+    get:
+      summary: Get list of Production Receipts from SAP
+      description: Mengambil daftar Receipt from Production dari SAP API (/api/getListReceiptProd).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "2026-01-01"
+          description: Tanggal awal (format YYYY-MM-DD atau YYYY-M-D)
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "2026-12-31"
+          description: Tanggal akhir (format YYYY-MM-DD atau YYYY-M-D)
+        - name: whs_code
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "VRTR01"
+          description: Kode gudang asal (opsional)
+        - name: to_whs_code
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "FG01"
+          description: Kode gudang tujuan (opsional)
+      responses:
+        '200':
+          description: Daftar Receipt Production dari SAP berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar Receipt Production dari SAP berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        DocEntry:
+                          type: string
+                          example: "6563"
+                        DocNum:
+                          type: string
+                          example: "260810197"
+                        DocDate:
+                          type: string
+                          example: "20260808"
+                        ProdOrderNum:
+                          type: string
+                          example: "260810232"
+                        U_Shift:
+                          type: string
+                          example: "C"
+                        U_Unit:
+                          type: string
+                          example: "SBY-DOLPIN"
+                        Comments:
+                          type: string
+                          example: ""
+        '401':
+          description: Tidak terautentikasi.
+        '500':
+          description: Gagal menghubungi API SAP.
+
+    post:
+      summary: Get list of Production Receipts from SAP (via POST body)
+      description: Mengambil daftar Receipt from Production dari SAP API menggunakan JSON body.
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                from:
+                  type: string
+                  example: "2026-01-01"
+                to:
+                  type: string
+                  example: "2026-12-31"
+                whs_code:
+                  type: string
+                  example: "VRTR01"
+                to_whs_code:
+                  type: string
+                  example: "FG01"
+      responses:
+        '200':
+          description: Daftar Receipt Production dari SAP berhasil diambil.
+
+  /v1/production/receipts/sap/{id}:
+    get:
+      summary: Get detail of Production Receipt from SAP by ID/DocEntry/DocNum
+      description: Mengambil detail header dan line item Receipt from Production dari SAP API (/api/getReceiptProdbyId).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "6107"
+          description: DocEntry atau DocNum dari Receipt Production
+      responses:
+        '200':
+          description: Detail Receipt Production dari SAP berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Detail Receipt Production dari SAP berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      header:
+                        type: object
+                        properties:
+                          Series:
+                            type: string
+                            example: "5056"
+                          DocEntry:
+                            type: string
+                            example: "6107"
+                          DocNum:
+                            type: string
+                            example: "260710538"
+                          DocDate:
+                            type: string
+                            example: "20260725"
+                          TaxDate:
+                            type: string
+                            example: "20260725"
+                          JrnlMemo:
+                            type: string
+                            example: "Receipt from Production"
+                          Comments:
+                            type: string
+                            example: ""
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            DocEntry:
+                              type: string
+                              example: "6107"
+                            LineNum:
+                              type: string
+                              example: "0"
+                            ItemCode:
+                              type: string
+                              example: "HB26"
+                            ItemName:
+                              type: string
+                              example: "KOP 250 M @ 10 KG / BAL + JAMPEL"
+                            Quantity:
+                              type: string
+                              example: "1400.000000"
+                            WhsCode:
+                              type: string
+                              example: "PRD01-07"
+                            Uom:
+                              type: string
+                              example: "Bal"
+                            OcrCode:
+                              type: string
+                              example: "SBY"
+                            OcrCode2:
+                              type: string
+                              example: "GRM"
+                            OcrCode3:
+                              type: string
+                              example: "PRO"
+                            BaseType:
+                              type: string
+                              example: "202"
+                            BaseEntry:
+                              type: string
+                              example: "6180"
+                            BaseLine:
+                              type: string
+                              example: "0"
+        '401':
+          description: Tidak terautentikasi.
+        '422':
+          description: Parameter query / identifier tidak valid.
+        '500':
+          description: Gagal menghubungi API SAP.
+
+  /v1/production/receipts/sap/detail:
+    post:
+      summary: Get detail of Production Receipt from SAP (via POST body)
+      description: Mengambil detail header dan line item Receipt from Production dari SAP API menggunakan JSON body.
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - custom_query
+              properties:
+                custom_query:
+                  type: string
+                  example: "6107"
+                  description: Identifier DocEntry atau DocNum
+      responses:
+        '200':
+          description: Detail Receipt Production dari SAP berhasil diambil.
+
+  /v1/production/issues/sap-list:
+    get:
+      summary: Get list of Issue for Production from SAP
+      description: Mengambil daftar Issue for Production dari SAP API (/api/getListIssueProd).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "2026-01-01"
+          description: Tanggal awal (format YYYY-MM-DD atau YYYY-M-D)
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "2026-12-31"
+          description: Tanggal akhir (format YYYY-MM-DD atau YYYY-M-D)
+        - name: whs_code
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "VRTR01"
+          description: Kode gudang asal (opsional)
+        - name: to_whs_code
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "FG01"
+          description: Kode gudang tujuan (opsional)
+      responses:
+        '200':
+          description: Daftar Issue for Production dari SAP berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar Issue for Production dari SAP berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        DocEntry:
+                          type: string
+                          example: "6563"
+                        DocNum:
+                          type: string
+                          example: "260810197"
+                        DocDate:
+                          type: string
+                          example: "20260808"
+                        ProdOrderNum:
+                          type: string
+                          example: "260810232"
+                        U_Shift:
+                          type: string
+                          example: "C"
+                        U_Unit:
+                          type: string
+                          example: "SBY-DOLPIN"
+                        Comments:
+                          type: string
+                          example: ""
+        '401':
+          description: Tidak terautentikasi.
+        '500':
+          description: Gagal menghubungi API SAP.
+
+    post:
+      summary: Get list of Issue for Production from SAP (via POST body)
+      description: Mengambil daftar Issue for Production dari SAP API menggunakan JSON body.
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                from:
+                  type: string
+                  example: "2026-01-01"
+                to:
+                  type: string
+                  example: "2026-12-31"
+                whs_code:
+                  type: string
+                  example: "VRTR01"
+                to_whs_code:
+                  type: string
+                  example: "FG01"
+      responses:
+        '200':
+          description: Daftar Issue for Production dari SAP berhasil diambil.
+
+  /v1/production/issues/sap/{id}:
+    get:
+      summary: Get detail of Issue for Production from SAP by ID/DocEntry/DocNum
+      description: Mengambil detail header dan line item Issue for Production dari SAP API (/api/getIssueProdbyId).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "6107"
+          description: DocEntry atau DocNum dari Issue Production
+      responses:
+        '200':
+          description: Detail Issue for Production dari SAP berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Detail Issue for Production dari SAP berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      header:
+                        type: object
+                        properties:
+                          Series:
+                            type: string
+                            example: "5056"
+                          DocEntry:
+                            type: string
+                            example: "6107"
+                          DocNum:
+                            type: string
+                            example: "260710538"
+                          DocDate:
+                            type: string
+                            example: "20260725"
+                          TaxDate:
+                            type: string
+                            example: "20260725"
+                          JrnlMemo:
+                            type: string
+                            example: "Issue for Production"
+                          Comments:
+                            type: string
+                            example: ""
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            DocEntry:
+                              type: string
+                              example: "6107"
+                            LineNum:
+                              type: string
+                              example: "0"
+                            ItemCode:
+                              type: string
+                              example: "HB26"
+                            ItemName:
+                              type: string
+                              example: "KOP 250 M @ 10 KG / BAL + JAMPEL"
+                            Quantity:
+                              type: string
+                              example: "1400.000000"
+                            WhsCode:
+                              type: string
+                              example: "PRD01-07"
+                            Uom:
+                              type: string
+                              example: "Bal"
+                            OcrCode:
+                              type: string
+                              example: "SBY"
+                            OcrCode2:
+                              type: string
+                              example: "GRM"
+                            OcrCode3:
+                              type: string
+                              example: "PRO"
+                            BaseType:
+                              type: string
+                              example: "202"
+                            BaseEntry:
+                              type: string
+                              example: "6180"
+                            BaseLine:
+                              type: string
+                              example: "0"
+        '401':
+          description: Tidak terautentikasi.
+        '422':
+          description: Parameter query / identifier tidak valid.
+        '500':
+          description: Gagal menghubungi API SAP.
+
+  /v1/production/issues/sap/detail:
+    post:
+      summary: Get detail of Issue for Production from SAP (via POST body)
+      description: Mengambil detail header dan line item Issue for Production dari SAP API menggunakan JSON body.
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - custom_query
+              properties:
+                custom_query:
+                  type: string
+                  example: "6107"
+                  description: Identifier DocEntry atau DocNum
+      responses:
+        '200':
+          description: Detail Issue for Production dari SAP berhasil diambil.
+
+  /v1/production/add-issue-prod-sap:
+    post:
+      summary: Add Goods Issue for Production on SAP
+      description: Melakukan Issue Material/Component ke Production Order pada SAP Business One (/api/AddIssueForProduction).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocDate
+                - DocDueDate
+                - Lines
+              properties:
+                DocDate:
+                  type: string
+                  format: date
+                  example: "2026-08-15"
+                DocDueDate:
+                  type: string
+                  format: date
+                  example: "2026-08-15"
+                Comments:
+                  type: string
+                  example: "Goods Issue Production Order #10025"
+                Shift:
+                  type: string
+                  example: "Shift 1"
+                Unit:
+                  type: string
+                  example: "UNIT-01"
+                Bomid:
+                  type: string
+                  example: "BOM-992"
+                AddonId:
+                  type: string
+                  example: "ADDON-INT-01"
+                UserId:
+                  type: string
+                  example: "USR-004"
+                Lines:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - BaseEntry
+                      - BaseLine
+                      - Quantity
+                    properties:
+                      BaseType:
+                        type: integer
+                        example: 202
+                      BaseEntry:
+                        type: integer
+                        example: 10025
+                      BaseLine:
+                        type: integer
+                        example: 0
+                      Quantity:
+                        type: number
+                        example: 50
+                      WhsCode:
+                        type: string
+                        example: "RAW-01"
+                      UoMEntry:
+                        type: integer
+                        example: 1
+                      sort_order:
+                        type: integer
+                        nullable: true
+                        description: Urutan penomoran baris sesuai centang/pilihan user (misal 1, 2, 3...). Backend akan mengurutkan Lines sesuai angka ini sebelum dikirim ke SAP B1.
+                        example: 1
+                      OcrCode:
+                        type: string
+                        example: "DEPT-PROD"
+                      OcrCode2:
+                        type: string
+                        example: "CC-LINE1"
+                      OcrCode3:
+                        type: string
+                        example: ""
+      responses:
+        '200':
+          description: Goods Issue for Production berhasil diproses ke SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Success - [AddIssueForProduction]. DocNum: 40512"
+                  data:
+                    type: object
+                    properties:
+                      ErrorCode:
+                        type: integer
+                        example: 0
+                      Message:
+                        type: string
+                        example: "Success - [AddIssueForProduction]. DocNum: 40512"
+        '400':
+          description: Failed to process Goods Issue for Production to SAP (SAP Error).
+        '422':
+          description: Validasi request gagal.
+        '500':
+          description: Internal server error.
+
+  /v1/production/add-receipt-prod-sap:
+    post:
+      summary: Add Receipt for Production on SAP
+      description: Melakukan Receipt hasil produksi dari Production Order pada SAP Business One (/api/addreceiptprod).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocDate
+                - DocDueDate
+                - Lines
+              properties:
+                DocDate:
+                  type: string
+                  format: date
+                  example: "2026-08-15"
+                DocDueDate:
+                  type: string
+                  format: date
+                  example: "2026-08-15"
+                Comments:
+                  type: string
+                  example: "Receipt from Production Order #10025"
+                Shift:
+                  type: string
+                  example: "Shift 1"
+                Unit:
+                  type: string
+                  example: "UNIT-01"
+                Bomid:
+                  type: string
+                  example: "BOM-992"
+                AddonId:
+                  type: string
+                  example: "ADDON-INT-01"
+                UserId:
+                  type: string
+                  example: "USR-004"
+                Lines:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - BaseEntry
+                      - BaseLine
+                      - Quantity
+                    properties:
+                      BaseType:
+                        type: integer
+                        example: 202
+                      BaseEntry:
+                        type: integer
+                        example: 10025
+                      BaseLine:
+                        type: integer
+                        nullable: true
+                        description: Nomor baris referensi PDO (jika null atau dikosongkan, backend otomatis mengirimkan -1 untuk header produk jadi)
+                        example: -1
+                      ItemCode:
+                        type: string
+                        description: Kode barang / item code produk jadi (opsional, otomatis diambil dari PDO jika kosong)
+                        example: "FG-SALT-01"
+                      Quantity:
+                        type: number
+                        example: 50
+                      WhsCode:
+                        type: string
+                        example: "FG-01"
+                      UoMEntry:
+                        type: integer
+                        example: 1
+                      sort_order:
+                        type: integer
+                        nullable: true
+                        description: Urutan penomoran baris sesuai centang/pilihan user (misal 1, 2, 3...). Backend akan mengurutkan Lines sesuai angka ini sebelum dikirim ke SAP B1.
+                        example: 1
+                      OcrCode:
+                        type: string
+                        example: "DEPT-PROD"
+                      OcrCode2:
+                        type: string
+                        example: "CC-LINE1"
+                      OcrCode3:
+                        type: string
+                        example: ""
+      responses:
+        '200':
+          description: Receipt for Production berhasil diproses ke SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Success - Receipt for Production. DocNum: 40513"
+                  data:
+                    type: object
+                    properties:
+                      ErrorCode:
+                        type: integer
+                        example: 0
+                      Message:
+                        type: string
+                        example: "Success - Receipt for Production. DocNum: 40513"
+        '400':
+          description: Failed to process Receipt for Production to SAP (SAP Error).
+        '422':
+          description: Validasi request gagal.
+        '500':
+          description: Internal server error.
+
+  /v1/production/orders/sap/cancel:
+    post:
+      summary: Cancel Production Order (PDO) on SAP
+      description: Membatalkan Production Order (PDO) di SAP API (/api/cancelpdo).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocEntry
+              properties:
+                DocEntry:
+                  type: string
+                  example: "1231"
+                  description: "DocEntry dari PDO yang ingin dibatalkan (UserId diambil otomatis dari session auth, AddonId hardcoded = 2)"
+      responses:
+        '200':
+          description: Production Order (PDO) berhasil dibatalkan di SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Production Order (PDO) berhasil dibatalkan di SAP.
+                  data:
+                    type: object
+                    properties:
+                      ErrorCode:
+                        type: integer
+                        example: 0
+                      Message:
+                        type: string
+                        example: ""
+        '422':
+          description: DocEntry tidak valid.
+        '500':
+          description: Gagal menghubungi API SAP.
+
+  /v1/production/orders/sap/close:
+    post:
+      summary: Close Production Order (PDO) on SAP
+      description: Menutup (Close) Production Order (PDO) di SAP API (/api/closepdo).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocEntry
+              properties:
+                DocEntry:
+                  type: string
+                  example: "123123"
+                  description: "DocEntry dari PDO yang ingin di-close (UserId diambil otomatis dari session auth, AddonId hardcoded = 2)"
+      responses:
+        '200':
+          description: Production Order (PDO) berhasil di-close di SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Production Order (PDO) berhasil di-close di SAP.
+                  data:
+                    type: object
+                    properties:
+                      ErrorCode:
+                        type: integer
+                        example: 0
+                      Message:
+                        type: string
+                        example: "Success close PDO"
+        '422':
+          description: DocEntry tidak valid.
+        '500':
+          description: Gagal menghubungi API SAP.
+
+  /v1/production/close-pdo-sap:
+    post:
+      summary: Close Production Order (PDO) on SAP (Alias)
+      description: Alias untuk /v1/production/orders/sap/close.
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocEntry
+              properties:
+                DocEntry:
+                  type: string
+                  example: "123123"
+      responses:
+        '200':
+          description: Production Order (PDO) berhasil di-close di SAP.
+        '422':
+          description: DocEntry tidak valid.
+        '500':
+          description: Gagal menghubungi API SAP.
+
+  /v1/production/closepdo:
+    post:
+      summary: Close Production Order (PDO) on SAP (Direct Alias)
+      description: Alias langsung untuk /v1/production/orders/sap/close.
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocEntry
+              properties:
+                DocEntry:
+                  type: string
+                  example: "123123"
+      responses:
+        '200':
+          description: Production Order (PDO) berhasil di-close di SAP.
+        '422':
+          description: DocEntry tidak valid.
+        '500':
+          description: Gagal menghubungi API SAP.
+
+  /v1/production/inventory-transfer/sap/cancel:
+    post:
+      summary: Cancel Inventory Transfer (IT) on SAP
+      description: Membatalkan dokumen Inventory Transfer (IT) di SAP API (/api/CancelIT).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocEntry
+              properties:
+                DocEntry:
+                  type: string
+                  example: "1231"
+                  description: "DocEntry dari IT yang ingin dibatalkan (UserId diambil otomatis dari session auth, AddonId hardcoded = 2)"
+      responses:
+        '200':
+          description: Inventory Transfer (IT) berhasil dibatalkan di SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Inventory Transfer (IT) berhasil dibatalkan di SAP.
+                  data:
+                    type: object
+                    properties:
+                      ErrorCode:
+                        type: integer
+                        example: 0
+                      Message:
+                        type: string
+                        example: ""
+        '422':
+          description: DocEntry tidak valid.
+        '500':
+          description: Gagal menghubungi API SAP.
+
+  /v1/production/issues/sap/edit-comment:
+    post:
+      summary: Edit Comments on Issue for Production in SAP
+      description: Mengubah komentar pada dokumen Issue for Production di SAP API (/api/EditCommentIssueForProduction).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocEntry
+              properties:
+                DocEntry:
+                  type: string
+                  example: "23988"
+                  description: DocEntry dokumen Issue for Production
+                Comments:
+                  type: string
+                  example: "SBY test edit comment"
+                  description: Komentar baru
+      responses:
+        '200':
+          description: Berhasil memperbarui komentar Issue for Production di SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Berhasil memperbarui komentar Issue for Production di SAP.
+                  data:
+                    type: object
+                    properties:
+                      doc_entry:
+                        type: string
+                        example: "23988"
+                      comments:
+                        type: string
+                        example: "SBY test edit comment"
+                      sap_response:
+                        type: object
+        '422':
+          description: DocEntry wajib diisi.
+        '500':
+          description: Gagal menghubungi API SAP.
+
+  /v1/production/receipts/sap/edit-remarks:
+    post:
+      summary: Edit Comments on Production Receipt in SAP
+      description: Mengubah komentar pada dokumen Production Receipt di SAP API (/api/EditCommentReceiptFromProduction).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocEntry
+              properties:
+                DocEntry:
+                  type: string
+                  example: "23988"
+                  description: DocEntry dokumen Production Receipt
+                Comments:
+                  type: string
+                  example: "SBY test edit comment"
+                  description: Komentar baru
+      responses:
+        '200':
+          description: Berhasil memperbarui komentar Production Receipt di SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Berhasil memperbarui komentar Production Receipt di SAP.
+                  data:
+                    type: object
+                    properties:
+                      doc_entry:
+                        type: string
+                        example: "23988"
+                      comments:
+                        type: string
+                        example: "SBY test edit comment"
+                      sap_response:
+                        type: object
+        '422':
+          description: DocEntry wajib diisi.
+        '500':
+          description: Gagal menghubungi API SAP.
+
+  /v1/production/get-unit:
+    get:
+      summary: Get Master Units from SAP
+      description: Mengambil daftar Master Unit dari SAP API (/api/GetUnit).
+      tags:
+        - Production Module
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Master Unit berhasil diambil dari SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Master Unit berhasil diambil dari SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        code:
+                          type: string
+                          example: "BLR-UNIT1"
+                        name:
+                          type: string
+                          example: "BLR-UNIT1"
+                        Code:
+                          type: string
+                          example: "BLR-UNIT1"
+                        Name:
+                          type: string
+                          example: "BLR-UNIT1"
+        '500':
+          description: Gagal mengambil data Master Unit dari SAP.
+
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

@@ -1,0 +1,4816 @@
+openapi: 3.0.3
+info:
+  title: "SMESTA API - Modul Auth, Users, Roles, Master Data, Warehouse & Approval"
+  description: |
+    Dokumentasi API Modular SMESTA (Bagian dari `resources/docs/openapi.yaml`).
+    Edit file ini secara langsung agar ringan di IDE, lalu jalankan `php artisan docs:openapi bundle` untuk menyatukan kembali ke `openapi.yaml`.
+  version: 1.0.0
+servers:
+  - url: https://api-sm-connect.susantimegah.com/api/distributor-channel
+    description: Production Server
+  - url: http://api-dev.susantimegah.com/api/distributor-channel
+    description: Development Server
+  - url: http://localhost:8000/api/distributor-channel
+    description: Local Server
+paths:
+  /v1/notifications/telegram/test:
+    post:
+      summary: Kirim Test Notifikasi Telegram Bot
+      description: Mengirim pesan notifikasi pengujian langsung ke channel atau akun Telegram yang telah dikonfigurasi.
+      tags:
+        - Notifications
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: Test Notifikasi Telegram
+                  description: Judul notifikasi
+                message:
+                  type: string
+                  example: Halo! Ini adalah notifikasi pengujian Telegram Bot dari API SMESTA.
+                  description: Isi pesan notifikasi
+                level:
+                  type: string
+                  enum: [info, success, warning, error, danger, critical]
+                  example: info
+                  description: Level alert notifikasi
+                chat_id:
+                  type: string
+                  example: "123456789"
+                  description: Target chat ID khusus (opsional, jika tidak diisi akan menggunakan TELEGRAM_CHAT_ID)
+      responses:
+        '200':
+          description: Notifikasi Telegram berhasil dikirim.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Notifikasi Telegram berhasil dikirim.
+                  data:
+                    type: object
+        '400':
+          description: Bot belum dikonfigurasi atau pengiriman gagal.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: TELEGRAM_BOT_TOKEN belum dikonfigurasi di .env
+  /v1/notifications/telegram/connect-link:
+    get:
+      summary: Buat Link 1-Klik Hubungkan Telegram
+      description: Menghasilkan link deep-linking unik (t.me/bot?start=...) yang ketika dibuka dan ditekan Start oleh pengguna di Telegram, akan otomatis mendaftarkan Chat ID pengguna ke database.
+      tags:
+        - Notifications
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: label
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Label nama penerima (misal "HP Budi (Teknisi 1)" atau "Grup").
+      responses:
+        '200':
+          description: Link koneksi berhasil dibuat.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Link koneksi Telegram berhasil dibuat.
+                  data:
+                    type: object
+                    properties:
+                      bot_username:
+                        type: string
+                        example: smesta_notif_bot
+                      token:
+                        type: string
+                        example: conn_aBcDeFg123456
+                      connect_url:
+                        type: string
+                        example: https://t.me/smesta_notif_bot?start=conn_aBcDeFg123456
+                      expires_in_minutes:
+                        type: integer
+                        example: 30
+  /v1/notifications/telegram/recipients:
+    get:
+      summary: Daftar Penerima Telegram Akun Saya
+      description: Mengambil seluruh Chat ID Telegram (pribadi maupun grup) yang terhubung ke akun yang sedang login.
+      tags:
+        - Notifications
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar penerima Telegram berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Daftar penerima Telegram berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        user_id:
+                          type: integer
+                          example: 5
+                        telegram_chat_id:
+                          type: string
+                          example: "8892855927"
+                        recipient_name:
+                          type: string
+                          example: Budi (Teknisi 1)
+                        chat_type:
+                          type: string
+                          example: private
+                        is_active:
+                          type: boolean
+                          example: true
+    post:
+      summary: Daftarkan Chat ID Telegram ke Akun
+      description: Menambahkan Chat ID Telegram (pribadi atau grup) ke akun pengguna saat ini agar bisa menerima notifikasi.
+      tags:
+        - Notifications
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - telegram_chat_id
+              properties:
+                telegram_chat_id:
+                  type: string
+                  example: "8892855927"
+                  description: Chat ID dari bot (user pribadi atau grup)
+                recipient_name:
+                  type: string
+                  example: Budi (Teknisi 1)
+                  description: Label nama pemegang atau nama grup
+                chat_type:
+                  type: string
+                  enum: [private, group, supergroup, channel]
+                  example: private
+                is_active:
+                  type: boolean
+                  example: true
+      responses:
+        '200':
+          description: Penerima Telegram berhasil didaftarkan.
+  /v1/notifications/telegram/recipients/{id}:
+    delete:
+      summary: Hapus Penerima Telegram
+      description: Menghapus Chat ID Telegram yang terdaftar dari akun pengguna saat ini.
+      tags:
+        - Notifications
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID relasi penerima Telegram
+      responses:
+        '200':
+          description: Penerima Telegram berhasil dihapus.
+  /v1/telegram/webhook:
+    post:
+      summary: Webhook Receiver Telegram Bot API
+      description: Endpoint publik yang dipanggil langsung oleh Telegram Bot API saat ada interaksi pengguna (misal klik Start via Link Koneksi).
+      tags:
+        - Notifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Payload update dari Telegram Bot API
+      responses:
+        '200':
+          description: Update berhasil diproses.
+  /v1/master-units:
+    get:
+      summary: Daftar Master Unit
+      description: Mengambil daftar seluruh master unit (pabrik/organisasi) dengan dukungan pencarian dan pagination.
+      tags:
+        - Master Units
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kata kunci pencarian berdasarkan unit_code, unit_name, atau description.
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: integer
+            enum: [0, 1]
+          description: Filter status aktif (1) atau non-aktif (0). String "1" / "0" juga didukung.
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Jumlah item per halaman (jika ingin pagination).
+      responses:
+        '200':
+          description: Daftar master unit berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar master unit berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        unit_code:
+                          type: string
+                          example: "UNIT1"
+                        unit_name:
+                          type: string
+                          example: "Unit Produksi Garam 1"
+                        description:
+                          type: string
+                          example: "Pabrik garam unit 1 Manyar Gresik"
+                        status:
+                          type: integer
+                          example: 1
+                        warehouses_count:
+                          type: integer
+                          example: 3
+                        created_at:
+                          type: string
+                          format: date-time
+                        updated_at:
+                          type: string
+                          format: date-time
+    post:
+      summary: Buat Master Unit Baru
+      description: Menambahkan master unit baru ke dalam sistem.
+      tags:
+        - Master Units
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - unit_code
+                - unit_name
+              properties:
+                unit_code:
+                  type: string
+                  maxLength: 50
+                  example: "UNIT1"
+                unit_name:
+                  type: string
+                  maxLength: 255
+                  example: "Unit Produksi Garam 1"
+                description:
+                  type: string
+                  example: "Pabrik garam unit 1 Manyar Gresik"
+                status:
+                  type: integer
+                  enum: [0, 1]
+                  default: 1
+                  example: 1
+                  description: 1 = Aktif, 0 = Tidak Aktif (Menerima integer 1/0 maupun string "1"/"0").
+      responses:
+        '201':
+          description: Master unit berhasil dibuat.
+        '422':
+          description: Validasi gagal (misal kode unit duplikat).
+
+  /v1/master-units/{id}:
+    get:
+      summary: Detail Master Unit
+      description: Mengambil informasi detail master unit beserta daftar warehouse yang terhubung.
+      tags:
+        - Master Units
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID Master Unit.
+      responses:
+        '200':
+          description: Detail master unit berhasil diambil.
+        '404':
+          description: Master unit tidak ditemukan.
+    put:
+      summary: Update Master Unit
+      description: Memperbarui data master unit.
+      tags:
+        - Master Units
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID Master Unit.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                unit_code:
+                  type: string
+                  maxLength: 50
+                  example: "UNIT1"
+                unit_name:
+                  type: string
+                  maxLength: 255
+                  example: "Unit Produksi Garam 1 - Revisi"
+                description:
+                  type: string
+                  example: "Updated description"
+                status:
+                  type: integer
+                  enum: [0, 1]
+                  example: 1
+                  description: 1 = Aktif, 0 = Tidak Aktif (Menerima integer 1/0 maupun string "1"/"0").
+      responses:
+        '200':
+          description: Master unit berhasil diperbarui.
+        '404':
+          description: Master unit tidak ditemukan.
+    delete:
+      summary: Hapus Master Unit
+      description: Menghapus data master unit dari sistem.
+      tags:
+        - Master Units
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID Master Unit.
+      responses:
+        '200':
+          description: Master unit berhasil dihapus.
+        '404':
+          description: Master unit tidak ditemukan.
+
+  /v1/warehouses:
+    get:
+      summary: Daftar Master Gudang (Warehouse)
+      description: Mengambil daftar master warehouse lengkap dengan data relasi master unit yang terhubung.
+      tags:
+        - Master Warehouses
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Pencarian berdasarkan whs_code, whs_name, unit_code, atau unit_name.
+        - name: master_unit_id
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter gudang berdasarkan Unit Code / Unit ID tertentu.
+        - name: unit_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter gudang berdasarkan unit_code tertentu.
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: integer
+            enum: [0, 1]
+          description: Filter status aktif (1) atau non-aktif (0).
+      responses:
+        '200':
+          description: Daftar master gudang berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar master gudang berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        whs_code:
+                          type: string
+                          example: "PRD01-01"
+                        whs_name:
+                          type: string
+                          example: "Gudang Produksi Manyar"
+                        master_unit_id:
+                          type: string
+                          nullable: true
+                          example: "UNIT1"
+                        unit_code:
+                          type: string
+                          nullable: true
+                          example: "UNIT1"
+                        unit_name:
+                          type: string
+                          nullable: true
+                          example: "Unit Produksi Garam 1"
+                        status:
+                          type: integer
+                          example: 1
+                        unit:
+                          type: object
+                          nullable: true
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            unit_code:
+                              type: string
+                              example: "UNIT1"
+                            unit_name:
+                              type: string
+                              example: "Unit Produksi Garam 1"
+    post:
+      summary: Tambah Master Gudang Manual
+      description: Menambahkan master gudang secara manual beserta penentuan unitnya.
+      tags:
+        - Master Warehouses
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - whs_code
+                - whs_name
+              properties:
+                whs_code:
+                  type: string
+                  maxLength: 50
+                  example: "WHS-NEW-01"
+                whs_name:
+                  type: string
+                  maxLength: 255
+                  example: "Gudang Tambahan Baru"
+                master_unit_id:
+                  type: string
+                  nullable: true
+                  example: "UNIT1"
+                status:
+                  type: integer
+                  enum: [0, 1]
+                  default: 1
+                  example: 1
+                  description: 1 = Aktif, 0 = Tidak Aktif (Menerima integer 1/0 maupun string "1"/"0").
+      responses:
+        '201':
+          description: Data master gudang berhasil ditambahkan.
+
+  /v1/warehouses/{id}:
+    get:
+      summary: Detail Master Gudang
+      description: Mengambil data detail master gudang beserta objek unit yang terhubung.
+      tags:
+        - Master Warehouses
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID Master Warehouse.
+      responses:
+        '200':
+          description: Detail master gudang berhasil diambil.
+        '404':
+          description: Data gudang tidak ditemukan.
+    put:
+      summary: Edit / Assign Unit Master Gudang
+      description: Memperbarui data master gudang termasuk menghubungkan atau mengganti master_unit_id.
+      tags:
+        - Master Warehouses
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID Master Warehouse.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                whs_code:
+                  type: string
+                  example: "PRD01-01"
+                whs_name:
+                  type: string
+                  example: "Gudang Produksi Manyar Unit 1"
+                master_unit_id:
+                  type: string
+                  nullable: true
+                  example: "UNIT1"
+                  description: Unit Code (atau ID) dari master unit yang dipilih di form master warehouse.
+                status:
+                  type: integer
+                  enum: [0, 1]
+                  example: 1
+                  description: 1 = Aktif, 0 = Tidak Aktif (Menerima integer 1/0 maupun string "1"/"0").
+      responses:
+        '200':
+          description: Data master gudang berhasil diperbarui.
+        '404':
+          description: Data gudang tidak ditemukan.
+    delete:
+      summary: Hapus Master Gudang
+      description: Menghapus data master gudang.
+      tags:
+        - Master Warehouses
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID Master Warehouse.
+      responses:
+        '200':
+          description: Data master gudang berhasil dihapus.
+        '404':
+          description: Data gudang tidak ditemukan.
+
+  /v1/warehouses/sync:
+    post:
+      summary: Sinkronisasi Master Gudang Dari SAP
+      description: Mengambil dan menyinkronkan seluruh daftar gudang dari SAP B1. Relasi master_unit_id yang sudah di-assign sebelumnya akan tetap dipertahankan.
+      tags:
+        - Master Warehouses
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Data master gudang berhasil disinkronisasi dari SAP.
+
+  /v1/document-approval/approvals:
+    get:
+      summary: Get List of Approval Transactions
+      description: Mengambil daftar transaksi persetujuan dokumen dengan filter status, tipe dokumen, dan pencarian nomor dokumen SAP / pemohon.
+      tags:
+        - Dynamic Document Approval (SAP B1)
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED, REVISED]
+          example: "PENDING"
+        - name: type_code
+          in: query
+          required: false
+          schema:
+            type: string
+          example: "PO"
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          example: "PO-50001"
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+          example: 1
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+          example: 15
+      responses:
+        '200':
+          description: Berhasil mengambil daftar persetujuan dokumen
+
+  /v1/document-approval/approvals/{id}:
+    get:
+      summary: Get Dynamic Approval Detail (Mobile & Web)
+      description: Mengambil detail dokumen approval lengkap yang telah dinormalisasi secara dinamis (Header, Line Items, Summary Totals, & Riwayat Approval Audit Trail).
+      tags:
+        - Dynamic Document Approval (SAP B1)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: Berhasil mengambil detail dinamis dokumen approval
+        '404':
+          description: Data approval tidak ditemukan
+
+  /v1/document-approval/approvals/{id}/approve:
+    post:
+      summary: Approve Document
+      description: Menyetujui dokumen ke stage/level persetujuan selanjutnya atau status akhir APPROVED.
+      tags:
+        - Dynamic Document Approval (SAP B1)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes:
+                  type: string
+                  example: "Disetujui sesuai kuota budget Q3"
+      responses:
+        '200':
+          description: Dokumen berhasil disetujui
+
+  /v1/document-approval/approvals/{id}/reject:
+    post:
+      summary: Reject Document
+      description: Menolak pengajuan dokumen persetujuan (wajib mencantumkan alasan penolakan).
+      tags:
+        - Dynamic Document Approval (SAP B1)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  example: "Harga satuan melebihi batas toleransi kontrak tahunan."
+      responses:
+        '200':
+          description: Dokumen ditolak
+
+  /v1/document-approval/approvals/{id}/revise:
+    post:
+      summary: Revise / Return Document
+      description: Mengembalikan dokumen ke pemohon (*requester*) untuk direvisi / diperbaiki.
+      tags:
+        - Dynamic Document Approval (SAP B1)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - notes
+              properties:
+                notes:
+                  type: string
+                  example: "Mohon lampirkan Certificate of Analysis (COA) terbaru."
+      responses:
+        '200':
+          description: Dokumen berhasil dikembalikan untuk revisi
+
+  /v1/document-approval/preview/{typeCode}/{docEntry}:
+    get:
+      summary: Live Preview SAP Document
+      description: Menampilkan preview tampilan dinamis dokumen mentah SAP Business One berdasarkan Tipe Dokumen dan DocEntry sebelum diajukan ke approval.
+      tags:
+        - Dynamic Document Approval (SAP B1)
+      parameters:
+        - name: typeCode
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "PO"
+        - name: docEntry
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 5001
+      responses:
+        '200':
+          description: Preview dokumen berhasil digenerate
+
+  /v1/auth/login:
+    post:
+      summary: User Login
+      description: Login menggunakan username dan password untuk mendapatkan Bearer Token.
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  example: admin
+                password:
+                  type: string
+                  example: password
+      responses:
+        '200':
+          description: Login sukses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginSuccessResponse'
+        '422':
+          description: Validasi gagal / kredensial salah / user tidak aktif
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/auth/logout:
+    post:
+      summary: User Logout
+      description: Menghapus token aktif yang digunakan untuk request.
+      tags:
+        - Authentication
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Logout sukses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessageResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/auth/refresh:
+    post:
+      summary: Refresh Token
+      description: Menghapus token lama dan mengeluarkan token baru.
+      tags:
+        - Authentication
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Refresh token sukses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/auth/change-password:
+    post:
+      summary: Ubah Password
+      description: Mengubah password user yang sedang login dengan memvalidasi password lama.
+      tags:
+        - Authentication
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - old_password
+                - new_password
+                - new_password_confirmation
+              properties:
+                old_password:
+                  type: string
+                  example: password
+                new_password:
+                  type: string
+                  example: passwordbaru123
+                new_password_confirmation:
+                  type: string
+                  example: passwordbaru123
+      responses:
+        '200':
+          description: Password berhasil diubah
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessageResponse'
+        '422':
+          description: Validasi gagal (misal password lama salah, atau password baru sama dengan password lama)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/notifications/device-token:
+    post:
+      summary: Register / Update FCM Device Token
+      description: Menyimpan atau memperbarui token FCM milik perangkat pengguna untuk keperluan push notification.
+      tags:
+        - Notifications
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - fcm_token
+              properties:
+                fcm_token:
+                  type: string
+                  example: "fcm_token_string_here_12345"
+                device_type:
+                  type: string
+                  description: Free text deskripsi perangkat (misal "Samsung Galaxy S23", "iPhone 15", "Web Chrome", dsb.)
+                  example: "Samsung Galaxy S23"
+      responses:
+        '200':
+          description: Device token berhasil didaftarkan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Device token FCM berhasil didaftarkan.
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      fcm_token:
+                        type: string
+                        example: "fcm_token_string_here_12345"
+                      device_type:
+                        type: string
+                        example: "android"
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete FCM Device Token
+      description: Menghapus token FCM perangkat dari akun pengguna (misal saat logout).
+      tags:
+        - Notifications
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - fcm_token
+              properties:
+                fcm_token:
+                  type: string
+                  example: "fcm_token_string_here_12345"
+      responses:
+        '200':
+          description: Device token berhasil dihapus
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessageResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/notifications:
+    get:
+      summary: List User Notifications
+      description: Mendapatkan daftar notifikasi milik user yang sedang login beserta unread count.
+      tags:
+        - Notifications
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Jumlah item per halaman
+      responses:
+        '200':
+          description: Daftar notifikasi berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar notifikasi berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      notifications:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            title:
+                              type: string
+                              example: "Persetujuan Sales Order"
+                            message:
+                              type: string
+                              example: "Sales Order SO-202606001 membutuhkan tindakan Anda."
+                            type:
+                              type: string
+                              example: "info"
+                            url:
+                              type: string
+                              nullable: true
+                              example: "/sales-orders/1"
+                            is_read:
+                              type: boolean
+                              example: false
+                            created_at:
+                              type: string
+                              format: date-time
+                              example: "2026-08-13T10:00:00.000000Z"
+                      unread_count:
+                        type: integer
+                        example: 3
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/notifications/read-all:
+    post:
+      summary: Mark All Notifications as Read
+      description: Menandai semua notifikasi milik user yang sedang login sebagai sudah dibaca.
+      tags:
+        - Notifications
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Semua notifikasi berhasil ditandai dibaca
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessageResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/master-approvals:
+    get:
+      summary: List all master approvals
+      description: Mendapatkan daftar semua master approval yang ada di sistem secara ascending berdasarkan ID.
+      tags:
+        - Master Approvals
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar master approval berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar master approval berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MasterApproval'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/master-approvals/stages:
+    get:
+      summary: Get Approval Stages from SAP API
+      description: Mengambil data daftar tahapan approval (approval stages) langsung dari API SAP (`/api/getstages`).
+      tags:
+        - Master Approvals
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Nomor halaman pagination (opsional)
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: per_page
+          in: query
+          description: Jumlah item per halaman (opsional)
+          schema:
+            type: integer
+            default: 15
+            example: 10
+        - name: refresh
+          in: query
+          description: Force refresh cache data SAP (opsional)
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Data approval stages berhasil diambil dari SAP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data approval stages berhasil diambil dari SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        WstCode:
+                          type: string
+                          example: "1"
+                        Name:
+                          type: string
+                          example: "Purchasing Manager"
+                        Remarks:
+                          type: string
+                          example: "Purchasing Manager"
+                        Flex:
+                          type: string
+                          example: "0"
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Get Approval Stages from SAP API (POST with Payload)
+      description: Mengambil data daftar tahapan approval (approval stages) dari SAP dengan filter/payload kustom (`/api/getstages`).
+      tags:
+        - Master Approvals
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Data approval stages berhasil diambil dari SAP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data approval stages berhasil diambil dari SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        WstCode:
+                          type: string
+                          example: "1"
+                        Name:
+                          type: string
+                          example: "Purchasing Manager"
+                        Remarks:
+                          type: string
+                          example: "Purchasing Manager"
+                        Flex:
+                          type: string
+                          example: "0"
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/master-approvals/approvals:
+    get:
+      summary: Get Approval List from SAP API
+      description: Mengambil daftar antrean persetujuan dokumen dari SAP B1 middleware (/api/getapproval). Urutan siklus alur approval adalah Pending -> Approved -> Generated. Status 'W' otomatis dikonversi menjadi 'Pending', 'Y' dengan DocEntry 0/null/kosong menjadi 'Approved', dan 'Y' dengan DocEntry > 0 menjadi 'Generated' (raw_status 'G'). Jika data kosong atau SAP mengembalikan placeholder dummy (WddCode 0), backend mengembalikan pesan 'Data not found.' dengan data array kosong [].
+      tags:
+        - Master Approvals
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: CustomQuery
+          in: query
+          required: false
+          schema:
+            type: integer
+          example: 2
+        - name: refresh
+          in: query
+          description: Parameter refresh cache SAP (default false, kirim true untuk mengambil live dari SAP).
+          required: false
+          schema:
+            type: boolean
+            default: false
+            example: false
+        - name: page
+          in: query
+          description: Nomor halaman pagination (opsional)
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: per_page
+          in: query
+          description: Jumlah item per halaman (opsional)
+          schema:
+            type: integer
+            default: 15
+            example: 10
+      responses:
+        '200':
+          description: Data approval berhasil diambil dari SAP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data approval berhasil diambil dari SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        WddCode:
+                          type: string
+                          example: "7702"
+                        DocEntry:
+                          type: string
+                          example: "0"
+                        ObjType:
+                          type: string
+                          example: "22"
+                        DocDate:
+                          type: string
+                          example: "20260810"
+                        CurrStep:
+                          type: string
+                          example: "2"
+                        Status:
+                          type: string
+                          example: "Pending"
+                        Remarks:
+                          type: string
+                          description: Catatan dokumen approval asli dari record SAP
+                          example: ""
+                        StageRemarks:
+                          type: string
+                          description: Catatan tahapan approval current step (jika ada)
+                          example: ""
+        '500':
+          description: Gagal terhubung ke SAP B1 middleware
+    post:
+      summary: Get Approval List from SAP API (POST with Payload)
+      description: Mengambil daftar antrean persetujuan dokumen dari SAP B1 middleware (/api/getapproval) dengan payload POST.
+      tags:
+        - Master Approvals
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                CustomQuery:
+                  type: integer
+                  example: 2
+      responses:
+        '200':
+          description: Data approval berhasil diambil dari SAP
+
+  /v1/master-approvals/approve-sap:
+    post:
+      summary: Approve / Reject SAP Approval Request
+      description: Memproses persetujuan (Approve) atau penolakan (Reject) dokumen approval di SAP B1 middleware (/api/ApproveSAP). Jika Status bernilai 'N' (Reject), maka parameter Remarks wajib diisi.
+      tags:
+        - Master Approvals
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - approvalRequestCode
+                - Username
+                - Password
+                - Status
+              properties:
+                approvalRequestCode:
+                  type: string
+                  description: Kode approval request (WddCode) dari list approval SAP.
+                  example: "7702"
+                Username:
+                  type: string
+                  description: Username akun SAP untuk otorisasi approval.
+                  example: "manager01"
+                Password:
+                  type: string
+                  description: Password akun SAP.
+                  example: "secret123"
+                Status:
+                  type: string
+                  enum: [Y, N]
+                  description: "Status keputusan approval: 'Y' = Approve / Setujui, 'N' = Reject / Tolak."
+                  example: "Y"
+                Remarks:
+                  type: string
+                  description: Catatan / alasan approval. Wajib diisi jika Status bernilai 'N'.
+                  example: "Disetujui untuk proses pengadaan"
+      responses:
+        '200':
+          description: Dokumen approval berhasil diproses di SAP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Dokumen approval berhasil disetujui (Approve) di SAP.
+                  data:
+                    type: object
+        '422':
+          description: Validasi gagal (misal Status 'N' tanpa Remarks, atau field wajib kosong)
+        '500':
+          description: Gagal terhubung ke SAP B1 middleware atau error dari SAP
+
+  /v1/roles:
+    get:
+      summary: List all roles
+      description: Mendapatkan daftar semua role yang ada di sistem.
+      tags:
+        - Roles
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar role berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleListResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Create a new role
+      description: Menambahkan role baru ke dalam sistem.
+      tags:
+        - Roles
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  example: distributor
+                is_active:
+                  type: boolean
+                  example: true
+                approval_id:
+                  type: integer
+                  nullable: true
+                  example: 3
+                menu:
+                  type: array
+                  items:
+                    type: object
+                  example: []
+                accessible_systems:
+                  type: array
+                  items:
+                    type: string
+                  example: ["distributor", "ekspedisi"]
+      responses:
+        '200':
+          description: Role berhasil dibuat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleResponse'
+        '422':
+          description: Validasi gagal / nama role sudah terpakai
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/roles/{id}:
+    get:
+      summary: Get role detail
+      description: Mendapatkan detail satu role berdasarkan ID.
+      tags:
+        - Roles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari role
+      responses:
+        '200':
+          description: Detail role berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleResponse'
+        '404':
+          description: Role tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      summary: Update an existing role
+      description: Memperbarui data role (nama atau status aktif) berdasarkan ID.
+      tags:
+        - Roles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari role
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: distributor_premium
+                is_active:
+                  type: boolean
+                  example: false
+                approval_id:
+                  type: integer
+                  nullable: true
+                  example: 3
+                menu:
+                  type: array
+                  items:
+                    type: object
+                  example: []
+                accessible_systems:
+                  type: array
+                  items:
+                    type: string
+                  example: ["distributor", "ekspedisi"]
+      responses:
+        '200':
+          description: Role berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleResponse'
+        '422':
+          description: Validasi gagal / nama role sudah terpakai
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Role tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete a role
+      description: Menghapus data role berdasarkan ID.
+      tags:
+        - Roles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari role
+      responses:
+        '200':
+          description: Role berhasil dihapus
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessageResponse'
+        '404':
+          description: Role tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/roles/{id}/menu:
+    get:
+      summary: Get menu configuration for a specific role
+      description: Mendapatkan data struktur menu (JSON) milik role tertentu berdasarkan ID.
+      tags:
+        - Roles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari role
+      responses:
+        '200':
+          description: Menu role berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Menu role berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      menu:
+                        type: array
+                        items:
+                          type: object
+                      approval_id:
+                        type: integer
+                        nullable: true
+                        example: 3
+        '404':
+          description: Role tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+ 
+    put:
+      summary: Update menu configuration for a specific role
+      description: Memperbarui struktur menu dinamis (JSON) milik role tertentu.
+      tags:
+        - Roles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari role
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - menu
+              properties:
+                approval_id:
+                  type: integer
+                  nullable: true
+                  example: 3
+                menu:
+                  type: array
+                  items:
+                    type: object
+                  example:
+                    - id: "charts-maps"
+                      title: "Charts-maps"
+                      type: "group"
+                      children: []
+      responses:
+        '200':
+          description: Menu role berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Menu role berhasil diperbarui.
+                  data:
+                    type: object
+                    properties:
+                      menu:
+                        type: array
+                        items:
+                          type: object
+                      approval_id:
+                        type: integer
+                        nullable: true
+                        example: 3
+        '422':
+          description: Validasi gagal (misal field menu kosong atau bukan array)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Role tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/roles/my-permissions:
+    get:
+      summary: Get Current Logged-in User Permissions Map
+      description: Mengambil seluruh matrix hak akses CRUD untuk user yang sedang login.
+      tags:
+        - Roles
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User permissions retrieved successfully
+          content:
+            application/json:
+              example:
+                success: true
+                message: User permissions retrieved successfully.
+                data:
+                  is_super_admin: false
+                  role_id: 2
+                  role_name: "Admin Sales"
+                  permissions:
+                    customer-portal.order:
+                      create: true
+                      read: true
+                      update: true
+                      delete: false
+                      approve: false
+                      export: true
+                    expedition.rates:
+                      create: false
+                      read: true
+                      update: false
+                      delete: true
+                      approve: false
+                      export: false
+
+  /v1/roles/{id}/permissions:
+    get:
+      summary: Get Role Granular Action Permissions
+      description: Mengambil detail matrix hak akses CRUD untuk role tertentu berdasarkan ID.
+      tags:
+        - Roles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 2
+      responses:
+        '200':
+          description: Hak akses role berhasil diambil
+          content:
+            application/json:
+              example:
+                success: true
+                message: Hak akses role berhasil diambil.
+                data:
+                  role_id: 2
+                  role_name: "Admin Sales"
+                  permissions:
+                    - menu_key: "sales-order"
+                      actions:
+                        create: true
+                        read: true
+                        update: true
+                        delete: false
+                        approve: false
+                        export: true
+                    - menu_key: "expedition-rate"
+                      actions:
+                        create: false
+                        read: true
+                        update: false
+                        delete: true
+                        approve: false
+                        export: false
+    post:
+      summary: Update Role Granular Action Permissions
+      description: Memperbarui matrix hak akses CRUD per menu untuk role tertentu.
+      tags:
+        - Roles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - permissions
+              properties:
+                approval_id:
+                  type: integer
+                  nullable: true
+                permissions:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - menu_key
+                      - actions
+                    properties:
+                      menu_key:
+                        type: string
+                        example: "sales-order"
+                      actions:
+                        type: object
+                        properties:
+                          create:
+                            type: boolean
+                            example: true
+                          read:
+                            type: boolean
+                            example: true
+                          update:
+                            type: boolean
+                            example: true
+                          delete:
+                            type: boolean
+                            example: false
+                          approve:
+                            type: boolean
+                            example: false
+                          export:
+                            type: boolean
+                            example: true
+      responses:
+        '200':
+          description: Hak akses role berhasil disimpan
+
+  /v1/users:
+    get:
+      summary: List all users
+      description: Mendapatkan daftar semua user beserta detail role mereka.
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar user berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Create a new user
+      description: Menambahkan user baru ke dalam sistem.
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - username
+                - email
+                - password
+                - role_id
+              properties:
+                name:
+                  type: string
+                  example: Budi Santoso
+                username:
+                  type: string
+                  example: budis
+                email:
+                  type: string
+                  format: email
+                  example: budi@susantimegah.com
+                password:
+                  type: string
+                  format: password
+                  example: password123
+                role_id:
+                  type: integer
+                  example: 5
+                code_customer:
+                  type: string
+                  nullable: true
+                  example: C110000411
+                expedition_code:
+                  type: string
+                  nullable: true
+                  example: EXP0001
+                is_active:
+                  type: boolean
+                  example: true
+                originator:
+                  type: string
+                  nullable: true
+                  example: "PR_ORIGINATOR_01"
+                stage:
+                  type: string
+                  nullable: true
+                  example: "OM"
+                organization_assignment:
+                  type: object
+                  description: Assignment organisasi / distribution rules
+                  properties:
+                    warehouses:
+                      type: array
+                      items:
+                        type: string
+                      example: ["PRD01-01", "PRD01-05"]
+                    branches:
+                      type: array
+                      items:
+                        type: string
+                      example: ["SBY"]
+                    business_units:
+                      type: array
+                      items:
+                        type: string
+                      example: ["UNIT5"]
+                    departments:
+                      type: array
+                      items:
+                        type: string
+                      example: ["PROD"]
+                    expeditions:
+                      type: array
+                      items:
+                        type: string
+                      example: ["EXP-001"]
+                    distributors:
+                      type: array
+                      items:
+                        type: string
+                      example: ["CUST-001"]
+                actions:
+                  type: array
+                  description: Custom permissions override per menu
+                  items:
+                    type: object
+                  example:
+                    - menu_key: "sales-order"
+                      actions:
+                        create: false
+                        read: true
+                        update: false
+                        delete: false
+                        approve: false
+                        export: true
+      responses:
+        '200':
+          description: User berhasil dibuat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '422':
+          description: Validasi gagal (misal email/username sudah terpakai)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/users/{id}:
+    get:
+      summary: Get user detail
+      description: Mendapatkan detail satu user beserta rolenya berdasarkan ID.
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari user
+      responses:
+        '200':
+          description: Detail user berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '404':
+          description: User tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      summary: Update an existing user
+      description: Memperbarui data profil user, status aktif, password, atau role.
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Budi Santoso Updated
+                username:
+                  type: string
+                  example: budisu
+                email:
+                  type: string
+                  format: email
+                  example: budi.new@susantimegah.com
+                password:
+                  type: string
+                  format: password
+                  example: passwordbaru123
+                role_id:
+                  type: integer
+                  example: 2
+                code_customer:
+                  type: string
+                  nullable: true
+                  example: C110000411
+                expedition_code:
+                  type: string
+                  nullable: true
+                  example: EXP0001
+                is_active:
+                  type: boolean
+                  example: false
+                originator:
+                  type: string
+                  nullable: true
+                  example: "PR_ORIGINATOR_01"
+                stage:
+                  type: string
+                  nullable: true
+                  example: "OM"
+                organization_assignment:
+                  type: object
+                  description: Assignment organisasi / distribution rules
+                  properties:
+                    warehouses:
+                      type: array
+                      items:
+                        type: string
+                      example: ["PRD01-01", "PRD01-05"]
+                    branches:
+                      type: array
+                      items:
+                        type: string
+                      example: ["SBY"]
+                    business_units:
+                      type: array
+                      items:
+                        type: string
+                      example: ["UNIT5"]
+                    departments:
+                      type: array
+                      items:
+                        type: string
+                      example: ["PROD"]
+                    expeditions:
+                      type: array
+                      items:
+                        type: string
+                      example: ["EXP-001"]
+                    distributors:
+                      type: array
+                      items:
+                        type: string
+                      example: ["CUST-001"]
+                actions:
+                  type: array
+                  items:
+                    type: object
+                  example:
+                    - menu_key: "sales-order"
+                      actions:
+                        create: false
+                        read: true
+                        update: false
+                        delete: false
+                        approve: false
+                        export: true
+      responses:
+        '200':
+          description: User berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '422':
+          description: Validasi gagal / email atau username bentrok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete a user
+      description: Menghapus data user berdasarkan ID.
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari user
+      responses:
+        '200':
+          description: User berhasil dihapus
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessageResponse'
+        '404':
+          description: User tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/users/{id}/custom-permissions:
+    get:
+      summary: Get User Custom Permissions & Effective Matrix
+      description: Mengambil data permission override khusus user beserta matrix izin efektifnya.
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 14
+      responses:
+        '200':
+          description: Custom permissions user berhasil diambil
+          content:
+            application/json:
+              example:
+                success: true
+                message: Custom permissions user berhasil diambil.
+                data:
+                  user_id: 14
+                  name: "Ani Sales"
+                  role_id: 3
+                  role_name: "Staff Sales"
+                  has_custom_override: true
+                  actions:
+                    - menu_key: "sales-order"
+                      actions:
+                        create: false
+                        read: true
+                        update: false
+                        delete: false
+                        approve: false
+                        export: true
+                  effective_permissions:
+                    - menu_key: "sales-order"
+                      actions:
+                        create: false
+                        read: true
+                        update: false
+                        delete: false
+                        approve: false
+                        export: true
+
+    put:
+      summary: Update User Custom Permissions Override
+      description: Meng-override izin aksi CRUD khusus user ini (menimpa default dari Role).
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 14
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - actions
+              properties:
+                actions:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - menu_key
+                      - actions
+                    properties:
+                      menu_key:
+                        type: string
+                        example: "sales-order"
+                      actions:
+                        type: object
+                        properties:
+                          create:
+                            type: boolean
+                            example: false
+                          read:
+                            type: boolean
+                            example: true
+                          update:
+                            type: boolean
+                            example: false
+                          delete:
+                            type: boolean
+                            example: false
+                          approve:
+                            type: boolean
+                            example: false
+                          export:
+                            type: boolean
+                            example: true
+      responses:
+        '200':
+          description: Custom permissions user berhasil diperbarui
+
+    delete:
+      summary: Reset User Custom Permissions Override
+      description: Menghapus custom permissions override pada user (mengembalikan user 100% mengikuti aturan default Role).
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 14
+      responses:
+        '200':
+          description: Custom permissions user berhasil di-reset ke default role
+
+  /v1/distributors:
+    get:
+      summary: List all distributors
+      description: Mendapatkan daftar semua distributor yang ada di sistem.
+      tags:
+        - Distributors
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Keyword untuk mencari distributor berdasarkan nama, code, alamat, depo, dll.
+      responses:
+        '200':
+          description: Daftar distributor berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistributorListResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/distributors/sync:
+    post:
+      summary: Sync distributors from SAP
+      description: Melakukan sinkronisasi data master distributor dari SAP ke database lokal.
+      tags:
+        - Distributors
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sinkronisasi data distributor berhasil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistributorListResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/distributors/addresses:
+    get:
+      summary: Get distributor addresses from SAP
+      description: Mengambil data alamat distributor secara real-time dari API SAP.
+      tags:
+        - Distributors
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: card_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kode Customer / CardCode dari SAP (Bisa menggunakan param 'CustomQuery' juga).
+          example: C110003175
+        - name: CustomQuery
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kode Customer / CardCode dari SAP.
+          example: C110003175
+      responses:
+        '200':
+          description: Daftar alamat berhasil diambil dari SAP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar alamat berhasil diambil dari SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        CardCode:
+                          type: string
+                          example: C110003175
+                        Address:
+                          type: string
+                          example: ALAMAT PENAGIHAN
+                        AdresType:
+                          type: string
+                          example: B
+                        Street:
+                          type: string
+                          example: JL. AMD PERGUDANGAN KARIANGAU SQUARE NO.10 RT.010 KARIANGAU BALIKPAPAN BARAT,
+        '422':
+          description: Parameter wajib diisi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Gagal menghubungi API SAP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/distributors/ocr-codes:
+    get:
+      summary: Get OCR codes from local database
+      description: Mengambil data OcrCode dari database lokal dengan dukungan pencarian dan filter target.
+      tags:
+        - Distributors
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ['1', '2', '3']
+          description: Nilai filter target (1 untuk Cabang/CABANG, 2 untuk Bisnis Unit/UNIT, 3 untuk Dept/DEPARTEMENT).
+          example: "3"
+        - name: custom_query
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ['1', '2', '3']
+          description: Nilai filter target (1 untuk Cabang/CABANG, 2 untuk Bisnis Unit/UNIT, 3 untuk Dept/DEPARTEMENT).
+          example: "3"
+        - name: CustomQuery
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ['1', '2', '3']
+          description: Nilai filter target (1 untuk Cabang/CABANG, 2 untuk Bisnis Unit/UNIT, 3 untuk Dept/DEPARTEMENT).
+          example: "3"
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Keyword pencarian berdasarkan OcrCode atau OcrName.
+          example: "FAT"
+      responses:
+        '200':
+          description: Daftar OcrCode berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar OcrCode berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        ocr_code:
+                          type: string
+                          example: FAT
+                        ocr_name:
+                          type: string
+                          example: FAT
+                        distribution_target:
+                          type: string
+                          example: DEPARTEMENT
+                        status:
+                          type: integer
+                          example: 1
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2026-06-09T08:00:00.000000Z"
+                        updated_at:
+                          type: string
+                          format: date-time
+                          example: "2026-06-09T08:00:00.000000Z"
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/distributors/ocr-codes/sync:
+    post:
+      summary: Sync OCR codes from SAP
+      description: Melakukan sinkronisasi data OcrCode dari SAP (untuk CustomQuery 1, 2, dan 3) ke dalam database lokal.
+      tags:
+        - Distributors
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sinkronisasi data OcrCode berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data OcrCode berhasil disinkronisasi dari SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        ocr_code:
+                          type: string
+                          example: FAT
+                        ocr_name:
+                          type: string
+                          example: FAT
+                        distribution_target:
+                          type: string
+                          example: DEPARTEMENT
+                        status:
+                          type: integer
+                          example: 1
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2026-06-09T08:00:00.000000Z"
+                        updated_at:
+                          type: string
+                          format: date-time
+                          example: "2026-06-09T08:00:00.000000Z"
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Gagal menghubungi API SAP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/distributors/shiptos:
+    get:
+      summary: List all customer ship-to addresses
+      description: Mengambil daftar alamat pengiriman (Ship-To) pelanggan dengan paginasi dan filter.
+      tags:
+        - Distributors
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: card_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan kode distributor/customer
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Pencarian teks berdasarkan nama, address ID, kota, atau jalan
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 15
+          description: Jumlah item per halaman
+      responses:
+        '200':
+          description: Daftar Ship-To berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar Ship To master berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                        example: 1
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CustomerShipto'
+                      total:
+                        type: integer
+                        example: 150
+
+  /v1/distributors/shiptos/sync:
+    post:
+      summary: Sync customer ship-to addresses from SAP
+      description: Sinkronisasi master alamat pengiriman pelanggan secara langsung dari API SAP ListKiriman.
+      tags:
+        - Distributors
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sinkronisasi berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Sinkronisasi Ship To master dari SAP berhasil.
+                  data:
+                    type: object
+                    properties:
+                      count:
+                        type: integer
+                        example: 245
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Gagal menghubungi API SAP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/distributors/shiptos/upload:
+    post:
+      summary: Upload master destination (customer shiptos) file
+      description: Upload file Excel/CSV master destination. Baris wajib berisi card_code, alias, transport_mode (D/DARAT, L/LAUT, U/UDARA), dan street. Kolom opsional yang dapat disertakan meliputi address, name, dan city.
+      tags:
+        - Distributors
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File Excel/CSV (xlsx, xls, csv) maksimal 10MB
+      responses:
+        '200':
+          description: File destination master berhasil diupload dan diproses
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: File destination master berhasil diupload dan diproses.
+                  data:
+                    type: object
+                    properties:
+                      processed_count:
+                        type: integer
+                        example: 10
+                      created_count:
+                        type: integer
+                        example: 8
+                      updated_count:
+                        type: integer
+                        example: 2
+                      errors:
+                        type: array
+                        items:
+                          type: string
+                        example: []
+
+  /v1/distributors/{id}:
+    get:
+      summary: Get distributor detail
+      description: Mendapatkan detail satu distributor berdasarkan ID.
+      tags:
+        - Distributors
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari distributor
+      responses:
+        '200':
+          description: Detail distributor berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistributorResponse'
+        '404':
+          description: Distributor tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/items:
+    get:
+      summary: List all items (dengan filter status SAP)
+      description: Mendapatkan daftar item hasil sinkronisasi SAP B1 dengan filter status penjualan (SellItem), pembelian (PrchseItem), persediaan (InvntItem), atau kode grup SAP. Jika tidak diisi, mengambil seluruh data (get all).
+      tags:
+        - Items
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kata kunci untuk mencari item berdasarkan ItemCode atau ItemName (case-insensitive).
+        - name: sales_item_status
+          in: query
+          required: false
+          description: "Filter status barang penjualan (SellItem: Y/N). Jika tidak diisi, menampilkan semua."
+          schema:
+            type: string
+            enum: [Y, N]
+            example: "Y"
+        - name: purchase_item_status
+          in: query
+          required: false
+          description: "Filter status barang pembelian (PrchseItem: Y/N). Jika tidak diisi, menampilkan semua."
+          schema:
+            type: string
+            enum: [Y, N]
+            example: "Y"
+        - name: inventory_item_status
+          in: query
+          required: false
+          description: "Filter status barang persediaan / gudang (InvntItem: Y/N). Jika tidak diisi, menampilkan semua."
+          schema:
+            type: string
+            enum: [Y, N]
+            example: "Y"
+        - name: itms_grp_cod
+          in: query
+          required: false
+          description: Filter berdasarkan kode grup item SAP (contoh 105, 107)
+          schema:
+            type: string
+            example: "105"
+        - name: code_customer
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kode customer/distributor untuk memfilter item yang boleh diorder saja (terdaftar di harga distributor).
+      responses:
+        '200':
+          description: Daftar item berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar item berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Item'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/items/sync:
+    post:
+      summary: Sync items from SAP (/api/ListItemProd)
+      description: Melakukan sinkronisasi data master item dari endpoint SAP B1 /api/ListItemProd ke database lokal.
+      tags:
+        - Items
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sinkronisasi data item berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data item berhasil disinkronisasi dari SAP.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Item'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Gagal menghubungi API SAP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/vats:
+    get:
+      summary: List all vats
+      description: Mendapatkan daftar semua master pajak hasil sinkronisasi SAP.
+      tags:
+        - Vats
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kata kunci untuk mencari pajak berdasarkan Code atau Name (case-insensitive).
+      responses:
+        '200':
+          description: Daftar master pajak berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar master pajak berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Vat'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/vats/sync:
+    post:
+      summary: Sync vats from SAP
+      description: Melakukan sinkronisasi data master pajak dari SAP ke database lokal.
+      tags:
+        - Vats
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sinkronisasi data master pajak berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data master pajak berhasil disinkronisasi dari SAP.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Vat'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Gagal menghubungi API SAP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/dashboard/admin/summary:
+    get:
+      summary: Get Centralized Admin Dashboard Summary
+      description: Mendapatkan ringkasan statistik makro (penjualan bulanan, volume barang, jumlah status order, dan metrik klaim promo) khusus untuk Admin Internal.
+      tags:
+        - Dashboard
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sukses mendapatkan ringkasan data admin
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Statistik ringkasan admin berhasil diambil."
+                  data:
+                    type: object
+                    properties:
+                      sales_summary:
+                        type: object
+                        properties:
+                          total_revenue_this_month:
+                            type: number
+                            example: 1500000000.00
+                          total_volume_kg_this_month:
+                            type: number
+                            example: 185000.00
+                          total_orders_this_month:
+                            type: integer
+                            example: 342
+                      order_statuses:
+                        type: object
+                        properties:
+                          DRAFT:
+                            type: integer
+                            example: 12
+                          CREATED:
+                            type: integer
+                            example: 5
+                          WAITING_APPROVAL:
+                            type: integer
+                            example: 8
+                          APPROVED:
+                            type: integer
+                            example: 22
+                          DELIVERY:
+                            type: integer
+                            example: 14
+                          ARRIVED:
+                            type: integer
+                            example: 280
+                          REJECTED:
+                            type: integer
+                            example: 3
+                          FAILED:
+                            type: integer
+                            example: 1
+                      claims_summary:
+                        type: object
+                        properties:
+                          total_program:
+                            type: integer
+                            example: 3
+                          total_batch:
+                            type: integer
+                            example: 5
+                          total_valid_rows:
+                            type: integer
+                            example: 1240
+                          total_diskon:
+                            type: number
+                            example: 45000000.00
+        '403':
+          description: Akses ditolak karena bukan Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/dashboard/admin/charts:
+    get:
+      summary: Get Centralized Admin Dashboard Charts
+      description: Mendapatkan data tren harian penjualan 30 hari terakhir, produk terlaris, dan distributor terbaik khusus untuk Admin Internal.
+      tags:
+        - Dashboard
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sukses mendapatkan data chart admin
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Statistik grafik admin berhasil diambil."
+                  data:
+                    type: object
+                    properties:
+                      daily_sales_trend:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            date:
+                              type: string
+                              example: "2026-07-06"
+                            count:
+                              type: integer
+                              example: 5
+                            total:
+                              type: number
+                              example: 50000000.00
+                      top_products:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            item_code:
+                              type: string
+                              example: "E65"
+                            item_name:
+                              type: string
+                              example: "TOP 250 M @ 10 KG / BAL"
+                            total_qty:
+                              type: number
+                              example: 1500.00
+                      top_distributors:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            distributor_id:
+                              type: integer
+                              example: 1
+                            name:
+                              type: string
+                              example: "PT XYZ"
+                            total_spent:
+                              type: number
+                              example: 15000000.00
+        '403':
+          description: Akses ditolak karena bukan Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/dashboard/distributor/summary:
+    get:
+      summary: Get Centralized Distributor Dashboard Summary
+      description: Mendapatkan data ringkasan belanja, status order, serta saldo klaim reward khusus untuk Distributor yang terautentikasi.
+      tags:
+        - Dashboard
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sukses mendapatkan ringkasan data distributor
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Statistik ringkasan distributor berhasil diambil."
+                  data:
+                    type: object
+                    properties:
+                      sales_summary:
+                        type: object
+                        properties:
+                          total_revenue_this_month:
+                            type: number
+                            example: 450000000.00
+                          total_volume_kg_this_month:
+                            type: number
+                            example: 12000.00
+                          total_orders_this_month:
+                            type: integer
+                            example: 15
+                      order_statuses:
+                        type: object
+                        properties:
+                          DRAFT:
+                            type: integer
+                            example: 2
+                          CREATED:
+                            type: integer
+                            example: 1
+                          WAITING_APPROVAL:
+                            type: integer
+                            example: 2
+                          APPROVED:
+                            type: integer
+                            example: 1
+                          DELIVERY:
+                            type: integer
+                            example: 1
+                          ARRIVED:
+                            type: integer
+                            example: 8
+                          REJECTED:
+                            type: integer
+                            example: 0
+                          FAILED:
+                            type: integer
+                            example: 0
+                      rewards:
+                        type: object
+                        properties:
+                          total_accrued:
+                            type: number
+                            example: 12500000.00
+                          available_balance:
+                            type: number
+                            example: 8000000.00
+                          pending_verification:
+                            type: number
+                            example: 4500000.00
+                          withdrawn:
+                            type: number
+                            example: 1000000.00
+        '403':
+          description: Akses ditolak karena bukan Distributor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/dashboard/distributor/charts:
+    get:
+      summary: Get Centralized Distributor Dashboard Charts
+      description: Mendapatkan data grafik tren belanja harian (30 hari terakhir) dan produk terfavorit yang sering dibeli khusus untuk Distributor yang terautentikasi.
+      tags:
+        - Dashboard
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sukses mendapatkan data grafik distributor
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Statistik grafik distributor berhasil diambil."
+                  data:
+                    type: object
+                    properties:
+                      daily_sales_trend:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            date:
+                              type: string
+                              example: "2026-07-06"
+                            count:
+                              type: integer
+                              example: 1
+                            total:
+                              type: number
+                              example: 15000000.00
+                      top_products:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            item_code:
+                              type: string
+                              example: "E65"
+                            item_name:
+                              type: string
+                              example: "TOP 250 M @ 10 KG / BAL"
+                            total_qty:
+                              type: number
+                              example: 200.00
+        '403':
+          description: Akses ditolak karena bukan Distributor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sync/all:
+    post:
+      summary: Sync all master data from SAP
+      description: Melakukan sinkronisasi seluruh data master (distributors, OCR codes, items, sales employees, vats, warehouses, dan discount types) secara berurutan dari SAP.
+      tags:
+        - Sync Data
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sinkronisasi seluruh data master berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Sinkronisasi semua data master dari SAP selesai.
+                  data:
+                    type: object
+                    properties:
+                      distributors:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                          count:
+                            type: integer
+                          message:
+                            type: string
+                      ocr_codes:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                          count:
+                            type: integer
+                          message:
+                            type: string
+                      items:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                          count:
+                            type: integer
+                          message:
+                            type: string
+                      sales_employees:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                          count:
+                            type: integer
+                          message:
+                            type: string
+                      vats:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                          count:
+                            type: integer
+                          message:
+                            type: string
+                      warehouses:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                          count:
+                            type: integer
+                          message:
+                            type: string
+                      discount_types:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                          count:
+                            type: integer
+                          message:
+                            type: string
+                      production_resources:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                          count:
+                            type: integer
+                          message:
+                            type: string
+                      production_items:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                          count:
+                            type: integer
+                          message:
+                            type: string
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/warehouses/search-bin:
+    post:
+      summary: Search master bin location from SAP
+      description: Mencari master bin location (sub gudang) berdasarkan query kustom dari SAP.
+      tags:
+        - Warehouse
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - CustomQuery
+              properties:
+                CustomQuery:
+                  type: string
+                  example: RMI01
+                  description: Query pencarian kode bin / gudang
+      responses:
+        '200':
+          description: Pencarian data master bin berhasil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Pencarian data master bin berhasil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        AbsEntry:
+                          type: string
+                          example: "10"
+                        BinCode:
+                          type: string
+                          example: RMI01-GN
+                        Descr:
+                          type: string
+                          example: GUDANG BAHAN BAKU GARAM IMPORT N
+        '400':
+          description: Gagal mencari data master bin (Error dari SAP)
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/warehouses/search-qty-bin:
+    post:
+      summary: Search qty bin location from SAP
+      description: Mencari bin location (sub gudang) dan kuantitasnya berdasarkan kode gudang dan query kustom dari SAP.
+      tags:
+        - Warehouse
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - WhsCode
+              properties:
+                CustomQuery:
+                  type: string
+                  example: B26
+                  description: Query pencarian kode bin
+                WhsCode:
+                  type: string
+                  example: RMI01
+                  description: Kode Gudang SAP
+      responses:
+        '200':
+          description: Pencarian data bin qty berhasil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Pencarian data bin qty berhasil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        ItemCode:
+                          type: string
+                          example: B26
+                        ItemName:
+                          type: string
+                          example: KOP 250 M @ 10 KG / BAL
+                        WhsCode:
+                          type: string
+                          example: FG01
+                        AbsEntry:
+                          type: string
+                          example: "5"
+                        SisaQty:
+                          type: string
+                          example: "5300.000000"
+        '400':
+          description: Gagal mencari data bin qty (Error dari SAP)
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/warehouses/inventory-transfer:
+    get:
+      summary: Get list of Inventory Transfers (IT) from SAP
+      description: Mengambil daftar transaksi pemindahan stok antar gudang (Inventory Transfer) dari SAP.
+      tags:
+        - Warehouse
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: From
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Tanggal mulai filter (YYYY-MM-DD atau YYYY-M-D)
+          example: "2026-1-1"
+        - name: To
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Tanggal akhir filter (YYYY-MM-DD atau YYYY-M-D)
+          example: "2026-12-31"
+        - name: WhsCode
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kode gudang asal
+          example: "VRTR01"
+        - name: ToWhsCode
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kode gudang tujuan
+          example: "FG01"
+      responses:
+        '200':
+          description: Mengambil daftar Inventory Transfer berhasil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Mengambil daftar Inventory Transfer berhasil. (atau 'Data not found.' jika kosong/dummy)
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        DocEntry:
+                          type: string
+                          example: "20"
+                        DocNum:
+                          type: string
+                          example: "260130001"
+                        DocDate:
+                          type: string
+                          example: "20260102"
+                        FromWhsCode:
+                          type: string
+                          example: "FG03-BM"
+                        ToWhsCode:
+                          type: string
+                          example: "FG03-KR"
+                        Comments:
+                          type: string
+                          example: "MUTASI BM KE KR"
+        '400':
+          description: Gagal mengambil daftar Inventory Transfer (Error dari SAP B1)
+        '401':
+          description: Tidak terautentikasi
+
+    post:
+      summary: Perform Inventory Transfer (IT) to SAP
+      description: Membuat transaksi pemindahan stok antar gudang (Inventory Transfer) di SAP.
+      tags:
+        - Warehouse
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocDate
+                - DocDueDate
+                - Filler
+                - ToWhsCode
+                - Lines
+              properties:
+                DocDate:
+                  type: string
+                  format: date
+                  example: "2026-03-30"
+                DocDueDate:
+                  type: string
+                  format: date
+                  example: "2026-03-30"
+                Comments:
+                  type: string
+                  example: test
+                Filler:
+                  type: string
+                  example: FG01
+                  description: Gudang Asal
+                ToWhsCode:
+                  type: string
+                  example: FG04
+                  description: Gudang Tujuan
+                BeratBruto:
+                  type: string
+                  example: "10640"
+                BeratTara:
+                  type: string
+                  example: "3740"
+                Nopol:
+                  type: string
+                  example: M9573UN
+                NamaSupir:
+                  type: string
+                  example: Subianto
+                Lines:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - ItemCode
+                      - Quantity
+                      - Filler
+                      - ToWhsCode
+                    properties:
+                      ItemCode:
+                        type: string
+                        example: RM-001
+                      Quantity:
+                        type: number
+                        format: float
+                        example: 10000.0
+                      UomEntry:
+                        type: integer
+                        example: 0
+                      Filler:
+                        type: string
+                        example: FG01
+                      ToWhsCode:
+                        type: string
+                        example: FG04
+                      UseBaseUn:
+                        type: string
+                        example: y
+                      OcrCode:
+                        type: string
+                        example: SBY
+                      OcrCode2:
+                        type: string
+                        example: GRM
+                      OcrCode3:
+                        type: string
+                        example: PCG
+                      BinActivfrom:
+                        type: string
+                        example: Y
+                      BinActivto:
+                        type: string
+                        example: Y
+                      Lines_BinFROM:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            AbsEntry:
+                              type: integer
+                              example: 9
+                            Quantity:
+                              type: number
+                              format: float
+                              example: 10000.0
+                      Lines_BinTO:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            AbsEntry:
+                              type: integer
+                              example: 5
+                            Quantity:
+                              type: number
+                              format: float
+                              example: 100.0
+      responses:
+        '200':
+          description: Proses Inventory Transfer berhasil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Proses Inventory Transfer berhasil.
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+        '400':
+          description: Gagal memproses Inventory Transfer
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/warehouses/inventory-transfer/get-by-id:
+    post:
+      summary: Get Inventory Transfer (IT) detail by ID/DocEntry from SAP
+      description: Mengambil detail data Inventory Transfer berdasarkan DocEntry.
+      tags:
+        - Warehouse
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - CustomQuery
+              properties:
+                CustomQuery:
+                  type: string
+                  description: Nilai DocEntry yang ingin dicari
+                  example: "20"
+      responses:
+        '200':
+          description: Mengambil detail Inventory Transfer berhasil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Mengambil detail Inventory Transfer berhasil. (atau 'Data not found.' jika tidak ditemukan)
+                  data:
+                    type: object
+                    properties:
+                      Series:
+                        type: string
+                        example: "5340"
+                      DocEntry:
+                        type: string
+                        example: "1231"
+                      DocNum:
+                        type: string
+                        example: "260110837"
+                      DocDate:
+                        type: string
+                        example: "20260105"
+                      FromWhsCode:
+                        type: string
+                        example: "PRD01-04"
+                      ToWhsCode:
+                        type: string
+                        example: "FG01"
+                      CardCode:
+                        type: string
+                        example: ""
+                      CardName:
+                        type: string
+                        example: ""
+                      Comments:
+                        type: string
+                        example: "LPB 005"
+                      lines:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            DocEntry:
+                              type: string
+                              example: "1231"
+                            LineNum:
+                              type: string
+                              example: "0"
+                            ItemCode:
+                              type: string
+                              example: "B26"
+                            ItemName:
+                              type: string
+                              example: "KOP 250 M @ 10 KG / BAL"
+                            Quantity:
+                              type: string
+                              example: "10.000000"
+                            FromWhsCode:
+                              type: string
+                              example: "PRD01-04"
+                            ToWhsCode:
+                              type: string
+                              example: "FG01"
+                            Uom:
+                              type: string
+                              example: "Bal"
+                            UseBaseUn:
+                              type: string
+                              example: "Y"
+        '400':
+          description: Gagal mengambil detail Inventory Transfer (Error dari SAP B1)
+        '401':
+          description: Tidak terautentikasi
+        '422':
+          description: Validasi input gagal (CustomQuery kosong)
+
+  /v1/warehouses/inventory-transfer/cancel:
+    post:
+      summary: Cancel Inventory Transfer (IT) in SAP
+      description: Membatalkan transaksi Inventory Transfer di SAP berdasarkan DocEntry. System akan mengirimkan DocEntry, UserId (dari user login), dan AddonId (2) ke API SAP CancelIT.
+      tags:
+        - Warehouse
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocEntry
+              properties:
+                DocEntry:
+                  type: string
+                  description: Nomor DocEntry Inventory Transfer yang akan dibatalkan
+                  example: "1231"
+      responses:
+        '200':
+          description: Membatalkan Inventory Transfer berhasil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Membatalkan Inventory Transfer berhasil.
+                  data:
+                    type: object
+                    nullable: true
+                    example:
+                      DocEntry: "1231"
+        '400':
+          description: Gagal membatalkan Inventory Transfer (Error dari SAP B1)
+        '401':
+          description: Tidak terautentikasi
+        '422':
+          description: Validation error (DocEntry wajib diisi)
+
+  /v1/warehouses/stock-by-item:
+    post:
+      summary: Get Stok Item di Gudang dari SAP
+      description: Mengambil data stok item pada gudang tertentu langsung dari SAP Business One API (/api/getstokbyitem).
+      tags:
+        - Master Warehouse
+        - Production Module
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - WhsCode
+              properties:
+                CustomQuery:
+                  type: string
+                  example: "'B12.B','B26'"
+                  description: String query kode item dengan kutip tunggal (contoh "'B12.B','B26'") atau array item_codes
+                item_codes:
+                  type: array
+                  items:
+                    type: string
+                  example: ["B12.B", "B26"]
+                  description: Alternatif input berupa array kode item (backend otomatis memformat ke CustomQuery)
+                WhsCode:
+                  type: string
+                  example: "'FG01'"
+                  description: Kode gudang SAP (contoh "'FG01'" atau "FG01", backend otomatis membungkus tanda petik untuk SAP)
+      responses:
+        '200':
+          description: Data stok item di gudang berhasil diambil dari SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data stok item di gudang berhasil diambil dari SAP.
+                  data:
+                    type: object
+                    properties:
+                      whs_code:
+                        type: string
+                        example: "'FG01'"
+                      custom_query:
+                        type: string
+                        example: "'B12.B','B26'"
+                      total_items:
+                        type: integer
+                        example: 2
+                      items:
+                        type: array
+                        items:
+                          type: object
+
+  /v1/master-approvals/originators:
+    get:
+      summary: Get Originators List from SAP
+      description: |
+        Mengambil daftar user originator persetujuan langsung dari middleware SAP Business One (`/api/GetOriginator`).
+      tags:
+        - SAP - Master Approval
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: refresh
+          in: query
+          description: Force refresh cache data SAP
+          schema:
+            type: boolean
+            default: false
+        - name: page
+          in: query
+          description: Nomor halaman pagination (opsional)
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: per_page
+          in: query
+          description: Jumlah item per halaman (opsional)
+          schema:
+            type: integer
+            default: 15
+            example: 10
+      responses:
+        '200':
+          description: Originators list retrieved successfully from SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Originators list retrieved successfully from SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        USERID:
+                          type: string
+                          example: "1"
+                        USER_CODE:
+                          type: string
+                          example: "manager"
+                        U_NAME:
+                          type: string
+                          example: "Direksi"
+    post:
+      summary: Get Originators List from SAP (POST Method)
+      description: Mengambil daftar user originator persetujuan langsung dari middleware SAP Business One (`/api/GetOriginator`).
+      tags:
+        - SAP - Master Approval
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Originators list retrieved successfully from SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Originators list retrieved successfully from SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        USERID:
+                          type: string
+                          example: "1"
+                        USER_CODE:
+                          type: string
+                          example: "manager"
+                        U_NAME:
+                          type: string
+                          example: "Direksi"
+  /v1/master-approvals/by-owner:
+    get:
+      summary: Get Owner / My Document Approval List from SAP
+      description: |
+        Mengambil daftar dokumen yang diajukan oleh pembuat dokumen (Originator/Owner) beserta status persetujuan dari SAP Business One (`/api/GetListByOwnerId`).
+        Urutan alur approval: `Pending -> Approved -> Generated`.
+        - `Pending`: Status SAP `W`.
+        - `Approved`: Status SAP `Y` DAN (`DocEntry == 0` atau null atau kosong) (disetujui, belum generate dokumen final definitif di SAP).
+        - `Generated`: Status SAP `Y` DAN `DocEntry > 0` (dokumen transaksi final definitif telah berhasil digenerate di SAP).
+      tags:
+        - SAP - Master Approval
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: CustomQuery
+          in: query
+          description: ID Originator query SAP (opsional, otomatis menggunakan originator user login jika tidak diisi)
+          schema:
+            type: integer
+            example: 62
+        - name: UserId
+          in: query
+          description: User ID SAP (opsional)
+          schema:
+            type: string
+            example: "3"
+        - name: ObjectCode
+          in: query
+          description: Object code dokumen SAP (opsional, contoh 1470000113)
+          schema:
+            type: string
+            example: "1470000113"
+        - name: From
+          in: query
+          description: Tanggal mulai (YYYYMMDD atau YYYY-MM-DD, opsional)
+          schema:
+            type: string
+            example: "20251201"
+        - name: To
+          in: query
+          description: Tanggal akhir (YYYYMMDD atau YYYY-MM-DD, opsional)
+          schema:
+            type: string
+            example: "20261231"
+        - name: Status
+          in: query
+          description: Filter status persetujuan (W, Y, N, C, G, Pending, Approved, Generated, dsb)
+          schema:
+            type: string
+            example: "Y"
+        - name: page
+          in: query
+          description: Nomor halaman data (opsional, pagination)
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: per_page
+          in: query
+          description: Jumlah data per halaman (opsional, pagination)
+          schema:
+            type: integer
+            default: 15
+            example: 10
+        - name: refresh
+          in: query
+          description: Set true untuk force refresh mengambil data terbaru dari SAP
+          schema:
+            type: boolean
+            default: false
+            example: false
+      responses:
+        '200':
+          description: Owner document approval list retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Owner document approval list retrieved successfully.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        WddCode:
+                          type: string
+                          example: "7689"
+                        DocEntry:
+                          type: string
+                          example: "5339"
+                        DraftEntry:
+                          type: string
+                          example: "679"
+                        DraftNum:
+                          type: string
+                          example: "260140084"
+                        DocNum:
+                          type: string
+                          example: "260140087"
+                        ObjType:
+                          type: string
+                          example: "1470000113"
+                        DocDate:
+                          type: string
+                          example: "20260810"
+                        CurrStep:
+                          type: string
+                          example: "4"
+                        Status:
+                          type: string
+                          example: "Generated"
+                        raw_status:
+                          type: string
+                          example: "G"
+                        StatusCode:
+                          type: string
+                          example: "G"
+                        StatusDescription:
+                          type: string
+                          example: "Generated"
+                        Name:
+                          type: string
+                          description: Nama tahapan persetujuan dari getstages
+                          example: "Production Mng. SBY"
+                        Remarks:
+                          type: string
+                          description: Keterangan tahapan persetujuan dari getstages
+                          example: "Production Manager Surabaya"
+                  pagination:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                        example: 1
+                      last_page:
+                        type: integer
+                        example: 5
+                      per_page:
+                        type: integer
+                        example: 10
+                      total:
+                        type: integer
+                        example: 48
+                      from:
+                        type: integer
+                        example: 1
+                      to:
+                        type: integer
+                        example: 10
+    post:
+      summary: Get Owner / My Document Approval List from SAP (POST Method)
+      description: Mengambil daftar dokumen yang diajukan oleh pembuat dokumen (Originator/Owner) melalui POST request payload.
+      tags:
+        - SAP - Master Approval
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                CustomQuery:
+                  type: integer
+                  example: 62
+                UserId:
+                  type: string
+                  example: "3"
+                ObjectCode:
+                  type: string
+                  example: "1470000113"
+                From:
+                  type: string
+                  example: "20251201"
+                To:
+                  type: string
+                  example: "20261231"
+                Status:
+                  type: string
+                  description: Filter status persetujuan (W, Y, N, C, G, Pending, Approved, Generated, dsb)
+                  example: "Y"
+                page:
+                  type: integer
+                  example: 1
+                per_page:
+                  type: integer
+                  example: 10
+                refresh:
+                  type: boolean
+                  example: false
+      responses:
+        '200':
+          description: Owner document approval list retrieved successfully.
+
+  /v1/master-approvals/detail-by-object:
+    get:
+      summary: Get Document Approval Detail by Object Code from SAP
+      description: |
+        Mengambil detail dokumen transaksi persetujuan dari SAP Business One (`/api/GetDetailByObjectCode`) berdasarkan DocEntry dan ObjectCode.
+        Parameter `Status` mendukung pencarian draft (`"W"`) maupun approved/final (`"Y"`), dengan fitur auto-fallback ke draft (`"W"`) jika status tidak dikirim.
+        Jika data kosong atau tidak ditemukan di SAP, backend mengembalikan `{"success": false, "message": "Data not found."}` tanpa field `data`.
+      tags:
+        - SAP - Master Approval
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: CustomQuery
+          in: query
+          required: true
+          description: DocEntry dokumen transaksi
+          schema:
+            type: integer
+            example: 180
+        - name: ObjectCode
+          in: query
+          required: false
+          description: Object code tipe dokumen SAP (opsional)
+          schema:
+            type: string
+            example: "1470000113"
+        - name: Status
+          in: query
+          required: false
+          description: Status persetujuan dokumen SAP (contoh "Y", "W", "N", "C", "G", atau "APPROVED", "PENDING", "GENERATED", dll.)
+          schema:
+            type: string
+            example: "Y"
+        - name: page
+          in: query
+          description: Nomor halaman pagination untuk baris item transaksi (opsional)
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: per_page
+          in: query
+          description: Jumlah baris item transaksi per halaman (opsional)
+          schema:
+            type: integer
+            default: 15
+            example: 10
+        - name: refresh
+          in: query
+          description: Force refresh cache SAP
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Document approval detail retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Document approval detail retrieved successfully.
+                  data:
+                    type: object
+                    properties:
+                      header:
+                        type: object
+                        nullable: true
+                        properties:
+                          Series:
+                            type: string
+                            example: "6486"
+                          SeriesName:
+                            type: string
+                            example: "GSK26-01"
+                          DocEntry:
+                            type: string
+                            example: "180"
+                          DocNum:
+                            type: string
+                            example: "260140032"
+                          DocDate:
+                            type: string
+                            example: "20260112"
+                          TaxDate:
+                            type: string
+                            example: "20260112"
+                          U_Shift:
+                            type: string
+                            example: ""
+                          U_Unit:
+                            type: string
+                            example: ""
+                          JrnlMemo:
+                            type: string
+                            example: ""
+                          Comments:
+                            type: string
+                            example: "UNTUK FITTING PIPING OUTDOOR UNIT 2 GRESIK"
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            DocEntry:
+                              type: string
+                              example: "180"
+                            LineNum:
+                              type: string
+                              example: "0"
+                            ItemCode:
+                              type: string
+                              example: "JS000013"
+                            ItemName:
+                              type: string
+                              example: "BOLT NUT M20X90MM SS304"
+                            Quantity:
+                              type: string
+                              example: "120.000000"
+                            WhsCode:
+                              type: string
+                              example: "SPR04"
+                            WhsName:
+                              type: string
+                              example: "GUDANG SPAREPART - GRESIK"
+                            Uom:
+                              type: string
+                              example: "PCS"
+                            OcrCode:
+                              type: string
+                              example: "GSK"
+                            OcrCode2:
+                              type: string
+                              example: "GRM"
+                            OcrCode3:
+                              type: string
+                              example: "PRO"
+    post:
+      summary: Get Document Approval Detail by Object Code from SAP (POST Method)
+      description: Mengambil detail dokumen transaksi persetujuan dari SAP Business One melalui POST request payload.
+      tags:
+        - SAP - Master Approval
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - CustomQuery
+              properties:
+                CustomQuery:
+                  type: integer
+                  example: 180
+                ObjectCode:
+                  type: string
+                  example: "1470000113"
+                Status:
+                  type: string
+                  description: Status persetujuan dokumen SAP (contoh "Y", "W", "N", "C", atau "APPROVED")
+                  example: "Y"
+                page:
+                  type: integer
+                  example: 1
+                per_page:
+                  type: integer
+                  example: 15
+                refresh:
+                  type: boolean
+                  example: false
+      responses:
+        '200':
+          description: Document approval detail retrieved successfully.
+
+  /v1/dashboard-layouts/me:
+    get:
+      summary: Mengambil Layout Dashboard Pengguna Aktif
+      description: |
+        Mengambil konfigurasi tata letak widget dashboard berdasarkan role pengguna yang sedang login.
+        Jika role pengguna belum memiliki konfigurasi kustom, backend mengembalikan konfigurasi default kosong dengan HTTP 200 (bukan 404).
+      tags:
+        - Dashboard - Builder
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Konfigurasi layout dashboard berhasil diambil atau default layout kosong.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Dashboard layout retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      role_id:
+                        type: integer
+                        example: 5
+                      version:
+                        type: integer
+                        example: 3
+                      rows:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            row:
+                              type: integer
+                              example: 1
+                            columns:
+                              type: integer
+                              example: 3
+                      widgets:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              example: "customer-orders"
+                            sort:
+                              type: integer
+                              example: 1
+                            row:
+                              type: integer
+                              example: 1
+                            column:
+                              type: integer
+                              example: 1
+                            span:
+                              type: integer
+                              example: 1
+                            properties:
+                              type: object
+                              nullable: true
+                              example: null
+                      updated_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                        example: "2026-09-25T10:30:00+07:00"
+        '401':
+          description: Unauthenticated.
+
+  /v1/dashboard-layouts/roles/{roleId}:
+    get:
+      summary: Mengambil Layout Dashboard Berdasarkan Role
+      description: |
+        Mengambil konfigurasi tata letak widget dashboard untuk suatu role tertentu.
+        Hanya dapat diakses oleh Administrator.
+      tags:
+        - Dashboard - Builder
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          description: ID role sistem
+          schema:
+            type: integer
+          example: 5
+      responses:
+        '200':
+          description: Konfigurasi layout dashboard role berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Dashboard layout retrieved successfully"
+                  data:
+                    type: object
+        '403':
+          description: Akses ditolak. Hanya administrator yang dapat mengakses.
+        '404':
+          description: Role ID tidak ditemukan.
+
+    put:
+      summary: Menyimpan / Update Layout Dashboard Berdasarkan Role (Upsert & Optimistic Locking)
+      description: |
+        Menyimpan atau memperbarui konfigurasi baris, kolom, dan widget dashboard untuk role tertentu.
+        Mendukung optimistic locking melalui field version. Jika version request tidak cocok dengan versi di database, mengembalikan HTTP 409 Conflict.
+        Hanya dapat diakses oleh Administrator.
+      tags:
+        - Dashboard - Builder
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          description: ID role sistem
+          schema:
+            type: integer
+          example: 5
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - version
+                - rows
+                - widgets
+              properties:
+                version:
+                  type: integer
+                  description: Versi konfigurasi terakhir yang diketahui frontend
+                  example: 3
+                rows:
+                  type: array
+                  description: Pengaturan baris dan jumlah kolom (1-3 kolom per baris, 1-10 baris)
+                  items:
+                    type: object
+                    required:
+                      - row
+                      - columns
+                    properties:
+                      row:
+                        type: integer
+                        example: 1
+                      columns:
+                        type: integer
+                        example: 3
+                widgets:
+                  type: array
+                  description: Daftar penempatan widget pada baris dan kolom
+                  items:
+                    type: object
+                    required:
+                      - id
+                      - sort
+                      - row
+                      - column
+                      - span
+                    properties:
+                      id:
+                        type: string
+                        example: "customer-orders"
+                      sort:
+                        type: integer
+                        example: 1
+                      row:
+                        type: integer
+                        example: 1
+                      column:
+                        type: integer
+                        example: 1
+                      span:
+                        type: integer
+                        example: 1
+                      properties:
+                        type: object
+                        nullable: true
+                        example: null
+            example:
+              version: 3
+              rows:
+                - row: 1
+                  columns: 3
+                - row: 2
+                  columns: 2
+              widgets:
+                - id: "customer-orders"
+                  sort: 1
+                  row: 1
+                  column: 1
+                  span: 1
+                - id: "order-ready"
+                  sort: 2
+                  row: 2
+                  column: 1
+                  span: 2
+      responses:
+        '200':
+          description: Dashboard layout berhasil disimpan dan versi baru dihasilkan.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Dashboard layout saved successfully"
+                  data:
+                    type: object
+        '403':
+          description: Akses ditolak.
+        '409':
+          description: Version conflict. Telah diperbarui oleh pengguna lain.
+        '422':
+          description: Validasi layout gagal (melebihi span kolom, baris tidak urut, dsb).
+
+    delete:
+      summary: Mereset / Menghapus Layout Dashboard Role
+      description: |
+        Menghapus konfigurasi kustom layout dashboard untuk role tertentu sehingga kembali ke kondisi default.
+        Hanya dapat diakses oleh Administrator.
+      tags:
+        - Dashboard - Builder
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          description: ID role sistem
+          schema:
+            type: integer
+          example: 5
+      responses:
+        '200':
+          description: Dashboard layout berhasil direset.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Dashboard layout reset successfully"
+                  data:
+                    type: string
+                    nullable: true
+        '403':
+          description: Akses ditolak.
+        '404':
+          description: Role ID tidak ditemukan.
+
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

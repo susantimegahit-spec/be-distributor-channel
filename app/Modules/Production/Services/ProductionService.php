@@ -2428,23 +2428,58 @@ class ProductionService
                 $itemCode = (string) ($line['item']['value'] ?? $line['item']['code'] ?? $line['item']['item_code'] ?? $itemCode);
             }
 
+            // Extract optional sorting / numbering field (sort_order, sort_numbering, numbering, urutan)
+            $sortOrder = null;
+            foreach (['sort_order', 'SortOrder', 'sort_numbering', 'SortNumbering', 'numbering', 'Numbering', 'urutan', 'Urutan'] as $sKey) {
+                if (isset($line[$sKey]) && is_numeric($line[$sKey])) {
+                    $sortOrder = (int) $line[$sKey];
+                    break;
+                }
+            }
+
             $lines[] = [
-                'BaseType'  => is_numeric($line['base_type'] ?? $line['BaseType'] ?? null) ? (int) ($line['base_type'] ?? $line['BaseType']) : 202,
-                'BaseEntry' => is_numeric($baseEntry) ? (int) $baseEntry : (string) $baseEntry,
-                'BaseLine'  => $baseLine,
-                'ItemCode'  => $itemCode,
-                'Quantity'  => floatval($quantity),
-                'WhsCode'   => (string) ($line['whs_code'] ?? $line['warehouse'] ?? $line['WhsCode'] ?? ''),
-                'UoMEntry'  => is_numeric($line['uom_entry'] ?? $line['UoMEntry'] ?? null) ? (int) ($line['uom_entry'] ?? $line['UoMEntry']) : ($line['uom_entry'] ?? $line['UoMEntry'] ?? 1),
-                'OcrCode'   => (string) ($line['ocr_code'] ?? $line['OcrCode'] ?? ''),
-                'OcrCode2'  => (string) ($line['ocr_code2'] ?? $line['OcrCode2'] ?? ''),
-                'OcrCode3'  => (string) ($line['ocr_code3'] ?? $line['OcrCode3'] ?? ''),
+                'BaseType'   => is_numeric($line['base_type'] ?? $line['BaseType'] ?? null) ? (int) ($line['base_type'] ?? $line['BaseType']) : 202,
+                'BaseEntry'  => is_numeric($baseEntry) ? (int) $baseEntry : (string) $baseEntry,
+                'BaseLine'   => $baseLine,
+                'ItemCode'   => $itemCode,
+                'Quantity'   => floatval($quantity),
+                'WhsCode'    => (string) ($line['whs_code'] ?? $line['warehouse'] ?? $line['WhsCode'] ?? ''),
+                'UoMEntry'   => is_numeric($line['uom_entry'] ?? $line['UoMEntry'] ?? null) ? (int) ($line['uom_entry'] ?? $line['UoMEntry']) : ($line['uom_entry'] ?? $line['UoMEntry'] ?? 1),
+                'OcrCode'    => (string) ($line['ocr_code'] ?? $line['OcrCode'] ?? ''),
+                'OcrCode2'   => (string) ($line['ocr_code2'] ?? $line['OcrCode2'] ?? ''),
+                'OcrCode3'   => (string) ($line['ocr_code3'] ?? $line['OcrCode3'] ?? ''),
+                'sort_order' => $sortOrder,
             ];
         }
 
         if (empty($lines)) {
             throw new \Exception("Lines valid tidak ditemukan dalam request.");
         }
+
+        // Sort lines by sort_order if provided by user/frontend
+        $hasCustomSort = false;
+        foreach ($lines as $ln) {
+            if ($ln['sort_order'] !== null) {
+                $hasCustomSort = true;
+                break;
+            }
+        }
+        if ($hasCustomSort) {
+            usort($lines, function ($a, $b) {
+                $orderA = $a['sort_order'] ?? PHP_INT_MAX;
+                $orderB = $b['sort_order'] ?? PHP_INT_MAX;
+                if ($orderA === $orderB) {
+                    return 0;
+                }
+                return ($orderA < $orderB) ? -1 : 1;
+            });
+        }
+
+        // Re-index sort_order cleanly 1, 2, 3...
+        foreach ($lines as $k => &$ln) {
+            $ln['sort_order'] = ($ln['sort_order'] !== null) ? $ln['sort_order'] : ($k + 1);
+        }
+        unset($ln);
 
         // Normalize Shift to valid SAP values: 'A' (Shift 1), 'B' (Shift 2), 'C' (Shift 3)
         $rawShift = trim((string) ($data['shift'] ?? $data['u_shift'] ?? $data['Shift'] ?? $data['U_Shift'] ?? 'A'));
@@ -2748,22 +2783,39 @@ class ProductionService
             }
 
             $resolvedLines[] = [
-                'BaseType'  => (int) ($l['BaseType'] ?? 202),
-                'BaseEntry' => is_numeric($baseEntry) ? (int)$baseEntry : $baseEntry,
-                'BaseLine'  => $baseLine,
-                'ItemCode'  => $itemCode,
-                'Quantity'  => floatval($l['Quantity']),
-                'WhsCode'   => (string) ($l['WhsCode'] ?? ''),
-                'UoMEntry'  => is_numeric($l['UoMEntry'] ?? 1) ? (int)($l['UoMEntry'] ?? 1) : 1,
-                'OcrCode'   => (string) ($l['OcrCode'] ?? ''),
-                'OcrCode2'  => (string) ($l['OcrCode2'] ?? ''),
-                'OcrCode3'  => (string) ($l['OcrCode3'] ?? ''),
+                'BaseType'   => (int) ($l['BaseType'] ?? 202),
+                'BaseEntry'  => is_numeric($baseEntry) ? (int)$baseEntry : $baseEntry,
+                'BaseLine'   => $baseLine,
+                'ItemCode'   => $itemCode,
+                'Quantity'   => floatval($l['Quantity']),
+                'WhsCode'    => (string) ($l['WhsCode'] ?? ''),
+                'UoMEntry'   => is_numeric($l['UoMEntry'] ?? 1) ? (int)($l['UoMEntry'] ?? 1) : 1,
+                'OcrCode'    => (string) ($l['OcrCode'] ?? ''),
+                'OcrCode2'   => (string) ($l['OcrCode2'] ?? ''),
+                'OcrCode3'   => (string) ($l['OcrCode3'] ?? ''),
+                'sort_order' => $l['sort_order'] ?? null,
             ];
         }
         $payload['Lines'] = $resolvedLines;
 
         // 1. Tembakkan langsung ke SAP B1 API terlebih dahulu (/api/addreceiptprod)
         $sapUrl = config('services.sap.url');
+        // Bersihkan key non-SAP (seperti sort_order) dari payload yang dikirim ke SAP B1
+        $sapLines = array_map(function ($l) {
+            return [
+                'BaseType'  => (int) ($l['BaseType'] ?? 202),
+                'BaseEntry' => $l['BaseEntry'],
+                'BaseLine'  => $l['BaseLine'],
+                'ItemCode'  => (string) ($l['ItemCode'] ?? ''),
+                'Quantity'  => floatval($l['Quantity']),
+                'WhsCode'   => (string) ($l['WhsCode'] ?? ''),
+                'UoMEntry'  => is_numeric($l['UoMEntry'] ?? 1) ? (int)$l['UoMEntry'] : 1,
+                'OcrCode'   => (string) ($l['OcrCode'] ?? ''),
+                'OcrCode2'  => (string) ($l['OcrCode2'] ?? ''),
+                'OcrCode3'  => (string) ($l['OcrCode3'] ?? ''),
+            ];
+        }, $resolvedLines);
+
         $sapPayload = [
             'DocDate'    => $payload['DocDate'],
             'DocDueDate' => $payload['DocDueDate'],
@@ -2772,7 +2824,7 @@ class ProductionService
             'Unit'       => $payload['Unit'],
             'AddonId'    => $payload['AddonId'],
             'UserId'     => $payload['UserId'],
-            'Lines'      => $resolvedLines,
+            'Lines'      => $sapLines,
         ];
 
         try {
@@ -2895,6 +2947,7 @@ class ProductionService
                 'production_receipt_id' => $localReceipt->id,
                 'production_order_id'   => $pdo?->id,
                 'line_num'              => $idx,
+                'sort_order'            => (int) ($line['sort_order'] ?? ($idx + 1)),
                 'base_type'             => $line['BaseType'] ?? 202,
                 'base_entry'            => (string)$line['BaseEntry'],
                 'base_line'             => (string)($line['BaseLine'] ?? -1),

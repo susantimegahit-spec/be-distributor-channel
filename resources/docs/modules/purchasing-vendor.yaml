@@ -1,0 +1,3867 @@
+openapi: 3.0.3
+info:
+  title: "SMESTA API - Modul Purchasing (PR, Quotation), Budgeting & Vendor Portal"
+  description: |
+    Dokumentasi API Modular SMESTA (Bagian dari `resources/docs/openapi.yaml`).
+    Edit file ini secara langsung agar ringan di IDE, lalu jalankan `php artisan docs:openapi bundle` untuk menyatukan kembali ke `openapi.yaml`.
+  version: 1.0.0
+servers:
+  - url: https://api-sm-connect.susantimegah.com/api/distributor-channel
+    description: Production Server
+  - url: http://api-dev.susantimegah.com/api/distributor-channel
+    description: Development Server
+  - url: http://localhost:8000/api/distributor-channel
+    description: Local Server
+paths:
+  /v1/document-approval/document-types:
+    get:
+      summary: Get List Master Document Types
+      description: Mengambil daftar master Document Types SAP B1 yang aktif beserta relasi skema aktif (mendukung search, filter module, is_active, dan pagination).
+      tags:
+        - Master Document Types
+      parameters:
+        - name: module
+          in: query
+          required: false
+          schema:
+            type: string
+          example: "Purchasing"
+        - name: is_active
+          in: query
+          required: false
+          schema:
+            type: boolean
+          example: true
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          example: "Purchase"
+        - name: all
+          in: query
+          required: false
+          schema:
+            type: boolean
+          example: true
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+          example: 15
+      responses:
+        '200':
+          description: Berhasil mengambil daftar tipe dokumen
+    post:
+      summary: Create New Document Type (With Upload)
+      description: Membuat tipe dokumen baru dengan dukungan upload icon (gambar) dan template attachment / file SOP panduan (PDF/DOCX/XLSX).
+      tags:
+        - Master Document Types
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - code
+                - name
+              properties:
+                code:
+                  type: string
+                  example: "AP_INV"
+                name:
+                  type: string
+                  example: "A/P Invoice"
+                sap_object_type:
+                  type: integer
+                  example: 18
+                module:
+                  type: string
+                  example: "Purchasing"
+                header_source:
+                  type: string
+                  example: "OPCH"
+                line_source:
+                  type: string
+                  example: "PCH1"
+                description:
+                  type: string
+                  example: "Faktur Pembelian Hutang Dagang"
+                is_active:
+                  type: boolean
+                  example: true
+                icon:
+                  type: string
+                  format: binary
+                  description: File icon dokumen (PNG, JPG, SVG - max 2MB)
+                attachment:
+                  type: string
+                  format: binary
+                  description: File template / SOP dokumen (PDF, DOCX, XLSX - max 10MB)
+      responses:
+        '201':
+          description: Document Type berhasil dibuat
+
+  /v1/document-approval/document-types/{idOrCode}:
+    get:
+      summary: Get Document Type Detail (by ID or Code)
+      description: Mengambil detail skema field dan alur workflow untuk tipe dokumen tertentu berdasarkan ID atau Kodenya (misal 1 atau PO).
+      tags:
+        - Master Document Types
+      parameters:
+        - name: idOrCode
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "PO"
+      responses:
+        '200':
+          description: Berhasil mengambil detail tipe dokumen
+        '404':
+          description: Tipe dokumen tidak ditemukan
+    put:
+      summary: Update Document Type
+      description: Memperbarui data tipe dokumen (bisa ganti icon dan file template lampiran).
+      tags:
+        - Master Document Types
+      parameters:
+        - name: idOrCode
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Purchase Order Update"
+                module:
+                  type: string
+                  example: "Purchasing"
+                description:
+                  type: string
+                icon:
+                  type: string
+                  format: binary
+                attachment:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Document Type berhasil diperbarui
+    delete:
+      summary: Delete Document Type
+      description: Menghapus tipe dokumen (akan ditolak jika tipe dokumen sudah memiliki transaksi approval).
+      tags:
+        - Master Document Types
+      parameters:
+        - name: idOrCode
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: Document Type berhasil dihapus
+        '422':
+          description: Gagal dihapus karena memiliki transaksi approval
+
+  /v1/document-approval/document-types/{id}/toggle-status:
+    patch:
+      summary: Toggle Document Type Active Status
+      description: Mengaktifkan atau menonaktifkan status dokumen.
+      tags:
+        - Master Document Types
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: Status berhasil diubah
+
+  /v1/document-approval/document-types/{id}/attachment:
+    post:
+      summary: Upload Document Type Attachment / Template SOP
+      description: Endpoint khusus untuk upload / update file lampiran template atau SOP (PDF, DOCX, XLSX, max 15MB).
+      tags:
+        - Master Document Types
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - attachment
+              properties:
+                attachment:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: File lampiran berhasil diupload
+
+  /v1/budgeting/master-budgets:
+    get:
+      summary: Get Master Budget list with filters and pagination
+      tags:
+        - Budgeting
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: department
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter department
+        - name: cost_center
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter cost center
+        - name: budget_category
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter budget category
+        - name: period_year
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter period year (e.g. 2026)
+        - name: period_month
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter period month (1-12)
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE, CLOSED]
+          description: Filter status
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search term (budget_code, description, department, cost_center)
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 15
+          description: Items per page
+        - name: paginate
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+          description: Enable or disable pagination
+      responses:
+        '200':
+          description: Data Master Budget berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data Master Budget berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/MasterBudget'
+
+    post:
+      summary: Create new Master Budget
+      tags:
+        - Budgeting
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - department
+                - budget_amount
+                - period_year
+                - status
+              properties:
+                budget_code:
+                  type: string
+                  nullable: true
+                  description: Kode budget. Jika dikosongkan, akan dibuat otomatis oleh sistem (misal BDG-202608-0001).
+                  example: BDG-202608-0001
+                department:
+                  type: string
+                  example: FINANCE
+                cost_center:
+                  type: string
+                  nullable: true
+                  example: CC-FIN-01
+                budget_category:
+                  type: string
+                  nullable: true
+                  example: OPERATIONAL
+                budget_amount:
+                  type: number
+                  example: 50000000
+                period_month:
+                  type: integer
+                  nullable: true
+                  example: 8
+                period_year:
+                  type: integer
+                  example: 2026
+                status:
+                  type: string
+                  enum: [ACTIVE, INACTIVE, CLOSED]
+                  example: ACTIVE
+                description:
+                  type: string
+                  nullable: true
+                  example: Budget Operasional Q3
+      responses:
+        '201':
+          description: Master Budget berhasil dibuat.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Master Budget berhasil dibuat.
+                  data:
+                    $ref: '#/components/schemas/MasterBudget'
+        '422':
+          description: Validation error.
+
+  /v1/budgeting/master-budgets/{id}:
+    get:
+      summary: Get Master Budget detail
+      tags:
+        - Budgeting
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Master Budget ID
+      responses:
+        '200':
+          description: Detail Master Budget berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Detail Master Budget berhasil diambil.
+                  data:
+                    $ref: '#/components/schemas/MasterBudget'
+        '404':
+          description: Master Budget tidak ditemukan.
+
+    put:
+      summary: Update Master Budget
+      tags:
+        - Budgeting
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Master Budget ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - department
+                - budget_amount
+                - period_year
+                - status
+              properties:
+                budget_code:
+                  type: string
+                  nullable: true
+                  example: BDG-2026-001
+                department:
+                  type: string
+                  example: FINANCE
+                cost_center:
+                  type: string
+                  nullable: true
+                  example: CC-FIN-01
+                budget_category:
+                  type: string
+                  nullable: true
+                  example: OPERATIONAL
+                budget_amount:
+                  type: number
+                  example: 60000000
+                period_month:
+                  type: integer
+                  nullable: true
+                  example: 8
+                period_year:
+                  type: integer
+                  example: 2026
+                status:
+                  type: string
+                  enum: [ACTIVE, INACTIVE, CLOSED]
+                  example: ACTIVE
+                description:
+                  type: string
+                  nullable: true
+                  example: Revision Budget Operasional Q3
+      responses:
+        '200':
+          description: Master Budget berhasil diperbarui.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Master Budget berhasil diperbarui.
+                  data:
+                    $ref: '#/components/schemas/MasterBudget'
+        '404':
+          description: Master Budget tidak ditemukan.
+        '422':
+          description: Validation error.
+
+    delete:
+      summary: Delete Master Budget
+      tags:
+        - Budgeting
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Master Budget ID
+      responses:
+        '200':
+          description: Master Budget berhasil dihapus.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Master Budget berhasil dihapus.
+                  data:
+                    type: object
+                    nullable: true
+        '404':
+          description: Master Budget tidak ditemukan.
+
+  /v1/purchasing-request/series:
+    get:
+      summary: Get Series Dokumen Purchase Request (SAP B1)
+      description: Mengambil daftar penomoran Series dokumen Purchase Request dari SAP Business One (/api/getSeries).
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: CustomQuery
+          in: query
+          required: false
+          description: Tanggal format YYYYMMDD untuk filter series aktif (default tanggal hari ini)
+          schema:
+            type: string
+            example: "20251022"
+      responses:
+        '200':
+          description: Daftar series berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar series Purchasing Request berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Series:
+                          type: string
+                          example: "4876"
+                        SeriesName:
+                          type: string
+                          example: "BLR25-10"
+
+  /GetDepartment:
+    get:
+      summary: Get Department SAP B1
+      description: Mengambil daftar department dari SAP Business One (/api/GetDepartment).
+      tags:
+        - Master SAP
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Pencarian nama atau kode departemen
+          schema:
+            type: string
+            example: "PRO"
+      responses:
+        '200':
+          description: Daftar department berhasil diambil dari SAP.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ErrorCode:
+                    type: integer
+                    example: 0
+                  Message:
+                    type: string
+                    example: ""
+                  Result:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Code:
+                          type: string
+                          example: "-2"
+                        Remarks:
+                          type: string
+                          example: "General Department"
+                        Name:
+                          type: string
+                          example: "General"
+    post:
+      summary: Get Department SAP B1 (POST)
+      description: Mengambil daftar department dari SAP Business One (/api/GetDepartment).
+      tags:
+        - Master SAP
+      responses:
+        '200':
+          description: Daftar department berhasil diambil dari SAP.
+
+  /v1/purchasing-request/departments:
+    get:
+      summary: Get Daftar Department SAP B1
+      description: Mengambil daftar department dari SAP Business One (/api/GetDepartment).
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Pencarian nama atau kode departemen
+          schema:
+            type: string
+            example: "PRO"
+      responses:
+        '200':
+          description: Daftar department berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar department berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Code:
+                          type: string
+                          example: "1"
+                        Remarks:
+                          type: string
+                          example: "Production"
+                        Name:
+                          type: string
+                          example: "PRO"
+
+  /v1/purchasing-request/items:
+    get:
+      summary: Get Daftar Item untuk Purchase Request (Beserta default UoM)
+      description: Mengambil daftar item dari SAP B1 (/api/ListItem) atau master item lokal yang siap digunakan untuk baris Purchase Request.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Pencarian kode item atau nama item
+          schema:
+            type: string
+            example: "JS000009"
+      responses:
+        '200':
+          description: Daftar item berhasil diambil.
+
+  /v1/purchasing-request/draft-pr:
+    post:
+      summary: Get Draft Purchase Request dari SAP B1 (/api/GetDraftPR)
+      description: |
+        Mengambil daftar dokumen draft Purchase Request dari SAP B1 API (`/api/GetDraftPR`) berdasarkan ID Originator, User ID, dan rentang tanggal.
+        Jika data tidak ditemukan atau SAP mengembalikan placeholder dummy kosong, endpoint akan mengembalikan respon data not found.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                CostumQuery:
+                  type: string
+                  description: ID Originator SAP B1 (contoh "59")
+                  example: "59"
+                UserId:
+                  type: string
+                  description: User ID SMESTA
+                  example: "admin"
+                From:
+                  type: string
+                  description: Tanggal awal filter (YYYYMMDD atau YYYY-MM-DD)
+                  example: "20260901"
+                To:
+                  type: string
+                  description: Tanggal akhir filter (YYYYMMDD atau YYYY-MM-DD)
+                  example: "20260930"
+                Status:
+                  type: string
+                  description: Status draft PR
+                  example: ""
+      responses:
+        '200':
+          description: Data draft Purchase Request berhasil diambil atau data not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Data draft Purchase Request berhasil diambil."
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        WddCode:
+                          type: string
+                          example: "12"
+                        DocEntry:
+                          type: string
+                          example: "101"
+                        DraftEntry:
+                          type: string
+                          example: "201"
+                        DraftNum:
+                          type: string
+                          example: "201"
+                        DocNum:
+                          type: string
+                          example: "101"
+                        DocTotal:
+                          type: string
+                          example: "500000.000000"
+                        ObjType:
+                          type: string
+                          example: "1470000113"
+                        DocDate:
+                          type: string
+                          example: "2026-09-15"
+                        CurrStep:
+                          type: string
+                          example: "1"
+                        Status:
+                          type: string
+                          example: "W"
+                        StatusCode:
+                          type: string
+                          example: "W"
+                        StatusDescription:
+                          type: string
+                          example: "Pending Approval"
+                        Remarks:
+                          type: string
+                          example: "Draft PR Urgent"
+    get:
+      summary: Get Draft Purchase Request dari SAP B1 (Query Params)
+      description: Mengambil daftar draft Purchase Request via method GET.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: CostumQuery
+          in: query
+          description: ID Originator SAP B1
+          schema:
+            type: string
+            example: "59"
+        - name: UserId
+          in: query
+          description: User ID SMESTA
+          schema:
+            type: string
+        - name: From
+          in: query
+          description: Tanggal awal filter (YYYYMMDD)
+          schema:
+            type: string
+            example: "20260901"
+        - name: To
+          in: query
+          description: Tanggal akhir filter (YYYYMMDD)
+          schema:
+            type: string
+            example: "20260930"
+        - name: Status
+          in: query
+          description: Status draft PR
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Data draft Purchase Request berhasil diambil.
+
+  /v1/purchasing-request/generated:
+    post:
+      summary: List Purchase Request Generated dari SAP B1 (/api/GetListPRGenerated)
+      description: |
+        Mengambil daftar dokumen Purchase Request yang telah di-generate dari SAP B1 API (`/api/GetListPRGenerated`) berdasarkan departemen/query dan rentang tanggal.
+        Jika data kosong atau placeholder dummy tidak valid, endpoint mengembalikan respon data not found.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                CostumQuery:
+                  type: string
+                  description: Kode departemen atau kata kunci (contoh "IT", "PRO")
+                  example: "IT"
+                From:
+                  type: string
+                  description: Tanggal awal filter (YYYYMMDD atau YYYY-MM-DD)
+                  example: "20250901"
+                To:
+                  type: string
+                  description: Tanggal akhir filter (YYYYMMDD atau YYYY-MM-DD)
+                  example: "20260930"
+      responses:
+        '200':
+          description: Daftar Purchase Request yang telah di-generate berhasil diambil atau data not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Daftar Purchase Request yang telah di-generate berhasil diambil."
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        DocEntry:
+                          type: string
+                          example: "5339"
+                        DocNum:
+                          type: string
+                          example: "260840020"
+                        DocDate:
+                          type: string
+                          example: "20260810"
+                        DocDueDate:
+                          type: string
+                          example: "20260817"
+                        ReqDate:
+                          type: string
+                          example: "20260817"
+                        RequesterName:
+                          type: string
+                          example: "Produksi, Maintenance & Logistik"
+                        Department:
+                          type: string
+                          example: "1"
+                        DocStatus:
+                          type: string
+                          example: "Closed"
+                        Comments:
+                          type: string
+                          example: "UNTUK CAT POMPA ALL UNIT 2 DAN ALAT BERAT"
+    get:
+      summary: List Purchase Request Generated dari SAP B1 (Query Params)
+      description: Mengambil daftar Purchase Request yang telah di-generate via method GET.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: CostumQuery
+          in: query
+          description: Kode departemen atau kata kunci (contoh "IT")
+          schema:
+            type: string
+            example: "IT"
+        - name: From
+          in: query
+          description: Tanggal awal filter (YYYYMMDD)
+          schema:
+            type: string
+            example: "20250901"
+        - name: To
+          in: query
+          description: Tanggal akhir filter (YYYYMMDD)
+          schema:
+            type: string
+            example: "20260930"
+      responses:
+        '200':
+          description: Daftar Purchase Request yang telah di-generate berhasil diambil.
+
+  /v1/purchasing-request/detail-pr:
+    post:
+      summary: Get Detail Purchase Request dari SAP B1 (/api/GetDetailPR)
+      description: |
+        Mengambil detail dokumen Purchase Request dan baris item dari SAP B1 API (`/api/GetDetailPR`) berdasarkan DocEntry (`CustomQuery`).
+        Jika dokumen tidak ditemukan atau SAP mengembalikan placeholder dummy kosong, endpoint mengembalikan respon data not found.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - CustomQuery
+              properties:
+                CustomQuery:
+                  type: string
+                  description: DocEntry dokumen Purchase Request
+                  example: "5339"
+      responses:
+        '200':
+          description: Detail Purchase Request berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Detail Purchase Request berhasil diambil."
+                  data:
+                    type: object
+                    properties:
+                      Table1:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            DocEntry:
+                              type: string
+                              example: "5339"
+                            DocNum:
+                              type: string
+                              example: "260840020"
+                            Series:
+                              type: string
+                              example: "6493"
+                            SeriesName:
+                              type: string
+                              example: "GSK26-08"
+                            DocDate:
+                              type: string
+                              example: "20260810"
+                            DocDueDate:
+                              type: string
+                              example: "20260817"
+                            ReqDate:
+                              type: string
+                              example: "20260817"
+                            Department:
+                              type: string
+                              example: "1"
+                            DepartmentName:
+                              type: string
+                              example: "PRO"
+                            RequesterName:
+                              type: string
+                              example: "Produksi, Maintenance & Logistik"
+                            Requester:
+                              type: string
+                              example: "LOG34"
+                            ReqType:
+                              type: string
+                              example: "12"
+                            Comments:
+                              type: string
+                              example: "UNTUK CAT POMPA ALL UNIT 2 DAN ALAT BERAT"
+                            U_AddonId:
+                              type: string
+                              example: ""
+                            U_UserId:
+                              type: string
+                              example: "0"
+                            DocStatus:
+                              type: string
+                              example: "Closed"
+                      Table2:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            DocEntry:
+                              type: string
+                              example: "5339"
+                            LineNum:
+                              type: string
+                              example: "0"
+                            ItemCode:
+                              type: string
+                              example: "ISP000805"
+                            ItemName:
+                              type: string
+                              example: "THINNER"
+                            Quantity:
+                              type: string
+                              example: "20.000000"
+                            WhsCode:
+                              type: string
+                              example: "SPR04"
+                            WhsName:
+                              type: string
+                              example: "GUDANG SPAREPART - GRESIK"
+                            PQTReqDate:
+                              type: string
+                              example: "20260817"
+                            UomEntry:
+                              type: string
+                              example: "-1"
+                            UnitMsr:
+                              type: string
+                              example: "Liter"
+                            FreeTxt:
+                              type: string
+                              example: ""
+                            OcrCode:
+                              type: string
+                              example: "GSK"
+                            OcrCode2:
+                              type: string
+                              example: "GRM"
+                            OcrCode3:
+                              type: string
+                              example: "PRO"
+                            LineStatus:
+                              type: string
+                              example: "Closed"
+        '400':
+          description: Parameter DocEntry (CustomQuery) wajib diisi.
+    get:
+      summary: Get Detail Purchase Request dari SAP B1 (Query Parameter)
+      description: Mengambil detail Purchase Request dari SAP B1 via method GET dengan query param `CustomQuery`.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: CustomQuery
+          in: query
+          required: true
+          description: DocEntry dokumen Purchase Request
+          schema:
+            type: string
+            example: "5339"
+        - name: format
+          in: query
+          description: Format output respons ('sap' untuk format raw SAP)
+          schema:
+            type: string
+            example: "sap"
+      responses:
+        '200':
+          description: Detail Purchase Request berhasil diambil.
+
+  /v1/purchasing-request/detail/{docEntry}:
+    get:
+      summary: Get Detail Purchase Request dari SAP B1 via Path Param
+      description: Mengambil detail dokumen Purchase Request dan baris item dari SAP B1 berdasarkan DocEntry pada path URL.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: docEntry
+          in: path
+          required: true
+          description: DocEntry dokumen Purchase Request
+          schema:
+            type: string
+            example: "5339"
+        - name: format
+          in: query
+          required: false
+          description: Format output respons ('sap' untuk format native SAP B1)
+          schema:
+            type: string
+            example: "sap"
+      responses:
+        '200':
+          description: Detail Purchase Request berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Detail Purchase Request berhasil diambil."
+                  data:
+                    type: object
+                    properties:
+                      Table1:
+                        type: array
+                        items:
+                          type: object
+                      Table2:
+                        type: array
+                        items:
+                          type: object
+
+  /GetDetailPR:
+    servers:
+      - url: http://api-dev.susantimegah.com/api
+        description: Direct API Development Server (/api/GetDetailPR)
+      - url: http://localhost:8000/api
+        description: Direct API Local Server (/api/GetDetailPR)
+      - url: http://api-dev.susantimegah.com/api/distributor-channel
+        description: Distributor Channel Development Server
+      - url: http://localhost:8000/api/distributor-channel
+        description: Distributor Channel Local Server
+    post:
+      summary: Get Detail PR SAP B1 (/api/GetDetailPR)
+      description: |
+        Mengambil detail dokumen Purchase Request dan baris item dari SAP B1 API (`/api/GetDetailPR`) berdasarkan DocEntry (`CustomQuery`).
+        Mendukung endpoint root `/api/GetDetailPR` dan `/api/distributor-channel/GetDetailPR`.
+      tags:
+        - Purchasing Request
+        - Master SAP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - CustomQuery
+              properties:
+                CustomQuery:
+                  type: string
+                  description: DocEntry dokumen Purchase Request
+                  example: "5339"
+      responses:
+        '200':
+          description: Format respon native SAP B1 (Berhasil atau Data not found).
+          content:
+            application/json:
+              examples:
+                success:
+                  summary: Contoh Data Ditemukan
+                  value:
+                    ErrorCode: 0
+                    Message: ""
+                    Result:
+                      Table1:
+                        - DocEntry: "5339"
+                          DocNum: "260840020"
+                          Series: "6493"
+                          SeriesName: "GSK26-08"
+                          DocDate: "20260810"
+                          DocDueDate: "20260817"
+                          ReqDate: "20260817"
+                          Department: "1"
+                          DepartmentName: "PRO"
+                          RequesterName: "Produksi, Maintenance & Logistik"
+                          Requester: "LOG34"
+                          ReqType: "12"
+                          Comments: "UNTUK CAT POMPA ALL UNIT 2 DAN ALAT BERAT"
+                          U_AddonId: ""
+                          U_UserId: "0"
+                          DocStatus: "Closed"
+                      Table2:
+                        - DocEntry: "5339"
+                          LineNum: "0"
+                          ItemCode: "ISP000805"
+                          ItemName: "THINNER"
+                          Quantity: "20.000000"
+                          WhsCode: "SPR04"
+                          WhsName: "GUDANG SPAREPART - GRESIK"
+                          PQTReqDate: "20260817"
+                          UomEntry: "-1"
+                          UnitMsr: "Liter"
+                          FreeTxt: ""
+                          OcrCode: "GSK"
+                          OcrCode2: "GRM"
+                          OcrCode3: "PRO"
+                          LineStatus: "Closed"
+                notFound:
+                  summary: Contoh Data Not Found
+                  value:
+                    ErrorCode: 0
+                    Message: "Data not found"
+                    Result:
+                      Table1: []
+                      Table2: []
+              schema:
+                type: object
+                properties:
+                  ErrorCode:
+                    type: integer
+                    example: 0
+                  Message:
+                    type: string
+                    example: ""
+                  Result:
+                    type: object
+                    properties:
+                      Table1:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            DocEntry:
+                              type: string
+                              example: "5339"
+                            DocNum:
+                              type: string
+                              example: "260840020"
+                            Series:
+                              type: string
+                              example: "6493"
+                            SeriesName:
+                              type: string
+                              example: "GSK26-08"
+                            DocDate:
+                              type: string
+                              example: "20260810"
+                            DocDueDate:
+                              type: string
+                              example: "20260817"
+                            ReqDate:
+                              type: string
+                              example: "20260817"
+                            Department:
+                              type: string
+                              example: "1"
+                            DepartmentName:
+                              type: string
+                              example: "PRO"
+                            RequesterName:
+                              type: string
+                              example: "Produksi, Maintenance & Logistik"
+                            Requester:
+                              type: string
+                              example: "LOG34"
+                            ReqType:
+                              type: string
+                              example: "12"
+                            Comments:
+                              type: string
+                              example: "UNTUK CAT POMPA ALL UNIT 2 DAN ALAT BERAT"
+                            U_AddonId:
+                              type: string
+                              example: ""
+                            U_UserId:
+                              type: string
+                              example: "0"
+                            DocStatus:
+                              type: string
+                              example: "Closed"
+                      Table2:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            DocEntry:
+                              type: string
+                              example: "5339"
+                            LineNum:
+                              type: string
+                              example: "0"
+                            ItemCode:
+                              type: string
+                              example: "ISP000805"
+                            ItemName:
+                              type: string
+                              example: "THINNER"
+                            Quantity:
+                              type: string
+                              example: "20.000000"
+                            WhsCode:
+                              type: string
+                              example: "SPR04"
+                            WhsName:
+                              type: string
+                              example: "GUDANG SPAREPART - GRESIK"
+                            PQTReqDate:
+                              type: string
+                              example: "20260817"
+                            UomEntry:
+                              type: string
+                              example: "-1"
+                            UnitMsr:
+                              type: string
+                              example: "Liter"
+                            FreeTxt:
+                              type: string
+                              example: ""
+                            OcrCode:
+                              type: string
+                              example: "GSK"
+                            OcrCode2:
+                              type: string
+                              example: "GRM"
+                            OcrCode3:
+                              type: string
+                              example: "PRO"
+                            LineStatus:
+                              type: string
+                              example: "Closed"
+        '400':
+          description: Parameter DocEntry (CustomQuery) wajib diisi.
+          content:
+            application/json:
+              example:
+                ErrorCode: 1
+                Message: "Parameter DocEntry (CustomQuery) wajib diisi."
+                Result: null
+    get:
+      summary: Get Detail PR SAP B1 via GET (/api/GetDetailPR)
+      description: Mengambil detail dokumen Purchase Request dan baris item dari SAP B1 via method GET.
+      tags:
+        - Purchasing Request
+        - Master SAP
+      parameters:
+        - name: CustomQuery
+          in: query
+          required: true
+          description: DocEntry dokumen Purchase Request
+          schema:
+            type: string
+            example: "5339"
+      responses:
+        '200':
+          description: Format respon native SAP B1.
+
+  /v1/purchasing-request/close-pr:
+    post:
+      summary: Close Purchase Request di SAP B1 (/api/ClosePR)
+      description: |
+        Menutup dokumen Purchase Request pada sistem SAP B1 via endpoint `/api/ClosePR`.
+        Jika dokumen PR terkait ada di database lokal, status PR lokal otomatis diperbarui menjadi `COMPLETED`.
+      tags:
+        - Purchasing Request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocEntry
+              properties:
+                DocEntry:
+                  type: string
+                  description: DocEntry Purchase Request pada SAP B1
+                  example: "5339"
+      responses:
+        '200':
+          description: Respon dari SAP B1.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ErrorCode:
+                    type: integer
+                    example: 0
+                  Message:
+                    type: string
+                    example: "Failed - [ClosePurchaseRequest] Data tidak ditemukan"
+                  Result:
+                    nullable: true
+                    example: null
+
+  /v1/purchasing-request/cancel-pr:
+    post:
+      summary: Cancel Purchase Request di SAP B1 (/api/CancelPR)
+      description: |
+        Membatalkan dokumen Purchase Request pada sistem SAP B1 via endpoint `/api/CancelPR`.
+        Jika dokumen PR terkait ada di database lokal, status PR lokal otomatis diperbarui menjadi `CANCELLED`.
+      tags:
+        - Purchasing Request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - DocEntry
+              properties:
+                DocEntry:
+                  type: string
+                  description: DocEntry Purchase Request pada SAP B1
+                  example: "5338"
+      responses:
+        '200':
+          description: Respon dari SAP B1.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ErrorCode:
+                    type: integer
+                    example: 0
+                  Message:
+                    type: string
+                    example: "Failed - [CancelPurchaseRequest] Data tidak ditemukan"
+                  Result:
+                    nullable: true
+                    example: null
+
+  /api/addpr:
+    post:
+      summary: Fast Add Purchase Request ke SAP B1 (/api/addpr)
+      description: |
+        Menambahkan dokumen Purchase Request secara langsung ke SAP B1 (`http://103.18.133.187:3100/api/addpr`)
+        dengan pemrosesan in-memory berkecepatan tinggi, tanpa bottleneck query database berulang.
+        Pencatatan ke database lokal dilakukan secara non-blocking di latar belakang.
+      tags:
+        - Purchasing Request
+        - Master SAP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - Lines
+              properties:
+                Series:
+                  type: integer
+                  example: 0
+                DocDate:
+                  type: string
+                  format: date
+                  example: "2026-11-05"
+                DocDueDate:
+                  type: string
+                  format: date
+                  example: "2026-11-12"
+                TaxDate:
+                  type: string
+                  format: date
+                  example: "2026-11-05"
+                ReqDate:
+                  type: string
+                  format: date
+                  example: "2026-11-10"
+                Department:
+                  type: integer
+                  example: 1
+                Branch:
+                  type: integer
+                  example: 1
+                Requester:
+                  type: string
+                  example: "1"
+                RequesterName:
+                  type: string
+                  example: "John Doe"
+                DocType:
+                  type: string
+                  example: "I"
+                Comments:
+                  type: string
+                  example: "Permintaan Pembelian Bahan Baku"
+                Total:
+                  type: number
+                  example: 250000
+                DocTotal:
+                  type: number
+                  example: 250000
+                AddonId:
+                  type: string
+                  example: "PORTAL_PURCHASING"
+                UserId:
+                  type: string
+                  example: "admin"
+                Lines:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - ItemCode
+                      - Quantity
+                    properties:
+                      ItemCode:
+                        type: string
+                        example: "RM-GARAM-01"
+                      Quantity:
+                        type: number
+                        example: 100
+                      WhsCode:
+                        type: string
+                        example: "WHS-RAW"
+                      PQTReqDate:
+                        type: string
+                        format: date
+                        example: "2026-11-10"
+                      PriceBefDisc:
+                        type: number
+                        example: 2500
+                      UnitPrice:
+                        type: number
+                        example: 2500
+                      Total:
+                        type: number
+                        example: 250000
+                      LineTotal:
+                        type: number
+                        example: 250000
+                      UnitMsr:
+                        type: string
+                        example: "Kg"
+                      FreeTxt:
+                        type: string
+                        example: "Krosok Kualitas A"
+                      OcrCode:
+                        type: string
+                        example: "CAB01"
+                      OcrCode2:
+                        type: string
+                        example: "BU01"
+                      OcrCode3:
+                        type: string
+                        example: "DEPT01"
+                      TaxCode:
+                        type: string
+                        example: "PPN11"
+                      UomEntry:
+                        type: integer
+                        example: 1
+            example:
+              Series: 0
+              DocDate: "2026-11-05"
+              DocDueDate: "2026-11-12"
+              TaxDate: "2026-11-05"
+              ReqDate: "2026-11-10"
+              Department: 1
+              Branch: 1
+              Requester: "1"
+              RequesterName: "John Doe"
+              DocType: "I"
+              Comments: "Permintaan Pembelian Bahan Baku"
+              Total: 250000
+              DocTotal: 250000
+              AddonId: "PORTAL_PURCHASING"
+              UserId: "admin"
+              Lines:
+                - ItemCode: "RM-GARAM-01"
+                  Quantity: 100
+                  WhsCode: "WHS-RAW"
+                  PQTReqDate: "2026-11-10"
+                  PriceBefDisc: 2500
+                  UnitPrice: 2500
+                  Total: 250000
+                  LineTotal: 250000
+                  UnitMsr: "Kg"
+                  FreeTxt: "Krosok Kualitas A"
+                  OcrCode: "CAB01"
+                  OcrCode2: "BU01"
+                  OcrCode3: "DEPT01"
+                  TaxCode: "PPN11"
+                  UomEntry: 1
+      responses:
+        '200':
+          description: Respon langsung dari SAP B1.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ErrorCode:
+                    type: integer
+                    example: 0
+                  Message:
+                    type: string
+                    example: "Success - [AddPurchaseRequest] DocNum: 1000105 (DocEntry: 105)"
+              example:
+                ErrorCode: 0
+                Message: "Success - [AddPurchaseRequest] DocNum: 1000105 (DocEntry: 105)"
+
+  /v1/purchasing-request/requests:
+    get:
+      summary: Get Purchase Request list
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: department
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter department
+        - name: cost_center
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter cost center
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [DRAFT, SUBMITTED, APPROVED, REJECTED, CANCELLED, COMPLETED]
+          description: Filter status
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search term (pr_number, requester_name, remarks)
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 15
+          description: Items per page
+      responses:
+        '200':
+          description: Data Purchase Request berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data Purchase Request berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/PurchaseRequest'
+
+    post:
+      summary: Create new Purchase Request
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                Series:
+                  type: string
+                  example: "4876"
+                ReqType:
+                  type: string
+                  example: "12"
+                ReqDate:
+                  type: string
+                  format: date
+                  example: "2026-10-19"
+                Requester:
+                  type: string
+                  example: "IND01"
+                RequesterName:
+                  type: string
+                  example: "Purchasing Balaraja"
+                Department:
+                  type: string
+                  example: "9"
+                DocDate:
+                  type: string
+                  format: date
+                  example: "2025-10-22"
+                DocDueDate:
+                  type: string
+                  format: date
+                  example: "2025-10-22"
+                Comments:
+                  type: string
+                  example: ""
+                UserId:
+                  type: string
+                  example: "19"
+                AddonId:
+                  type: string
+                  example: "2"
+                Lines:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      ItemCode:
+                        type: string
+                        example: "JS000009"
+                      PQTReqDate:
+                        type: string
+                        format: date
+                        example: "2025-10-22"
+                      Quantity:
+                        type: number
+                        example: 2.00
+                      UomEntry:
+                        type: string
+                        example: "-1"
+                      UomCode:
+                        type: string
+                        example: "-1"
+                      WhsCode:
+                        type: string
+                        example: "01"
+                      UnitMsr:
+                        type: string
+                        example: "Pcs"
+                      FreeTxt:
+                        type: string
+                        example: ""
+                      OcrCode:
+                        type: string
+                        example: "BLR"
+                      OcrCode2:
+                        type: string
+                        example: "GRM"
+                      OcrCode3:
+                        type: string
+                        example: "PCG"
+      responses:
+        '201':
+          description: Purchase Request berhasil dibuat.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Purchase Request berhasil dibuat.
+                  data:
+                    $ref: '#/components/schemas/PurchaseRequest'
+        '422':
+          description: Validation error.
+
+  /v1/purchasing-request/add-pr:
+    post:
+      summary: Alias Pembuatan Purchase Request (POST /add-pr)
+      description: Endpoint alternatif untuk membuat Purchase Request langsung ke SAP B1.
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      requestBody:
+        $ref: '#/paths/~1v1~1purchasing-request~1requests/post/requestBody'
+      responses:
+        '201':
+          description: Purchasing Request berhasil dibuat ke SAP dan database lokal.
+
+  /v1/purchasing-request/requests/{id}:
+    get:
+      summary: Get Purchase Request detail
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Purchase Request ID
+      responses:
+        '200':
+          description: Detail Purchase Request berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Detail Purchase Request berhasil diambil.
+                  data:
+                    $ref: '#/components/schemas/PurchaseRequest'
+        '404':
+          description: Purchase Request tidak ditemukan.
+
+    put:
+      summary: Update Purchase Request
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Purchase Request ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pr_number
+                - department
+                - cost_center
+                - doc_date
+                - status
+                - details
+              properties:
+                pr_number:
+                  type: string
+                  example: PR-2026-001
+                department:
+                  type: string
+                  example: FINANCE
+                cost_center:
+                  type: string
+                  example: CC-FIN-01
+                requester_name:
+                  type: string
+                  nullable: true
+                  example: John Doe
+                doc_date:
+                  type: string
+                  format: date
+                  example: "2026-08-05"
+                required_date:
+                  type: string
+                  format: date
+                  nullable: true
+                  example: "2026-08-15"
+                status:
+                  type: string
+                  enum: [DRAFT, SUBMITTED, APPROVED, REJECTED, CANCELLED, COMPLETED]
+                  example: SUBMITTED
+                remarks:
+                  type: string
+                  nullable: true
+                  example: Revision Pengadaan Laptop
+                details:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - item_description
+                      - quantity
+                      - unit_price
+                    properties:
+                      master_budget_id:
+                        type: integer
+                        nullable: true
+                        example: 1
+                      item_code:
+                        type: string
+                        nullable: true
+                        example: ITEM-001
+                      item_description:
+                        type: string
+                        example: Laptop ThinkPad T14
+                      quantity:
+                        type: number
+                        example: 1
+                      uom:
+                        type: string
+                        nullable: true
+                        example: UNIT
+                      unit_price:
+                        type: number
+                        example: 15000000
+                      remarks:
+                        type: string
+                        nullable: true
+                        example: Specs Core i7, RAM 16GB
+      responses:
+        '200':
+          description: Purchase Request berhasil diperbarui.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Purchase Request berhasil diperbarui.
+                  data:
+                    $ref: '#/components/schemas/PurchaseRequest'
+        '404':
+          description: Purchase Request tidak ditemukan.
+        '422':
+          description: Validation error.
+
+    delete:
+      summary: Delete Purchase Request
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Purchase Request ID
+      responses:
+        '200':
+          description: Purchase Request berhasil dihapus.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Purchase Request berhasil dihapus.
+                  data:
+                    type: object
+                    nullable: true
+        '404':
+          description: Purchase Request tidak ditemukan.
+
+  /v1/purchasing-request/requests/{id}/status:
+    post:
+      summary: Update Purchase Request Status
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Purchase Request ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [DRAFT, SUBMITTED, APPROVED, REJECTED, CANCELLED, COMPLETED]
+                  example: APPROVED
+                remarks:
+                  type: string
+                  nullable: true
+                  example: Approved by Manager
+      responses:
+        '200':
+          description: Status Purchase Request berhasil diperbarui.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Status Purchase Request berhasil diperbarui.
+                  data:
+                    $ref: '#/components/schemas/PurchaseRequest'
+        '404':
+          description: Purchase Request tidak ditemukan.
+        '422':
+          description: Validation error.
+
+  /v1/document-types:
+    get:
+      summary: Get Document Type list
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search by code or name
+      responses:
+        '200':
+          description: Daftar document type berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar document type berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DocumentType'
+
+  /v1/purchasing-request/document-types:
+    get:
+      summary: Get Document Type list (Alternative endpoint)
+      tags:
+        - Purchasing Request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search by code or name
+      responses:
+        '200':
+          description: Daftar document type berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar document type berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DocumentType'
+
+  /v1/purchasing-request/quotations:
+    get:
+      summary: Get Request for Quotation (RFQ) list
+      description: Mengambil daftar Request for Quotation (RFQ) yang dibuat dari PR yang disetujui, beserta jumlah penawaran vendor yang masuk.
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Cari berdasarkan nomor RFQ, judul, catatan, item code, atau item name
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [OPEN, DRAFT, CLOSED, CANCELLED]
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Tanggal awal (format YYYY-MM-DD atau YYYYMMDD)
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Tanggal akhir (format YYYY-MM-DD atau YYYYMMDD)
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Daftar Request for Quotation berhasil diambil.
+    post:
+      summary: Create Request for Quotation (RFQ)
+      description: Membuat Request for Quotation baru dengan memilih item dari Purchase Request yang disetujui, mengenerate RFQ number unik dan public token link.
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - items
+              properties:
+                title:
+                  type: string
+                  example: "Pengadaan Sparepart Kompresor"
+                link:
+                  type: string
+                  nullable: true
+                  description: Link halaman penawaran harga publik yang digenerate oleh frontend
+                  example: "https://smesta-dev.susantimegah.com/quotation-offer/d7fb79570180453fa657caed290cb91a"
+                notes:
+                  type: string
+                  example: "Kirim penawaran sebelum tanggal 10"
+                valid_until:
+                  type: string
+                  format: date
+                  example: "2026-11-15"
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - itemCode
+                      - itemName
+                      - quantity
+                    properties:
+                      requestId:
+                        type: string
+                        example: "261010008"
+                      requestNumber:
+                        type: string
+                        example: "261010008"
+                      itemCode:
+                        type: string
+                        example: "ISP001694"
+                      itemName:
+                        type: string
+                        example: "RUMAH FILTER KOMPRESOR"
+                      quantity:
+                        type: number
+                        example: 1
+                      unit:
+                        type: string
+                        example: "Pcs"
+                      warehouse:
+                        type: string
+                        example: "FG01"
+                      requiredDate:
+                        type: string
+                        format: date
+                        example: "2026-10-28"
+                      notes:
+                        type: string
+                        example: "Original equipment part"
+      responses:
+        '201':
+          description: Request for Quotation berhasil dibuat.
+
+  /v1/purchasing-request/quotations/{id}:
+    get:
+      summary: Get Request for Quotation detail
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Quotation ID
+      responses:
+        '200':
+          description: Detail Request for Quotation berhasil diambil.
+    put:
+      summary: Update Request for Quotation
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                notes:
+                  type: string
+                status:
+                  type: string
+                  enum: [OPEN, DRAFT, CLOSED, CANCELLED]
+                valid_until:
+                  type: string
+                  format: date
+      responses:
+        '200':
+          description: Request for Quotation berhasil diperbarui.
+    delete:
+      summary: Delete Request for Quotation
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Request for Quotation berhasil dihapus.
+
+  /v1/purchasing-request/quotations/{quotationId}/offers:
+    get:
+      summary: Get submitted offers for a specific quotation
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: quotationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Daftar penawaran vendor untuk quotation ini berhasil diambil.
+
+  /v1/purchasing-request/quotation-offers:
+    get:
+      summary: Get list of vendor offers across quotations
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [SUBMITTED, REVIEWED, ACCEPTED, REJECTED]
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Cari vendor, nama PIC, email, atau telepon
+      responses:
+        '200':
+          description: Daftar penawaran vendor berhasil diambil.
+
+  /v1/purchasing-request/quotation-offers/{id}:
+    get:
+      summary: Get vendor offer detail
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail penawaran vendor berhasil diambil.
+    put:
+      summary: Update vendor offer (status/detail)
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [SUBMITTED, REVIEWED, ACCEPTED, REJECTED]
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Penawaran vendor berhasil diperbarui.
+    delete:
+      summary: Delete vendor offer
+      tags:
+        - Purchasing Request
+        - Request for Quotation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Penawaran vendor berhasil dihapus.
+
+  /v1/public/quotations/{token}:
+    get:
+      summary: Public endpoint to view quotation items for vendor form (/quotation-offer/{token})
+      description: Endpoint publik tanpa autentikasi yang digunakan halaman vendor `/quotation-offer/:token` untuk menampilkan nomor RFQ dan daftar item yang diminta harga.
+      tags:
+        - Public Quotation Offer
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 32-character RFQ public token
+          example: "d7fb79570180453fa657caed290cb91a"
+      responses:
+        '200':
+          description: Informasi Request for Quotation berhasil diambil.
+        '404':
+          description: Request for Quotation tidak ditemukan atau token tidak valid.
+
+  /v1/public/quotations/{token}/offers:
+    post:
+      summary: Public endpoint for vendor to submit quotation offer (/quotation-offer/{token}/submit)
+      description: Endpoint publik tanpa autentikasi yang menerima formulir penawaran harga dari vendor terpilih (nama perusahaan, PIC, email, telepon, harga satuan tiap item, lead time, dan catatan).
+      tags:
+        - Public Quotation Offer
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 32-character RFQ public token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vendor
+                - items
+              properties:
+                vendor:
+                  type: object
+                  required:
+                    - company
+                    - name
+                    - email
+                    - phone
+                  properties:
+                    company:
+                      type: string
+                      example: "PT Makmur Sentosa"
+                    name:
+                      type: string
+                      example: "Agus Pratama"
+                    email:
+                      type: string
+                      example: "agus@makmursentosa.com"
+                    phone:
+                      type: string
+                      example: "08123456789"
+                    notes:
+                      type: string
+                      example: "Harga belum termasuk PPN 11%"
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - unitPrice
+                      - leadTime
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      itemCode:
+                        type: string
+                        example: "ISP001694"
+                      itemName:
+                        type: string
+                        example: "RUMAH FILTER KOMPRESOR"
+                      quantity:
+                        type: number
+                        example: 1
+                      unit:
+                        type: string
+                        example: "Pcs"
+                      unitPrice:
+                        type: number
+                        example: 150000
+                      discountType:
+                        type: string
+                        nullable: true
+                        enum: [percent, nominal]
+                        description: Tipe diskon per item ('percent' atau 'nominal')
+                        example: "percent"
+                      discountValue:
+                        type: number
+                        description: Nilai diskon (persentase jika percent, atau nilai rupiah jika nominal)
+                        example: 10
+                      nominalDisc:
+                        type: number
+                        description: Nominal potongan diskon dalam mata uang (dihitung otomatis jika tidak dikirim)
+                        example: 15000
+                      totalPrice:
+                        type: number
+                        description: "Total harga item setelah diskon (opsional dikirim dari frontend, jika tidak dikirim akan dihitung otomatis oleh sistem: qty * unitPrice - nominalDisc)"
+                        example: 135000
+                      leadTime:
+                        type: string
+                        example: "7 hari"
+                      notes:
+                        type: string
+                        example: "Ready stock"
+                      attachment:
+                        type: string
+                        nullable: true
+                        description: File lampiran item (mendukung file upload via multipart/form-data atau string Base64/Data URI, disimpan ke S3)
+                        example: "data:application/pdf;base64,JVBERi0xLjQK..."
+      responses:
+        '201':
+          description: Penawaran harga vendor berhasil dikirim.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Penawaran harga vendor berhasil dikirim."
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      quotationId:
+                        type: integer
+                        example: 1
+                      vendor:
+                        type: object
+                        properties:
+                          company:
+                            type: string
+                            example: "PT Makmur Sentosa"
+                          name:
+                            type: string
+                            example: "Agus Pratama"
+                          email:
+                            type: string
+                            example: "agus@makmursentosa.com"
+                          phone:
+                            type: string
+                            example: "08123456789"
+                          notes:
+                            type: string
+                            example: "Harga belum termasuk PPN 11%"
+                      status:
+                        type: string
+                        example: "SUBMITTED"
+                      totalPrice:
+                        type: number
+                        example: 950000
+                      submittedAt:
+                        type: string
+                        example: "2026-11-03T07:45:00.000Z"
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            quotationItemId:
+                              type: integer
+                              example: 1
+                            itemCode:
+                              type: string
+                              example: "ISP001694"
+                            itemName:
+                              type: string
+                              example: "RUMAH FILTER KOMPRESOR"
+                            quantity:
+                              type: number
+                              example: 1
+                            unit:
+                              type: string
+                              example: "Pcs"
+                            unitPrice:
+                              type: number
+                              example: 150000
+                            discountType:
+                              type: string
+                              example: "percent"
+                            discountValue:
+                              type: number
+                              example: 10
+                            nominalDisc:
+                              type: number
+                              example: 15000
+                            totalPrice:
+                              type: number
+                              example: 135000
+                            leadTime:
+                              type: string
+                              example: "7 hari"
+                            notes:
+                              type: string
+                              example: "Ready stock"
+                            attachment:
+                              type: string
+                              example: "https://bucket.s3.amazonaws.com/quotation-offers/1/items/item_1.pdf"
+
+  /vendor-portal/ping:
+    get:
+      summary: Health Check / Connectivity Test Vendor Portal API
+      description: Endpoint pengujian konektivitas backend Vendor Portal untuk frontend.
+      tags:
+        - Vendor Portal
+      responses:
+        '200':
+          description: API Vendor Portal aktif dan dapat diakses.
+
+  /vendor-portal/test:
+    get:
+      summary: Quick Test Ping Endpoint
+      tags:
+        - Vendor Portal
+      responses:
+        '200':
+          description: Test OK.
+
+  /vendor-portal/register:
+    post:
+      summary: Pendaftaran Calon Mitra Vendor (Ekspedisi, Distributor, dll)
+      description: Mendaftarkan profil perusahaan calon vendor dan mengunggah 4 berkas dokumen legalitas (Akta, NIB, NPWP, Pendukung).
+      tags:
+        - Vendor Portal
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - vendor_type
+                - company_name
+                - company_email
+                - pic_name
+                - pic_phone
+                - terms_agreed
+              properties:
+                vendor_type:
+                  type: string
+                  example: expedition
+                  description: Tipe vendor (expedition, distributor, raw_material, packaging, general_supplier)
+                company_name:
+                  type: string
+                  example: PT Trans Megah Logistik
+                company_email:
+                  type: string
+                  format: email
+                  example: vendor@transmegah.com
+                company_phone:
+                  type: string
+                  example: 031-8921122
+                company_npwp:
+                  type: string
+                  description: Nomor Pokok Wajib Pajak (NPWP) Perusahaan (Format 15/16 digit)
+                  example: "01.234.567.8-901.000"
+                nik:
+                  type: string
+                  description: 'Nomor Induk Kependudukan (NIK) penanggung jawab / perusahaan (Default: "0000000000000000")'
+                  example: "0000000000000000"
+                address:
+                  type: string
+                  description: Alamat jalan domisili perusahaan
+                  example: Jl. Rungkut Industri No. 45
+                village:
+                  type: string
+                  description: Desa / Kelurahan
+                  example: Rungkut Menanggal
+                district:
+                  type: string
+                  description: Kecamatan
+                  example: Gunung Anyar
+                city:
+                  type: string
+                  description: Kota
+                  example: Surabaya
+                regencies:
+                  type: string
+                  description: Kabupaten / Kota (juga mendukung alias regency)
+                  example: Surabaya
+                province:
+                  type: string
+                  description: Provinsi
+                  example: Jawa Timur
+                postal_code:
+                  type: string
+                  description: Kode Pos
+                  example: "60293"
+                pic_name:
+                  type: string
+                  example: Budi Prasetyo
+                pic_phone:
+                  type: string
+                  example: "081234567890"
+                pic_email:
+                  type: string
+                  example: budi@transmegah.com
+                terms_agreed:
+                  type: boolean
+                  example: true
+                documents:
+                  type: array
+                  description: Daftar berkas dokumen legalitas dinamis dari form FE.
+                  items:
+                    type: object
+                    properties:
+                      document_type:
+                        type: string
+                        example: akta
+                        description: Tipe berkas (akta, sk_akta_pendirian, akta_perubahan, sk_akta_perubahan, nib, npwp, ktp_direktur, sertifikat_halal, pakta_integritas, peraturan_kerjasama, support)
+                      file:
+                        type: string
+                        format: binary
+                        description: File binary dokumen (PDF, JPG, PNG, DOC, DOCX - Maks 10MB)
+                      notes:
+                        type: string
+                        example: Keterangan tambahan dokumen
+                      document_number:
+                        type: string
+                        example: AHU-0012345.AH.01.01.2025
+                akta:
+                  type: string
+                  format: binary
+                  description: Berkas Akta Pendirian / Perubahan (PDF/JPG/PNG, Max 10MB)
+                akta_notes:
+                  type: string
+                  description: Catatan / keterangan terkait berkas Akta
+                  example: Salinan akta perubahan direksi tahun 2025
+                nib:
+                  type: string
+                  format: binary
+                  description: Berkas NIB / Izin Usaha (PDF/JPG/PNG, Max 10MB)
+                nib_notes:
+                  type: string
+                  description: Catatan / keterangan terkait berkas NIB
+                  example: NIB OSS RBA terbitan BKPM
+                npwp:
+                  type: string
+                  format: binary
+                  description: Berkas NPWP Perusahaan (PDF/JPG/PNG, Max 10MB)
+                npwp_notes:
+                  type: string
+                  description: Catatan / keterangan terkait berkas NPWP
+                  example: NPWP 16 digit terdaftar di KPP Pratama
+                support:
+                  type: string
+                  format: binary
+                  description: Berkas Dokumen Pendukung (PDF/JPG/PNG, Max 10MB)
+                support_notes:
+                  type: string
+                  description: Catatan / keterangan dokumen pendukung
+                pakta_integritas:
+                  type: string
+                  format: binary
+                  description: Berkas Pakta Integritas yang telah ditandatangani dan bermeterai (PDF/JPG/PNG, Max 10MB)
+                pakta_integritas_notes:
+                  type: string
+                  description: Catatan pakta integritas
+                perjanjian_kerjasama:
+                  type: string
+                  format: binary
+                  description: Berkas Dokumen Perjanjian Kerjasama (PKS) (PDF/JPG/PNG, Max 10MB)
+                perjanjian_kerjasama_notes:
+                  type: string
+                  description: Catatan dokumen perjanjian kerjasama
+      responses:
+        '201':
+          description: Pendaftaran berhasil dikirim dan menunggu verifikasi legal.
+        '422':
+          description: Validasi form gagal atau email sudah terdaftar.
+
+  /vendor-portal/check-email:
+    get:
+      summary: Pengecekan Ketersediaan Email Perusahaan Vendor
+      description: Memeriksa apakah email perusahaan sudah digunakan dalam sistem vendor.
+      tags:
+        - Vendor Portal
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: string
+            format: email
+            example: vendor@transmegah.com
+      responses:
+        '200':
+          description: Status ketersediaan email berhasil diperiksa.
+
+  /vendor-portal/templates:
+    get:
+      summary: Daftar Template Dokumen Legalitas Calon Mitra Vendor
+      description: Mengambil daftar berkas template resmi (Pakta Integritas, Peraturan Kerjasama, dll) yang dapat diunduh oleh calon vendor beserta link download dan status ketersediaannya di server.
+      tags:
+        - Vendor Portal
+      responses:
+        '200':
+          description: Daftar template berkas berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Vendor document templates retrieved successfully.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        slug:
+                          type: string
+                          example: pakta-integritas
+                        title:
+                          type: string
+                          example: Pakta Integritas Vendor Ekspedisi
+                        filename:
+                          type: string
+                          example: PAKTA INTEGRITAS VENDOR EKSPEDISI - A4.docx
+                        format:
+                          type: string
+                          example: docx
+                        description:
+                          type: string
+                          example: Template resmi Pakta Integritas bermeterai untuk calon mitra ekspedisi.
+                        is_available:
+                          type: boolean
+                          example: true
+                        file_size:
+                          type: integer
+                          example: 45200
+                        download_url:
+                          type: string
+                          example: https://api.domain.com/api/distributor-channel/v1/vendor-portal/templates/pakta-integritas
+                        static_url:
+                          type: string
+                          example: https://api.domain.com/templates/vendor/PAKTA%20INTEGRITAS%20VENDOR%20EKSPEDISI%20-%20A4.docx
+
+  /vendor-portal/templates/{slug}:
+    get:
+      summary: Download Berkas Template Dokumen Vendor (.docx)
+      description: Mengunduh file template fisik dokumen berdasarkan slug (pakta-integritas, peraturan-kerjasama) atau nama file langsung.
+      tags:
+        - Vendor Portal
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [pakta-integritas, peraturan-kerjasama]
+          example: pakta-integritas
+          description: Slug atau nama file template dokumen yang akan diunduh.
+      responses:
+        '200':
+          description: Berkas dokumen Word (.docx) berhasil diunduh.
+          content:
+            application/vnd.openxmlformats-officedocument.wordprocessingml.document:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: File template belum diunggah di server.
+
+  /vendor-portal/documents/{documentId}/reupload:
+    post:
+      summary: Upload Ulang Berkas Dokumen Revisi oleh Vendor
+      description: Mengunggah berkas pengganti untuk dokumen yang diminta revisi (status NEEDS_REVISION) oleh tim legal. File lama akan digantikan, status dokumen di-reset menjadi PENDING, dan riwayat revisi dicatat.
+      tags:
+        - Vendor Portal
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                vendor_code:
+                  type: string
+                  description: Kode vendor resmi (contoh VND-202609-0001). Wajib jika request dipanggil tanpa Authorization Bearer Token.
+                  example: VND-202609-0001
+                file:
+                  type: string
+                  format: binary
+                  description: Berkas dokumen pengganti baru (PDF/JPG/PNG, Max 10MB)
+                notes:
+                  type: string
+                  description: Catatan klarifikasi / perbaikan dari pihak vendor
+                  example: Berkas scan akta perubahan direksi asli telah diunggah ulang lembar 1-5.
+                document_number:
+                  type: string
+                  description: Nomor identitas dokumen jika ada perubahan
+                  example: AHU-001234.AH.01.02.TAHUN 2025
+      responses:
+        '200':
+          description: Dokumen revisi berhasil diunggah ulang dan kembali ke antrean verifikasi legal.
+        '403':
+          description: Vendor code tidak cocok dengan kepemilikan dokumen.
+        '404':
+          description: Dokumen tidak ditemukan.
+        '422':
+          description: Validasi berkas gagal atau vendor sudah disetujui.
+
+  /vendor-portal/login:
+    post:
+      summary: Otentikasi Login Vendor Portal
+      description: Masuk ke vendor portal menggunakan akun vendor yang telah disetujui tim legal.
+      tags:
+        - Vendor Portal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: vendor@transmegah.com
+                password:
+                  type: string
+                  example: secret123
+                vendor_type:
+                  type: string
+                  example: expedition
+      responses:
+        '200':
+          description: Login berhasil dan mengembalikan token akses Sanctum.
+        '422':
+          description: Kredensial tidak valid atau akun belum disetujui tim legal.
+
+  /vendor-portal/me:
+    get:
+      summary: Profil Vendor yang Sedang Login beserta Dokumen Legalitas
+      description: Mengambil data profil institusi vendor, data user aktif, dan rincian berkas legalitas yang telah diunggah.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Profil vendor dan berkas dokumen legalitas berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Vendor profile and documents retrieved successfully.
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                          name:
+                            type: string
+                          email:
+                            type: string
+                          role:
+                            type: string
+                          must_change_password:
+                            type: boolean
+                      vendor:
+                        $ref: '#/components/schemas/VendorDetail'
+                      sap_vendor_code:
+                        type: string
+                        description: Kode akun vendor di SAP Business One (CardCode)
+                        example: V10001
+                      documents:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                            document_type:
+                              type: string
+                              example: AKTA
+                            document_number:
+                              type: string
+                            file_name:
+                              type: string
+                            file_size:
+                              type: integer
+                            file_mime:
+                              type: string
+                            file_url:
+                              type: string
+                            verification_status:
+                              type: string
+                              example: VALID
+                            notes:
+                              type: string
+                            verification_notes:
+                              type: string
+                              example: Mohon perbarui dengan akta perubahan modal terbaru.
+                            verified_at:
+                              type: string
+                              format: date-time
+        '401':
+          description: Unauthenticated.
+
+  /vendor-portal/change-password:
+    post:
+      summary: Ganti Kata Sandi Akun Vendor
+      description: Mengubah kata sandi pengguna vendor portal. Mengharuskan kata sandi lama yang benar dan kata sandi baru minimal 8 karakter.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - current_password
+                - new_password
+                - new_password_confirmation
+              properties:
+                current_password:
+                  type: string
+                  format: password
+                  example: OldPassword123!
+                new_password:
+                  type: string
+                  format: password
+                  example: NewPassword123!
+                new_password_confirmation:
+                  type: string
+                  format: password
+                  example: NewPassword123!
+      responses:
+        '200':
+          description: Password changed successfully.
+        '401':
+          description: Unauthenticated.
+        '422':
+          description: Validation error or current password does not match.
+
+  /vendor-portal/logout:
+    post:
+      summary: Logout Vendor Portal
+      description: Mencabut token akses sesi vendor.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Berhasil logout dari vendor portal.
+
+  /vendor-portal/rates/headers:
+    get:
+      summary: Daftar Header Pengajuan Tarif Vendor (Batch Submissions)
+      description: Mengambil daftar ringkasan pengajuan tarif per batch upload/submission (periode valid_from/valid_until, status pengajuan, total rute) untuk tabel utama FE Vendor Portal. Hanya dapat diakses oleh akun mitra Vendor Portal (`VendorUser`). Untuk staf internal SMETSA, gunakan endpoint `/vendor-management/rates/headers`.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: approval_status
+          in: query
+          description: Filter status persetujuan tarif (PENDING, APPROVED, REJECTED)
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED]
+        - name: search
+          in: query
+          description: Pencarian kode batch atau catatan
+          schema:
+            type: string
+        - name: date_from
+          in: query
+          description: Filter tanggal mulai periode (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          description: Filter tanggal selesai periode (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: per_page
+          in: query
+          description: Jumlah data per halaman
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Rate submission headers retrieved successfully.
+        '401':
+          description: Unauthenticated access.
+        '403':
+          description: Unauthorized access or vendor account not approved yet.
+
+  /vendor-portal/rates/headers/{batchId}:
+    get:
+      summary: Detail Batch Pengajuan Tarif (Header & Rincian Rute)
+      description: Mengambil informasi header batch pengajuan tarif beserta array details (daftar rute pengiriman, lead time, tonase, dan tarif) untuk mitra Vendor Portal (`VendorUser`). Untuk staf internal SMETSA, gunakan endpoint `/vendor-management/rates/headers/{batchId}`.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: batchId
+          in: path
+          required: true
+          description: ID batch pengajuan tarif (misal BATCH-RATE-20260910-001 atau MANUAL-SUBMIT-...)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Rate batch details retrieved successfully.
+        '404':
+          description: Batch rate data not found.
+
+  /vendor-portal/rates:
+    get:
+      summary: Daftar Tarif Pengiriman Vendor (Rate Card Items)
+      description: Mengambil daftar tarif pengiriman per rute untuk mitra vendor yang login (`VendorUser`). Otomatis terkunci ke vendor miliknya. Untuk staf internal SMETSA, gunakan endpoint `/vendor-management/rates`.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: batch_id
+          in: query
+          description: Filter berdasarkan ID batch pengajuan tarif
+          schema:
+            type: string
+        - name: approval_status
+          in: query
+          description: Filter status persetujuan tarif (PENDING, APPROVED, REJECTED)
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED]
+        - name: transport_mode
+          in: query
+          description: Filter moda transportasi (DARAT, LAUT, UDARA)
+          schema:
+            type: string
+        - name: warehouse_id
+          in: query
+          description: Filter ID gudang asal
+          schema:
+            type: integer
+        - name: destination_id
+          in: query
+          description: Filter ID shipto tujuan
+          schema:
+            type: integer
+        - name: search
+          in: query
+          description: Pencarian nama gudang, nama tujuan, atau catatan
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          description: Jumlah data per halaman
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Vendor rates retrieved successfully.
+        '401':
+          description: Unauthenticated access.
+        '403':
+          description: Unauthorized access or vendor account not approved yet.
+        '422':
+          description: Vendor is not of type EXPEDITION.
+    post:
+      summary: Pengajuan Tarif Pengiriman Baru (Manual)
+      description: Mengajukan tarif pengiriman baru secara manual melalui form Vendor Portal. Tarif akan berstatus PENDING hingga disetujui tim logistik.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - price
+              properties:
+                warehouse_id:
+                  type: integer
+                  example: 1
+                origin:
+                  type: string
+                  example: WHS-GRS-01
+                destination_id:
+                  type: integer
+                  example: 12
+                destination:
+                  type: string
+                  example: CUST-SMG-01
+                transport_mode:
+                  type: string
+                  example: DARAT
+                service_type:
+                  type: string
+                  example: REGULER
+                min_tonnage:
+                  type: number
+                  example: 0
+                max_tonnage:
+                  type: number
+                  example: 15000
+                price:
+                  type: number
+                  example: 4500000
+                leadtime:
+                  type: integer
+                  example: 2
+                  description: Estimasi waktu tempuh pengiriman dalam hari (alias eta_days)
+                eta_days:
+                  type: integer
+                  example: 2
+                min_shipment_qty:
+                  type: number
+                  example: 1
+                max_shipment_qty:
+                  type: number
+                  example: 100
+                valid_from:
+                  type: string
+                  format: date
+                  example: 2026-09-10
+                valid_until:
+                  type: string
+                  format: date
+                  example: 2027-09-10
+                periode:
+                  type: string
+                  example: 2026-09-10
+                  description: Input periode tunggal jika valid_from dan valid_until sama
+                remarks:
+                  type: string
+                  example: Pengajuan penyesuaian tarif armada wingbox Q4
+      responses:
+        '201':
+          description: Expedition rate submitted successfully. Pending review by logistics team.
+        '401':
+          description: Unauthenticated access.
+        '403':
+          description: Unauthorized access or vendor account not approved yet.
+        '422':
+          description: Validation error.
+
+  /vendor-portal/rates/upload:
+    post:
+      summary: Upload Massal Pengajuan Tarif (Excel / CSV) dengan Periode Pop-up
+      description: Mengunggah spreadsheet daftar tarif (.xlsx, .xls, .csv). Pengajuan tarif otomatis dikaitkan dengan vendor ekspedisi yang sedang login dan berstatus PENDING. Kolom periode diisi dari form pop-up FE.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File Excel (.xlsx, .xls) atau CSV (Maksimal 10MB) dengan kolom No, Origin Name, Destination, Transport Mode, Min Weight (Kg), Max Weight (Kg), Service Type, Rate, Lead Time.
+                valid_from:
+                  type: string
+                  format: date
+                  example: 2026-08-15
+                  description: Tanggal mulai periode pengajuan (dari pop-up modal FE)
+                valid_until:
+                  type: string
+                  format: date
+                  example: 2027-08-15
+                  description: Tanggal selesai periode pengajuan (dari pop-up modal FE)
+                periode:
+                  type: string
+                  example: 2026-08-15
+                  description: Input periode tunggal (otomatis mengisi valid_from dan valid_until)
+      responses:
+        '200':
+          description: Rate spreadsheet uploaded and processed successfully. Submitted rates are pending review.
+        '401':
+          description: Unauthenticated access.
+        '403':
+          description: Unauthorized access or vendor account not approved yet.
+        '422':
+          description: Validation error or invalid file type.
+
+  /vendor-portal/rates/template:
+    get:
+      summary: Download Template CSV Pengajuan Tarif
+      description: Mengunduh template CSV resmi (No, Origin Name, Destination, Transport Mode, Min Weight (Kg), Max Weight (Kg), Service Type, Rate, Lead Time) untuk pengajuan tarif pengiriman massal oleh mitra vendor ekspedisi.
+      tags:
+        - Vendor Portal
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: CSV template file download stream.
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+
+  /vendor-management/registrations:
+    get:
+      summary: Daftar Permohonan Registrasi Vendor (Backoffice Legal)
+      description: Menampilkan daftar permohonan mitra vendor dengan filter status, tipe vendor, dan pencarian.
+      tags:
+        - Vendor Management (Legal)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ALL, PENDING_LEGAL_APPROVAL, REVISION_REQUIRED, APPROVED, REJECTED]
+            example: PENDING_LEGAL_APPROVAL
+        - name: vendor_type
+          in: query
+          schema:
+            type: string
+            enum: [ALL, EXPEDITION, DISTRIBUTOR, RAW_MATERIAL, PACKAGING, GENERAL_SUPPLIER]
+            example: EXPEDITION
+        - name: search
+          in: query
+          schema:
+            type: string
+            example: Trans Megah
+        - name: page
+          in: query
+          schema:
+            type: integer
+            example: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            example: 15
+      responses:
+        '200':
+          description: Daftar permohonan vendor berhasil diambil.
+
+  /vendor-management/registrations/{id}:
+    get:
+      summary: Detail Lengkap Permohonan Vendor & Dokumen Legalitas
+      description: Menampilkan informasi institusi vendor, berkas dokumen yang diunggah, riwayat audit approval, dan akun user.
+      tags:
+        - Vendor Management (Legal)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Detail vendor berhasil diambil beserta dokumen dan nama wilayah administratif.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/VendorDetail'
+        '404':
+          description: Vendor tidak ditemukan.
+
+  /vendor-management/registrations/{id}/approve:
+    post:
+      summary: Persetujuan Legal Permohonan Vendor
+      description: Menyetujui pendaftaran vendor, meng-generate akun user login di vendor_users, auto-sync ke master ekspedisi jika tipe EXPEDITION, sinkronisasi vendor baru ke SAP B1 via POST /api/addvendor, dan mencatat log dispatch kredensial.
+      tags:
+        - Vendor Management (Legal)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                legal_notes:
+                  type: string
+                  example: Berkas legalitas lengkap dan diverifikasi valid.
+                sap_vendor_code:
+                  type: string
+                  example: V10001
+                initial_password:
+                  type: string
+                  example: CustomPassword123!
+      responses:
+        '200':
+          description: Pendaftaran vendor disetujui, disinkronkan ke SAP, dan kredensial akun berhasil digenerate.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Vendor registration approved successfully. Login credentials have been generated and dispatched.
+                  data:
+                    type: object
+                    properties:
+                      vendor_code:
+                        type: string
+                        example: VND-202609-0001
+                      company_name:
+                        type: string
+                        example: PT Sumber Makmur Sejahtera
+                      registration_status:
+                        type: string
+                        example: APPROVED
+                      legal_approval_status:
+                        type: string
+                        example: APPROVED
+                      sap_vendor_code:
+                        type: string
+                        example: VN10001
+                      sap_sync:
+                        type: object
+                        properties:
+                          success:
+                            type: boolean
+                            example: true
+                          card_code:
+                            type: string
+                            example: VN10001
+                          message:
+                            type: string
+                            example: "Success - [AddVendor]. CardCode: VN10001"
+                      credentials:
+                        type: object
+                      expedition_linked:
+                        type: object
+        '404':
+          description: Vendor tidak ditemukan.
+        '422':
+          description: Permohonan gagal diproses (misal vendor sudah di-approve sebelumnya atau sinkronisasi ke SAP gagal/ditolak).
+
+  /vendor-management/registrations/{id}/reject:
+    post:
+      summary: Penolakan Permohonan Vendor
+      description: Menolak permohonan pendaftaran vendor oleh tim legal dengan alasan penolakan wajib. Sistem secara otomatis mengirimkan email resmi pemberitahuan penolakan (beserta alasan penolakan dan kontak klarifikasi) ke alamat email perusahaan vendor.
+      tags:
+        - Vendor Management (Legal)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rejection_reason
+              properties:
+                rejection_reason:
+                  type: string
+                  example: NIB izin usaha tidak sesuai dengan bidang logistik.
+      responses:
+        '200':
+          description: Pendaftaran vendor berhasil ditolak dan notifikasi email resmi telah dikirim ke vendor.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Vendor registration rejected successfully.
+                  data:
+                    type: object
+                    properties:
+                      vendor_code:
+                        type: string
+                        example: VND-202609-0001
+                      registration_status:
+                        type: string
+                        example: REJECTED
+                      legal_notes:
+                        type: string
+                        example: NIB izin usaha tidak sesuai dengan bidang logistik.
+        '404':
+          description: Vendor tidak ditemukan.
+
+  /vendor-management/registrations/{id}/request-revision:
+    post:
+      summary: Permintaan Revisi Dokumen Legalitas ke Vendor
+      description: Mengirim instruksi perbaikan berkas ke calon mitra vendor.
+      tags:
+        - Vendor Management (Legal)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - revision_notes
+              properties:
+                revision_notes:
+                  type: string
+                  example: Mohon lampirkan lembar akta perubahan susunan pengurus terbaru.
+                document_types:
+                  type: array
+                  items:
+                    type: string
+                  example: [AKTA]
+      responses:
+        '200':
+          description: Instruksi revisi berhasil dikirim ke vendor.
+        '404':
+          description: Vendor tidak ditemukan.
+
+  /vendor-management/documents/{documentId}/verify:
+    post:
+      summary: Verifikasi Individual Berkas Dokumen Legalitas (Valid / Needs Revision / Invalid)
+      description: Memverifikasi satu berkas dokumen tertentu (Akta, NIB, NPWP, Pendukung) dengan opsi VALID, NEEDS_REVISION, atau INVALID beserta catatan review dari legal.
+      tags:
+        - Vendor Management (Legal)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [VALID, NEEDS_REVISION, INVALID]
+                  example: VALID
+                notes:
+                  type: string
+                  example: NIB berkas terverifikasi asli dan terdaftar di OSS.
+      responses:
+        '200':
+          description: Status verifikasi dokumen berhasil diperbarui.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Document verification status updated successfully.
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      vendor_id:
+                        type: integer
+                        example: 1
+                      document_type:
+                        type: string
+                        example: NIB
+                      verification_status:
+                        type: string
+                        example: VALID
+                      verified_by:
+                        type: integer
+                        example: 5
+                      verified_at:
+                        type: string
+                        format: date-time
+                        example: "2026-09-09T09:54:00.000000Z"
+                      verification_notes:
+                        type: string
+                        example: NIB berkas terverifikasi asli dan terdaftar di OSS.
+                      notes:
+                        type: string
+                        example: NIB berkas terverifikasi asli dan terdaftar di OSS.
+                      file_url:
+                        type: string
+                        example: https://smesta-dev.susantimegah.com/storage/vendor_documents/VND-202609-0001/nib_oss.pdf
+        '404':
+          description: Dokumen tidak ditemukan.
+        '422':
+          description: Validasi input gagal.
+
+  /vendor-management/documents/{documentId}/preview:
+    get:
+      summary: Preview / Stream Berkas Dokumen Legalitas (Inline PDF / Image)
+      description: Menampilkan berkas dokumen legalitas secara streaming inline (PDF atau Image) di tab baru browser atau iframe/modal preview frontend tanpa harus download file.
+      tags:
+        - Vendor Management (Legal)
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Berkas dokumen berhasil di-stream secara inline.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Dokumen tidak ditemukan atau berkas fisik tidak ada di disk storage server.
+
+  /vendor-management/rates/headers:
+    get:
+      summary: Daftar Header Pengajuan Tarif Vendor (SMETSA Internal)
+      description: Mengambil daftar ringkasan pengajuan tarif per batch upload/submission untuk staf internal SMETSA Backoffice. Mendukung filter berdasarkan vendor_id, expedition_id, approval_status, search, tanggal, dan pagination.
+      tags:
+        - Vendor Management (Rates)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: vendor_id
+          in: query
+          required: false
+          description: Filter ID master vendor
+          schema:
+            type: integer
+        - name: expedition_id
+          in: query
+          required: false
+          description: Filter ID master ekspedisi
+          schema:
+            type: integer
+        - name: approval_status
+          in: query
+          description: Filter status persetujuan tarif (PENDING, APPROVED, REJECTED)
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED]
+        - name: search
+          in: query
+          description: Pencarian kode batch atau catatan
+          schema:
+            type: string
+        - name: date_from
+          in: query
+          description: Filter tanggal mulai periode (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          description: Filter tanggal selesai periode (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: per_page
+          in: query
+          description: Jumlah data per halaman
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Rate submission headers retrieved successfully with vendor details and expedition info.
+        '401':
+          description: Unauthenticated access.
+        '403':
+          description: Unauthorized access. Only internal users can access this endpoint.
+
+  /vendor-management/rates/headers/{batchId}:
+    get:
+      summary: Detail Batch Pengajuan Tarif (SMETSA Internal)
+      description: Mengambil informasi header batch pengajuan tarif beserta vendor detail, expedition info, dan array details (daftar rute pengiriman, lead time, tonase, dan tarif) untuk staf internal SMETSA Backoffice.
+      tags:
+        - Vendor Management (Rates)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: batchId
+          in: path
+          required: true
+          description: ID batch pengajuan tarif (misal BATCH-RATE-20260910-001)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Rate batch details retrieved successfully with header, expedition, and vendor detail.
+        '401':
+          description: Unauthenticated access.
+        '403':
+          description: Unauthorized access. Only internal users can access this endpoint.
+        '404':
+          description: Batch rate data not found.
+
+  /vendor-management/rates:
+    get:
+      summary: Daftar Tarif Pengiriman Vendor (SMETSA Internal)
+      description: Mengambil daftar tarif pengiriman per rute untuk staf internal SMETSA Backoffice. Mendukung filter by vendor_id, expedition_id, batch_id, approval_status, transport_mode, warehouse_id, destination_id, search, dan pagination.
+      tags:
+        - Vendor Management (Rates)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: vendor_id
+          in: query
+          required: false
+          description: Filter ID master vendor
+          schema:
+            type: integer
+        - name: expedition_id
+          in: query
+          required: false
+          description: Filter ID master ekspedisi
+          schema:
+            type: integer
+        - name: batch_id
+          in: query
+          description: Filter berdasarkan ID batch pengajuan tarif
+          schema:
+            type: string
+        - name: approval_status
+          in: query
+          description: Filter status persetujuan tarif (PENDING, APPROVED, REJECTED)
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED]
+        - name: transport_mode
+          in: query
+          description: Filter moda transportasi (DARAT, LAUT, UDARA)
+          schema:
+            type: string
+        - name: warehouse_id
+          in: query
+          description: Filter ID gudang asal
+          schema:
+            type: integer
+        - name: destination_id
+          in: query
+          description: Filter ID customer shipto tujuan
+          schema:
+            type: integer
+        - name: search
+          in: query
+          description: Pencarian nama gudang, nama tujuan, atau catatan
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          description: Jumlah data per halaman
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Vendor rates retrieved successfully.
+        '401':
+          description: Unauthenticated access.
+        '403':
+          description: Unauthorized access. Only internal users can access this endpoint.
+
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

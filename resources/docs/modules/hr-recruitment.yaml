@@ -1,0 +1,823 @@
+openapi: 3.0.3
+info:
+  title: "SMESTA API - Modul HR, Recruitment & Psikotes DISC"
+  description: |
+    Dokumentasi API Modular SMESTA (Bagian dari `resources/docs/openapi.yaml`).
+    Edit file ini secara langsung agar ringan di IDE, lalu jalankan `php artisan docs:openapi bundle` untuk menyatukan kembali ke `openapi.yaml`.
+  version: 1.0.0
+servers:
+  - url: https://api-sm-connect.susantimegah.com/api/distributor-channel
+    description: Production Server
+  - url: http://api-dev.susantimegah.com/api/distributor-channel
+    description: Development Server
+  - url: http://localhost:8000/api/distributor-channel
+    description: Local Server
+paths:
+  /v1/recruitment/auth/register:
+    post:
+      summary: Registrasi Akun Kandidat Baru
+      description: Mendaftarkan akun kandidat rekrutmen dan otomatis menginisialisasi sesi asesmen DISC.
+      tags:
+        - Recruitment Candidate Portal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - full_name
+                - email
+                - phone
+                - password
+              properties:
+                full_name:
+                  type: string
+                  example: Nadia Permata
+                email:
+                  type: string
+                  format: email
+                  example: nadia.permata@example.com
+                phone:
+                  type: string
+                  example: 081234567890
+                password:
+                  type: string
+                  minLength: 6
+                  example: password123
+                position_applied:
+                  type: string
+                  nullable: true
+                  example: Backend Engineer
+      responses:
+        '201':
+          description: Akun berhasil dibuat dan token bearer diberikan.
+        '422':
+          description: Validasi gagal (misal email sudah terdaftar).
+
+  /v1/recruitment/auth/login:
+    post:
+      summary: Login Kandidat
+      description: Masuk ke portal kandidat rekrutmen menggunakan email dan password.
+      tags:
+        - Recruitment Candidate Portal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: nadia.permata@example.com
+                password:
+                  type: string
+                  example: password123
+      responses:
+        '200':
+          description: Berhasil login dan token bearer diberikan.
+        '401':
+          description: Kredensial tidak sesuai.
+
+  /v1/recruitment/auth/me:
+    get:
+      summary: Profil Kandidat & Status Asesmen
+      description: Mengambil data profil kandidat yang sedang login beserta status asesmen rekrutmen.
+      tags:
+        - Recruitment Candidate Portal
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Data profil kandidat berhasil diambil.
+
+  /v1/recruitment/auth/logout:
+    post:
+      summary: Logout Kandidat
+      description: Mengakhiri sesi login kandidat dan mencabut token akses.
+      tags:
+        - Recruitment Candidate Portal
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Berhasil logout.
+
+  /v1/recruitment/candidate/biodata:
+    put:
+      summary: Update Profil & Formulir Biodata Kandidat
+      description: Menyimpan data formulir 5 langkah biodata kandidat (pribadi, keluarga, pendidikan, pengalaman, lainnya).
+      tags:
+        - Recruitment Candidate Portal
+      security:
+        - BearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                full_name:
+                  type: string
+                phone:
+                  type: string
+                birth_date:
+                  type: string
+                  format: date
+                gender:
+                  type: string
+                position_applied:
+                  type: string
+                avatar:
+                  type: string
+                biodata:
+                  type: object
+      responses:
+        '200':
+          description: Biodata berhasil disimpan.
+        '403':
+          description: Akses ditolak. Status akun masih 'prescreen' atau 'reject'. Pengisian biodata hanya dapat diakses setelah akun berstatus 'shortlist' oleh tim HR.
+
+  /v1/recruitment/psikotes/disc/test:
+    get:
+      summary: Ambil Soal Tes DISC Kandidat (Tanpa Token URL)
+      description: Kandidat login dapat langsung mengambil 24 soal DISC dan autosave jawaban yang sudah tersimpan tanpa token di URL (Hanya kandidat shortlisted).
+      tags:
+        - Recruitment Candidate Portal
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Soal DISC berhasil diambil.
+        '403':
+          description: Akses ditolak. Pengerjaan asesmen hanya dapat diakses setelah akun berstatus 'shortlist' oleh tim HR.
+
+  /v1/recruitment/psikotes/disc/answers:
+    post:
+      summary: Autosave Jawaban DISC Kandidat (Tanpa Token URL)
+      description: Menyimpan jawaban nomor soal DISC per butir secara realtime tanpa token di URL (P tidak boleh sama dengan K).
+      tags:
+        - Recruitment Candidate Portal
+      security:
+        - BearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - question_number
+              properties:
+                question_number:
+                  type: integer
+                  minimum: 1
+                  maximum: 24
+                  example: 1
+                p_choice:
+                  type: integer
+                  minimum: 1
+                  maximum: 4
+                  nullable: true
+                  example: 2
+                k_choice:
+                  type: integer
+                  minimum: 1
+                  maximum: 4
+                  nullable: true
+                  example: 4
+      responses:
+        '200':
+          description: Jawaban berhasil disimpan.
+        '403':
+          description: Akses ditolak. Akun belum shortlisted.
+
+  /v1/recruitment/psikotes/disc/submit:
+    post:
+      summary: Submit Akhir Tes DISC Kandidat (Tanpa Token URL)
+      description: Mengirimkan seluruh 24 jawaban soal DISC dan menjalankan kalkulasi skoring psikometrik otomatis.
+      tags:
+        - Recruitment Candidate Portal
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Tes DISC berhasil dikirim dan dinilai.
+
+  /v1/recruitment/psikotes/disc/result:
+    get:
+      summary: Ambil Hasil Asesmen DISC Kandidat
+      description: Mengambil ringkasan hasil asesmen DISC, grafik skor (Mask, Core, Mirror), dan profil kepribadian kandidat.
+      tags:
+        - Recruitment Candidate Portal
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Hasil asesmen berhasil diambil.
+
+  /v1/public/psikotes/disc/tests/{token}:
+    get:
+      summary: Ambil Soal Tes & Sesi Jawaban Kandidat (Tanpa Kunci Skoring)
+      description: Endpoint publik untuk kandidat mengakses 24 nomor soal DISC beserta jawaban yang tersimpan (autosave).
+      tags:
+        - Psikotes DISC - Public Candidate
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: Token unik asesmen kandidat
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Berhasil mengambil sesi tes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Assessment session retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      assessment_id:
+                        type: integer
+                        example: 1
+                      candidate:
+                        type: object
+                        properties:
+                          full_name:
+                            type: string
+                            example: Budi Santoso
+                          email:
+                            type: string
+                            example: budi@example.com
+                          position_applied:
+                            type: string
+                            example: Sales Executive
+                      status:
+                        type: string
+                        example: in_progress
+                      completed:
+                        type: boolean
+                        example: false
+                      total_questions:
+                        type: integer
+                        example: 24
+                      questions:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            question_number:
+                              type: integer
+                              example: 1
+                            statements:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  choice:
+                                    type: integer
+                                    example: 1
+                                  text:
+                                    type: string
+                                    example: Gampangan, Mudah setuju
+                      answers:
+                        type: object
+                        additionalProperties:
+                          type: object
+                          properties:
+                            p_choice:
+                              type: integer
+                              example: 1
+                            k_choice:
+                              type: integer
+                              example: 3
+
+  /v1/public/psikotes/disc/tests/{token}/answers:
+    post:
+      summary: Autosave Jawaban Kandidat per Soal
+      description: Menyimpan pilihan Paling Sesuai (P) dan Paling Tidak Sesuai (K). Pilihan P dan K tidak boleh sama pada soal yang sama.
+      tags:
+        - Psikotes DISC - Public Candidate
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: Token asesmen kandidat
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - question_number
+              properties:
+                question_number:
+                  type: integer
+                  minimum: 1
+                  maximum: 24
+                  example: 1
+                p_choice:
+                  type: integer
+                  minimum: 1
+                  maximum: 4
+                  nullable: true
+                  example: 1
+                k_choice:
+                  type: integer
+                  minimum: 1
+                  maximum: 4
+                  nullable: true
+                  example: 3
+      responses:
+        '200':
+          description: Jawaban berhasil disimpan
+
+  /v1/public/psikotes/disc/tests/{token}/submit:
+    post:
+      summary: Submit Selesai Tes DISC & Hitung Skoring
+      description: Memvalidasi seluruh 24 soal terisi dengan P != K, lalu menghitung skoring Line 1, 2, 3 dan mencocokkan profil kepribadian.
+      tags:
+        - Psikotes DISC - Public Candidate
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: Token asesmen kandidat
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tes berhasil disubmit dan diskor
+
+  /v1/hr/psikotes/disc/questions:
+    get:
+      summary: Daftar Bank Soal DISC Beserta Kunci Skoring (HR Admin)
+      description: Mengambil seluruh 24 soal DISC lengkap dengan 4 pernyataan dan mapping kunci P/K (D, I, S, C, *).
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Berhasil mengambil bank soal
+
+  /v1/hr/psikotes/disc/questions/bulk:
+    put:
+      summary: Bulk Update Soal & Kunci DISC (HR Admin)
+      description: Mengupdate banyak soal atau kunci skoring sekaligus.
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - questions
+              properties:
+                questions:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - question_number
+                    properties:
+                      question_number:
+                        type: integer
+                        example: 1
+                      statement_1:
+                        type: string
+                      p_key_1:
+                        type: string
+                        example: S
+                      k_key_1:
+                        type: string
+                        example: S
+      responses:
+        '200':
+          description: Berhasil memperbarui soal
+
+  /v1/hr/psikotes/disc/questions/seed-default:
+    post:
+      summary: Reset Bank Soal ke Default Referensi Excel (HR Admin)
+      description: Mengembalikan 24 nomor soal dan kunci skoring ke nilai awal standar psikotes DISC.
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Berhasil reset soal
+
+  /v1/hr/psikotes/disc/questions/{number}:
+    get:
+      summary: Detail Satu Nomor Soal DISC (HR Admin)
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: number
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Berhasil mengambil detail soal
+    put:
+      summary: Update Satu Nomor Soal DISC (HR Admin)
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: number
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                statement_1:
+                  type: string
+                statement_2:
+                  type: string
+                statement_3:
+                  type: string
+                statement_4:
+                  type: string
+                p_key_1:
+                  type: string
+                p_key_2:
+                  type: string
+                p_key_3:
+                  type: string
+                p_key_4:
+                  type: string
+                k_key_1:
+                  type: string
+                k_key_2:
+                  type: string
+                k_key_3:
+                  type: string
+                k_key_4:
+                  type: string
+      responses:
+        '200':
+          description: Soal berhasil diperbarui
+
+  /v1/hr/psikotes/disc/assessments:
+    get:
+      summary: Daftar Riwayat Asesmen & Hasil Kandidat (HR Admin)
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Berhasil mengambil daftar asesmen
+    post:
+      summary: Buat Undangan Tes Kandidat Baru (HR Admin)
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - full_name
+                - email
+              properties:
+                full_name:
+                  type: string
+                  example: Budi Santoso
+                email:
+                  type: string
+                  example: budi.santoso@example.com
+                phone:
+                  type: string
+                  example: "08123456789"
+                gender:
+                  type: string
+                  example: L
+                position_applied:
+                  type: string
+                  example: Sales Executive
+                expiry_days:
+                  type: integer
+                  example: 7
+      responses:
+        '201':
+          description: Undangan berhasil dibuat
+
+  /v1/hr/psikotes/disc/assessments/{id}:
+    get:
+      summary: Detail Hasil Skoring & Profil DISC Kandidat (HR Admin)
+      description: Menampilkan grafik 3 garis (Mask, Core, Mirror), skor D-I-S-C, dan profil kepribadian lengkap.
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Berhasil mengambil detail asesmen
+
+  /v1/hr/psikotes/disc/assessments-export:
+    get:
+      summary: Export Rekap Hasil Asesmen DISC ke CSV (HR Admin)
+      tags:
+        - HR - Psikotes DISC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Berkas CSV rekapitulasi asesmen
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+
+  /v1/hr/recruitment/candidates:
+    get:
+      summary: Daftar Kandidat Rekrutmen & Ringkasan Pipeline (HR Admin)
+      description: Mengambil daftar kandidat yang telah mendaftar, dilengkapi statistik per status pipeline, filter pencarian nama/email/no hp, dan filter status pipeline.
+      tags:
+        - HR - Recruitment Candidates
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter status pipeline (prescreen, shortlist, reject, hr_interview, user_interview, psikotes, final_interview, offering, join)
+          schema:
+            type: string
+            enum: [prescreen, shortlist, reject, hr_interview, user_interview, psikotes, final_interview, offering, join]
+        - name: position_applied
+          in: query
+          description: Filter posisi yang dilamar
+          schema:
+            type: string
+        - name: search
+          in: query
+          description: Cari berdasarkan nama lengkap, email, atau nomor telepon
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Daftar kandidat dan ringkasan statistik berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Daftar kandidat berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        full_name:
+                          type: string
+                          example: Andi Wijaya
+                        email:
+                          type: string
+                          example: andi.wijaya@example.com
+                        phone:
+                          type: string
+                          example: "08123456789"
+                        gender:
+                          type: string
+                          example: Laki-laki
+                        position_applied:
+                          type: string
+                          example: Backend Developer
+                        status:
+                          type: string
+                          example: prescreen
+                        can_access_assessment:
+                          type: boolean
+                          example: false
+                        biodata_completed:
+                          type: boolean
+                          example: false
+                  stats:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 25
+                      prescreen:
+                        type: integer
+                        example: 10
+                      shortlist:
+                        type: integer
+                        example: 8
+                      reject:
+                        type: integer
+                        example: 3
+                      hr_interview:
+                        type: integer
+                        example: 2
+                      user_interview:
+                        type: integer
+                        example: 1
+                      psikotes:
+                        type: integer
+                        example: 1
+                      final_interview:
+                        type: integer
+                        example: 0
+                      offering:
+                        type: integer
+                        example: 0
+                      join:
+                        type: integer
+                        example: 0
+
+  /v1/hr/recruitment/candidates/{id}:
+    get:
+      summary: Detail Lengkap Kandidat Rekrutmen (HR Admin)
+      description: Mengambil data profil lengkap kandidat, seluruh formulir biodata (5 langkah), dan histori asesmen DISC beserta hasil skoringnya.
+      tags:
+        - HR - Recruitment Candidates
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID kandidat
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail kandidat berhasil diambil.
+        '404':
+          description: Data kandidat tidak ditemukan.
+
+  /v1/hr/recruitment/candidates/{id}/status:
+    put:
+      summary: Ubah Status Pipeline Kandidat (HR Admin)
+      description: Memperbarui status pipeline kandidat ke status yang ditentukan (prescreen, shortlist, reject, hr_interview, user_interview, psikotes, final_interview, offering, join).
+      tags:
+        - HR - Recruitment Candidates
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID kandidat
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [prescreen, shortlist, reject, hr_interview, user_interview, psikotes, final_interview, offering, join]
+                  example: shortlist
+                notes:
+                  type: string
+                  example: Lolos verifikasi berkas awal
+      responses:
+        '200':
+          description: Status kandidat berhasil diperbarui.
+        '404':
+          description: Data kandidat tidak ditemukan.
+        '422':
+          description: Status tidak valid.
+
+  /v1/hr/recruitment/candidates/{id}/shortlist:
+    post:
+      summary: Shortcut Shortlist Kandidat (HR Admin)
+      description: Memindahkan status kandidat menjadi shortlist, mengizinkan kandidat mengisi biodata dan mengerjakan asesmen (MDT, DISC).
+      tags:
+        - HR - Recruitment Candidates
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID kandidat
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Status kandidat berhasil diubah menjadi shortlist.
+        '404':
+          description: Data kandidat tidak ditemukan.
+
+  /v1/hr/recruitment/candidates/{id}/reject:
+    post:
+      summary: Shortcut Reject Kandidat (HR Admin)
+      description: Memindahkan status kandidat menjadi reject, memblokir pengisian biodata dan pengerjaan asesmen.
+      tags:
+        - HR - Recruitment Candidates
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID kandidat
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Status kandidat berhasil diubah menjadi reject.
+        '404':
+          description: Data kandidat tidak ditemukan.
+
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

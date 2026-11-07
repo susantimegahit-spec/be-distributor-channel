@@ -14,6 +14,15 @@ class ProductionReceipt extends Model
     protected $connection = 'pgsql_production';
     protected $table = 'production.production_receipts';
 
+    public function getTable()
+    {
+        $conn = config('database.connections.' . ($this->connection ?: config('database.default')));
+        if (($conn['driver'] ?? '') === 'sqlite' || config('database.default') === 'sqlite') {
+            return 'production_receipts';
+        }
+        return parent::getTable();
+    }
+
     protected $fillable = [
         'doc_entry',
         'doc_num',
@@ -46,7 +55,10 @@ class ProductionReceipt extends Model
 
     public function items(): HasMany
     {
-        return $this->hasMany(ProductionReceiptItem::class, 'production_receipt_id');
+        return $this->hasMany(ProductionReceiptItem::class, 'production_receipt_id')
+            ->orderBy('sort_order', 'asc')
+            ->orderBy('line_num', 'asc')
+            ->orderBy('id', 'asc');
     }
 
     public function details(): HasMany

@@ -1,0 +1,1655 @@
+openapi: 3.0.3
+info:
+  title: "SMESTA API - Modul Claims, Program & Balance Ledger"
+  description: |
+    Dokumentasi API Modular SMESTA (Bagian dari `resources/docs/openapi.yaml`).
+    Edit file ini secara langsung agar ringan di IDE, lalu jalankan `php artisan docs:openapi bundle` untuk menyatukan kembali ke `openapi.yaml`.
+  version: 1.0.0
+servers:
+  - url: https://api-sm-connect.susantimegah.com/api/distributor-channel
+    description: Production Server
+  - url: http://api-dev.susantimegah.com/api/distributor-channel
+    description: Development Server
+  - url: http://localhost:8000/api/distributor-channel
+    description: Local Server
+paths:
+  /v1/external/claims:
+    post:
+      summary: Submit Claim Transactions via External B2B API
+      description: Endpoint terproteksi API Key untuk sistem distributor (ERP/DMS) menambahkan data transaksi klaim (sell out) distributor baik melalui payload JSON lines maupun unggahan file Excel. Sistem secara otomatis memvalidasi keabsahan distributor, memeriksa idempotency (distributor_ref_no), dan memicu mesin kalkulasi diskon program reward secara real-time.
+      tags:
+        - External B2B Integration
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - card_code
+                - distributor_ref_no
+                - lines
+              properties:
+                card_code:
+                  type: string
+                  example: "C110003074"
+                  description: Kode Customer/Distributor terdaftar yang berhak pada API Key ini
+                distributor_ref_no:
+                  type: string
+                  example: "CLM-DIST-202610-001"
+                  description: Nomor Referensi Unik Klaim Distributor (Idempotency Key)
+                depo:
+                  type: string
+                  example: "DEPO SURABAYA UTARA"
+                  description: Nama atau kode Depo / Cabang Distributor (Opsional di root level)
+                lines:
+                  type: array
+                  description: Daftar baris transaksi sell-out klaim distributor
+                  items:
+                    type: object
+                    required:
+                      - item_code
+                      - qty_kg
+                      - customer_type
+                      - transaction_date
+                    properties:
+                      depo:
+                        type: string
+                        example: "DEPO SURABAYA UTARA"
+                        description: Nama atau kode Depo cabang distributor
+                      distributor_customer_code:
+                        type: string
+                        example: "OUTLET-SBY-001"
+                        description: Kode Customer / Toko / Outlet dari sistem distributor
+                      distributor_customer_name:
+                        type: string
+                        example: "Toko Barokah Jaya"
+                        description: Nama Customer / Toko / Outlet dari distributor
+                      address:
+                        type: string
+                        example: "Jl. Kembang Jepun No. 45"
+                        description: Alamat Toko / Outlet customer
+                      city:
+                        type: string
+                        example: "Surabaya"
+                        description: Kota / Kabupaten outlet
+                      district:
+                        type: string
+                        example: "Pabean Cantian"
+                        description: Kecamatan outlet
+                      salesman_name:
+                        type: string
+                        example: "Ahmad Santoso"
+                        description: Nama Salesman distributor
+                      item_code:
+                        type: string
+                        example: "E65"
+                        description: Kode SKU item terdaftar di PT Susanti Megah
+                      item_category:
+                        type: string
+                        example: "Garam Konsumsi"
+                        description: Jenis / Kategori Barang
+                      sell_price_per_kg:
+                        type: number
+                        example: 7500.00
+                        description: Harga jual distributor per kilogram (opsional)
+                      qty_kg:
+                        type: number
+                        example: 100.5
+                        description: Kuantitas transaksi dalam satuan Kilogram (harus > 0)
+                      customer_type:
+                        type: string
+                        enum: [GT, MT]
+                        example: "GT"
+                        description: Tipe customer penjualan distributor (GT = General Trade, MT = Modern Trade)
+                      transaction_type:
+                        type: string
+                        example: "Kredit 30 Hari"
+                        description: Jenis transaksi penjualan distributor
+                      channel:
+                        type: string
+                        example: "GT"
+                        description: Saluran distribusi / Channel
+                      invoice_no:
+                        type: string
+                        example: "INV/2026/10/00888"
+                        description: Nomor faktur / invoice penjualan distributor
+                      dpp:
+                        type: number
+                        example: 750000.00
+                        description: Dasar Pengenaan Pajak (DPP)
+                      diskon_1:
+                        type: number
+                        example: 15000.00
+                        description: Nilai Diskon 1
+                      diskon_2:
+                        type: number
+                        example: 5000.00
+                        description: Nilai Diskon 2
+                      diskon_3:
+                        type: number
+                        example: 0.00
+                        description: Nilai Diskon 3
+                      diskon_4:
+                        type: number
+                        example: 0.00
+                        description: Nilai Diskon 4
+                      diskon_5:
+                        type: number
+                        example: 0.00
+                        description: Nilai Diskon 5
+                      ppn:
+                        type: number
+                        example: 80300.00
+                        description: Nilai PPN
+                      net:
+                        type: number
+                        example: 810300.00
+                        description: Nilai NET faktur / total setelah pajak & diskon
+                      transaction_date:
+                        type: string
+                        format: date
+                        example: "2026-10-15"
+                        description: Tanggal transaksi penjualan (Format YYYY-MM-DD)
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - card_code
+                - distributor_ref_no
+              properties:
+                card_code:
+                  type: string
+                  example: "C110003074"
+                distributor_ref_no:
+                  type: string
+                  example: "CLM-DIST-202610-001"
+                depo:
+                  type: string
+                  example: "DEPO SURABAYA UTARA"
+                file:
+                  type: string
+                  format: binary
+                  description: File template spreadsheet transaksi Excel (.xlsx atau .xls, maks 10MB)
+                lines:
+                  type: string
+                  description: Array item klaim dalam format JSON string (opsional jika mengunggah file)
+                  example: '[{"item_code":"E65","qty_kg":100,"customer_type":"GT","transaction_date":"2026-10-15","depo":"DEPO SBY","distributor_customer_code":"OUT-01","distributor_customer_name":"Toko Barokah","invoice_no":"INV-001","dpp":750000,"net":810000}]'
+      responses:
+        '201':
+          description: Data transaksi klaim distributor berhasil dikirim dan dikalkulasi secara otomatis.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data transaksi klaim distributor berhasil dikirim dan dikalkulasi secara otomatis.
+                  data:
+                    type: object
+                    properties:
+                      batch_id:
+                        type: integer
+                        example: 15
+                      batch_no:
+                        type: string
+                        example: "UPLOAD-20261016-001"
+                      distributor_ref_no:
+                        type: string
+                        example: "CLM-DIST-202610-001"
+                      depo:
+                        type: string
+                        example: "DEPO SURABAYA UTARA"
+                      card_code:
+                        type: string
+                        example: "C110003074"
+                      customer_name:
+                        type: string
+                        example: "PT SUSANTI DISTRIBUSI MAKMUR"
+                      total_rows:
+                        type: integer
+                        example: 10
+                      processed_rows:
+                        type: integer
+                        example: 10
+                      invalid_rows:
+                        type: integer
+                        example: 0
+                      total_diskon:
+                        type: number
+                        example: 250000.00
+        '200':
+          description: Response Idempotent (Klaim dengan distributor_ref_no ini sudah pernah dibuat sebelumnya).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  is_duplicate:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Klaim dengan distributor_ref_no ini sudah pernah dibuat sebelumnya (Idempotent Response).
+                  data:
+                    type: object
+        '401':
+          description: API Key / Bearer token tidak ditemukan atau tidak valid.
+        '403':
+          description: card_code tidak terdaftar untuk API Key ini.
+        '422':
+          description: Validasi input data klaim gagal.
+
+  /v1/external/claims/batches:
+    get:
+      summary: Get list of claim batches for distributor
+      description: Mendapatkan daftar riwayat batch klaim yang diajukan oleh distributor yang terhubung dengan API Key pengirim.
+      tags:
+        - External B2B Integration
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: card_code
+          in: query
+          required: false
+          description: Filter khusus untuk satu kode customer tertentu (harus dalam izin API Key)
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          required: false
+          description: Jumlah baris data per halaman (default 15)
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Daftar batch klaim berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar batch klaim berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                        example: 1
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            batch_id:
+                              type: integer
+                              example: 15
+                            batch_no:
+                              type: string
+                              example: "UPLOAD-20261016-001"
+                            distributor_ref_no:
+                              type: string
+                              example: "CLM-DIST-202610-001"
+                            depo:
+                              type: string
+                              example: "DEPO SURABAYA UTARA"
+                            code_customer:
+                              type: string
+                              example: "C110003074"
+                            customer_name:
+                              type: string
+                              example: "PT SUSANTI DISTRIBUSI MAKMUR"
+                            total_rows:
+                              type: integer
+                              example: 10
+                            valid_rows:
+                              type: integer
+                              example: 10
+                            invalid_rows:
+                              type: integer
+                              example: 0
+                            total_diskon:
+                              type: number
+                              example: 250000.00
+                            total_diskon_verified:
+                              type: number
+                              example: 250000.00
+                            available_balance:
+                              type: number
+                              example: 250000.00
+        '401':
+          description: API Key tidak valid.
+
+  /v1/external/claims/batches/{identifier}:
+    get:
+      summary: Get claim batch detail and results
+      description: Mendapatkan detail performa batch klaim dan rincian baris hasil kalkulasi diskon berdasarkan ID batch, nomor batch (batch_no), atau nomor referensi distributor (distributor_ref_no).
+      tags:
+        - External B2B Integration
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: identifier
+          in: path
+          required: true
+          description: ID batch, batch_no (misal UPLOAD-20261016-001), atau distributor_ref_no (misal CLM-DIST-202610-001)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Detail batch klaim berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Detail batch klaim berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      batch_id:
+                        type: integer
+                        example: 15
+                      batch_no:
+                        type: string
+                        example: "UPLOAD-20261016-001"
+                      distributor_ref_no:
+                        type: string
+                        example: "CLM-DIST-202610-001"
+                      depo:
+                        type: string
+                        example: "DEPO SURABAYA UTARA"
+                      total_rows:
+                        type: integer
+                        example: 1
+                      valid_rows:
+                        type: integer
+                        example: 1
+                      total_diskon:
+                        type: number
+                        example: 25000.00
+                      results:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 101
+                            depo:
+                              type: string
+                              example: "DEPO SURABAYA UTARA"
+                            distributor_customer_code:
+                              type: string
+                              example: "OUTLET-SBY-001"
+                            distributor_customer_name:
+                              type: string
+                              example: "Toko Barokah Jaya"
+                            address:
+                              type: string
+                              example: "Jl. Kembang Jepun No. 45"
+                            city:
+                              type: string
+                              example: "Surabaya"
+                            district:
+                              type: string
+                              example: "Pabean Cantian"
+                            salesman_name:
+                              type: string
+                              example: "Ahmad Santoso"
+                            item_code:
+                              type: string
+                              example: "E65"
+                            item_name:
+                              type: string
+                              example: "TOP 250 M @ 10 KG / BAL"
+                            item_category:
+                              type: string
+                              example: "Garam Konsumsi"
+                            qty_kg:
+                              type: number
+                              example: 100.00
+                            customer_type:
+                              type: string
+                              example: "GT"
+                            transaction_type:
+                              type: string
+                              example: "Kredit 30 Hari"
+                            channel:
+                              type: string
+                              example: "GT"
+                            invoice_no:
+                              type: string
+                              example: "INV/2026/10/00888"
+                            sell_price_per_kg:
+                              type: number
+                              example: 7500.00
+                            dpp:
+                              type: number
+                              example: 750000.00
+                            diskon_1:
+                              type: number
+                              example: 15000.00
+                            diskon_2:
+                              type: number
+                              example: 5000.00
+                            diskon_3:
+                              type: number
+                              example: 0.00
+                            diskon_4:
+                              type: number
+                              example: 0.00
+                            diskon_5:
+                              type: number
+                              example: 0.00
+                            ppn:
+                              type: number
+                              example: 80300.00
+                            net:
+                              type: number
+                              example: 810300.00
+                            harga_program_per_kg:
+                              type: number
+                              example: 7500.00
+                            diskon_per_kg:
+                              type: number
+                              example: 250.00
+                            total_diskon:
+                              type: number
+                              example: 25000.00
+                            transaction_date:
+                              type: string
+                              example: "2026-10-15"
+                            status:
+                              type: string
+                              example: "VALID_PROGRAM"
+                            is_verified:
+                              type: boolean
+                              example: false
+        '404':
+          description: Batch klaim tidak ditemukan atau tidak memiliki akses.
+
+  /v1/external/claims/programs:
+    get:
+      summary: Get active claim promotion programs
+      description: Mendapatkan daftar program promosi klaim yang sedang aktif beserta strata kuantiti dan nilai diskon per kg yang berlaku untuk distributor terautentikasi.
+      tags:
+        - External B2B Integration
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar program promosi klaim aktif berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar program promosi klaim aktif berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 5
+                        program_code:
+                          type: string
+                          example: "PRG-2026-OCT"
+                        program_name:
+                          type: string
+                          example: "Program Promo Garam Top Oktober 2026"
+                        start_date:
+                          type: string
+                          example: "2026-10-01"
+                        end_date:
+                          type: string
+                          example: "2026-10-31"
+                        status:
+                          type: string
+                          example: "ACTIVE"
+                        items:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                                example: 10
+                              item_code:
+                                type: string
+                                example: "E65"
+                              item_name:
+                                type: string
+                                example: "TOP 250 M @ 10 KG / BAL"
+                        strata:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                                example: 12
+                              customer_type:
+                                type: string
+                                example: "GT"
+                              min_qty_kg:
+                                type: number
+                                example: 10.00
+                              max_qty_kg:
+                                type: number
+                                example: 500.00
+                              harga_program_per_kg:
+                                type: number
+                                example: 7500.00
+                              diskon_per_kg:
+                                type: number
+                                example: 250.00
+
+  /v1/pi-settings:
+    get:
+      summary: Get active Proforma Invoice signature configuration
+      description: Mendapatkan nama penandatangan, jabatan, dan berkas/URL tanda tangan digital untuk PI.
+      tags:
+        - PI Settings
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: user_id
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: ID User pemilik tanda tangan.
+        - name: document_tag
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Tag pengelompokan dokumen (misal INVOICE).
+      responses:
+        '200':
+          description: Konfigurasi berhasil diambil.
+    post:
+      summary: Update Proforma Invoice signature configuration
+      description: Memperbarui nama penandatangan dan/atau mengunggah gambar tanda tangan digital.
+      tags:
+        - PI Settings
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - signer_name
+                - signer_title
+              properties:
+                user_id:
+                  type: integer
+                  description: ID User pemilik tanda tangan.
+                  nullable: true
+                document_tag:
+                  type: string
+                  description: Tag pengelompokan dokumen (misal INVOICE).
+                  nullable: true
+                signer_name:
+                  type: string
+                  example: Kushan Wijono
+                signer_title:
+                  type: string
+                  example: Branch Manager
+                signature_file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Konfigurasi berhasil diperbarui.
+
+  /v1/claims/balance-ledger:
+    get:
+      summary: Get Claim Balance Ledger Transactions
+      description: Mengambil daftar riwayat transaksi saldo reward/klaim (Debit, Kredit, dan Saldo Berjalan) milik customer.
+      tags:
+        - Balance Ledger
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: customer_codes
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kode customer (bisa koma-terpisah, misal CUST01,CUST02). Jika distributor, otomatis hanya melihat miliknya.
+          example: C110003074
+        - name: start_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Tanggal mulai transaksi (YYYY-MM-DD).
+          example: "2026-06-01"
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Tanggal akhir transaksi (YYYY-MM-DD).
+          example: "2026-06-30"
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [CLAIM, WITHDRAW, CORRECTION]
+          description: Filter tipe transaksi ledger.
+          example: CLAIM
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 15
+          description: Jumlah item per halaman.
+          example: 15
+      responses:
+        '200':
+          description: Daftar riwayat transaksi saldo berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar riwayat transaksi saldo berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                        example: 1
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            customer_code:
+                              type: string
+                              example: C110003074
+                            customer_name:
+                              type: string
+                              example: PT SUSANTI MEGAH
+                            depo:
+                              type: string
+                              example: DEPO SURABAYA
+                            ref_number:
+                              type: string
+                              example: SO1234
+                            transaction_date:
+                              type: string
+                              format: date
+                              example: "2026-07-13"
+                            type:
+                              type: string
+                              example: WITHDRAW
+                            debit:
+                              type: number
+                              example: 0.00
+                            credit:
+                              type: number
+                              example: 150000.00
+                            running_balance:
+                              type: number
+                              example: 850000.00
+                            description:
+                              type: string
+                              example: Penggunaan Reward (Trade Promo) - Batch BATCH-TEST-123 pada SO SO1234
+                            created_by:
+                              type: string
+                              example: admin
+                      total:
+                        type: integer
+                        example: 1
+
+  /v1/claims/balance-ledger/adjustment:
+    post:
+      summary: Create Manual Balance Adjustment
+      description: Membuat penyesuaian/koreksi saldo secara manual (Debit/Kredit) untuk customer.
+      tags:
+        - Balance Ledger
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - customer_code
+                - adjustment_type
+                - description
+                - type
+              properties:
+                customer_code:
+                  type: string
+                  example: C110003074
+                adjustment_type:
+                  type: string
+                  enum: [DEBIT, CREDIT]
+                  description: DEBIT untuk menambah saldo, CREDIT untuk memotong saldo.
+                  example: DEBIT
+                amount:
+                  type: number
+                  example: 500000.00
+                description:
+                  type: string
+                  example: Koreksi kelebihan klaim
+                type:
+                  type: string
+                  maxLength: 30
+                  description: "Tipe transaksi ledger (contoh: CLAIM, TRANSACTION, WITHDRAW, RETURN, CORRECTION, BONUS). Nilai bersifat dinamis dan otomatis dikonversi ke UPPERCASE di backend."
+                  example: CORRECTION
+                ref_number:
+                  type: string
+                  description: Nomor referensi kustom (opsional, jika kosong otomatis digenerate ADJ-YYYYMMDD-XXX).
+                  example: REF-CUSTOM-123
+                start_date:
+                  type: string
+                  format: date
+                  description: Tanggal mulai periode klaim terkait (opsional).
+                  example: "2026-07-01"
+                end_date:
+                  type: string
+                  format: date
+                  description: Tanggal akhir periode klaim terkait (opsional).
+                  example: "2026-07-31"
+      responses:
+        '201':
+          description: Koreksi saldo berhasil dibuat.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Koreksi saldo berhasil dibuat.
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 2
+                      customer_code:
+                        type: string
+                        example: C110003074
+                      ref_number:
+                        type: string
+                        example: ADJ-20260713-001
+                      transaction_date:
+                        type: string
+                        format: date
+                        example: "2026-07-13"
+                      type:
+                        type: string
+                        example: CORRECTION
+                      debit:
+                        type: number
+                        example: 500000.00
+                      credit:
+                        type: number
+                        example: 0.00
+                      running_balance:
+                        type: number
+                        example: 1350000.00
+                      description:
+                        type: string
+                        example: Koreksi kelebihan klaim
+                      created_by:
+                        type: string
+                        example: admin
+
+  /v1/claims/balance-ledger/approved-claims:
+    get:
+      summary: Get Approved Claim Batches
+      description: Mendapatkan daftar klaim yang telah disetujui (debit > 0) berdasarkan kode customer dan opsional filter tanggal.
+      tags:
+        - Balance Ledger
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: customer_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kode customer (jika distributor, otomatis hanya melihat miliknya).
+          example: C110003074
+        - name: tanggal
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Filter tanggal transaksi (YYYY-MM-DD).
+          example: "2026-07-14"
+        - name: start_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Tanggal mulai transaksi (YYYY-MM-DD) untuk rentang filter.
+          example: "2026-07-01"
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Tanggal akhir transaksi (YYYY-MM-DD) untuk rentang filter.
+          example: "2026-07-31"
+      responses:
+        '200':
+          description: Daftar klaim yang disetujui berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar klaim yang disetujui berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        batch_id:
+                          type: integer
+                          example: 1
+                          nullable: true
+                        batch_no:
+                          type: string
+                          example: B-001
+                          nullable: true
+                        debit:
+                          type: number
+                          example: 150000.00
+                        customer_code:
+                          type: string
+                          example: C110003074
+                        customer_name:
+                          type: string
+                          example: PT SUSANTI MEGAHIT
+                        depo:
+                          type: string
+                          example: DEPO SURABAYA
+                        transaction_date:
+                          type: string
+                          format: date
+                          example: "2026-07-14"
+
+  /v1/claims/template-excel:
+    get:
+      summary: Download claims template Excel
+      description: Mengunduh template Excel untuk upload data klaim distributor. Template ini berisi dua sheet, yaitu "template upload klaim" (27 kolom lengkap mencakup Kode/Nama Distributor, Depo, Kode/Nama Customer, Alamat, Kota, Kecamatan, Salesman, Item, Jenis Barang, Qty, Harga, Type Customer, Jenis Transaksi, Channel, Invoice, DPP, Diskon 1-5, PPN, NET, Tanggal) dan "master data item".
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: File template excel (.xls) berhasil diunduh
+          content:
+            application/vnd.ms-excel:
+              schema:
+                type: string
+                format: binary
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/claims/programs:
+    get:
+      summary: Get list of programs
+      description: Mendapatkan daftar program promosi dengan filter pencarian dan status (paginated).
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Keyword pencarian kode program atau nama program
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE]
+          description: Status program
+        - name: code_customer
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter program berdasarkan kode customer/distributor
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Daftar program berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Program'
+                  current_page:
+                    type: integer
+                  last_page:
+                    type: integer
+                  per_page:
+                    type: integer
+                  total:
+                    type: integer
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Create master program
+      description: Membuat program promosi baru beserta produk program dan strata diskonnya.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreProgramRequest'
+      responses:
+        '201':
+          description: Program berhasil dibuat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Program'
+        '401':
+          description: Tidak terautentikasi
+        '422':
+          description: Validasi input gagal
+
+  /v1/claims/programs/{id}:
+    get:
+      summary: Get program detail
+      description: Mendapatkan detail lengkap data program promosi beserta item produk dan stratanya.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail program berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProgramDetail'
+        '404':
+          description: Program tidak ditemukan
+
+    put:
+      summary: Update program
+      description: Memperbarui data program promosi beserta item produk dan stratanya.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreProgramRequest'
+      responses:
+        '200':
+          description: Program berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProgramDetail'
+        '404':
+          description: Program tidak ditemukan
+
+    delete:
+      summary: Delete program
+      description: Menghapus program promosi (soft delete).
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Program berhasil dihapus
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+
+  /v1/claims/items:
+    get:
+      summary: Get items lookup
+      description: Mencari item produk aktif untuk kebutuhan form master program.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Daftar pencarian item berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    item_code:
+                      type: string
+                    item_name:
+                      type: string
+
+  /v1/claims/dashboard:
+    get:
+      summary: Get claims dashboard statistics
+      description: Mendapatkan ringkasan statistik klaim distributor untuk halaman dashboard.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Statistik dashboard berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_program:
+                    type: integer
+                  total_batch:
+                    type: integer
+                  total_valid_rows:
+                    type: integer
+                  total_diskon:
+                    type: number
+
+  /v1/claims/upload:
+    post:
+      summary: Upload transaction file
+      description: Mengunggah file transaksi distributor Excel dan secara otomatis memicu kalkulasi klaim.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: File berhasil diunggah dan dikalkulasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '422':
+          description: File tidak valid atau struktur salah
+
+  /v1/claims/batches:
+    get:
+      summary: Get list of batches
+      description: Mendapatkan daftar riwayat batch upload transaksi.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: customer_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter batch berdasarkan satu kode customer.
+        - name: customer_codes
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+          description: Filter batch berdasarkan beberapa kode customer (multiple).
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Daftar batch berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UploadBatch'
+                  current_page:
+                    type: integer
+                  last_page:
+                    type: integer
+                  per_page:
+                    type: integer
+                  total:
+                    type: integer
+
+  /v1/claims/batches/{id}:
+    get:
+      summary: Get batch detail with metrics
+      description: Mendapatkan detail statistik performa kalkulasi satu batch upload tertentu.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail batch berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadBatchDetail'
+        '404':
+          description: Batch tidak ditemukan
+
+    delete:
+      summary: Delete claim batch
+      description: Menghapus data batch upload beserta seluruh detail transaksi dan hasil kalkulasinya (cascade delete).
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Batch berhasil dihapus
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Batch upload dan detailnya berhasil dihapus.
+                  data:
+                    type: object
+                    example: {}
+        '404':
+          description: Batch tidak ditemukan
+
+  /v1/claims/results:
+    get:
+      summary: Get calculation results
+      description: Mendapatkan daftar detail hasil kalkulasi diskon per baris transaksi (paginated).
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: batch_id
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [VALID_PROGRAM, ITEM_NOT_FOUND, PROGRAM_NOT_FOUND, STRATA_NOT_FOUND]
+        - name: customer_code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: program_id
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Daftar hasil kalkulasi berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CalculationResult'
+
+  /v1/claims/results/export:
+    get:
+      summary: Export calculation results
+      description: Mengunduh file spreadsheet Excel (.xlsx) data hasil kalkulasi diskon berdasarkan filter.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: batch_id
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: customer_code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: program_id
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: File Excel hasil kalkulasi berhasil diunduh
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+
+  /v1/claims/results/verify:
+    post:
+      summary: Bulk verify calculation results
+      description: Melakukan verifikasi data hasil kalkulasi klaim secara massal oleh Finance.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ids
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: integer
+                  example: [1, 2, 3]
+                is_verified:
+                  type: boolean
+                  default: true
+                  example: true
+      responses:
+        '200':
+          description: Verifikasi berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "3 transaksi sell out berhasil diverifikasi."
+        '422':
+          description: Validasi input gagal
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/claims/reward-summary:
+    get:
+      summary: Get claim reward balance and summary
+      description: Mendapatkan ringkasan saldo klaim reward distributor (total klaim, total terverifikasi, total penarikan, sisa saldo).
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: customer_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan kode customer (opsional jika login sebagai admin/sales).
+        - name: customer_codes
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+          description: Filter berdasarkan beberapa kode customer (multiple).
+      responses:
+        '200':
+          description: Summary saldo reward berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_claimed:
+                    type: number
+                    example: 1500000.00
+                  total_verified:
+                    type: number
+                    example: 1200000.00
+                  total_withdrawn:
+                    type: number
+                    example: 500000.00
+                  available_balance:
+                    type: number
+                    example: 700000.00
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/claims/withdraws:
+    get:
+      summary: Get list of withdrawals
+      description: Mendapatkan daftar riwayat pengajuan penarikan reward distributor (paginated).
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED]
+        - name: customer_code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: customer_codes
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+          description: Filter berdasarkan beberapa kode customer (multiple).
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Daftar withdraw berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Withdraw'
+                  current_page:
+                    type: integer
+                  last_page:
+                    type: integer
+                  per_page:
+                    type: integer
+                  total:
+                    type: integer
+        '401':
+          description: Tidak terautentikasi
+
+    post:
+      summary: Submit a new withdrawal request
+      description: Mengajukan penarikan saldo reward baru oleh distributor.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amount
+                - lines
+              properties:
+                amount:
+                  type: number
+                  example: 500000.00
+                  description: Total nominal withdraw yang diajukan.
+                lines:
+                  type: array
+                  description: Detail pemotongan nominal per batch.
+                  items:
+                    type: object
+                    required:
+                      - batch_id
+                      - amount
+                    properties:
+                      batch_id:
+                        type: integer
+                        example: 1
+                        description: ID batch upload program yang dipilih.
+                      amount:
+                        type: number
+                        example: 200000.00
+                        description: Nominal yang ditarik dari batch tersebut.
+      responses:
+        '201':
+          description: Pengajuan withdraw berhasil dibuat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Pengajuan withdraw berhasil dibuat.
+                  data:
+                    $ref: '#/components/schemas/Withdraw'
+        '422':
+          description: Saldo tidak mencukupi atau nominal tidak valid
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/claims/withdraws/{id}/status:
+    post:
+      summary: Update withdrawal status (Approve/Reject)
+      description: Memperbarui status persetujuan penarikan reward distributor oleh finance/admin.
+      tags:
+        - Claims
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari withdraw
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [APPROVED, REJECTED, PENDING]
+                  example: APPROVED
+                transfer_date:
+                  type: string
+                  format: date
+                  nullable: true
+                  example: "2026-07-02"
+      responses:
+        '200':
+          description: Status withdraw berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Status withdraw berhasil diperbarui.
+                  data:
+                    $ref: '#/components/schemas/Withdraw'
+        '422':
+          description: Status tidak valid
+        '404':
+          description: Data tidak ditemukan
+        '401':
+          description: Tidak terautentikasi
+
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

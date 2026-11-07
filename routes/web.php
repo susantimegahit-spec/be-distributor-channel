@@ -199,6 +199,34 @@ Route::middleware([DocsAuthSession::class])->group(function () {
 
     Route::get('/docs/openapi.yaml', function () {
         $path = resource_path('docs/openapi.yaml');
+        $modulesDir = resource_path('docs/modules');
+        if (is_dir($modulesDir) && file_exists($path)) {
+            $mainMtime = @filemtime($path) ?: 0;
+            foreach (glob($modulesDir . '/*.yaml') ?: [] as $modFile) {
+                if ((@filemtime($modFile) ?: 0) > $mainMtime) {
+                    try {
+                        \Illuminate\Support\Facades\Artisan::call('docs:openapi', ['action' => 'bundle']);
+                    } catch (\Throwable) {
+                    }
+                    break;
+                }
+            }
+        }
+        if (!file_exists($path)) {
+            abort(404);
+        }
+        return response()->file($path, [
+            'Content-Type' => 'text/yaml; charset=utf-8',
+            'Access-Control-Allow-Origin' => '*',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
+    });
+
+    Route::get('/docs/modules/{module}.yaml', function (string $module) {
+        $safeModule = preg_replace('/[^a-zA-Z0-9_-]/', '', $module);
+        $path = resource_path("docs/modules/{$safeModule}.yaml");
         if (!file_exists($path)) {
             abort(404);
         }

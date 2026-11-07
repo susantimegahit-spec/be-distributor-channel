@@ -1,0 +1,2436 @@
+openapi: 3.0.3
+info:
+  title: "SMESTA API - Modul Task Management, Reporting & Scheduler"
+  description: |
+    Dokumentasi API Modular SMESTA (Bagian dari `resources/docs/openapi.yaml`).
+    Edit file ini secara langsung agar ringan di IDE, lalu jalankan `php artisan docs:openapi bundle` untuk menyatukan kembali ke `openapi.yaml`.
+  version: 1.0.0
+servers:
+  - url: https://api-sm-connect.susantimegah.com/api/distributor-channel
+    description: Production Server
+  - url: http://api-dev.susantimegah.com/api/distributor-channel
+    description: Development Server
+  - url: http://localhost:8000/api/distributor-channel
+    description: Local Server
+paths:
+  /task-management/dashboard/summary:
+    get:
+      summary: Ringkasan Dashboard Task Management (Analytics, KPI & Distribusi)
+      description: Mengambil ringkasan analitik komprehensif untuk dashboard Task Management, mencakup overview KPI, distribusi status, prioritas SLA, space/departemen, beban kerja tim (team workload), top urgent tasks, dan aktivitas terbaru.
+      tags:
+        - Task Management - Dashboard
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: workspace_id
+          in: query
+          description: Filter berdasarkan ID Workspace
+          schema:
+            type: integer
+        - name: space_id
+          in: query
+          description: Filter berdasarkan ID Space (Departemen, misal IT, HRD)
+          schema:
+            type: string
+        - name: department_id
+          in: query
+          description: Filter berdasarkan Kode Departemen
+          schema:
+            type: string
+        - name: folder_id
+          in: query
+          description: Filter berdasarkan ID Folder
+          schema:
+            type: integer
+        - name: list_id
+          in: query
+          description: Filter berdasarkan ID List
+          schema:
+            type: integer
+        - name: employee_id
+          in: query
+          description: Filter berdasarkan ID Karyawan Assignee
+          schema:
+            type: integer
+        - name: date_from
+          in: query
+          description: Filter tanggal awal pembuatan (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          description: Filter batas akhir tenggat waktu (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Dashboard summary berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Dashboard summary retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      overview:
+                        type: object
+                        properties:
+                          total_tasks:
+                            type: integer
+                            example: 42
+                          to_do:
+                            type: integer
+                            example: 12
+                          in_progress:
+                            type: integer
+                            example: 15
+                          in_review:
+                            type: integer
+                            example: 5
+                          done:
+                            type: integer
+                            example: 10
+                          cancelled:
+                            type: integer
+                            example: 0
+                          overdue:
+                            type: integer
+                            example: 3
+                          due_today:
+                            type: integer
+                            example: 4
+                          completion_rate:
+                            type: number
+                            format: float
+                            example: 23.8
+                          total_estimated_hours:
+                            type: number
+                            format: float
+                            example: 160.0
+                          total_tracked_hours:
+                            type: number
+                            format: float
+                            example: 38.5
+                      status_distribution:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            status_id:
+                              type: integer
+                              example: 1
+                            status_name:
+                              type: string
+                              example: To Do
+                            status_category:
+                              type: string
+                              example: TO_DO
+                            color_hex:
+                              type: string
+                              example: "#94A3B8"
+                            total_tasks:
+                              type: integer
+                              example: 12
+                            percentage:
+                              type: number
+                              format: float
+                              example: 28.6
+                      priority_distribution:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            priority_id:
+                              type: integer
+                              example: 1
+                            priority_code:
+                              type: string
+                              example: URGENT
+                            priority_name:
+                              type: string
+                              example: Urgent
+                            color_hex:
+                              type: string
+                              example: "#EF4444"
+                            target_sla_hours:
+                              type: integer
+                              example: 4
+                            total_tasks:
+                              type: integer
+                              example: 5
+                            percentage:
+                              type: number
+                              format: float
+                              example: 11.9
+                      space_distribution:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            space_id:
+                              type: string
+                              example: IT
+                            space_name:
+                              type: string
+                              example: Information Technology
+                            space_slug:
+                              type: string
+                              example: it-department
+                            department_id:
+                              type: string
+                              example: IT
+                            color_hex:
+                              type: string
+                              example: "#4F46E5"
+                            icon_name:
+                              type: string
+                              example: folder
+                            total_tasks:
+                              type: integer
+                              example: 20
+                            completed_tasks:
+                              type: integer
+                              example: 8
+                            in_progress_tasks:
+                              type: integer
+                              example: 9
+                            overdue_tasks:
+                              type: integer
+                              example: 3
+                            completion_rate:
+                              type: number
+                              format: float
+                              example: 40.0
+                      team_workload:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            employee_id:
+                              type: integer
+                              example: 1
+                            full_name:
+                              type: string
+                              example: John Doe
+                            nik:
+                              type: string
+                              example: EMP-001
+                            avatar_url:
+                              type: string
+                              nullable: true
+                              example: null
+                            department_name:
+                              type: string
+                              example: Information Technology
+                            total_tasks:
+                              type: integer
+                              example: 10
+                            completed_tasks:
+                              type: integer
+                              example: 4
+                            pending_tasks:
+                              type: integer
+                              example: 6
+                            overdue_tasks:
+                              type: integer
+                              example: 1
+                            total_tracked_hours:
+                              type: number
+                              format: float
+                              example: 18.5
+                      urgent_tasks:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 101
+                            task_code:
+                              type: string
+                              example: TSK-IT-2026-00001
+                            title:
+                              type: string
+                              example: Fix Server Incident
+                            space_id:
+                              type: string
+                              example: IT
+                            space_name:
+                              type: string
+                              example: Information Technology
+                            priority_name:
+                              type: string
+                              example: Urgent
+                            priority_color:
+                              type: string
+                              example: "#EF4444"
+                            status_name:
+                              type: string
+                              example: In Progress
+                            status_color:
+                              type: string
+                              example: "#3B82F6"
+                            due_date:
+                              type: string
+                              example: "2026-10-01 18:00"
+                            is_overdue:
+                              type: boolean
+                              example: true
+                            progress_percentage:
+                              type: integer
+                              example: 50
+                            assignees:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  employee_id:
+                                    type: integer
+                                    example: 1
+                                  full_name:
+                                    type: string
+                                    example: John Doe
+                                  avatar_url:
+                                    type: string
+                                    nullable: true
+                                    example: null
+                      recent_activities:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 55
+                            task_id:
+                              type: integer
+                              example: 101
+                            task_code:
+                              type: string
+                              example: TSK-IT-2026-00001
+                            task_title:
+                              type: string
+                              example: Fix Server Incident
+                            action_type:
+                              type: string
+                              example: STATUS_CHANGED
+                            field_name:
+                              type: string
+                              nullable: true
+                              example: status_id
+                            performer_name:
+                              type: string
+                              example: John Doe
+                            created_at:
+                              type: string
+                              example: "2026-10-01 10:30:00"
+
+  /v1/task-management/dashboard/summary:
+    get:
+      summary: Ringkasan Dashboard Task Management (v1 Alias)
+      description: Alias versi v1 untuk endpoint /task-management/dashboard/summary.
+      tags:
+        - Task Management - Dashboard
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Dashboard summary berhasil diambil.
+
+  /task-management/dashboard/team-view:
+    get:
+      summary: Team View - Monitor Tugas, Kapasitas & Progress per Karyawan
+      description: |
+        Menyajikan data Team View untuk memonitor beban kerja karyawan secara visual (seperti kartu Kanban / ClickUp Team View).
+        Menampilkan ringkasan metrik (Total tasks, Not done, Done, Overdue, % Completion Rate, % Progress), multi-segment bar distribusi status (Ready, In Progress, Review, dll.), dan daftar tugas pada masing-masing status untuk mendukung visual workload balancing & drag-and-drop.
+      tags:
+        - Task Management - Dashboard
+        - Task Management - Team View
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: space_id
+          in: query
+          description: Filter ID Space / Departemen (misal IT, HRD, FIN)
+          schema:
+            type: string
+            example: "IT"
+        - name: department_id
+          in: query
+          description: Filter Kode atau ID Departemen
+          schema:
+            type: string
+        - name: employee_id
+          in: query
+          description: Filter Karyawan spesifik
+          schema:
+            type: integer
+        - name: search
+          in: query
+          description: Pencarian nama, NIK, atau email karyawan
+          schema:
+            type: string
+        - name: include_tasks
+          in: query
+          description: Sertakan rincian objek tugas pada masing-masing status (default true)
+          schema:
+            type: boolean
+            default: true
+        - name: date_from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Data Team View berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Team view data retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      summary:
+                        type: object
+                        properties:
+                          total_members:
+                            type: integer
+                            example: 5
+                          total_tasks:
+                            type: integer
+                            example: 24
+                          total_not_done:
+                            type: integer
+                            example: 16
+                          total_done:
+                            type: integer
+                            example: 8
+                          total_overdue:
+                            type: integer
+                            example: 2
+                          overall_completion_rate:
+                            type: number
+                            format: float
+                            example: 33.3
+                          total_estimated_hours:
+                            type: number
+                            format: float
+                            example: 48.0
+                          total_tracked_hours:
+                            type: number
+                            format: float
+                            example: 12.5
+                      team:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            employee_id:
+                              type: integer
+                              example: 4
+                            full_name:
+                              type: string
+                              example: "Claudia Maria"
+                            nickname:
+                              type: string
+                              example: "Claudia"
+                            nik:
+                              type: string
+                              example: "EMP-2026-0042"
+                            avatar_url:
+                              type: string
+                              nullable: true
+                              example: null
+                            department:
+                              type: object
+                              properties:
+                                id:
+                                  type: integer
+                                  example: 1
+                                dept_code:
+                                  type: string
+                                  example: "IT"
+                                dept_name:
+                                  type: string
+                                  example: "Information Technology"
+                            position:
+                              type: object
+                              properties:
+                                id:
+                                  type: integer
+                                  example: 1
+                                position_code:
+                                  type: string
+                                  example: "STAFF"
+                                position_name:
+                                  type: string
+                                  example: "Staff"
+                            metrics:
+                              type: object
+                              properties:
+                                total_tasks:
+                                  type: integer
+                                  example: 24
+                                not_done_tasks:
+                                  type: integer
+                                  example: 16
+                                done_tasks:
+                                  type: integer
+                                  example: 8
+                                overdue_tasks:
+                                  type: integer
+                                  example: 2
+                                completion_rate:
+                                  type: number
+                                  format: float
+                                  example: 33.3
+                                progress_percentage:
+                                  type: number
+                                  format: float
+                                  example: 35.0
+                                total_estimated_hours:
+                                  type: number
+                                  format: float
+                                  example: 48.0
+                                total_tracked_hours:
+                                  type: number
+                                  format: float
+                                  example: 12.5
+                            status_distribution:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  status_id:
+                                    type: integer
+                                    example: 1
+                                  status_name:
+                                    type: string
+                                    example: "Ready"
+                                  status_category:
+                                    type: string
+                                    example: "TO_DO"
+                                  color_hex:
+                                    type: string
+                                    example: "#22C55E"
+                                  total_tasks:
+                                    type: integer
+                                    example: 8
+                                  percentage:
+                                    type: number
+                                    format: float
+                                    example: 33.3
+                                  tasks:
+                                    type: array
+                                    items:
+                                      type: object
+                                      properties:
+                                        id:
+                                          type: integer
+                                          example: 101
+                                        task_code:
+                                          type: string
+                                          example: "TSK-IT-2026-00001"
+                                        title:
+                                          type: string
+                                          example: "Setup Infrastructure"
+                                        priority:
+                                          type: object
+                                          properties:
+                                            id:
+                                              type: integer
+                                              example: 1
+                                            priority_name:
+                                              type: string
+                                              example: "Normal"
+                                            color_hex:
+                                              type: string
+                                              example: "#3B82F6"
+                                        due_date:
+                                          type: string
+                                          example: "2026-10-10 17:00"
+                                        is_overdue:
+                                          type: boolean
+                                          example: false
+                                        progress_percentage:
+                                          type: integer
+                                          example: 25
+
+  /task-management/dashboard/team-view/{employeeId}:
+    get:
+      summary: Detail Card Team View untuk Satu Karyawan
+      tags:
+        - Task Management - Dashboard
+        - Task Management - Team View
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Card Team View karyawan berhasil diambil.
+
+  /task-management/team-view:
+    get:
+      summary: Team View (Direct Alias)
+      tags:
+        - Task Management - Team View
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Data Team View berhasil diambil.
+
+  /task-management/tasks/{id}/reassign:
+    post:
+      summary: Reassign Tugas Antar Karyawan (Drag and Drop Support)
+      description: Memindahkan atau memperbarui penugasan task dari satu karyawan ke karyawan lain (misalnya saat mendrag task antar kartu karyawan di Team View).
+      tags:
+        - Task Management - Tasks
+        - Task Management - Team View
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Tugas
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                from_employee_id:
+                  type: integer
+                  description: ID karyawan asal yang akan dilepas dari task
+                  example: 4
+                to_employee_id:
+                  type: integer
+                  description: ID karyawan tujuan yang akan ditugaskan
+                  example: 5
+                assignee_ids:
+                  type: array
+                  items:
+                    type: integer
+                  description: Alternatif langsung menetapkan daftar ID seluruh assignee baru
+                  example: [5]
+      responses:
+        '200':
+          description: Tugas berhasil dipindahkan / di-reassign.
+        '404':
+          description: Tugas tidak ditemukan.
+
+  /task-management/tasks:
+    get:
+      summary: Daftar Tugas (Tasks) & Filter Hirarki
+      description: Mengambil daftar tugas dengan dukungan filter space_id, folder_id, list_id, assignee_id, status_id, status_category, search, dan pagination.
+      tags:
+        - Task Management - Tasks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: space_id
+          in: query
+          description: ID Space departemen
+          schema:
+            type: integer
+        - name: folder_id
+          in: query
+          description: ID Folder project
+          schema:
+            type: integer
+        - name: list_id
+          in: query
+          description: ID List
+          schema:
+            type: integer
+        - name: assignee_id
+          in: query
+          description: ID Karyawan HRIS (hris_employees.id)
+          schema:
+            type: integer
+        - name: status_id
+          in: query
+          description: ID status tugas
+          schema:
+            type: integer
+        - name: status_category
+          in: query
+          description: Kategori status
+          schema:
+            type: string
+            enum: [TO_DO, IN_PROGRESS, REVIEW, DONE, CANCELLED]
+        - name: search
+          in: query
+          description: Pencarian teks judul, deskripsi, atau kode tugas
+          schema:
+            type: string
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Data list tugas berhasil diambil.
+    post:
+      summary: Buat Tugas Baru (Create Task / Subtask)
+      description: Membuat tugas baru atau subtask dengan auto-generator task_code (format TSK-DEPT-YYYY-NNNNN) dan penugasan karyawan.
+      tags:
+        - Task Management - Tasks
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - space_id
+                - list_id
+                - title
+              properties:
+                space_id:
+                  type: integer
+                  example: 1
+                list_id:
+                  type: integer
+                  example: 1
+                folder_id:
+                  type: integer
+                  nullable: true
+                  example: 1
+                parent_task_id:
+                  type: integer
+                  nullable: true
+                  description: Diisi ID parent task jika membuat subtask
+                  example: null
+                title:
+                  type: string
+                  example: "Implementasi Skema DB Corporate Task Management"
+                description:
+                  type: string
+                  example: "Migrasi master data HRIS dan tabel ClickUp-like ke skema corporate"
+                status_id:
+                  type: integer
+                  nullable: true
+                  example: 1
+                priority_id:
+                  type: integer
+                  nullable: true
+                  example: 2
+                task_type_id:
+                  type: integer
+                  nullable: true
+                  example: 1
+                due_date:
+                  type: string
+                  format: date-time
+                  example: "2026-09-25 17:00:00"
+                estimated_hours:
+                  type: number
+                  example: 8.5
+                assignee_ids:
+                  type: array
+                  items:
+                    type: integer
+                  example: [1, 2]
+      responses:
+        '201':
+          description: Tugas berhasil dibuat.
+
+  /task-management/tasks/{id}:
+    get:
+      summary: Detail Lengkap Tugas (Task Detail)
+      description: Mengambil detail tugas beserta checklists, assignees, subtasks, tags, attachments, comments, dan riwayat activity logs.
+      tags:
+        - Task Management - Tasks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail tugas berhasil diambil.
+        '404':
+          description: Tugas tidak ditemukan.
+    put:
+      summary: Perbarui Tugas (Update Task)
+      description: Memperbarui data tugas dan otomatis mencatat perubahan pada activity logs audit trail.
+      tags:
+        - Task Management - Tasks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                priority_id:
+                  type: integer
+                due_date:
+                  type: string
+                  format: date-time
+                progress_percentage:
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+                assignee_ids:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '200':
+          description: Tugas berhasil diperbarui.
+    delete:
+      summary: Hapus Tugas (Soft Delete Task)
+      tags:
+        - Task Management - Tasks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Tugas berhasil dihapus.
+
+  /task-management/tasks/{id}/status:
+    post:
+      summary: Transisi Status Tugas (Update Task Status)
+      description: Mengubah status tugas, otomatis mengupdate progress / waktu selesai jika status tutup, dan mencatat histori log aktivitas.
+      tags:
+        - Task Management - Tasks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status_id
+              properties:
+                status_id:
+                  type: integer
+                  example: 4
+      responses:
+        '200':
+          description: Status tugas berhasil diubah.
+
+  /task-management/tasks/metrics:
+    get:
+      summary: Metrik Ringkasan Tugas (Task Analytics & KPI)
+      description: Agregasi jumlah total tugas, To Do, In Progress, Review, Done, Overdue, dan Completion Rate %.
+      tags:
+        - Task Management - Tasks
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: space_id
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Metrik berhasil diambil.
+
+  /task-management/workspaces:
+    get:
+      summary: Daftar Workspace Korporat
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar workspace berhasil diambil.
+
+  /task-management/spaces:
+    get:
+      summary: Daftar Space Departemen / Divisi
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: workspace_id
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Daftar spaces berhasil diambil.
+    post:
+      summary: Buat Space Departemen Baru
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - workspace_id
+                - space_name
+              properties:
+                workspace_id:
+                  type: integer
+                department_id:
+                  type: integer
+                  nullable: true
+                space_name:
+                  type: string
+                color_hex:
+                  type: string
+                  default: "#4F46E5"
+                icon_name:
+                  type: string
+                  default: "folder"
+                is_private:
+                  type: boolean
+                  default: false
+      responses:
+        '201':
+          description: Space berhasil dibuat.
+
+  /task-management/folders:
+    get:
+      summary: Daftar Folder Project di Space
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: space_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Daftar folder berhasil diambil.
+    post:
+      summary: Buat Folder Project Baru
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - space_id
+                - folder_name
+              properties:
+                space_id:
+                  type: integer
+                folder_name:
+                  type: string
+                description:
+                  type: string
+                color_hex:
+                  type: string
+      responses:
+        '201':
+          description: Folder berhasil dibuat.
+
+  /task-management/folders/{id}:
+    delete:
+      summary: Hapus Folder Beserta Seluruh Isi Turunannya
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Folder dan seluruh isinya berhasil dihapus.
+        '404':
+          description: Folder tidak ditemukan.
+
+  /task-management/lists:
+    get:
+      summary: Daftar List Tugas
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: space_id
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: folder_id
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Daftar list tugas berhasil diambil.
+    post:
+      summary: Buat List Tugas Baru
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - space_id
+                - list_name
+              properties:
+                space_id:
+                  type: integer
+                folder_id:
+                  type: integer
+                  nullable: true
+                list_name:
+                  type: string
+                default_view:
+                  type: string
+                  enum: [LIST, BOARD, CALENDAR, GANTT]
+                  default: LIST
+      responses:
+        '201':
+          description: List tugas berhasil dibuat.
+
+  /task-management/lists/{id}:
+    delete:
+      summary: Hapus List Tugas Beserta Seluruh Isi Task di Dalamnya
+      description: Menghapus list tugas secara permanen beserta seluruh task dan subtask turunannya.
+      tags:
+        - Task Management - Hierarchy
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID List tugas yang akan dihapus
+          schema:
+            type: integer
+            example: 10
+      responses:
+        '200':
+          description: List dan seluruh isinya berhasil dihapus.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: List and its contents deleted successfully
+        '404':
+          description: List tidak ditemukan.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    example: List not found
+
+  /task-management/checklists:
+    post:
+      summary: Buat Header Checklist pada Task
+      tags:
+        - Task Management - Checklists
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - task_id
+                - checklist_title
+              properties:
+                task_id:
+                  type: integer
+                checklist_title:
+                  type: string
+      responses:
+        '201':
+          description: Checklist berhasil dibuat.
+
+  /task-management/checklists/{id}/items:
+    post:
+      summary: Tambah Item Checklist
+      tags:
+        - Task Management - Checklists
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - item_text
+              properties:
+                item_text:
+                  type: string
+                assignee_employee_id:
+                  type: integer
+                  nullable: true
+                due_date:
+                  type: string
+                  format: date
+      responses:
+        '201':
+          description: Item checklist berhasil ditambahkan.
+
+  /task-management/checklist-items/{id}/toggle:
+    post:
+      summary: Toggle Status Selesai Item Checklist
+      tags:
+        - Task Management - Checklists
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Status item checklist berhasil diubah.
+
+  /task-management/time-tracking/start:
+    post:
+      summary: Mulai Timer Pengerjaan Tugas (Start Timer)
+      description: Memulai sesi pencatatan durasi kerja aktif untuk karyawan login. Jika ada timer aktif sebelumnya, otomatis dihentikan terlebih dahulu.
+      tags:
+        - Task Management - Time Tracking
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - task_id
+              properties:
+                task_id:
+                  type: integer
+                note:
+                  type: string
+      responses:
+        '201':
+          description: Timer berhasil dimulai.
+
+  /task-management/time-tracking/{id}/stop:
+    post:
+      summary: Hentikan Timer Pengerjaan Tugas (Stop Timer)
+      tags:
+        - Task Management - Time Tracking
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Timer berhasil dihentikan dan akumulasi actual_hours task diperbarui.
+
+  /task-management/time-tracking/manual:
+    post:
+      summary: Entri Manual Jam Kerja (Timesheet)
+      tags:
+        - Task Management - Time Tracking
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - task_id
+                - duration_minutes
+              properties:
+                task_id:
+                  type: integer
+                duration_minutes:
+                  type: integer
+                  example: 120
+                note:
+                  type: string
+                start_time:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Log waktu kerja berhasil dicatat.
+
+  /task-management/tasks/{taskId}/comments:
+    get:
+      summary: Daftar Diskusi & Komentar Tugas
+      tags:
+        - Task Management - Comments
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Daftar komentar berhasil diambil.
+    post:
+      summary: Tambah Komentar / Balasan pada Tugas
+      tags:
+        - Task Management - Comments
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - comment_text
+              properties:
+                comment_text:
+                  type: string
+                parent_comment_id:
+                  type: integer
+                  nullable: true
+                  description: Diisi ID parent comment jika merupakan balasan (reply)
+                is_internal_only:
+                  type: boolean
+                  default: false
+      responses:
+        '201':
+          description: Komentar berhasil ditambahkan.
+
+  /task-management/master/statuses:
+    get:
+      summary: Master Status Tugas
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: space_id
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Daftar status berhasil diambil.
+
+  /task-management/master/priorities:
+    get:
+      summary: Master Prioritas Tugas (Urgent, High, Normal, Low)
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar prioritas berhasil diambil.
+
+  /task-management/master/task-types:
+    get:
+      summary: Master Tipe Pekerjaan (Task, Bug, Feature, Milestone, dll.)
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar tipe tugas berhasil diambil.
+
+  /task-management/master/departments:
+    get:
+      summary: Master Departemen HRIS Terintegrasi
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar departemen HRIS berhasil diambil.
+
+  /task-management/master/positions:
+    get:
+      summary: Master Posisi / Jabatan Karyawan HRIS
+      description: Mengambil daftar posisi/jabatan aktif dari tabel hris_positions terurut berdasarkan level grade.
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          description: Pencarian nama atau kode posisi
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Daftar posisi berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HrisPosition'
+    post:
+      summary: Tambah Posisi / Jabatan Baru
+      description: Menambahkan master jabatan baru ke tabel hris_positions.
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - position_name
+              properties:
+                position_name:
+                  type: string
+                  example: "Technical Lead"
+                position_code:
+                  type: string
+                  example: "TECH_LEAD"
+                level_grade:
+                  type: integer
+                  example: 4
+                description:
+                  type: string
+                  example: "Memimpin arsitektur teknis"
+                is_active:
+                  type: boolean
+                  default: true
+      responses:
+        '201':
+          description: Posisi berhasil dibuat.
+
+  /task-management/master/positions/{id}:
+    get:
+      summary: Detail Posisi / Jabatan
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail posisi berhasil diambil.
+        '404':
+          description: Posisi tidak ditemukan.
+
+  /task-management/positions:
+    get:
+      summary: Master Posisi / Jabatan (Direct Alias)
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar posisi berhasil diambil.
+    post:
+      summary: Tambah Posisi / Jabatan (Direct Alias)
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      responses:
+        '201':
+          description: Posisi berhasil dibuat.
+
+  /task-management/positions/{id}:
+    get:
+      summary: Detail Posisi / Jabatan (Direct Alias)
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail posisi berhasil diambil.
+
+  /task-management/master/employees:
+    get:
+      summary: Master Karyawan HRIS (Dropdown Assignee Picker)
+      tags:
+        - Task Management - Master Data
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: department_id
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Daftar karyawan berhasil diambil.
+    post:
+      summary: Tambah Karyawan Baru (Create Employee)
+      description: Menambahkan data karyawan baru ke tabel HRIS corporate (hris_employees). Otomatis men-generate NIK unik dan alamat email kantor jika dikosongkan, serta mendukung penugasan langsung melalui ID atau kode departemen dan posisi.
+      tags:
+        - Task Management - Master Data
+        - Task Management - Employees
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - full_name
+              properties:
+                full_name:
+                  type: string
+                  description: Nama lengkap karyawan
+                  example: "Ahmad Fauzi"
+                nik:
+                  type: string
+                  description: NIK karyawan (otomatis dibuat format unik EMP-YYYYMMDD-XXXX jika kosong)
+                  example: "EMP-2026-0042"
+                email_office:
+                  type: string
+                  format: email
+                  description: Email kantor (otomatis dibuat dari nama jika kosong)
+                  example: "ahmad.fauzi@susantimegah.com"
+                nickname:
+                  type: string
+                  description: Nama panggilan karyawan
+                  example: "Fauzi"
+                phone_number:
+                  type: string
+                  example: "081234567890"
+                telegram_chat_id:
+                  type: string
+                  example: "123456789"
+                dept_code:
+                  type: string
+                  description: Kode departemen (misal IT, HRD, FIN, SCM). Alternatif dari department_id.
+                  example: "IT"
+                department_id:
+                  type: integer
+                  description: ID departemen HRIS
+                  example: 1
+                position_code:
+                  type: string
+                  description: Kode posisi (misal STAFF, DEV, MANAGER). Alternatif dari position_id.
+                  example: "STAFF"
+                position_id:
+                  type: integer
+                  description: ID posisi HRIS
+                  example: 1
+                division_id:
+                  type: integer
+                  nullable: true
+                  example: null
+                user_id:
+                  type: integer
+                  nullable: true
+                  description: ID akun login users jika ingin ditautkan langsung
+                  example: null
+                employment_status:
+                  type: string
+                  enum: [PERMANENT, CONTRACT, PROBATION, INTERNSHIP, RESIGNED]
+                  default: PERMANENT
+                  example: "PERMANENT"
+                join_date:
+                  type: string
+                  format: date
+                  description: Tanggal bergabung (YYYY-MM-DD, default hari ini)
+                  example: "2026-10-01"
+                resign_date:
+                  type: string
+                  format: date
+                  nullable: true
+                  example: null
+                is_active:
+                  type: boolean
+                  default: true
+                  example: true
+                avatar_url:
+                  type: string
+                  nullable: true
+                  example: null
+      responses:
+        '201':
+          description: Karyawan berhasil dibuat.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Employee created successfully
+                  data:
+                    $ref: '#/components/schemas/HrisEmployee'
+        '422':
+          description: Validasi input gagal.
+
+  /task-management/master/employees/{id}:
+    get:
+      summary: Detail Karyawan HRIS (Employee Detail)
+      description: Mengambil data detail karyawan berdasarkan ID beserta informasi departemen, divisi, dan posisi.
+      tags:
+        - Task Management - Master Data
+        - Task Management - Employees
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID Karyawan HRIS
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail karyawan berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    $ref: '#/components/schemas/HrisEmployee'
+        '404':
+          description: Karyawan tidak ditemukan.
+
+  /task-management/employees:
+    get:
+      summary: Master Karyawan HRIS (Direct Alias)
+      description: Alias untuk endpoint /task-management/master/employees.
+      tags:
+        - Task Management - Employees
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: department_id
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Daftar karyawan berhasil diambil.
+    post:
+      summary: Tambah Karyawan Baru (Direct Alias)
+      description: Alias untuk endpoint /task-management/master/employees.
+      tags:
+        - Task Management - Employees
+      security:
+        - BearerAuth: []
+      requestBody:
+        $ref: '#/paths/~1task-management~1master~1employees/post/requestBody'
+      responses:
+        '201':
+          description: Karyawan berhasil dibuat.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Employee created successfully
+                  data:
+                    $ref: '#/components/schemas/HrisEmployee'
+
+  /task-management/employees/{id}:
+    get:
+      summary: Detail Karyawan HRIS (Direct Alias)
+      description: Alias untuk endpoint /task-management/master/employees/{id}.
+      tags:
+        - Task Management - Employees
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail karyawan berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    $ref: '#/components/schemas/HrisEmployee'
+
+  /v1/cron-jobs:
+    get:
+      summary: Get Cron Job list with search and filter
+      tags:
+        - Cron Jobs & Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search by name, command, or description
+        - name: is_active
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filter active/inactive status
+      responses:
+        '200':
+          description: Daftar cron job berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar cron job berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CronJob'
+
+    post:
+      summary: Create new Cron Job schedule
+      tags:
+        - Cron Jobs & Monitoring
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - command
+                - expression
+              properties:
+                name:
+                  type: string
+                  example: Sync Master Products
+                command:
+                  type: string
+                  example: sync:master-products
+                expression:
+                  type: string
+                  example: "0 0 * * *"
+                is_active:
+                  type: boolean
+                  example: true
+                description:
+                  type: string
+                  nullable: true
+                  example: Sinkronisasi master produk otomatis setiap tengah malam.
+      responses:
+        '201':
+          description: Cron job berhasil dibuat.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Cron job berhasil dibuat.
+                  data:
+                    $ref: '#/components/schemas/CronJob'
+        '422':
+          description: Validation error.
+
+  /v1/cron-jobs/logs/all:
+    get:
+      summary: Get real-time execution logs across all cron jobs (Monitoring)
+      tags:
+        - Cron Jobs & Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [running, success, failed]
+          description: Filter status eksekusi
+        - name: cron_job_id
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter ID cron job
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search term (message/nama cron/command)
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+          description: Items per page
+      responses:
+        '200':
+          description: Daftar monitoring log eksekusi cron job berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar monitoring log eksekusi cron job berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CronJobLog'
+
+  /v1/cron-jobs/{id}:
+    get:
+      summary: Get Cron Job detail
+      tags:
+        - Cron Jobs & Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Cron Job ID
+      responses:
+        '200':
+          description: Detail cron job berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Detail cron job berhasil diambil.
+                  data:
+                    $ref: '#/components/schemas/CronJob'
+        '404':
+          description: Cron job tidak ditemukan.
+
+    put:
+      summary: Update Cron Job
+      tags:
+        - Cron Jobs & Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Cron Job ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Sync Master Products Updated
+                command:
+                  type: string
+                  example: sync:master-products
+                expression:
+                  type: string
+                  example: "*/15 * * * *"
+                is_active:
+                  type: boolean
+                  example: true
+                description:
+                  type: string
+                  nullable: true
+                  example: Sync setiap 15 menit.
+      responses:
+        '200':
+          description: Cron job berhasil diupdate.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Cron job berhasil diupdate.
+                  data:
+                    $ref: '#/components/schemas/CronJob'
+        '404':
+          description: Cron job tidak ditemukan.
+        '422':
+          description: Validation error.
+
+    delete:
+      summary: Delete Cron Job
+      tags:
+        - Cron Jobs & Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Cron Job ID
+      responses:
+        '200':
+          description: Cron job berhasil dihapus.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Cron job berhasil dihapus.
+                  data:
+                    type: object
+                    nullable: true
+        '404':
+          description: Cron job tidak ditemukan.
+
+  /v1/cron-jobs/{id}/run:
+    post:
+      summary: Trigger manual execution of a Cron Job
+      tags:
+        - Cron Jobs & Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Cron Job ID
+      responses:
+        '200':
+          description: Cron Job berhasil dijalankan.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Cron Job berhasil dijalankan.
+                  data:
+                    $ref: '#/components/schemas/CronJob'
+        '404':
+          description: Cron job tidak ditemukan.
+        '500':
+          description: Cron Job gagal dijalankan.
+
+  /v1/cron-jobs/{id}/logs:
+    get:
+      summary: Get execution logs of a specific Cron Job
+      tags:
+        - Cron Jobs & Monitoring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Cron Job ID
+      responses:
+        '200':
+          description: Riwayat log cron job berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Riwayat log cron job berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CronJobLog'
+
+  /v1/reporting/tasks/sync:
+    post:
+      summary: Sync ClickUp Tasks via n8n Webhook
+      description: Menerima data task tunggal atau batch dari n8n webhook untuk disimpan/diupdate (upsert) ke tabel `reporting_tasks`.
+      tags:
+        - Reporting & Analytics
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/ReportingTaskInput'
+                - type: array
+                  items:
+                    $ref: '#/components/schemas/ReportingTaskInput'
+                - type: object
+                  properties:
+                    tasks:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/ReportingTaskInput'
+      responses:
+        '200':
+          description: Data task ClickUp berhasil disinkronkan.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data task ClickUp berhasil disinkronkan ke database reporting.
+                  data:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 10
+                      success:
+                        type: integer
+                        example: 10
+                      failed:
+                        type: integer
+                        example: 0
+
+  /v1/reporting/tasks:
+    get:
+      summary: Get List of Reporting Tasks
+      description: Mengambil daftar task ClickUp yang tersimpan di database lokal untuk keperluan Data Studio / Looker Studio atau dashboard reporting.
+      tags:
+        - Reporting & Analytics
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Pencarian nama task, task ID, atau assignee
+        - in: query
+          name: space_id
+          schema:
+            type: string
+          description: Filter ClickUp Space ID
+        - in: query
+          name: status
+          schema:
+            type: string
+          description: Filter status task (e.g. to do, in progress, complete)
+        - in: query
+          name: assignee
+          schema:
+            type: string
+          description: Filter assignee
+        - in: query
+          name: priority
+          schema:
+            type: string
+          description: Filter priority (e.g. urgent, high, normal, low)
+        - in: query
+          name: all
+          schema:
+            type: boolean
+          description: Set true untuk mengambil semua baris tanpa paginasi (cocok untuk export Data Studio)
+      responses:
+        '200':
+          description: Daftar reporting tasks berhasil diambil.
+
+  /v1/reporting/tasks/all:
+    get:
+      summary: Get ALL Reporting Tasks (Optimized for Apigee & Google Looker Studio)
+      description: Mengambil seluruh data task ClickUp dari tabel `reporting_tasks` tanpa paginasi untuk kebutuhan konsumsi Apigee API Gateway dan Google Looker Studio. Mendukung filter space_id, status, assignee, priority, dan rentang tanggal.
+      tags:
+        - Reporting & Analytics
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Pencarian nama task, task ID, space ID, atau assignee
+        - in: query
+          name: space_id
+          schema:
+            type: string
+          description: Filter ClickUp Space ID
+        - in: query
+          name: status
+          schema:
+            type: string
+          description: Filter status task (e.g. to do, in progress, complete)
+        - in: query
+          name: assignee
+          schema:
+            type: string
+          description: Filter assignee
+        - in: query
+          name: priority
+          schema:
+            type: string
+          description: Filter priority (e.g. urgent, high, normal, low)
+        - in: query
+          name: start_date_from
+          schema:
+            type: string
+            format: date
+          description: Filter tanggal mulai dari (YYYY-MM-DD)
+        - in: query
+          name: due_date_to
+          schema:
+            type: string
+            format: date
+          description: Filter tanggal jatuh tempo sampai (YYYY-MM-DD)
+      responses:
+        '200':
+          description: Seluruh data reporting tasks berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Seluruh data reporting tasks berhasil diambil."
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ReportingTask'
+        '401':
+          description: Unauthorized - API Key / Token tidak valid.
+
+  /v1/reporting/tasks/summary:
+    get:
+      summary: Get Reporting Tasks Metric Summary
+      description: Mengambil ringkasan metrik statistik tasks (jumlah berdasarkan status, priority, assignee, overdue) untuk visualisasi dashboard.
+      tags:
+        - Reporting & Analytics
+      responses:
+        '200':
+          description: Summary metrik berhasil diambil.
+
+  /v1/reporting/dashboard:
+    get:
+      summary: Get Dashboard KPIs, Charts, and Filter Options for Frontend
+      description: Mengambil seluruh metrik KPI (total, in progress, completed, overdue, due soon, completion rate), data grafik (distribusi status, priority, assignee, list/folder, due date timeline), opsi dropdown filter, dan waktu sinkronisasi terakhir.
+      tags:
+        - Reporting & Analytics
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Pencarian task name, task ID, assignee, dll.
+        - in: query
+          name: space_id
+          schema:
+            type: string
+        - in: query
+          name: folder_name
+          schema:
+            type: string
+        - in: query
+          name: list_name
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: assignee
+          schema:
+            type: string
+        - in: query
+          name: priority
+          schema:
+            type: string
+        - in: query
+          name: start_date_from
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: due_date_to
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Data dashboard monitoring ClickUp berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Data dashboard monitoring ClickUp berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      kpis:
+                        type: object
+                        properties:
+                          total_tasks:
+                            type: integer
+                            example: 120
+                          in_progress:
+                            type: integer
+                            example: 45
+                          completed:
+                            type: integer
+                            example: 60
+                          overdue:
+                            type: integer
+                            example: 8
+                          due_soon:
+                            type: integer
+                            example: 7
+                          completion_rate:
+                            type: number
+                            example: 50.0
+                      charts:
+                        type: object
+                      filter_options:
+                        type: object
+                      last_synced_at:
+                        type: string
+                        example: "2026-08-22 09:15:00"
+
+  /v1/reporting/filters:
+    get:
+      summary: Get All Distinct Filter Options for Frontend Select Dropdowns
+      description: Mengambil seluruh opsi filter dropdown sekaligus (spaces, folders, lists, assignees, statuses, priorities, task_types, timelines).
+      tags:
+        - Reporting & Analytics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Seluruh opsi filter berhasil diambil.
+
+  /v1/reporting/filters/spaces:
+    get:
+      summary: Get Distinct Spaces for Dropdown
+      description: Mengambil daftar unik ClickUp Spaces beserta total tasks.
+      tags:
+        - Reporting & Analytics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar Space berhasil diambil.
+
+  /v1/reporting/filters/folders:
+    get:
+      summary: Get Distinct Folders for Dropdown
+      description: Mengambil daftar unik Folder (mendukung filter opsional `?space_id=`).
+      tags:
+        - Reporting & Analytics
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: space_id
+          schema:
+            type: string
+          description: Filter folders berdasarkan Space ID
+      responses:
+        '200':
+          description: Daftar Folder berhasil diambil.
+
+  /v1/reporting/filters/lists:
+    get:
+      summary: Get Distinct Lists for Dropdown
+      description: Mengambil daftar unik Lists (mendukung filter opsional `?space_id=` dan `?folder_name=`).
+      tags:
+        - Reporting & Analytics
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: space_id
+          schema:
+            type: string
+        - in: query
+          name: folder_name
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Daftar List berhasil diambil.
+
+  /v1/reporting/filters/assignees:
+    get:
+      summary: Get Distinct Assignees for Dropdown
+      description: Mengambil daftar unik individual Assignee beserta total tasks.
+      tags:
+        - Reporting & Analytics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar Assignee berhasil diambil.
+
+  /v1/reporting/filters/statuses:
+    get:
+      summary: Get Distinct Statuses for Dropdown
+      description: Mengambil daftar unik Status task beserta kategori (open, in_progress, completed) dan total tasks.
+      tags:
+        - Reporting & Analytics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar Status berhasil diambil.
+
+  /v1/reporting/filters/priorities:
+    get:
+      summary: Get Distinct Priorities for Dropdown
+      description: Mengambil daftar unik Priority task beserta urutan, badge color (#ef4444, #f97316, dll), dan total tasks.
+      tags:
+        - Reporting & Analytics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar Priority berhasil diambil.
+
+  /v1/reporting/filters/task-types:
+    get:
+      summary: Get Distinct Task Types for Dropdown
+      description: Mengambil daftar unik Task Types beserta total tasks.
+      tags:
+        - Reporting & Analytics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar Task Type berhasil diambil.
+
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

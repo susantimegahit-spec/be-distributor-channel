@@ -1,0 +1,3230 @@
+openapi: 3.0.3
+info:
+  title: "SMESTA API - Modul Sales Order, Return, CMO & Pricing"
+  description: |
+    Dokumentasi API Modular SMESTA (Bagian dari `resources/docs/openapi.yaml`).
+    Edit file ini secara langsung agar ringan di IDE, lalu jalankan `php artisan docs:openapi bundle` untuk menyatukan kembali ke `openapi.yaml`.
+  version: 1.0.0
+servers:
+  - url: https://api-sm-connect.susantimegah.com/api/distributor-channel
+    description: Production Server
+  - url: http://api-dev.susantimegah.com/api/distributor-channel
+    description: Development Server
+  - url: http://localhost:8000/api/distributor-channel
+    description: Local Server
+paths:
+  /v1/sales-orders/sync-from-sap:
+    post:
+      summary: Sync Sales Orders & Discounts From SAP B1
+      description: Menyinkronkan data Sales Order yang sudah terbentuk di SAP B1 beserta detail diskonnya ke database lokal menggunakan API GetDataSO dan getDiscountSO.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                card_codes:
+                  type: array
+                  items:
+                    type: string
+                  description: Daftar Card Code customer/distributor spesifik yang ingin disinkronisasi. Jika kosong, akan menyinkronkan seluruh distributor aktif.
+                  example: ["C110003419", "C110001240"]
+                card_code:
+                  type: string
+                  description: Card code tunggal atau comma-separated.
+                  example: "C110003419"
+      responses:
+        '200':
+          description: Berhasil melakukan sinkronisasi Sales Order dari SAP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    type: object
+                    properties:
+                      code:
+                        type: integer
+                        example: 200
+                      status:
+                        type: string
+                        example: "success"
+                      message:
+                        type: string
+                        example: "Berhasil sinkronisasi 15 Sales Order dari SAP (Baru: 5, Diperbarui: 10)."
+                  data:
+                    type: object
+                    properties:
+                      total_synced:
+                        type: integer
+                        example: 15
+                      total_created:
+                        type: integer
+                        example: 5
+                      total_updated:
+                        type: integer
+                        example: 10
+                      message:
+                        type: string
+                        example: "Berhasil sinkronisasi 15 Sales Order dari SAP (Baru: 5, Diperbarui: 10)."
+        '500':
+          description: Gagal menghubungi API SAP atau terjadi kesalahan database
+  /v1/external/customer-monthly-orders:
+    post:
+      summary: Add Customer Monthly Order via External B2B API
+      description: Endpoint terproteksi API Key untuk sistem distributor (ERP/DMS) membuat CMO secara otomatis dari luar tanpa perlu double input di Customer Portal. Field doc_date bertindak sebagai Posting Date dan tidak boleh backdate (harus tanggal hari ini atau mendatang). Field doc_due_date (Delivery Date) dan eta_date dihitung secara otomatis oleh backend sebagai H+7 dari doc_date (klien tidak perlu mengirimkan field tersebut).
+      tags:
+        - External B2B Integration
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - card_code
+                - distributor_ref_no
+                - doc_date
+                - attachment
+                - lines
+              properties:
+                card_code:
+                  type: string
+                  example: "C110003074"
+                  description: Kode Customer/Distributor di sistem PT Susanti Megah
+                distributor_ref_no:
+                  type: string
+                  example: "PO-DIST-202608-001"
+                  description: Nomor PO / Ref Order Distributor (Idempotency Key)
+                doc_date:
+                  type: string
+                  format: date
+                  example: "2026-09-08"
+                  description: Tanggal dokumen order / posting date (Format YYYY-MM-DD, tidak boleh backdate / harus hari ini atau tanggal mendatang)
+                po_number:
+                  type: string
+                  example: "PO-12345"
+                comments:
+                  type: string
+                  example: "Order bulanan minyak via ERP"
+                attachment:
+                  type: string
+                  format: binary
+                  description: File dokumen PO/lampiran pendukung (Hanya format .pdf, max 10MB)
+                lines:
+                  type: array
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - card_code
+                - distributor_ref_no
+                - doc_date
+                - attachment
+                - lines
+              properties:
+                card_code:
+                  type: string
+                  example: "C110003074"
+                distributor_ref_no:
+                  type: string
+                  example: "PO-DIST-202608-001"
+                doc_date:
+                  type: string
+                  format: date
+                  example: "2026-09-08"
+                  description: Tanggal dokumen order / posting date (Format YYYY-MM-DD, tidak boleh backdate / harus hari ini atau tanggal mendatang)
+                attachment:
+                  type: string
+                  format: binary
+                  description: File dokumen PO/lampiran pendukung (Hanya format .pdf, max 10MB)
+                lines:
+                  type: string
+                  description: Array item order dalam format JSON string (misal '[{"item_code":"B26","quantity":10}]')
+                  example: '[{"item_code":"SKU-MINYAK-01","quantity":50,"unit_price":150000}]'
+                  items:
+                    type: object
+                    required:
+                      - item_code
+                      - quantity
+                    properties:
+                      item_code:
+                        type: string
+                        example: "SKU-MINYAK-01"
+                      quantity:
+                        type: number
+                        example: 50
+                      unit_price:
+                        type: number
+                        example: 0
+                        description: "Harga satuan per item (opsional / boleh diisi 0). Backend secara otomatis menyesuaikan dengan master harga resmi distributor."
+                      unit_msr:
+                        type: string
+                        example: "CTN"
+      responses:
+        '201':
+          description: CMO berhasil dibuat.
+        '200':
+          description: Response Idempotent (Order sudah pernah dibuat sebelumnya).
+        '401':
+          description: API Key / Bearer token tidak valid.
+        '422':
+          description: Validasi data gagal (misal SKU tidak ditemukan).
+  /v1/external/customer-monthly-orders/distributors:
+    get:
+      summary: Get allowed customer codes for API Key
+      description: Mendapatkan daftar kode customer (card_code) yang diizinkan untuk digunakan oleh API Key pengirim.
+      tags:
+        - External B2B Integration
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar distributor berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Daftar distributor berhasil diambil."
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        card_code:
+                          type: string
+                          example: "C110003419"
+                        customer_name:
+                          type: string
+                          example: "SAKTI SETIA SANTOSA, PT."
+                        depo:
+                          type: string
+                          example: "SITUBONDO"
+                        address:
+                          type: string
+                          example: "JL.KERTOPATEN NOMOR 16 SURABAYA"
+                        address_shipto:
+                          type: string
+                          example: "JL. SITUBONDO RAYA NO. 88"
+        '401':
+          description: API Key tidak valid atau dinonaktifkan.
+  /v1/external/customer-monthly-orders/items:
+    get:
+      summary: Get allowed items and prices for customer
+      description: Mendapatkan daftar barang, satuan, dan harga yang berlaku untuk card_code distributor. Akses dibatasi hanya untuk card_code yang terhubung dengan API Key.
+      tags:
+        - External B2B Integration
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: card_code
+          in: query
+          required: true
+          description: Kode Customer/Distributor (contoh C110003419)
+          schema:
+            type: string
+        - name: search
+          in: query
+          required: false
+          description: Pencarian nama barang atau kode barang
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Daftar barang berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Daftar barang berhasil diambil."
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        item_code:
+                          type: string
+                          example: "B26"
+                        item_name:
+                          type: string
+                          example: "MINYAK GORENG 1L"
+                        sales_uom:
+                          type: string
+                          example: "Bal"
+                        price:
+                          type: number
+                          example: 150000.00
+                        brand:
+                          type: string
+                          example: "Sania"
+        '403':
+          description: Akses ditolak karena card_code di luar mapingan API Key.
+        '422':
+          description: Parameter card_code wajib disertakan.
+
+  /v1/sales-dashboard/upload:
+    post:
+      summary: Upload Target or CMO Excel/CSV file
+      description: Mengunggah file spreadsheet (.xlsx, .xls, .csv) untuk target penjualan atau CMO. Dynamic month columns (e.g. Januari 2026, Februari 2026) akan diparse dan dinormalisasi menjadi baris-baris data per bulan/tahun di tabel lokal.
+      tags:
+        - Sales Dashboard
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - type
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File Excel atau CSV
+                type:
+                  type: string
+                  enum: [target, cmo]
+                  description: Tipe data yang diunggah
+      responses:
+        '200':
+          description: Berhasil memproses upload data.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Berhasil memproses upload data target.
+                  data:
+                    type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      processed_rows_count:
+                        type: integer
+                        example: 24
+
+  /v1/sales-dashboard/raw-data:
+    get:
+      summary: Get raw sales dashboard records list
+      description: Mengambil data target, CMO, PO/SO, dan DO mentah dengan pagination dan filter.
+      tags:
+        - Sales Dashboard
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: customer_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter kode customer/distributor
+        - name: brand
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter nama brand
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter bulan (1-12)
+        - name: year
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter tahun
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Pencarian teks
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Data list dashboard berhasil diambil.
+
+  /v1/sales-dashboard/bulk:
+    delete:
+      summary: Reset target/CMO amounts to 0 (Bulk)
+      description: Mereset semua nilai target atau cmo menjadi 0 pada periode (bulan/tahun) tertentu.
+      tags:
+        - Sales Dashboard
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [target, cmo]
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: year
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: customer_code
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Berhasil mereset data.
+
+  /v1/sales-dashboard/sync-so-do:
+    post:
+      summary: Sync local PO/SO actual amounts and DO actual amounts (from SAP)
+      description: Memicu sinkronisasi data actual PO/SO (berdasarkan sales orders lokal) dan DO (berdasarkan pengiriman SAP) untuk bulan/tahun tertentu.
+      tags:
+        - Sales Dashboard
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - month
+                - year
+              properties:
+                month:
+                  type: integer
+                  example: 7
+                year:
+                  type: integer
+                  example: 2026
+                customer_code:
+                  type: string
+                  example: C110003074
+      responses:
+        '200':
+          description: Sinkronisasi data actual berhasil.
+
+  /v1/sales-dashboard/sync:
+    post:
+      summary: Sync CMO, SO, and SAP DO data to sales_dashboard_data
+      description: Memicu sinkronisasi manual untuk data CMO, SO (yang sudah disetujui finance), dan DO (dari SAP) berdasarkan Tahun, CardCode, dan Brand. Hasilnya akan disimpan di tabel sales_dashboard_data (menggunakan customer code override sementara C110001252 jika diset).
+      tags:
+        - Sales Dashboard
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - Tahun
+                - CardCode
+                - Brand
+              properties:
+                Tahun:
+                  type: string
+                  description: Tahun data yang disinkronkan
+                  example: "2026"
+                CardCode:
+                  type: string
+                  description: Kode Customer/CardCode sumber
+                  example: "C110003419"
+                Brand:
+                  type: string
+                  description: Daftar brand yang dipisahkan koma
+                  example: "KAPAL,GARAMI,LAYAR"
+      responses:
+        '200':
+          description: Sinkronisasi data sales dashboard berhasil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data Sales Dashboard berhasil disinkronkan.
+                  data:
+                    type: object
+                    properties:
+                      year:
+                        type: integer
+                        example: 2026
+                      customer_code:
+                        type: string
+                        example: C110001252
+                      cmo_synced:
+                        type: integer
+                        example: 12
+                      so_synced:
+                        type: integer
+                        example: 8
+                      do_synced:
+                        type: integer
+                        example: 2
+
+  /v1/sales-dashboard/comparison:
+    get:
+      summary: Get comparison dashboard data (Target vs CMO vs PO/SO vs DO) by Brand and Month
+      description: Mengambil data perbandingan agregat target, CMO, PO/SO, dan DO dikelompokkan per brand dan per bulan untuk tahun tertentu.
+      tags:
+        - Sales Dashboard
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: year
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Tahun data perbandingan
+          example: 2026
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter bulan tertentu (1-12)
+        - name: customer_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter kode customer
+        - name: brand
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter nama brand (misal KAPAL, atau dipisahkan koma)
+      responses:
+        '200':
+          description: Data perbandingan dashboard berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data perbandingan dashboard berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      year:
+                        type: integer
+                        example: 2026
+                      totals:
+                        type: object
+                        properties:
+                          target:
+                            type: number
+                          cmo:
+                            type: number
+                          so:
+                            type: number
+                          do:
+                            type: number
+                      lines:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            month:
+                              type: integer
+                              example: 1
+                            brand:
+                              type: string
+                              example: "KAPAL"
+                            target_amount:
+                              type: number
+                            cmo_amount:
+                              type: number
+                            so_amount:
+                              type: number
+                            do_amount:
+                              type: number
+
+  /v1/sales-dashboard/{id}:
+    put:
+      summary: Update a single sales dashboard record
+      description: Memperbarui nilai target_amount, cmo_amount, so_amount, do_amount, customer_name, depo, atau brand secara manual berdasarkan ID.
+      tags:
+        - Sales Dashboard
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                target_amount:
+                  type: number
+                  example: 1250000.00
+                cmo_amount:
+                  type: number
+                  example: 1400000.00
+                so_amount:
+                  type: number
+                  example: 1000000.00
+                do_amount:
+                  type: number
+                  example: 950000.00
+                customer_name:
+                  type: string
+                  example: PT Distributor Utama Baru
+                depo:
+                  type: string
+                  example: Surabaya
+                brand:
+                  type: string
+                  example: GARAMI
+      responses:
+        '200':
+          description: Data dashboard berhasil diperbarui.
+    delete:
+      summary: Delete a single sales dashboard record
+      description: Menghapus satu data record berdasarkan ID.
+      tags:
+        - Sales Dashboard
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Record berhasil dihapus.
+
+  /v1/sales-returns/do-by-so:
+    get:
+      summary: Get Delivery Order (DO) lines by Sales Order from SAP
+      description: Mendapatkan daftar detail baris Delivery Order (DO) dari SAP berdasarkan kode/nomor Sales Order (SO).
+      tags:
+        - Sales Return
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: so_num
+          in: query
+          required: true
+          schema:
+            type: string
+          description: SAP DocNum atau ID lokal Sales Order
+          example: "260710018"
+      responses:
+        '200':
+          description: Data DO by SO berhasil diambil dari SAP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data DO by SO berhasil diambil dari SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Status:
+                          type: string
+                          example: O
+                        DocNum:
+                          type: string
+                          example: "260710002"
+                        DocDate:
+                          type: string
+                          example: "20260721"
+                        BaseLine:
+                          type: string
+                          example: "0"
+                        ItemCode:
+                          type: string
+                          example: "B26"
+                        ItemDescription:
+                          type: string
+                          example: "KOP 250 M @ 10 KG / BAL"
+                        Delivered_Qty:
+                          type: string
+                          example: "1550.000000"
+        '401':
+          description: Tidak terautentikasi
+        '500':
+          description: Error internal server atau API SAP
+
+  /v1/sales-returns:
+    get:
+      summary: Get all sales return requests
+      description: Mendapatkan daftar permohonan retur barang, terfilter berdasarkan hak akses distributor user.
+      tags:
+        - Sales Return
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [SUBMITTED, APPROVED, REJECTED]
+          description: Filter status retur
+        - name: start_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Tanggal mulai pengajuan (YYYY-MM-DD)
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Tanggal akhir pengajuan (YYYY-MM-DD)
+      responses:
+        '200':
+          description: Daftar pengajuan retur berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar pengajuan retur berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SalesReturnDetail'
+
+    post:
+      summary: Submit a new sales return request
+      description: Mengajukan permohonan retur barang baru (langsung SUBMITTED) dengan melampirkan bukti foto (maksimal 5 foto).
+      tags:
+        - Sales Return
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                sales_order_id:
+                  type: integer
+                  example: 142
+                reason:
+                  type: string
+                  example: "Barang rusak saat pengiriman fisik"
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      sales_order_detail_id:
+                        type: integer
+                        example: 1043
+                      quantity:
+                        type: number
+                        example: 5.0
+                      reason:
+                        type: string
+                        example: "Pecah di dalam kardus"
+                      do_num:
+                        type: string
+                        example: "260710002"
+                      do_date:
+                        type: string
+                        example: "20260721"
+                      baseline:
+                        type: integer
+                        example: 0
+                attachments:
+                  type: array
+                  maxItems: 5
+                  items:
+                    type: string
+                    format: binary
+              required:
+                - sales_order_id
+                - items
+      responses:
+        '201':
+          description: Pengajuan retur berhasil dikirim.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Pengajuan retur berhasil dikirim.
+                  data:
+                    $ref: '#/components/schemas/SalesReturn'
+
+  /v1/sales-returns/{id}:
+    get:
+      summary: Get details of a sales return request
+      description: Mendapatkan detail lengkap dari satu permohonan retur barang berdasarkan ID.
+      tags:
+        - Sales Return
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail pengajuan retur berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Detail pengajuan retur berhasil diambil.
+                  data:
+                    $ref: '#/components/schemas/SalesReturn'
+
+  /v1/sales-returns/{id}/approve:
+    post:
+      summary: Approve a sales return request (Admin Sales)
+      description: Menyetujui permohonan retur barang. Hanya dapat dilakukan oleh Admin Sales.
+      tags:
+        - Sales Return
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Pengajuan retur berhasil disetujui.
+
+  /v1/sales-returns/{id}/reject:
+    post:
+      summary: Reject a sales return request (Admin Sales)
+      description: Menolak permohonan retur barang. Hanya dapat dilakukan oleh Admin Sales.
+      tags:
+        - Sales Return
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  example: "Kuantitas tidak sesuai fisik"
+              required:
+                - reason
+      responses:
+        '200':
+          description: Pengajuan retur berhasil ditolak.
+
+  /v1/sales-orders/{id}/pdf:
+    get:
+      summary: Download Sales Order PI PDF
+      description: Mengunduh file PDF Proforma Invoice secara langsung dari backend.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari Sales Order
+      responses:
+        '200':
+          description: File PDF berhasil dikembalikan.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  /v1/sales-orders/{id}/invoices:
+    get:
+      summary: Get associated invoices from SAP
+      description: Mengambil daftar invoice yang berasosiasi dengan Sales Order ini dari SAP Business One.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order lokal.
+      responses:
+        '200':
+          description: List invoice berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: List invoice berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        DOCENTRY:
+                          type: string
+                          example: "1209"
+                        INVOICENUM:
+                          type: string
+                          example: "260130002"
+                        DOCDATE:
+                          type: string
+                          example: "20260102"
+                        DOCSTATUS:
+                          type: string
+                          example: "C"
+        '500':
+          description: Gagal mengambil daftar invoice.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/discounts/sap:
+    post:
+      summary: Send UDO Discount to SAP
+      description: Mengirim data diskon UDO ke SAP. Kode diskon diambil secara otomatis melalui API GetNumDis.
+      tags:
+        - Discounts
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - CardCode
+                - CardName
+                - Lines
+              properties:
+                CardCode:
+                  type: string
+                  example: C110003074
+                CardName:
+                  type: string
+                  example: LESAFFRE SARI
+                OldIdDiscount:
+                  type: string
+                  nullable: true
+                  example: "20260620001"
+                Lines:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - TypeDiscount
+                      - Persentase
+                      - TotalDiskon
+                    properties:
+                      TypeDiscount:
+                        type: string
+                        example: Diskon Item
+                      Persentase:
+                        type: number
+                        example: 0
+                      TotalDiskon:
+                        type: number
+                        example: 3000000
+                      Remarks:
+                        type: string
+                        example: DISC SEMARAK AWAL THN
+                      BatchId:
+                        type: integer
+                        nullable: true
+                        example: 12
+      responses:
+        '200':
+          description: Diskon UDO berhasil dikirim ke SAP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Diskon UDO berhasil dikirim ke SAP.
+                  data:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                        example: "20260314001"
+                      sap_response:
+                        type: object
+        '422':
+          description: Validasi gagal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Gagal menghubungi API SAP / API SAP mengembalikan error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/discounts/types:
+    get:
+      summary: List all discount types
+      description: Mendapatkan daftar semua tipe diskon dari database lokal (yang telah disinkronkan).
+      tags:
+        - Discounts
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Keyword pencarian berdasarkan tipe atau deskripsi.
+      responses:
+        '200':
+          description: Daftar tipe diskon berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar tipe diskon berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        fld_value:
+                          type: string
+                          example: Cash Diskon
+                        descr:
+                          type: string
+                          example: Cash Diskon
+                        status:
+                          type: integer
+                          example: 1
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2026-06-10T08:00:00.000000Z"
+                        updated_at:
+                          type: string
+                          format: date-time
+                          example: "2026-06-10T08:00:00.000000Z"
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/discounts/types/sync:
+    post:
+      summary: Sync discount types from SAP
+      description: Melakukan sinkronisasi data master tipe diskon dari SAP ke database lokal.
+      tags:
+        - Discounts
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sinkronisasi data tipe diskon berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data tipe diskon berhasil disinkronisasi dari SAP.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        fld_value:
+                          type: string
+                          example: Cash Diskon
+                        descr:
+                          type: string
+                          example: Cash Diskon
+                        status:
+                          type: integer
+                          example: 1
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Gagal menghubungi API SAP / API SAP mengembalikan error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-employees:
+    get:
+      summary: List all Sales Employees
+      description: Mendapatkan daftar semua sales employee hasil sinkronisasi SAP.
+      tags:
+        - Sales Employees
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kata kunci untuk mencari sales employee berdasarkan SlpCode atau SlpName (case-insensitive).
+        - name: code_customer
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kode customer/distributor untuk menyaring sales employee yang terpetakan saja.
+      responses:
+        '200':
+          description: Daftar Sales Employee berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar Sales Employee berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SalesEmployee'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-employees/sync:
+    post:
+      summary: Sync Sales Employees from SAP
+      description: Melakukan sinkronisasi data master sales employee dari SAP ke database lokal.
+      tags:
+        - Sales Employees
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sinkronisasi data Sales Employee berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Data Sales Employee berhasil disinkronisasi dari SAP.
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SalesEmployee'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Gagal menghubungi API SAP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-orders/max-discount:
+    get:
+      summary: Get maximum discount setting
+      description: Mendapatkan batas persentase maksimal diskon yang dikonfigurasi.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Batas maksimal diskon berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Batas maksimal diskon berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      max_discount:
+                        type: number
+                        format: float
+                        example: 20.00
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-orders/series:
+    get:
+      summary: Get Series from SAP
+      description: Mendapatkan data Series dari SAP berdasarkan CustomQuery (tanggal).
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: CustomQuery
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Parameter query tanggal dalam format YYYYMMDD (default tanggal hari ini)
+          example: "20260101"
+        - name: CardCode
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Parameter CardCode pelanggan
+          example: "17"
+      responses:
+        '200':
+          description: Sukses mendapatkan daftar series
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Daftar series berhasil diambil."
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Series:
+                          type: string
+                          example: "4185"
+                        SeriesName:
+                          type: string
+                          example: "SBY26-01"
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-orders/credit-limit:
+    get:
+      summary: Get Credit Limit from SAP
+      description: Mendapatkan data Credit Limit dari SAP berdasarkan CodeCustomer / CustomQuery.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: CustomQuery
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kode Customer / CardCode dari SAP (Bisa menggunakan param 'CodeCustomer' juga).
+          example: C110003175
+        - name: CodeCustomer
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kode Customer / CardCode dari SAP.
+          example: C110003175
+      responses:
+        '200':
+          description: Sukses mendapatkan data credit limit
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Data credit limit berhasil diambil."
+                  data:
+                    type: object
+                    properties:
+                      ErrorCode:
+                        type: integer
+                        example: 0
+                      Message:
+                        type: string
+                        example: ""
+                      Result:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            CardCode:
+                              type: string
+                              example: "C110003175"
+                            CardName:
+                              type: string
+                              example: "PT SUSANTI MEGAH"
+                            CreditLimit:
+                              type: number
+                              example: 500000000
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-orders/dashboard:
+    get:
+      summary: Get Sales Order Dashboard Summary
+      description: Mendapatkan data ringkasan dashboard penjualan bulanan, volume, status order, tren harian, produk terlaris, dan distributor terbaik (hanya admin). Jika login sebagai distributor, otomatis difilter khusus untuk distributor tersebut.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sukses mendapatkan data statistik dashboard
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Statistik dashboard sales order berhasil diambil."
+                  data:
+                    type: object
+                    properties:
+                      sales_summary:
+                        type: object
+                        properties:
+                          total_revenue_this_month:
+                            type: number
+                            example: 1500000.00
+                          total_volume_kg_this_month:
+                            type: number
+                            example: 1000.5
+                          total_orders_this_month:
+                            type: integer
+                            example: 15
+                      order_statuses:
+                        type: object
+                        properties:
+                          DRAFT:
+                            type: integer
+                            example: 0
+                          CREATED:
+                            type: integer
+                            example: 2
+                          WAITING_APPROVAL:
+                            type: integer
+                            example: 1
+                          APPROVED:
+                            type: integer
+                            example: 5
+                          DELIVERY:
+                            type: integer
+                            example: 3
+                          ARRIVED:
+                            type: integer
+                            example: 20
+                          REJECTED:
+                            type: integer
+                            example: 1
+                          FAILED:
+                            type: integer
+                            example: 0
+                      daily_sales_trend:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            date:
+                              type: string
+                              example: "2026-07-06"
+                            count:
+                              type: integer
+                              example: 3
+                            total:
+                              type: number
+                              example: 300000.00
+                      top_products:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            item_code:
+                              type: string
+                              example: "E65"
+                            item_name:
+                              type: string
+                              example: "TOP 250 M @ 10 KG / BAL"
+                            total_qty:
+                              type: number
+                              example: 50.0000
+                      top_distributors:
+                        type: array
+                        description: Hanya dikembalikan jika diakses oleh Admin.
+                        items:
+                          type: object
+                          properties:
+                            distributor_id:
+                              type: integer
+                              example: 1
+                            name:
+                              type: string
+                              example: "PT XYZ"
+                            total_spent:
+                              type: number
+                              example: 150000.00
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-orders/check-eta:
+    get:
+      summary: Cek sales order berdasarkan tanggal ETA
+      description: Mendapatkan daftar sales order dengan kondisi tanggal ETA lebih cepat dari tanggal request ETA yang dikirimkan.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: customer_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kode customer (CardCode) untuk memfilter data. Jika kosong, data semua customer akan diambil.
+          example: C110003074
+        - name: eta_date_request
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Tanggal batas request ETA (YYYY-MM-DD). Data SO yang memiliki eta_date < eta_date_request akan diambil.
+          example: "2026-03-06"
+      responses:
+        '200':
+          description: Daftar sales order berdasarkan cek ETA berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderListResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validasi gagal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/customer-monthly-orders/reports/by-depo:
+    get:
+      summary: Get CMO report grouped by depo
+      description: Mendapatkan laporan kumulatif jumlah order dan nilai nominal rupiah CMO per depo.
+      tags:
+        - Customer Monthly Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by status
+        - name: card_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by customer code
+        - name: start_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Start date filter
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: End date filter
+        - name: year
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Year filter (e.g. 2026)
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Month filter (1-12)
+      responses:
+        '200':
+          description: Laporan CMO per depo berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Laporan CMO per depo berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        depo:
+                          type: string
+                          example: SURABAYA
+                        total_orders:
+                          type: integer
+                          example: 5
+                        total_amount:
+                          type: number
+                          example: 250000000.00
+
+  /v1/customer-monthly-orders/reports/by-year:
+    get:
+      summary: Get CMO report grouped by year / month
+      description: Mendapatkan laporan kumulatif CMO per tahun. Jika filter tahun diisi, akan mengembalikan detail bulanan untuk tahun tersebut.
+      tags:
+        - Customer Monthly Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by status
+        - name: card_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by customer code
+        - name: start_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Start date filter
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: End date filter
+        - name: year
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Specific year filter to retrieve monthly breakdown
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Month filter (1-12)
+      responses:
+        '200':
+          description: Laporan CMO per tahun/bulan berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Laporan CMO per tahun/bulan berhasil diambil.
+                  data:
+                    type: array
+                    items:
+                      oneOf:
+                        - type: object
+                          description: Yearly Summary (If no year is specified)
+                          properties:
+                            year:
+                              type: integer
+                              example: 2026
+                            total_orders:
+                              type: integer
+                              example: 10
+                            total_amount:
+                              type: number
+                              example: 550000000.00
+                        - type: object
+                          description: Monthly Breakdown (If year is specified)
+                          properties:
+                            month:
+                              type: integer
+                              example: 8
+                            total_orders:
+                              type: integer
+                              example: 3
+                            total_amount:
+                              type: number
+                              example: 150000000.00
+
+  /v1/customer-monthly-orders/reports/detail-export:
+    get:
+      summary: Export detailed monthly CMO report as Excel
+      description: Mendapatkan file Excel laporan bulanan detail transaksi CMO yang dikelompokkan dan diakumulasikan per depo, kode barang, nama barang, dan brand.
+      tags:
+        - Customer Monthly Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by status
+        - name: card_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by customer code
+        - name: start_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Start date filter
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: End date filter
+        - name: year
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Year filter (e.g. 2026)
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Month filter (1-12)
+        - name: depo
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by depo name (supports comma-separated list)
+        - name: brand
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by brand name (supports comma-separated list)
+        - name: item_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by item code
+      responses:
+        '200':
+          description: Laporan CMO detail per bulan berhasil diexport dalam format Excel
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+
+  /v1/customer-monthly-orders:
+    get:
+      summary: List all customer monthly orders (CMO)
+      description: Mendapatkan daftar semua customer monthly order. Jika diakses oleh user distributor, hanya menampilkan order miliknya.
+      tags:
+        - Customer Monthly Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan status order
+        - name: card_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan kode customer (CardCode)
+        - name: start_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Filter tanggal mulai pembuatan/doc_date (YYYY-MM-DD)
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Filter tanggal akhir pembuatan/doc_date (YYYY-MM-DD)
+      responses:
+        '200':
+          description: Daftar customer monthly order berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderListResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Create a new Customer Monthly Order (CMO)
+      description: Membuat draft Customer Monthly Order baru.
+      tags:
+        - Customer Monthly Orders
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SalesOrderDraftUpdateRequest'
+      responses:
+        '201':
+          description: Customer monthly order draft berhasil dibuat.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderResponse'
+        '401':
+          description: Tidak terautentikasi
+        '403':
+          description: Hak akses ditolak
+
+  /v1/customer-monthly-orders/{id}:
+    get:
+      summary: Get details of a single customer monthly order (CMO)
+      description: Mengambil data detail customer monthly order berdasarkan ID.
+      tags:
+        - Customer Monthly Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail customer monthly order berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderResponse'
+        '401':
+          description: Tidak terautentikasi
+        '404':
+          description: Data tidak ditemukan
+    put:
+      summary: Update a Customer Monthly Order (CMO)
+      description: Memperbarui draft Customer Monthly Order (hanya jika statusnya masih DRAFT).
+      tags:
+        - Customer Monthly Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SalesOrderDraftUpdateRequest'
+      responses:
+        '200':
+          description: Customer monthly order berhasil diperbarui.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderResponse'
+        '400':
+          description: CMO tidak dapat diperbarui (sudah diposting)
+        '401':
+          description: Tidak terautentikasi
+    delete:
+      summary: Delete a Customer Monthly Order (CMO)
+      description: Menghapus data Customer Monthly Order (hanya jika statusnya masih DRAFT).
+      tags:
+        - Customer Monthly Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Customer monthly order berhasil dihapus.
+        '400':
+          description: CMO tidak dapat dihapus (sudah diposting)
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/customer-monthly-orders/{id}/post-to-so:
+    post:
+      summary: Post Customer Monthly Order to Sales Order
+      description: Menyalin/membuat Sales Order baru dari data CMO terpilih dengan status WAITING_OM. Status CMO yang diposting akan diperbarui menjadi POSTED.
+      tags:
+        - Customer Monthly Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '201':
+          description: Customer monthly order berhasil diposting ke Sales Order.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderResponse'
+        '400':
+          description: Gagal memposting CMO (sudah pernah diposting)
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/sales-orders:
+    get:
+      summary: List all sales orders
+      description: Mendapatkan daftar semua sales order. Jika diakses oleh user distributor, hanya menampilkan sales order miliknya.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan status order
+        - name: card_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan kode customer (CardCode)
+        - name: start_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Filter tanggal mulai pembuatan/doc_date (YYYY-MM-DD)
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Filter tanggal akhir pembuatan/doc_date (YYYY-MM-DD)
+      responses:
+        '200':
+          description: Daftar sales order berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderListResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Create Sales Order Draft or Direct Submit
+      description: Membuat draft sales order baru. Jika parameter 'action' diisi 'submit', Sales Order akan langsung dibuat dan dikirim ke OM.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SalesOrderDraftUpdateRequest'
+      responses:
+        '200':
+          description: Sales order berhasil dibuat (sebagai draft atau langsung terkirim)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderResponse'
+        '403':
+          description: Hak akses ditolak (hanya untuk distributor)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validasi input gagal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-orders/{id}:
+    get:
+      summary: Get sales order detail
+      description: Mendapatkan detail satu sales order beserta detail itemnya berdasarkan ID.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order
+      responses:
+        '200':
+          description: Detail sales order berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderResponse'
+        '404':
+          description: Sales order tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      summary: Update Sales Order or Process Workflow Action
+      description: Memperbarui draft sales order atau menjalankan aksi alur persetujuan (submit, approve, reject) tergantung pada parameter request body.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveSalesOrderRequest'
+      responses:
+        '200':
+          description: Draft sales order berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderResponse'
+        '404':
+          description: Sales order tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validasi gagal atau status bukan DRAFT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete draft sales order
+      description: Menghapus draft sales order (hanya diperbolehkan jika status order masih DRAFT).
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order
+      responses:
+        '200':
+          description: Draft sales order berhasil dihapus
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessageResponse'
+        '404':
+          description: Sales order tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Gagal menghapus karena status bukan DRAFT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-orders/{id}/post-sap:
+    post:
+      summary: Post sales order to SAP
+      description: Mengintegrasikan/mengirim data sales order yang disetujui ke SAP Business One.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order yang ingin dikirim ke SAP
+      responses:
+        '200':
+          description: Sales order berhasil dikirim ke SAP
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Sales order berhasil dikirim ke SAP.
+                  data:
+                    type: object
+                    properties:
+                      ErrorCode:
+                        type: integer
+                        example: 0
+                      Message:
+                        type: string
+                        example: Sales Order added successfully
+                      Result:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            DocEntry:
+                              type: integer
+                              example: 9999
+                            DocNum:
+                              type: string
+                              example: SO9999
+        '400':
+          description: Gagal mengintegrasikan sales order ke SAP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-orders/{id}/sync-sap:
+    post:
+      summary: Sync SAP status of a specific sales order
+      description: Mensinkronisasikan status pengiriman (Delivery) dan pembayaran dari SAP Business One ke database lokal.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order yang ingin disinkronisasi
+      responses:
+        '200':
+          description: SAP status synchronized successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: SAP status synchronized successfully.
+                  data:
+                    $ref: '#/components/schemas/SalesOrder'
+        '400':
+          description: Gagal sinkronisasi status SAP (misal data SO tidak ditemukan di SAP, atau belum terintegrasi)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-orders/{id}/arrive:
+    post:
+      summary: Mark sales order as arrived (order completed)
+      description: Mengubah status sales order dari DELIVERY menjadi ARRIVED secara manual oleh distributor (pesanan selesai).
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order yang ingin diubah statusnya menjadi ARRIVED
+      responses:
+        '200':
+          description: Order status marked as arrived successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Order status marked as arrived successfully.
+                  data:
+                    $ref: '#/components/schemas/SalesOrder'
+        '400':
+          description: Gagal mengubah status (misal status order bukan DELIVERY)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-orders/{id}/cancel:
+    post:
+      summary: Cancel Sales Order (sync to SAP B1)
+      description: Membatalkan Sales Order yang sudah di-approve finance (memiliki sap_doc_num) dan belum berstatus DELIVERY/ARRIVED. Mengirim request CancelSO ke SAP dan mengubah status lokal menjadi CANCELLED.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order yang ingin dibatalkan
+      responses:
+        '200':
+          description: Sales Order berhasil dibatalkan dan disinkronisasikan ke SAP B1.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Sales Order berhasil dibatalkan dan disinkronisasikan ke SAP.
+                  data:
+                    $ref: '#/components/schemas/SalesOrder'
+        '400':
+          description: Pembatalan gagal karena melanggar aturan bisnis atau error dari API SAP.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-orders/sync-all:
+    post:
+      summary: Batch sync all pending Sales Orders status from SAP
+      description: Mensinkronisasikan status pengiriman (Delivery) dan pembayaran dari SAP Business One secara masal untuk semua Sales Order dari 1 bulan ke belakang yang sudah memiliki sap_doc_num dan belum berstatus Closed.
+      tags:
+        - Sales Orders
+      responses:
+        '200':
+          description: Batch status synchronization completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Batch status synchronization completed.
+                  data:
+                    type: object
+                    properties:
+                      updated_count:
+                        type: integer
+                        example: 5
+        '400':
+          description: Gagal melakukan sinkronisasi batch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-orders/{id}/submit:
+    post:
+      summary: Submit sales order to OM
+      description: Mengirim draft sales order ke level persetujuan selanjutnya (OM). Mengubah status menjadi WAITING_OM.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order
+      responses:
+        '200':
+          description: Sales order berhasil disubmit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderResponse'
+        '400':
+          description: Gagal memproses persetujuan (status tidak sesuai atau validasi gagal)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-orders/{id}/approve:
+    post:
+      summary: Approve sales order
+      description: Menyetujui sales order ke level persetujuan berikutnya. Bisa ditambahkan catatan (notes) opsional.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes:
+                  type: string
+                  example: "Disetujui"
+      responses:
+        '200':
+          description: Sales order berhasil disetujui
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderResponse'
+        '400':
+          description: Gagal memproses persetujuan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-orders/{id}/reject:
+    post:
+      summary: Reject sales order
+      description: Menolak sales order dan mengembalikannya ke Distributor (DRAFT). Memerlukan alasan penolakan (notes).
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - notes
+              properties:
+                notes:
+                  type: string
+                  example: "Harga/jumlah tidak sesuai"
+      responses:
+        '200':
+          description: Sales order berhasil ditolak
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderResponse'
+        '400':
+          description: Gagal memproses penolakan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-orders/{id}/save-discounts:
+    post:
+      summary: Save discounts (Admin Sales)
+      description: Mengisi diskon untuk item-item dalam sales order. Hanya bisa diakses oleh Admin Sales saat status order WAITING_ADMIN_SALES.
+      tags:
+        - Sales Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id_discount:
+                  type: string
+                  example: "260310699"
+                lines:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - id
+                    properties:
+                      id:
+                        type: integer
+                        description: ID line item detail
+                        example: 1
+                      disc_1:
+                        type: number
+                        example: 5.0
+                      disc_2:
+                        type: number
+                        example: 2.5
+                      disc_3:
+                        type: number
+                        example: 0
+                      price_after_disc:
+                        type: number
+                        example: 118275
+      responses:
+        '200':
+          description: Diskon berhasil disimpan dan status diteruskan ke Finance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesOrderResponse'
+        '400':
+          description: Gagal menyimpan diskon
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-orders/{id}/email-action:
+    get:
+      summary: Email quick action (ASM)
+      description: Endpoint publik bertanda tangan (signed URL) untuk persetujuan cepat oleh ASM dari email. Menerima query parameter action (approve/reject) dan memproses persetujuan langsung atau menampilkan formulir penolakan HTML.
+      tags:
+        - Sales Orders
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order
+        - name: action
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [approve, reject]
+          description: Aksi persetujuan (approve atau reject)
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: ID User ASM yang menyetujui
+        - name: signature
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Hash tanda tangan URL Laravel
+        - name: expires
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Timestamp kedaluwarsa tautan
+      responses:
+        '200':
+          description: Mengembalikan halaman HTML berisi status persetujuan sukses atau form penolakan
+          content:
+            text/html:
+              schema:
+                type: string
+        '401':
+          description: Tautan kedaluwarsa atau signature tidak valid
+          content:
+            text/html:
+              schema:
+                type: string
+        '404':
+          description: Sales order tidak ditemukan
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /v1/sales-orders/{id}/email-reject:
+    post:
+      summary: Email quick reject submit (ASM)
+      description: Endpoint publik bertanda tangan (signed URL) untuk submit alasan penolakan (notes) dari form email ASM.
+      tags:
+        - Sales Orders
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID dari sales order
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - user_id
+                - notes
+              properties:
+                user_id:
+                  type: integer
+                  description: ID User ASM
+                notes:
+                  type: string
+                  description: Alasan penolakan
+      responses:
+        '200':
+          description: Mengembalikan halaman HTML berisi status penolakan sukses
+          content:
+            text/html:
+              schema:
+                type: string
+        '401':
+          description: Tautan kedaluwarsa atau signature tidak valid
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /v1/distributor-item-prices:
+    get:
+      summary: Get distributor item prices
+      description: Mendapatkan daftar harga item distributor dengan search filter (code_customer, name, item_code, item_name).
+      tags:
+        - Distributor Item Prices
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Keyword pencarian customer code, nama customer, item code, atau nama item
+        - name: code_customer
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan kode customer distributor (untuk role distributor, otomatis terisolasi ke kode miliknya)
+        - name: item_code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan kode item spesifik
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Status harga (1 = aktif, 0 = nonaktif)
+      responses:
+        '200':
+          description: Daftar harga item distributor berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistributorItemPriceListResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Create distributor item price
+      description: Menambahkan data harga item baru untuk distributor tertentu.
+      tags:
+        - Distributor Item Prices
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDistributorItemPriceRequest'
+      responses:
+        '201':
+          description: Harga item distributor berhasil ditambahkan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistributorItemPriceResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validasi input gagal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/distributor-item-prices/{id}:
+    get:
+      summary: Get distributor item price detail
+      description: Mendapatkan detail data harga item distributor berdasarkan ID.
+      tags:
+        - Distributor Item Prices
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID harga item distributor
+      responses:
+        '200':
+          description: Detail harga item distributor berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistributorItemPriceResponse'
+        '404':
+          description: Data tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      summary: Update distributor item price
+      description: Memperbarui data harga item distributor berdasarkan ID.
+      tags:
+        - Distributor Item Prices
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID harga item distributor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDistributorItemPriceRequest'
+      responses:
+        '200':
+          description: Harga item distributor berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistributorItemPriceResponse'
+        '404':
+          description: Data tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validasi input gagal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete distributor item price
+      description: Menghapus data harga item distributor berdasarkan ID.
+      tags:
+        - Distributor Item Prices
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID harga item distributor
+      responses:
+        '200':
+          description: Harga item distributor berhasil dihapus
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessageResponse'
+        '404':
+          description: Data tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/sales-distributors:
+    get:
+      summary: List all sales-distributor mappings
+      description: Mendapatkan daftar pemetaan antara sales employee dan distributor (paginated).
+      tags:
+        - Sales Distributor Mappings
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: code_customer
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter berdasarkan kode distributor.
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: integer
+            enum: [0, 1]
+          description: Filter status aktif (1) atau nonaktif (0).
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Keyword pencarian berdasarkan customer name, slp name, dll.
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Jumlah baris data per halaman.
+      responses:
+        '200':
+          description: Daftar pemetaan berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Daftar pemetaan sales dan distributor berhasil diambil.
+                  data:
+                    type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/SalesDistributorMapping'
+                      current_page:
+                        type: integer
+                      last_page:
+                        type: integer
+                      per_page:
+                        type: integer
+                      total:
+                        type: integer
+        '401':
+          description: Tidak terautentikasi
+
+    post:
+      summary: Create sales-distributor mapping
+      description: Membuat data pemetaan baru antara sales employee dan distributor.
+      tags:
+        - Sales Distributor Mappings
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code_customer
+                - slp_code
+              properties:
+                code_customer:
+                  type: string
+                  example: C110000411
+                slp_code:
+                  type: integer
+                  example: 28
+                status:
+                  type: integer
+                  enum: [0, 1]
+                  example: 1
+      responses:
+        '200':
+          description: Pemetaan berhasil dibuat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Pemetaan sales dan distributor berhasil dibuat.
+                  data:
+                    $ref: '#/components/schemas/SalesDistributorMapping'
+        '422':
+          description: Validasi gagal atau data sudah terdaftar
+        '401':
+          description: Tidak terautentikasi
+
+  /v1/sales-distributors/{id}:
+    get:
+      summary: Get sales-distributor mapping detail
+      description: Mendapatkan detail satu pemetaan berdasarkan ID.
+      tags:
+        - Sales Distributor Mappings
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detail pemetaan berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Detail pemetaan sales dan distributor berhasil diambil.
+                  data:
+                    $ref: '#/components/schemas/SalesDistributorMapping'
+        '404':
+          description: Pemetaan tidak ditemukan
+        '401':
+          description: Tidak terautentikasi
+
+    put:
+      summary: Update sales-distributor mapping
+      description: Memperbarui data pemetaan berdasarkan ID.
+      tags:
+        - Sales Distributor Mappings
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code_customer:
+                  type: string
+                  example: C110000411
+                slp_code:
+                  type: integer
+                  example: 28
+                status:
+                  type: integer
+                  enum: [0, 1]
+                  example: 0
+      responses:
+        '200':
+          description: Pemetaan berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Pemetaan sales dan distributor berhasil diperbarui.
+                  data:
+                    $ref: '#/components/schemas/SalesDistributorMapping'
+        '422':
+          description: Validasi gagal atau bentrok
+        '404':
+          description: Pemetaan tidak ditemukan
+        '401':
+          description: Tidak terautentikasi
+
+    delete:
+      summary: Delete sales-distributor mapping
+      description: Menghapus data pemetaan berdasarkan ID.
+      tags:
+        - Sales Distributor Mappings
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Pemetaan berhasil dihapus
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Pemetaan sales dan distributor berhasil dihapus.
+        '404':
+          description: Pemetaan tidak ditemukan
+        '401':
+          description: Tidak terautentikasi
+
+  /customer-monthly-orders/{id}/post-to-so:
+    post:
+      summary: Post Customer Monthly Order (CMO) to Sales Order
+      description: Memproses CMO dari status DRAFT menjadi POSTED dan membuat Sales Order baru dengan status WAITING_OM. Mendukung pengiriman eta_date atau request_delivery_date / doc_due_date dari frontend untuk memperbarui tanggal permintaan pengiriman distributor pada CMO dan Sales Order yang terbentuk.
+      tags:
+        - Customer Monthly Order (CMO)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 26
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                eta_date:
+                  type: string
+                  format: date
+                  description: Tanggal estimasi tiba / jadwal pengiriman baru yang diajukan distributor
+                  example: "2026-09-26"
+                doc_due_date:
+                  type: string
+                  format: date
+                  description: Tanggal pengiriman yang diminta (Request Delivery Date)
+                  example: "2026-09-26"
+                request_delivery_date:
+                  type: string
+                  format: date
+                  description: Alias untuk doc_due_date
+                  example: "2026-09-26"
+      responses:
+        '201':
+          description: Customer monthly order berhasil diposting ke Sales Order dengan status WAITING_OM.
+        '400':
+          description: Validasi gagal atau order sudah diposting sebelumnya.
+        '404':
+          description: Customer monthly order tidak ditemukan.
+
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
