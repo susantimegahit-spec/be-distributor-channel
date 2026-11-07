@@ -31,9 +31,14 @@
       margin: 0;
       padding: 0;
       font-family: var(--font-sans);
+      background-color: #ffffff;
+      color: #0f172a;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    body.dark-mode {
       background-color: #0b0f19;
       color: #f8fafc;
-      transition: background-color 0.2s ease, color 0.2s ease;
     }
 
     /* Light Mode Adaptive Styling */
@@ -261,10 +266,184 @@
       --scalar-font-code: var(--font-mono);
       --scalar-color-accent: #0284c7;
     }
+
+    /* ============================================================
+       Interactive Documentation Pets (3 Walking Pets)
+     ============================================================ */
+    #smesta-pet-playground {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 110px;
+      pointer-events: none;
+      z-index: 9999;
+      overflow: visible;
+    }
+
+    .smesta-pet {
+      position: fixed;
+      bottom: 6px;
+      width: 58px;
+      height: 58px;
+      pointer-events: auto;
+      cursor: grab;
+      user-select: none;
+      -webkit-user-select: none;
+      z-index: 9999;
+      filter: drop-shadow(0 4px 6px rgba(15, 23, 42, 0.22));
+      transition: filter 0.15s ease;
+    }
+
+    .smesta-pet:hover {
+      filter: drop-shadow(0 6px 12px rgba(2, 132, 199, 0.45));
+    }
+
+    .smesta-pet:active {
+      cursor: grabbing;
+    }
+
+    .smesta-pet-sprite {
+      width: 100%;
+      height: 100%;
+      transform-origin: center bottom;
+      transition: transform 0.12s ease;
+    }
+
+    .smesta-pet.walking .smesta-pet-body {
+      animation: petWalkBob 0.36s infinite alternate ease-in-out;
+    }
+
+    .smesta-pet.walking .pet-leg-a {
+      animation: petLegSwingA 0.28s infinite alternate ease-in-out;
+      transform-origin: center top;
+    }
+
+    .smesta-pet.walking .pet-leg-b {
+      animation: petLegSwingB 0.28s infinite alternate ease-in-out;
+      transform-origin: center top;
+    }
+
+    .smesta-pet .pet-tail {
+      animation: petTailWag 0.55s infinite alternate ease-in-out;
+      transform-origin: left center;
+    }
+
+    @keyframes petWalkBob {
+      0% { transform: translateY(0px) rotate(-1.5deg); }
+      100% { transform: translateY(-4px) rotate(1.5deg); }
+    }
+
+    @keyframes petLegSwingA {
+      0% { transform: rotate(-18deg); }
+      100% { transform: rotate(18deg); }
+    }
+
+    @keyframes petLegSwingB {
+      0% { transform: rotate(18deg); }
+      100% { transform: rotate(-18deg); }
+    }
+
+    @keyframes petTailWag {
+      0% { transform: rotate(-14deg); }
+      100% { transform: rotate(16deg); }
+    }
+
+    .smesta-pet-nametag {
+      position: absolute;
+      bottom: -5px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.78);
+      color: #ffffff;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 999px;
+      white-space: nowrap;
+      pointer-events: none;
+      letter-spacing: 0.03em;
+    }
+
+    body.dark-mode .smesta-pet-nametag {
+      background: rgba(30, 41, 59, 0.92);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+    }
+
+    .smesta-pet-bubble {
+      position: absolute;
+      bottom: 64px;
+      left: 50%;
+      transform: translateX(-50%) scale(0.85);
+      background: #ffffff;
+      color: #0f172a;
+      border: 1.5px solid #0284c7;
+      border-radius: 10px;
+      padding: 4px 9px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.16);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .smesta-pet-bubble::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 6px 5px 0;
+      border-style: solid;
+      border-color: #0284c7 transparent transparent;
+    }
+
+    .smesta-pet-bubble.visible {
+      opacity: 1;
+      transform: translateX(-50%) scale(1);
+    }
+
+    body.dark-mode .smesta-pet-bubble {
+      background: #1e293b;
+      color: #f8fafc;
+      border-color: #38bdf8;
+    }
+
+    body.dark-mode .smesta-pet-bubble::after {
+      border-color: #38bdf8 transparent transparent;
+    }
+
+    .smesta-pet-ball {
+      position: fixed;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #fde047, #eab308 60%, #ca8a04);
+      border: 2px solid #ffffff;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+      z-index: 9998;
+      pointer-events: none;
+      display: none;
+    }
+
+    .pet-heart-particle {
+      position: fixed;
+      font-size: 14px;
+      pointer-events: none;
+      z-index: 10000;
+      animation: petHeartFloat 0.9s ease-out forwards;
+    }
+
+    @keyframes petHeartFloat {
+      0% { opacity: 1; transform: translateY(0) scale(0.8); }
+      100% { opacity: 0; transform: translateY(-38px) scale(1.35); }
+    }
   </style>
 </head>
 
-<body class="dark-mode">
+<body class="light-mode">
 
   <!-- Top Glassmorphism Navigation Bar -->
   <header class="smesta-topbar">
@@ -296,17 +475,17 @@
       <!-- Dark / Light Mode Toggle Button -->
       <button class="action-btn btn-theme-toggle" onclick="toggleScalarTheme()" id="theme-toggle-btn" title="Ubah Tema Gelap / Terang">
         <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="5"></circle>
-          <line x1="12" y1="1" x2="12" y2="3"></line>
-          <line x1="12" y1="21" x2="12" y2="23"></line>
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-          <line x1="1" y1="12" x2="3" y2="12"></line>
-          <line x1="21" y1="12" x2="23" y2="12"></line>
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
         </svg>
-        <span id="theme-label">Light Mode</span>
+        <span id="theme-label">Dark Mode</span>
+      </button>
+
+      <!-- Interactive Pets Controls -->
+      <button class="action-btn" onclick="throwPetBall()" title="Lempar bola untuk dikejar 3 Pet!">
+        <span>🎾 Main Bola</span>
+      </button>
+      <button class="action-btn" id="pet-toggle-btn" onclick="togglePetsVisibility()" title="Tampilkan / Sembunyikan Pet Interaktif">
+        <span>🐾 Pets (3)</span>
       </button>
 
       <!-- Switch to Classic RapiDoc View -->
@@ -329,17 +508,34 @@
     </div>
   </header>
 
-  <!-- Scalar Configuration Script with Default Theme & Auto-Expanded Tags -->
+  <script>
+    // Set preferensi awal sebelum Scalar di-mount (default: light)
+    (function() {
+      const savedTheme = localStorage.getItem('smesta-docs-theme-v2') || 'light';
+      localStorage.setItem('colorMode', savedTheme);
+      if (savedTheme === 'dark') {
+        document.body.classList.remove('light-mode');
+        document.body.classList.add('dark-mode');
+      } else {
+        document.body.classList.remove('dark-mode');
+        document.body.classList.add('light-mode');
+      }
+    })();
+  </script>
+
+  <!-- Scalar Configuration Script with Default Light Theme & Auto-Expanded Tags -->
   <script
     id="api-reference"
     data-url="/docs/openapi.yaml"
-    data-configuration='{"theme":"default","darkMode":true,"showSidebar":true,"defaultOpenAllTags":true,"searchHotKey":"k"}'
+    data-configuration='{"theme":"default","darkMode":false,"forceDarkModeState":null,"showSidebar":true,"defaultOpenAllTags":true,"searchHotKey":"k"}'
   ></script>
 
   <!-- Scalar Standalone CDN Script -->
   <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
 
   <script>
+    const THEME_STORAGE_KEY = 'smesta-docs-theme-v2';
+
     // Sinkronisasi status tema (Dark / Light) antara Scalar dan Topbar
     function updateThemeUI(isDark) {
       const label = document.getElementById('theme-label');
@@ -355,25 +551,34 @@
       }
     }
 
-    function toggleScalarTheme() {
-      // 1. Cari dan klik tombol toggle tema bawaan Scalar
-      const scalarToggleBtn = document.querySelector('.darklight-reference button, button.text-c-2, [aria-label*="theme" i], [aria-label*="mode" i]');
-      if (scalarToggleBtn) {
-        scalarToggleBtn.click();
-        setTimeout(checkBodyTheme, 150);
-        return;
-      }
+    function applyScalarTheme(theme) {
+      const isDark = theme === 'dark';
+      localStorage.setItem(THEME_STORAGE_KEY, isDark ? 'dark' : 'light');
+      localStorage.setItem('colorMode', isDark ? 'dark' : 'light');
 
-      // 2. Fallback jika tombol belum ter-render
-      if (document.body.classList.contains('dark-mode')) {
-        document.body.classList.remove('dark-mode');
-        document.body.classList.add('light-mode');
-        updateThemeUI(false);
-      } else {
+      if (isDark) {
         document.body.classList.remove('light-mode');
         document.body.classList.add('dark-mode');
-        updateThemeUI(true);
+      } else {
+        document.body.classList.remove('dark-mode');
+        document.body.classList.add('light-mode');
       }
+
+      // Sinkronkan juga ke tombol internal Scalar bila ada dan state-nya berbeda
+      const scalarToggleBtn = document.querySelector('.darklight-reference button, button.darklight');
+      if (scalarToggleBtn) {
+        const currentBodyDark = document.body.classList.contains('dark-mode');
+        if (currentBodyDark !== isDark) {
+          scalarToggleBtn.click();
+        }
+      }
+
+      updateThemeUI(isDark);
+    }
+
+    function toggleScalarTheme() {
+      const currentlyDark = document.body.classList.contains('dark-mode');
+      applyScalarTheme(currentlyDark ? 'light' : 'dark');
     }
 
     function checkBodyTheme() {
@@ -383,14 +588,12 @@
 
     // Trigger Scalar Search Modal
     function triggerScalarSearch() {
-      // 1. Coba klik search button Scalar jika ada
       const scalarSearchBtn = document.querySelector('.t-doc__sidebar-search, button[aria-label*="Search" i], [data-testid="search-button"]');
       if (scalarSearchBtn) {
         scalarSearchBtn.click();
         return;
       }
 
-      // 2. Dispatch keyboard event Ctrl+K
       const eventOpts = { key: 'k', code: 'KeyK', keyCode: 75, which: 75, ctrlKey: true, metaKey: true, bubbles: true, cancelable: true };
       window.dispatchEvent(new KeyboardEvent('keydown', eventOpts));
       document.dispatchEvent(new KeyboardEvent('keydown', eventOpts));
@@ -403,18 +606,439 @@
       }
     });
 
-    // Pantau perubahan class pada document.body saat tema diubah
+    // Pantau perubahan class pada document.body saat tema diubah dari dalam Scalar sidebar
     const observer = new MutationObserver(function(mutations) {
       mutations.forEach(function(mutation) {
         if (mutation.attributeName === 'class') {
-          checkBodyTheme();
+          const isDark = document.body.classList.contains('dark-mode');
+          localStorage.setItem(THEME_STORAGE_KEY, isDark ? 'dark' : 'light');
+          updateThemeUI(isDark);
         }
       });
     });
     observer.observe(document.body, { attributes: true });
 
-    // Inisialisasi awal
-    window.addEventListener('DOMContentLoaded', checkBodyTheme);
+    // Inisialisasi awal & paksa sesuai preferensi setelah Scalar selesai mount
+    window.addEventListener('DOMContentLoaded', function() {
+      const savedTheme = localStorage.getItem(THEME_STORAGE_KEY) || 'light';
+      applyScalarTheme(savedTheme);
+      setTimeout(function() {
+        applyScalarTheme(localStorage.getItem(THEME_STORAGE_KEY) || 'light');
+      }, 300);
+    });
+  </script>
+
+  <!-- ============================================================
+       3 Interactive Walking Pets Playground (Auto-Spawn at Start)
+   ============================================================ -->
+  <div id="smesta-pet-playground">
+    <div id="smesta-pet-ball" class="smesta-pet-ball"></div>
+
+    <!-- Pet 1: Oyen (Kucing Oren) -->
+    <div id="pet-oyen" class="smesta-pet walking" title="Klik atau tarik Oyen!">
+      <div class="smesta-pet-bubble" id="bubble-oyen">Meow! Selamat datang di Docs! 🐾</div>
+      <div class="smesta-pet-sprite" id="sprite-oyen">
+        <svg viewBox="0 0 64 64" width="58" height="58" xmlns="http://www.w3.org/2000/svg">
+          <g class="smesta-pet-body">
+            <path class="pet-tail" d="M14 40 Q4 32 8 22" fill="none" stroke="#f97316" stroke-width="5" stroke-linecap="round"/>
+            <rect class="pet-leg-b" x="18" y="44" width="6" height="12" rx="3" fill="#ea580c"/>
+            <rect class="pet-leg-a" x="38" y="44" width="6" height="12" rx="3" fill="#ea580c"/>
+            <ellipse cx="31" cy="39" rx="16" ry="11" fill="#fb923c"/>
+            <path d="M25 29 Q27 35 25 40" stroke="#c2410c" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+            <path d="M32 28 Q34 35 32 40" stroke="#c2410c" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+            <rect class="pet-leg-a" x="23" y="45" width="6" height="12" rx="3" fill="#fb923c"/>
+            <rect class="pet-leg-b" x="42" y="45" width="6" height="12" rx="3" fill="#fb923c"/>
+            <circle cx="44" cy="27" r="12" fill="#fb923c"/>
+            <polygon points="35,19 37,8 44,16" fill="#ea580c"/>
+            <polygon points="37,17 38,11 42,16" fill="#fda4af"/>
+            <polygon points="45,16 52,8 54,20" fill="#ea580c"/>
+            <polygon points="47,16 51,11 52,18" fill="#fda4af"/>
+            <circle cx="41" cy="26" r="2.2" fill="#0f172a"/>
+            <circle cx="49" cy="26" r="2.2" fill="#0f172a"/>
+            <circle cx="41.7" cy="25.3" r="0.8" fill="#ffffff"/>
+            <circle cx="49.7" cy="25.3" r="0.8" fill="#ffffff"/>
+            <polygon points="45,29 43,31.5 47,31.5" fill="#f43f5e"/>
+            <line x1="33" y1="29" x2="38" y2="30" stroke="#7c2d12" stroke-width="1.3" stroke-linecap="round"/>
+            <line x1="33" y1="32" x2="38" y2="32" stroke="#7c2d12" stroke-width="1.3" stroke-linecap="round"/>
+            <line x1="51" y1="30" x2="57" y2="29" stroke="#7c2d12" stroke-width="1.3" stroke-linecap="round"/>
+            <line x1="51" y1="32" x2="57" y2="32" stroke="#7c2d12" stroke-width="1.3" stroke-linecap="round"/>
+          </g>
+        </svg>
+      </div>
+      <div class="smesta-pet-nametag">🐱 Oyen</div>
+    </div>
+
+    <!-- Pet 2: Shiba (Anjing Shiba Inu) -->
+    <div id="pet-shiba" class="smesta-pet walking" title="Klik atau tarik Shiba!">
+      <div class="smesta-pet-bubble" id="bubble-shiba">Guk! Semua Endpoint Ready! 🚀</div>
+      <div class="smesta-pet-sprite" id="sprite-shiba">
+        <svg viewBox="0 0 64 64" width="58" height="58" xmlns="http://www.w3.org/2000/svg">
+          <g class="smesta-pet-body">
+            <path class="pet-tail" d="M15 36 C6 28, 10 18, 18 24 C20 26, 17 32, 15 34" fill="none" stroke="#eab308" stroke-width="5" stroke-linecap="round"/>
+            <rect class="pet-leg-b" x="17" y="44" width="6.5" height="12" rx="3" fill="#ca8a04"/>
+            <rect class="pet-leg-a" x="37" y="44" width="6.5" height="12" rx="3" fill="#ca8a04"/>
+            <ellipse cx="30" cy="39" rx="16" ry="11.5" fill="#facc15"/>
+            <ellipse cx="34" cy="42" rx="11" ry="7" fill="#fef9c3"/>
+            <rect class="pet-leg-a" x="22" y="45" width="6.5" height="12" rx="3" fill="#facc15"/>
+            <rect class="pet-leg-b" x="41" y="45" width="6.5" height="12" rx="3" fill="#facc15"/>
+            <path d="M35 31 Q42 36 48 31" fill="none" stroke="#ef4444" stroke-width="3.5" stroke-linecap="round"/>
+            <circle cx="43" cy="35" r="2.5" fill="#fde047" stroke="#b45309" stroke-width="1"/>
+            <circle cx="44" cy="25" r="12.5" fill="#facc15"/>
+            <ellipse cx="40" cy="29" rx="4.5" ry="4" fill="#fef9c3"/>
+            <ellipse cx="49" cy="29" rx="4.5" ry="4" fill="#fef9c3"/>
+            <circle cx="41" cy="21" r="1.5" fill="#fef9c3"/>
+            <circle cx="48" cy="21" r="1.5" fill="#fef9c3"/>
+            <polygon points="34,17 36,6 43,14" fill="#ca8a04"/>
+            <polygon points="46,14 53,6 55,18" fill="#ca8a04"/>
+            <circle cx="41" cy="24.5" r="2.2" fill="#0f172a"/>
+            <circle cx="48.5" cy="24.5" r="2.2" fill="#0f172a"/>
+            <circle cx="41.6" cy="23.8" r="0.7" fill="#ffffff"/>
+            <circle cx="49.1" cy="23.8" r="0.7" fill="#ffffff"/>
+            <ellipse cx="45" cy="28" rx="2.4" ry="1.7" fill="#0f172a"/>
+            <path d="M43.5 30.5 Q45 35 46.8 30.5" fill="#fb7185"/>
+          </g>
+        </svg>
+      </div>
+      <div class="smesta-pet-nametag">🐶 Shiba</div>
+    </div>
+
+    <!-- Pet 3: Piko (Dino Emerald) -->
+    <div id="pet-piko" class="smesta-pet walking" title="Klik atau tarik Piko!">
+      <div class="smesta-pet-bubble" id="bubble-piko">Rawr! 200 OK Selalu! ✨</div>
+      <div class="smesta-pet-sprite" id="sprite-piko">
+        <svg viewBox="0 0 64 64" width="58" height="58" xmlns="http://www.w3.org/2000/svg">
+          <g class="smesta-pet-body">
+            <path class="pet-tail" d="M16 41 L5 36 L14 33 Z" fill="#10b981"/>
+            <polygon points="20,29 24,23 27,29" fill="#f59e0b"/>
+            <polygon points="27,27 31,20 34,27" fill="#f59e0b"/>
+            <polygon points="34,18 39,11 41,19" fill="#f59e0b"/>
+            <rect class="pet-leg-b" x="21" y="44" width="7" height="12" rx="3.5" fill="#059669"/>
+            <ellipse cx="29" cy="38" rx="14" ry="11" fill="#10b981"/>
+            <ellipse cx="33" cy="40" rx="9" ry="7.5" fill="#a7f3d0"/>
+            <rect class="pet-leg-a" x="33" y="45" width="7" height="12" rx="3.5" fill="#10b981"/>
+            <path d="M40 35 L47 37" stroke="#059669" stroke-width="3.5" stroke-linecap="round"/>
+            <rect x="34" y="15" width="20" height="16" rx="8" fill="#10b981"/>
+            <circle cx="46" cy="21" r="2.5" fill="#0f172a"/>
+            <circle cx="46.8" cy="20.2" r="0.9" fill="#ffffff"/>
+            <circle cx="41" cy="25" r="2.2" fill="#fda4af" opacity="0.7"/>
+            <path d="M44 26 Q49 29 52 25" fill="none" stroke="#064e3b" stroke-width="1.8" stroke-linecap="round"/>
+          </g>
+        </svg>
+      </div>
+      <div class="smesta-pet-nametag">🦖 Piko</div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      const PET_MESSAGES = {
+        oyen: [
+          'Meow! Selamat datang di SMESTA Docs! 🐾',
+          'Jangan lupa isi Bearer Token ya! 🔐',
+          'Meow~ Tekan Ctrl+K buat cari cepat! 🔍',
+          'Klik aku kalau butuh semangat! ❤️',
+          'Purrr... Response 200 OK! ✨',
+          'Coba lempar bola di tombol atas! 🎾'
+        ],
+        shiba: [
+          'Guk! Semua endpoint siap di-test! 🚀',
+          'SAP & Database tersinkronisasi! 🔥',
+          'Semangat ngoding hari ini! 💻',
+          'Woof! Jangan lupa cek schema ya! 📦',
+          'Guk guk! Lempar bolanya dong! 🎾',
+          'API lancar jaya tanpa error! ✅'
+        ],
+        piko: [
+          'Rawr! 200 OK tanpa kendala! 🦖',
+          'Butuh test endpoint? Klik Test Request! ⚡',
+          'Piko siap menemani baca dokumentasi! 🌟',
+          'Rawr~ Dokumentasi rapi & cepat! 🚀',
+          'Tarik atau klik aku kapan saja! ✨',
+          'Yuk main kejar bola! 🎾'
+        ]
+      };
+
+      const pets = [
+        {
+          id: 'oyen',
+          el: document.getElementById('pet-oyen'),
+          sprite: document.getElementById('sprite-oyen'),
+          bubble: document.getElementById('bubble-oyen'),
+          x: Math.max(60, Math.floor(window.innerWidth * 0.18)),
+          y: 6,
+          vy: 0,
+          vx: 1.45,
+          baseSpeed: 1.45,
+          dir: 1,
+          state: 'walk',
+          stateTimer: 260,
+          bubbleTimer: 220,
+          dragging: false
+        },
+        {
+          id: 'shiba',
+          el: document.getElementById('pet-shiba'),
+          sprite: document.getElementById('sprite-shiba'),
+          bubble: document.getElementById('bubble-shiba'),
+          x: Math.max(180, Math.floor(window.innerWidth * 0.48)),
+          y: 6,
+          vy: 0,
+          vx: -1.75,
+          baseSpeed: 1.75,
+          dir: -1,
+          state: 'walk',
+          stateTimer: 310,
+          bubbleTimer: 260,
+          dragging: false
+        },
+        {
+          id: 'piko',
+          el: document.getElementById('pet-piko'),
+          sprite: document.getElementById('sprite-piko'),
+          bubble: document.getElementById('bubble-piko'),
+          x: Math.max(300, Math.floor(window.innerWidth * 0.76)),
+          y: 6,
+          vy: 0,
+          vx: 1.25,
+          baseSpeed: 1.25,
+          dir: 1,
+          state: 'walk',
+          stateTimer: 290,
+          bubbleTimer: 300,
+          dragging: false
+        }
+      ];
+
+      const ball = {
+        el: document.getElementById('smesta-pet-ball'),
+        active: false,
+        x: 0,
+        y: 0,
+        vx: 0,
+        vy: 0
+      };
+
+      let petsVisible = true;
+      let activeDragPet = null;
+      let dragOffsetX = 0;
+      let dragOffsetY = 0;
+      let dragMoved = false;
+
+      function showBubble(pet, text, durationFrames) {
+        if (!pet.bubble) return;
+        pet.bubble.textContent = text;
+        pet.bubble.classList.add('visible');
+        pet.bubbleTimer = durationFrames || 180;
+      }
+
+      function spawnHeart(x, bottomY, symbol) {
+        const heart = document.createElement('div');
+        heart.className = 'pet-heart-particle';
+        heart.textContent = symbol || '❤️';
+        heart.style.left = (x + 18 + (Math.random() * 20 - 10)) + 'px';
+        heart.style.bottom = (bottomY + 48) + 'px';
+        document.body.appendChild(heart);
+        setTimeout(function() {
+          heart.remove();
+        }, 900);
+      }
+
+      pets.forEach(function(pet, idx) {
+        if (!pet.el) return;
+
+        setTimeout(function() {
+          showBubble(pet, PET_MESSAGES[pet.id][0], 240);
+        }, 300 + idx * 450);
+
+        pet.el.addEventListener('mousedown', function(e) {
+          e.preventDefault();
+          activeDragPet = pet;
+          pet.dragging = true;
+          dragMoved = false;
+          const rect = pet.el.getBoundingClientRect();
+          dragOffsetX = e.clientX - rect.left;
+          dragOffsetY = window.innerHeight - e.clientY - pet.y;
+        });
+
+        pet.el.addEventListener('click', function() {
+          if (dragMoved) return;
+          pet.vy = 9.5;
+          pet.state = 'walk';
+          pet.el.classList.add('walking');
+          const msgs = PET_MESSAGES[pet.id];
+          const randomMsg = msgs[Math.floor(Math.random() * msgs.length)];
+          showBubble(pet, randomMsg, 190);
+          spawnHeart(pet.x, pet.y, '❤️');
+          setTimeout(function() { spawnHeart(pet.x, pet.y, '✨'); }, 140);
+        });
+      });
+
+      window.addEventListener('mousemove', function(e) {
+        if (!activeDragPet) return;
+        dragMoved = true;
+        const maxX = window.innerWidth - 68;
+        activeDragPet.x = Math.max(10, Math.min(maxX, e.clientX - dragOffsetX));
+        activeDragPet.y = Math.max(6, Math.min(window.innerHeight - 100, window.innerHeight - e.clientY - 28));
+        activeDragPet.vy = 0;
+      });
+
+      window.addEventListener('mouseup', function() {
+        if (activeDragPet) {
+          activeDragPet.dragging = false;
+          showBubble(activeDragPet, 'Wheee~! 🐾', 120);
+          activeDragPet = null;
+        }
+      });
+
+      window.throwPetBall = function() {
+        if (!petsVisible) {
+          window.togglePetsVisibility();
+        }
+        ball.active = true;
+        ball.x = Math.floor(window.innerWidth * (0.2 + Math.random() * 0.6));
+        ball.y = Math.floor(window.innerHeight * 0.65);
+        ball.vx = (Math.random() > 0.5 ? 1 : -1) * (4 + Math.random() * 4);
+        ball.vy = 3;
+        ball.el.style.display = 'block';
+
+        pets.forEach(function(pet) {
+          pet.state = 'walk';
+          pet.el.classList.add('walking');
+          showBubble(pet, 'Bola!! Kejar! 🎾', 140);
+        });
+      };
+
+      window.togglePetsVisibility = function() {
+        const playground = document.getElementById('smesta-pet-playground');
+        const btn = document.getElementById('pet-toggle-btn');
+        petsVisible = !petsVisible;
+        if (playground) {
+          playground.style.display = petsVisible ? 'block' : 'none';
+        }
+        if (btn) {
+          btn.innerHTML = petsVisible ? '<span>🐾 Pets (3)</span>' : '<span>🐾 Pets (Off)</span>';
+          btn.style.opacity = petsVisible ? '1' : '0.6';
+        }
+      };
+
+      function animatePets() {
+        if (petsVisible) {
+          const maxX = Math.max(120, window.innerWidth - 68);
+
+          if (ball.active) {
+            ball.x += ball.vx;
+            ball.y += ball.vy;
+            ball.vy -= 0.48;
+
+            if (ball.x <= 12) {
+              ball.x = 12;
+              ball.vx = Math.abs(ball.vx) * 0.82;
+            } else if (ball.x >= maxX) {
+              ball.x = maxX;
+              ball.vx = -Math.abs(ball.vx) * 0.82;
+            }
+
+            if (ball.y <= 8) {
+              ball.y = 8;
+              ball.vy = Math.abs(ball.vy) * 0.68;
+              ball.vx *= 0.94;
+              if (Math.abs(ball.vy) < 1.2 && Math.abs(ball.vx) < 0.35) {
+                ball.vy = 0;
+              }
+            }
+
+            ball.el.style.left = ball.x + 'px';
+            ball.el.style.bottom = ball.y + 'px';
+          }
+
+          pets.forEach(function(pet) {
+            if (!pet.el) return;
+
+            if (!pet.dragging) {
+              if (pet.y > 6 || pet.vy !== 0) {
+                pet.y += pet.vy;
+                pet.vy -= 0.52;
+                if (pet.y <= 6) {
+                  pet.y = 6;
+                  if (Math.abs(pet.vy) > 3) {
+                    pet.vy = Math.abs(pet.vy) * 0.32;
+                  } else {
+                    pet.vy = 0;
+                  }
+                }
+              }
+
+              if (ball.active) {
+                const dx = ball.x - pet.x;
+                if (Math.abs(dx) > 18) {
+                  pet.dir = dx > 0 ? 1 : -1;
+                  pet.x += pet.dir * (pet.baseSpeed * 1.9);
+                  pet.el.classList.add('walking');
+                } else if (ball.y < 36) {
+                  ball.vy = 8 + Math.random() * 4;
+                  ball.vx = (Math.random() - 0.5) * 10;
+                  pet.vy = 6.5;
+                  spawnHeart(pet.x, pet.y, '🎾');
+                  showBubble(pet, 'Dapat bolanya! 🏆', 130);
+                  setTimeout(function() {
+                    ball.active = false;
+                    ball.el.style.display = 'none';
+                  }, 3200);
+                }
+              } else {
+                pet.stateTimer--;
+                if (pet.stateTimer <= 0) {
+                  const rand = Math.random();
+                  if (rand < 0.78) {
+                    pet.state = 'walk';
+                    pet.dir = Math.random() > 0.5 ? 1 : -1;
+                    pet.stateTimer = 180 + Math.floor(Math.random() * 260);
+                    pet.el.classList.add('walking');
+                  } else {
+                    pet.state = 'idle';
+                    pet.stateTimer = 70 + Math.floor(Math.random() * 90);
+                    pet.el.classList.remove('walking');
+                  }
+
+                  if (Math.random() < 0.28) {
+                    const msgs = PET_MESSAGES[pet.id];
+                    showBubble(pet, msgs[Math.floor(Math.random() * msgs.length)], 160);
+                  }
+                }
+
+                if (pet.state === 'walk') {
+                  pet.x += pet.dir * pet.baseSpeed;
+                  if (pet.x <= 14) {
+                    pet.x = 14;
+                    pet.dir = 1;
+                  } else if (pet.x >= maxX) {
+                    pet.x = maxX;
+                    pet.dir = -1;
+                  }
+                }
+              }
+            }
+
+            if (pet.bubbleTimer > 0) {
+              pet.bubbleTimer--;
+              if (pet.bubbleTimer === 0 && pet.bubble) {
+                pet.bubble.classList.remove('visible');
+              }
+            }
+
+            pet.el.style.left = Math.round(pet.x) + 'px';
+            pet.el.style.bottom = Math.round(pet.y) + 'px';
+            if (pet.sprite) {
+              pet.sprite.style.transform = 'scaleX(' + (pet.dir >= 0 ? 1 : -1) + ')';
+            }
+          });
+        }
+
+        requestAnimationFrame(animatePets);
+      }
+
+      requestAnimationFrame(animatePets);
+    })();
   </script>
 
 </body>
